@@ -72,9 +72,8 @@ export default function DiscoveryScreen() {
       // When sound finishes
       sound.setOnPlaybackStatusUpdate((status) => {
         if (status.isLoaded && status.didJustFinish) {
-          setPlayingSongId(null);
-        }
-      });
+      player.play();
+      setPlayingSongId(song.deezer_id);
     } catch (error) {
       console.error('Failed to play preview:', error);
     }
