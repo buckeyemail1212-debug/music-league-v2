@@ -265,19 +265,10 @@ const styles = StyleSheet.create({
     height: 100,
     borderRadius: 50,
   },
-  editBadge: {
-    position: 'absolute',
-    bottom: 60,
-    right: '35%',
-    backgroundColor: '#6366f1',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: '#0a0a0a',
-    zIndex: 10,
+  tapToChange: {
+    fontSize: 12,
+    color: '#6366f1',
+    marginTop: 8,
   },
   username: {
     fontSize: 24,
