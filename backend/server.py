@@ -241,7 +241,35 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         id=current_user["id"],
         email=current_user["email"],
         username=current_user["username"],
+        profile_photo=current_user.get("profile_photo"),
         created_at=current_user["created_at"]
+    )
+
+@api_router.put("/auth/me", response_model=UserResponse)
+async def update_profile(update_data: UserUpdate, current_user: dict = Depends(get_current_user)):
+    update_fields = {}
+    
+    if update_data.username is not None:
+        # Check if username is taken by another user
+        existing = await db.users.find_one({"username": update_data.username, "id": {"$ne": current_user["id"]}})
+        if existing:
+            raise HTTPException(status_code=400, detail="Username already taken")
+        update_fields["username"] = update_data.username
+    
+    if update_data.profile_photo is not None:
+        update_fields["profile_photo"] = update_data.profile_photo
+    
+    if update_fields:
+        await db.users.update_one({"id": current_user["id"]}, {"$set": update_fields})
+    
+    # Fetch updated user
+    user = await db.users.find_one({"id": current_user["id"]})
+    return UserResponse(
+        id=user["id"],
+        email=user["email"],
+        username=user["username"],
+        profile_photo=user.get("profile_photo"),
+        created_at=user["created_at"]
     )
 
 # ==================== LEAGUE ENDPOINTS ====================
