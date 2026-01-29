@@ -290,47 +290,53 @@ export default function HomeScreen() {
         transparent={true}
         onRequestClose={() => setShowJoinModal(false)}
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalOverlay}
-        >
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Join League</Text>
-              <TouchableOpacity onPress={() => setShowJoinModal(false)}>
-                <Ionicons name="close" size={24} color="#888" />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.modalForm}>
-              <Text style={styles.inputLabel}>League Code</Text>
-              <TextInput
-                style={[styles.modalInput, styles.codeInput]}
-                placeholder="XXXXXX"
-                placeholderTextColor="#666"
-                value={leagueCode}
-                onChangeText={(text) => setLeagueCode(text.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
-                autoCapitalize="characters"
-                autoCorrect={false}
-                autoComplete="off"
-                spellCheck={false}
-                maxLength={6}
-                selectionColor="#6366f1"
-              />
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.modalOverlay}
+          >
+            <TouchableWithoutFeedback>
+              <View style={styles.modalContent}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Join League</Text>
+                  <TouchableOpacity onPress={() => setShowJoinModal(false)}>
+                    <Ionicons name="close" size={24} color="#888" />
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.modalForm}>
+                  <Text style={styles.inputLabel}>League Code</Text>
+                  <TextInput
+                    style={[styles.modalInput, styles.codeInput]}
+                    placeholder="XXXXXX"
+                    placeholderTextColor="#666"
+                    value={leagueCode}
+                    onChangeText={(text) => setLeagueCode(text.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                    autoComplete="off"
+                    spellCheck={false}
+                    textContentType="none"
+                    keyboardType="default"
+                    maxLength={6}
+                    selectionColor="#6366f1"
+                  />
 
-              <TouchableOpacity
-                style={[styles.submitButton, styles.joinSubmitButton, joining && styles.buttonDisabled]}
-                onPress={handleJoinLeague}
-                disabled={joining}
-              >
-                {joining ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.submitButtonText}>Join League</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
+                  <TouchableOpacity
+                    style={[styles.submitButton, styles.joinSubmitButton, joining && styles.buttonDisabled]}
+                    onPress={handleJoinLeague}
+                    disabled={joining}
+                  >
+                    {joining ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <Text style={styles.submitButtonText}>Join League</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </KeyboardAvoidingView>
+        </TouchableWithoutFeedback>
       </Modal>
     </SafeAreaView>
   );
