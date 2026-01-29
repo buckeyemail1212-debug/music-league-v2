@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
+import { useAudioPlayer } from 'expo-audio';
 import { searchSongs, Song } from '../../src/services/api';
 
 export default function DiscoveryScreen() {
@@ -21,14 +21,12 @@ export default function DiscoveryScreen() {
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(false);
   const [playingSongId, setPlayingSongId] = useState<number | null>(null);
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const player = useAudioPlayer(null);
   const searchTimeout = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     return () => {
-      if (soundRef.current) {
-        soundRef.current.unloadAsync();
-      }
+      player.pause();
     };
   }, []);
 
@@ -59,25 +57,16 @@ export default function DiscoveryScreen() {
 
   const playPreview = async (song: Song) => {
     try {
-      // Stop current sound if playing
-      if (soundRef.current) {
-        await soundRef.current.stopAsync();
-        await soundRef.current.unloadAsync();
-        soundRef.current = null;
-      }
-
       // If same song was playing, just stop
       if (playingSongId === song.deezer_id) {
+        player.pause();
         setPlayingSongId(null);
         return;
       }
 
       // Play new song
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: song.preview_url },
-        { shouldPlay: true }
-      );
-      soundRef.current = sound;
+      player.pause();
+      player.replace({ uri: song.preview_url });
       setPlayingSongId(song.deezer_id);
 
       // When sound finishes
