@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
-import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
+import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import { useAuth } from '../../src/context/AuthContext';
 import {
@@ -252,7 +252,7 @@ export default function RoundScreen() {
             style={[styles.serviceButtonSmall, { backgroundColor: '#1DB954' }]}
             onPress={() => openInService(item.song, 'spotify')}
           >
-            <FontAwesome5 name="spotify" size={12} color="#fff" />
+            <FontAwesome name="spotify" size={12} color="#fff" />
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.serviceButtonSmall, { backgroundColor: '#FA243C' }]}
@@ -303,7 +303,7 @@ export default function RoundScreen() {
               style={[styles.serviceButtonSmall, { backgroundColor: '#1DB954' }]}
               onPress={() => openInService(submission.song, 'spotify')}
             >
-              <FontAwesome5 name="spotify" size={12} color="#fff" />
+              <FontAwesome name="spotify" size={12} color="#fff" />
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.serviceButtonSmall, { backgroundColor: '#FA243C' }]}

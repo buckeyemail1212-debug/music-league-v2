@@ -11,7 +11,7 @@ import {
   Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
+import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import { searchSongs, Song } from '../../src/services/api';
 
@@ -150,7 +150,7 @@ export default function DiscoveryScreen() {
             style={[styles.serviceButton, { backgroundColor: '#1DB954' }]}
             onPress={() => openInService(item, 'spotify')}
           >
-            <FontAwesome5 name="spotify" size={16} color="#fff" />
+            <FontAwesome name="spotify" size={16} color="#fff" />
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.serviceButton, { backgroundColor: '#FA243C' }]}
