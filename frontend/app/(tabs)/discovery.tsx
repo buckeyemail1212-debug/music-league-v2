@@ -67,11 +67,6 @@ export default function DiscoveryScreen() {
       // Play new song
       player.pause();
       player.replace({ uri: song.preview_url });
-      setPlayingSongId(song.deezer_id);
-
-      // When sound finishes
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded && status.didJustFinish) {
       player.play();
       setPlayingSongId(song.deezer_id);
     } catch (error) {
