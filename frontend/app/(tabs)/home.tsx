@@ -82,7 +82,6 @@ export default function HomeScreen() {
       setShowCreateModal(false);
       resetCreateForm();
       await fetchLeagues();
-      Alert.alert('Success', 'League created successfully!');
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.detail || 'Failed to create league');
     } finally {
@@ -102,7 +101,6 @@ export default function HomeScreen() {
       setShowJoinModal(false);
       setLeagueCode('');
       await fetchLeagues();
-      Alert.alert('Success', 'Joined league successfully!');
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.detail || 'Failed to join league');
     } finally {
