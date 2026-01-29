@@ -150,7 +150,7 @@ export default function DiscoveryScreen() {
             style={[styles.serviceButton, { backgroundColor: '#1DB954' }]}
             onPress={() => openInService(item, 'spotify')}
           >
-            <Ionicons name="logo-spotify" size={16} color="#fff" />
+            <FontAwesome5 name="spotify" size={16} color="#fff" />
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.serviceButton, { backgroundColor: '#FA243C' }]}
