@@ -82,7 +82,6 @@ export default function LeagueDetailScreen() {
     try {
       await createRound(league.id);
       await fetchData();
-      Alert.alert('Success', 'New round started!');
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.detail || 'Failed to start round');
     } finally {
@@ -104,7 +103,6 @@ export default function LeagueDetailScreen() {
             try {
               await advanceRound(roundId);
               await fetchData();
-              Alert.alert('Success', `Round advanced to ${nextPhase}!`);
             } catch (error: any) {
               Alert.alert('Error', error.response?.data?.detail || 'Failed to advance round');
             } finally {
@@ -128,7 +126,6 @@ export default function LeagueDetailScreen() {
           onPress: async () => {
             try {
               await deleteLeague(id!);
-              Alert.alert('Success', 'League deleted');
               router.back();
             } catch (error: any) {
               Alert.alert('Error', error.response?.data?.detail || 'Failed to delete league');
@@ -151,7 +148,6 @@ export default function LeagueDetailScreen() {
           onPress: async () => {
             try {
               await leaveLeague(id!);
-              Alert.alert('Success', 'You left the league');
               router.back();
             } catch (error: any) {
               Alert.alert('Error', error.response?.data?.detail || 'Failed to leave league');

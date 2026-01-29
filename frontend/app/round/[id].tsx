@@ -303,7 +303,7 @@ export default function RoundScreen() {
               style={[styles.serviceButtonSmall, { backgroundColor: '#1DB954' }]}
               onPress={() => openInService(submission.song, 'spotify')}
             >
-              <Ionicons name="logo-spotify" size={12} color="#fff" />
+              <FontAwesome5 name="spotify" size={12} color="#fff" />
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.serviceButtonSmall, { backgroundColor: '#FA243C' }]}

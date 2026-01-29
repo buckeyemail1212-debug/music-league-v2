@@ -156,7 +156,7 @@ export default function ProfileScreen() {
             )}
           </TouchableOpacity>
           <TouchableOpacity style={styles.editBadge} onPress={handleChangePhoto} disabled={uploading}>
-            <Ionicons name="camera" size={16} color="#fff" />
+            <Ionicons name="camera" size={14} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.username}>{user?.username}</Text>
           <Text style={styles.email}>{user?.email}</Text>
