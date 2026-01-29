@@ -748,6 +748,10 @@ const styles = StyleSheet.create({
   playingButton: {
     backgroundColor: '#ef4444',
   },
+  submissionActions: {
+    alignItems: 'center',
+    gap: 6,
+  },
   emptyState: {
     alignItems: 'center',
     paddingVertical: 40,
