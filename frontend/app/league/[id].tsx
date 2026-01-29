@@ -177,10 +177,8 @@ export default function LeagueDetailScreen() {
       {isCreator && item.status !== 'completed' && (
         <TouchableOpacity
           style={styles.advanceButton}
-          onPress={(e) => {
-            e.stopPropagation();
-            handleAdvanceRound(item.id, item.status);
-          }}
+          onPress={() => handleAdvanceRound(item.id, item.status)}
+          activeOpacity={0.7}
         >
           <Ionicons name="arrow-forward" size={16} color="#6366f1" />
           <Text style={styles.advanceButtonText}>
@@ -188,8 +186,25 @@ export default function LeagueDetailScreen() {
           </Text>
         </TouchableOpacity>
       )}
+    </View>
+  );
+
+  const handleRoundPress = (roundId: string) => {
+    router.push(`/round/${roundId}`);
+  };
+
+  const renderRoundItemWrapper = ({ item }: { item: Round }) => (
+    <TouchableOpacity
+      style={styles.roundCard}
+      onPress={() => handleRoundPress(item.id)}
+      activeOpacity={0.8}
+    >
+      {renderRoundItem({ item })}
     </TouchableOpacity>
   );
+
+  const renderRoundItem = ({ item }: { item: Round }) => (
+    <>
 
   if (loading) {
     return (
