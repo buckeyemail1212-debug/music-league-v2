@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#fff',
-    marginTop: 28,
+    marginTop: 8,
   },
   email: {
     fontSize: 14,
