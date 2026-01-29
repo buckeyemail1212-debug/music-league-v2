@@ -402,10 +402,8 @@ async def delete_league(league_id: str, current_user: dict = Depends(get_current
     if league["creator_id"] != current_user["id"]:
         raise HTTPException(status_code=403, detail="Only the league creator can delete the league")
     
-    # Delete all related data
-    await db.rounds.delete_many({"league_id": league_id})
-    await db.submissions.delete_many({"round_id": {"$in": [r["id"] for r in await db.rounds.find({"league_id": league_id}).to_list(1000)]}})
-    await db.votes.delete_many({"round_id": {"$in": [r["id"] for r in await db.rounds.find({"league_id": league_id}).to_list(1000)]}})
+    # Mark league as deleted but preserve submissions/rounds/votes for stats
+    # We just delete the league document, keeping historical data
     await db.leagues.delete_one({"id": league_id})
     
     return {"message": "League deleted successfully"}
