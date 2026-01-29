@@ -13,13 +13,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { format } from 'date-fns';
 import { useAuth } from '../../src/context/AuthContext';
 import {
   getLeague,
   getRounds,
   createRound,
   advanceRound,
+  deleteLeague,
+  leaveLeague,
   League,
   Round,
 } from '../../src/services/api';
@@ -108,6 +109,52 @@ export default function LeagueDetailScreen() {
               Alert.alert('Error', error.response?.data?.detail || 'Failed to advance round');
             } finally {
               setAdvancing(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeleteLeague = () => {
+    Alert.alert(
+      'Delete League',
+      'Are you sure you want to delete this league? This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteLeague(id!);
+              Alert.alert('Success', 'League deleted');
+              router.back();
+            } catch (error: any) {
+              Alert.alert('Error', error.response?.data?.detail || 'Failed to delete league');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleLeaveLeague = () => {
+    Alert.alert(
+      'Leave League',
+      'Are you sure you want to leave this league?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Leave',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await leaveLeague(id!);
+              Alert.alert('Success', 'You left the league');
+              router.back();
+            } catch (error: any) {
+              Alert.alert('Error', error.response?.data?.detail || 'Failed to leave league');
             }
           },
         },
@@ -234,9 +281,21 @@ export default function LeagueDetailScreen() {
           <Text style={styles.leagueName}>{league.name}</Text>
           <Text style={styles.leagueTheme}>{league.theme}</Text>
         </View>
-        <TouchableOpacity style={styles.shareButton} onPress={handleShareCode}>
-          <Ionicons name="share-outline" size={22} color="#6366f1" />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.headerButton} onPress={handleShareCode}>
+            <Ionicons name="share-outline" size={22} color="#6366f1" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={isCreator ? handleDeleteLeague : handleLeaveLeague}
+          >
+            <Ionicons
+              name={isCreator ? 'trash-outline' : 'exit-outline'}
+              size={22}
+              color="#ef4444"
+            />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.codeBar}>
@@ -339,7 +398,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#888',
   },
-  shareButton: {
+  headerActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  headerButton: {
     padding: 8,
   },
   codeBar: {
