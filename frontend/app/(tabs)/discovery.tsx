@@ -9,11 +9,10 @@ import {
   ActivityIndicator,
   Image,
   Linking,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useAudioPlayer } from 'expo-audio';
+import { Audio } from 'expo-av';
 import { searchSongs, Song } from '../../src/services/api';
 
 export default function DiscoveryScreen() {
@@ -21,17 +20,22 @@ export default function DiscoveryScreen() {
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(false);
   const [playingSongId, setPlayingSongId] = useState<number | null>(null);
-  const player = useAudioPlayer(null);
+  const soundRef = useRef<Audio.Sound | null>(null);
   const searchTimeout = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    // Configure audio mode for playback
+    Audio.setAudioModeAsync({
+      allowsRecordingIOS: false,
+      playsInSilentModeIOS: true,
+      staysActiveInBackground: false,
+      shouldDuckAndroid: true,
+    });
+
     return () => {
-      try {
-        if (player?.playing) {
-          player.pause();
-        }
-      } catch (e) {
-        // Ignore cleanup errors
+      // Cleanup sound on unmount
+      if (soundRef.current) {
+        soundRef.current.unloadAsync();
       }
     };
   }, []);
@@ -63,28 +67,36 @@ export default function DiscoveryScreen() {
 
   const playPreview = async (song: Song) => {
     try {
+      // Stop and unload current sound if playing
+      if (soundRef.current) {
+        await soundRef.current.stopAsync();
+        await soundRef.current.unloadAsync();
+        soundRef.current = null;
+      }
+
       // If same song was playing, just stop
       if (playingSongId === song.deezer_id) {
-        try {
-          player.pause();
-        } catch (e) {
-          // Ignore pause errors
-        }
         setPlayingSongId(null);
         return;
       }
 
-      // Play new song
-      try {
-        player.pause();
-      } catch (e) {
-        // Ignore pause errors
-      }
-      player.replace({ uri: song.preview_url });
-      player.play();
+      // Create and play new sound
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: song.preview_url },
+        { shouldPlay: true }
+      );
+      soundRef.current = sound;
       setPlayingSongId(song.deezer_id);
+
+      // Handle playback finish
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          setPlayingSongId(null);
+        }
+      });
     } catch (error) {
       console.error('Failed to play preview:', error);
+      setPlayingSongId(null);
     }
   };
 
