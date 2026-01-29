@@ -175,7 +175,6 @@ export default function RoundScreen() {
       setSearchQuery('');
       setSearchResults([]);
       await fetchData();
-      Alert.alert('Success', 'Song submitted!');
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.detail || 'Failed to submit song');
     } finally {
@@ -197,7 +196,6 @@ export default function RoundScreen() {
     try {
       await submitVote(id!, rankings);
       await fetchData();
-      Alert.alert('Success', 'Vote submitted!');
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.detail || 'Failed to submit vote');
     } finally {
