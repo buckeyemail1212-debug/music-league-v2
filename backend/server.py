@@ -245,6 +245,58 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         created_at=current_user["created_at"]
     )
 
+@api_router.get("/auth/stats")
+async def get_user_stats(current_user: dict = Depends(get_current_user)):
+    """Get user statistics: total wins, rounds played, win rate, leagues count"""
+    user_id = current_user["id"]
+    
+    # Get leagues count
+    leagues_count = await db.leagues.count_documents({"members.id": user_id})
+    
+    # Get all submissions by user
+    submissions = await db.submissions.find({"user_id": user_id}).to_list(1000)
+    rounds_played = len(submissions)
+    
+    # Calculate wins by checking completed rounds
+    total_wins = 0
+    for submission in submissions:
+        round_doc = await db.rounds.find_one({"id": submission["round_id"], "status": "completed"})
+        if round_doc:
+            # Get all submissions for this round and calculate winner
+            round_submissions = await db.submissions.find({"round_id": submission["round_id"]}).to_list(100)
+            votes = await db.votes.find({"round_id": submission["round_id"]}).to_list(100)
+            
+            if votes and round_submissions:
+                # Calculate points
+                points = {}
+                for sub in round_submissions:
+                    points[sub["id"]] = 0
+                
+                num_submissions = len(round_submissions)
+                for vote in votes:
+                    for rank, sub_id in enumerate(vote["rankings"]):
+                        points[sub_id] = points.get(sub_id, 0) + (num_submissions - rank)
+                
+                # Find winner
+                max_points = max(points.values()) if points else 0
+                winner_id = None
+                for sub_id, pts in points.items():
+                    if pts == max_points:
+                        winner_id = sub_id
+                        break
+                
+                if winner_id == submission["id"]:
+                    total_wins += 1
+    
+    win_rate = round((total_wins / rounds_played * 100)) if rounds_played > 0 else 0
+    
+    return {
+        "total_wins": total_wins,
+        "rounds_played": rounds_played,
+        "win_rate": win_rate,
+        "leagues_count": leagues_count
+    }
+
 @api_router.put("/auth/me", response_model=UserResponse)
 async def update_profile(update_data: UserUpdate, current_user: dict = Depends(get_current_user)):
     update_fields = {}
