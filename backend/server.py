@@ -1,15 +1,20 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 from pathlib import Path
-from pydantic import BaseModel, Field
-from typing import List
+from pydantic import BaseModel, Field, EmailStr
+from typing import List, Optional
 import uuid
-from datetime import datetime
-
+from datetime import datetime, timedelta
+from passlib.context import CryptContext
+from jose import JWTError, jwt
+import httpx
+import random
+import string
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -17,40 +22,589 @@ load_dotenv(ROOT_DIR / '.env')
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+db = client[os.environ.get('DB_NAME', 'music_league')]
 
-# Create the main app without a prefix
-app = FastAPI()
+# JWT Settings
+SECRET_KEY = os.environ.get('JWT_SECRET', 'music-league-secret-key-2025')
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
+
+# Password hashing
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# Security
+security = HTTPBearer()
+
+# Create the main app
+app = FastAPI(title="Music League API")
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
-# Define Models
-class StatusCheck(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    client_name: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+# ==================== MODELS ====================
 
-class StatusCheckCreate(BaseModel):
-    client_name: str
+class UserCreate(BaseModel):
+    email: EmailStr
+    username: str
+    password: str
 
-# Add your routes to the router instead of directly to app
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+class UserResponse(BaseModel):
+    id: str
+    email: str
+    username: str
+    created_at: datetime
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
+
+class LeagueCreate(BaseModel):
+    name: str
+    theme: str
+    submission_hours: int = 24  # Hours for submission phase
+    voting_hours: int = 24  # Hours for voting phase
+
+class LeagueResponse(BaseModel):
+    id: str
+    name: str
+    theme: str
+    league_code: str
+    creator_id: str
+    creator_username: str
+    submission_hours: int
+    voting_hours: int
+    members: List[dict]
+    current_round: int
+    status: str
+    created_at: datetime
+
+class JoinLeagueRequest(BaseModel):
+    league_code: str
+
+class SongData(BaseModel):
+    deezer_id: int
+    title: str
+    artist: str
+    album: str
+    preview_url: str
+    cover_url: str
+    duration: int
+
+class SubmitSongRequest(BaseModel):
+    song: SongData
+
+class SubmissionResponse(BaseModel):
+    id: str
+    round_id: str
+    user_id: str
+    username: str
+    song: SongData
+    submitted_at: datetime
+
+class VoteRequest(BaseModel):
+    rankings: List[str]  # List of submission IDs in order (best to worst)
+
+class RoundResponse(BaseModel):
+    id: str
+    league_id: str
+    round_number: int
+    theme: str
+    status: str  # "submission", "voting", "completed"
+    submission_deadline: datetime
+    voting_deadline: datetime
+    submissions_count: int
+    has_user_submitted: bool
+    has_user_voted: bool
+    created_at: datetime
+
+class RoundResultResponse(BaseModel):
+    id: str
+    round_id: str
+    rankings: List[dict]  # [{submission_id, song, user_id, username, points, rank}]
+    winner: Optional[dict]
+    total_voters: int
+
+# ==================== HELPER FUNCTIONS ====================
+
+def generate_league_code() -> str:
+    """Generate a unique 6-character league code"""
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
+def hash_password(password: str) -> str:
+    return pwd_context.hash(password)
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
+
+def create_access_token(data: dict) -> str:
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        token = credentials.credentials
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    
+    user = await db.users.find_one({"id": user_id})
+    if user is None:
+        raise credentials_exception
+    return user
+
+# ==================== AUTH ENDPOINTS ====================
+
+@api_router.post("/auth/register", response_model=TokenResponse)
+async def register(user_data: UserCreate):
+    # Check if email exists
+    existing_user = await db.users.find_one({"email": user_data.email})
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Check if username exists
+    existing_username = await db.users.find_one({"username": user_data.username})
+    if existing_username:
+        raise HTTPException(status_code=400, detail="Username already taken")
+    
+    # Create user
+    user_id = str(uuid.uuid4())
+    user = {
+        "id": user_id,
+        "email": user_data.email,
+        "username": user_data.username,
+        "password_hash": hash_password(user_data.password),
+        "created_at": datetime.utcnow()
+    }
+    await db.users.insert_one(user)
+    
+    # Create token
+    access_token = create_access_token({"sub": user_id})
+    
+    return TokenResponse(
+        access_token=access_token,
+        user=UserResponse(
+            id=user_id,
+            email=user_data.email,
+            username=user_data.username,
+            created_at=user["created_at"]
+        )
+    )
+
+@api_router.post("/auth/login", response_model=TokenResponse)
+async def login(credentials: UserLogin):
+    user = await db.users.find_one({"email": credentials.email})
+    if not user or not verify_password(credentials.password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    
+    access_token = create_access_token({"sub": user["id"]})
+    
+    return TokenResponse(
+        access_token=access_token,
+        user=UserResponse(
+            id=user["id"],
+            email=user["email"],
+            username=user["username"],
+            created_at=user["created_at"]
+        )
+    )
+
+@api_router.get("/auth/me", response_model=UserResponse)
+async def get_me(current_user: dict = Depends(get_current_user)):
+    return UserResponse(
+        id=current_user["id"],
+        email=current_user["email"],
+        username=current_user["username"],
+        created_at=current_user["created_at"]
+    )
+
+# ==================== LEAGUE ENDPOINTS ====================
+
+@api_router.post("/leagues", response_model=LeagueResponse)
+async def create_league(league_data: LeagueCreate, current_user: dict = Depends(get_current_user)):
+    league_id = str(uuid.uuid4())
+    league_code = generate_league_code()
+    
+    # Ensure unique league code
+    while await db.leagues.find_one({"league_code": league_code}):
+        league_code = generate_league_code()
+    
+    league = {
+        "id": league_id,
+        "name": league_data.name,
+        "theme": league_data.theme,
+        "league_code": league_code,
+        "creator_id": current_user["id"],
+        "creator_username": current_user["username"],
+        "submission_hours": league_data.submission_hours,
+        "voting_hours": league_data.voting_hours,
+        "members": [{"id": current_user["id"], "username": current_user["username"]}],
+        "current_round": 0,
+        "status": "active",
+        "created_at": datetime.utcnow()
+    }
+    await db.leagues.insert_one(league)
+    
+    return LeagueResponse(**league)
+
+@api_router.get("/leagues", response_model=List[LeagueResponse])
+async def get_user_leagues(current_user: dict = Depends(get_current_user)):
+    leagues = await db.leagues.find({"members.id": current_user["id"]}).to_list(100)
+    return [LeagueResponse(**league) for league in leagues]
+
+@api_router.get("/leagues/{league_id}", response_model=LeagueResponse)
+async def get_league(league_id: str, current_user: dict = Depends(get_current_user)):
+    league = await db.leagues.find_one({"id": league_id})
+    if not league:
+        raise HTTPException(status_code=404, detail="League not found")
+    
+    # Check if user is member
+    is_member = any(m["id"] == current_user["id"] for m in league["members"])
+    if not is_member:
+        raise HTTPException(status_code=403, detail="You are not a member of this league")
+    
+    return LeagueResponse(**league)
+
+@api_router.post("/leagues/join", response_model=LeagueResponse)
+async def join_league(request: JoinLeagueRequest, current_user: dict = Depends(get_current_user)):
+    league = await db.leagues.find_one({"league_code": request.league_code.upper()})
+    if not league:
+        raise HTTPException(status_code=404, detail="League not found with this code")
+    
+    # Check if already member
+    is_member = any(m["id"] == current_user["id"] for m in league["members"])
+    if is_member:
+        raise HTTPException(status_code=400, detail="You are already a member of this league")
+    
+    # Add user to members
+    await db.leagues.update_one(
+        {"id": league["id"]},
+        {"$push": {"members": {"id": current_user["id"], "username": current_user["username"]}}}
+    )
+    
+    # Fetch updated league
+    league = await db.leagues.find_one({"id": league["id"]})
+    return LeagueResponse(**league)
+
+# ==================== ROUND ENDPOINTS ====================
+
+@api_router.post("/leagues/{league_id}/rounds", response_model=RoundResponse)
+async def create_round(league_id: str, current_user: dict = Depends(get_current_user)):
+    league = await db.leagues.find_one({"id": league_id})
+    if not league:
+        raise HTTPException(status_code=404, detail="League not found")
+    
+    # Only creator can start rounds
+    if league["creator_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Only the league creator can start new rounds")
+    
+    # Check if there's an active round
+    active_round = await db.rounds.find_one({
+        "league_id": league_id,
+        "status": {"$in": ["submission", "voting"]}
+    })
+    if active_round:
+        raise HTTPException(status_code=400, detail="There is already an active round")
+    
+    round_number = league["current_round"] + 1
+    round_id = str(uuid.uuid4())
+    now = datetime.utcnow()
+    
+    round_doc = {
+        "id": round_id,
+        "league_id": league_id,
+        "round_number": round_number,
+        "theme": league["theme"],
+        "status": "submission",
+        "submission_deadline": now + timedelta(hours=league["submission_hours"]),
+        "voting_deadline": now + timedelta(hours=league["submission_hours"] + league["voting_hours"]),
+        "created_at": now
+    }
+    await db.rounds.insert_one(round_doc)
+    
+    # Update league current round
+    await db.leagues.update_one(
+        {"id": league_id},
+        {"$set": {"current_round": round_number}}
+    )
+    
+    return RoundResponse(
+        **round_doc,
+        submissions_count=0,
+        has_user_submitted=False,
+        has_user_voted=False
+    )
+
+@api_router.get("/leagues/{league_id}/rounds", response_model=List[RoundResponse])
+async def get_rounds(league_id: str, current_user: dict = Depends(get_current_user)):
+    league = await db.leagues.find_one({"id": league_id})
+    if not league:
+        raise HTTPException(status_code=404, detail="League not found")
+    
+    rounds = await db.rounds.find({"league_id": league_id}).sort("round_number", -1).to_list(100)
+    
+    result = []
+    for round_doc in rounds:
+        submissions_count = await db.submissions.count_documents({"round_id": round_doc["id"]})
+        has_submitted = await db.submissions.find_one({
+            "round_id": round_doc["id"],
+            "user_id": current_user["id"]
+        }) is not None
+        has_voted = await db.votes.find_one({
+            "round_id": round_doc["id"],
+            "voter_id": current_user["id"]
+        }) is not None
+        
+        result.append(RoundResponse(
+            **round_doc,
+            submissions_count=submissions_count,
+            has_user_submitted=has_submitted,
+            has_user_voted=has_voted
+        ))
+    
+    return result
+
+@api_router.get("/rounds/{round_id}", response_model=RoundResponse)
+async def get_round(round_id: str, current_user: dict = Depends(get_current_user)):
+    round_doc = await db.rounds.find_one({"id": round_id})
+    if not round_doc:
+        raise HTTPException(status_code=404, detail="Round not found")
+    
+    submissions_count = await db.submissions.count_documents({"round_id": round_id})
+    has_submitted = await db.submissions.find_one({
+        "round_id": round_id,
+        "user_id": current_user["id"]
+    }) is not None
+    has_voted = await db.votes.find_one({
+        "round_id": round_id,
+        "voter_id": current_user["id"]
+    }) is not None
+    
+    return RoundResponse(
+        **round_doc,
+        submissions_count=submissions_count,
+        has_user_submitted=has_submitted,
+        has_user_voted=has_voted
+    )
+
+@api_router.post("/rounds/{round_id}/advance")
+async def advance_round(round_id: str, current_user: dict = Depends(get_current_user)):
+    """Manually advance round status (for testing or when deadlines pass)"""
+    round_doc = await db.rounds.find_one({"id": round_id})
+    if not round_doc:
+        raise HTTPException(status_code=404, detail="Round not found")
+    
+    league = await db.leagues.find_one({"id": round_doc["league_id"]})
+    if league["creator_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Only league creator can advance rounds")
+    
+    if round_doc["status"] == "submission":
+        await db.rounds.update_one({"id": round_id}, {"$set": {"status": "voting"}})
+        return {"message": "Round advanced to voting phase"}
+    elif round_doc["status"] == "voting":
+        await db.rounds.update_one({"id": round_id}, {"$set": {"status": "completed"}})
+        return {"message": "Round completed"}
+    else:
+        return {"message": "Round is already completed"}
+
+# ==================== SUBMISSION ENDPOINTS ====================
+
+@api_router.post("/rounds/{round_id}/submit", response_model=SubmissionResponse)
+async def submit_song(round_id: str, request: SubmitSongRequest, current_user: dict = Depends(get_current_user)):
+    round_doc = await db.rounds.find_one({"id": round_id})
+    if not round_doc:
+        raise HTTPException(status_code=404, detail="Round not found")
+    
+    if round_doc["status"] != "submission":
+        raise HTTPException(status_code=400, detail="Submissions are closed for this round")
+    
+    # Check if user already submitted
+    existing = await db.submissions.find_one({
+        "round_id": round_id,
+        "user_id": current_user["id"]
+    })
+    if existing:
+        raise HTTPException(status_code=400, detail="You have already submitted a song for this round")
+    
+    submission_id = str(uuid.uuid4())
+    submission = {
+        "id": submission_id,
+        "round_id": round_id,
+        "user_id": current_user["id"],
+        "username": current_user["username"],
+        "song": request.song.dict(),
+        "submitted_at": datetime.utcnow()
+    }
+    await db.submissions.insert_one(submission)
+    
+    return SubmissionResponse(**submission)
+
+@api_router.get("/rounds/{round_id}/submissions", response_model=List[SubmissionResponse])
+async def get_submissions(round_id: str, current_user: dict = Depends(get_current_user)):
+    round_doc = await db.rounds.find_one({"id": round_id})
+    if not round_doc:
+        raise HTTPException(status_code=404, detail="Round not found")
+    
+    # During submission phase, only show own submission
+    # During voting/completed, show all (but hide usernames during voting)
+    submissions = await db.submissions.find({"round_id": round_id}).to_list(100)
+    
+    result = []
+    for sub in submissions:
+        # During voting phase, hide who submitted (except own submission)
+        if round_doc["status"] == "voting" and sub["user_id"] != current_user["id"]:
+            sub["username"] = "???"
+            sub["user_id"] = "hidden"
+        result.append(SubmissionResponse(**sub))
+    
+    return result
+
+# ==================== VOTING ENDPOINTS ====================
+
+@api_router.post("/rounds/{round_id}/vote")
+async def submit_vote(round_id: str, request: VoteRequest, current_user: dict = Depends(get_current_user)):
+    round_doc = await db.rounds.find_one({"id": round_id})
+    if not round_doc:
+        raise HTTPException(status_code=404, detail="Round not found")
+    
+    if round_doc["status"] != "voting":
+        raise HTTPException(status_code=400, detail="Voting is not open for this round")
+    
+    # Check if user already voted
+    existing = await db.votes.find_one({
+        "round_id": round_id,
+        "voter_id": current_user["id"]
+    })
+    if existing:
+        raise HTTPException(status_code=400, detail="You have already voted for this round")
+    
+    # Validate all submission IDs exist
+    for sub_id in request.rankings:
+        sub = await db.submissions.find_one({"id": sub_id, "round_id": round_id})
+        if not sub:
+            raise HTTPException(status_code=400, detail=f"Invalid submission ID: {sub_id}")
+    
+    vote_id = str(uuid.uuid4())
+    vote = {
+        "id": vote_id,
+        "round_id": round_id,
+        "voter_id": current_user["id"],
+        "rankings": request.rankings,
+        "voted_at": datetime.utcnow()
+    }
+    await db.votes.insert_one(vote)
+    
+    return {"message": "Vote submitted successfully"}
+
+@api_router.get("/rounds/{round_id}/results", response_model=RoundResultResponse)
+async def get_results(round_id: str, current_user: dict = Depends(get_current_user)):
+    round_doc = await db.rounds.find_one({"id": round_id})
+    if not round_doc:
+        raise HTTPException(status_code=404, detail="Round not found")
+    
+    if round_doc["status"] != "completed":
+        raise HTTPException(status_code=400, detail="Results are not available until voting is complete")
+    
+    # Get all submissions and votes
+    submissions = await db.submissions.find({"round_id": round_id}).to_list(100)
+    votes = await db.votes.find({"round_id": round_id}).to_list(100)
+    
+    # Calculate points (inverse ranking - higher rank = more points)
+    points = {}
+    for sub in submissions:
+        points[sub["id"]] = 0
+    
+    num_submissions = len(submissions)
+    for vote in votes:
+        for rank, sub_id in enumerate(vote["rankings"]):
+            # First place gets most points, last gets least
+            points[sub_id] = points.get(sub_id, 0) + (num_submissions - rank)
+    
+    # Sort by points
+    sorted_subs = sorted(submissions, key=lambda s: points[s["id"]], reverse=True)
+    
+    rankings = []
+    for rank, sub in enumerate(sorted_subs):
+        rankings.append({
+            "submission_id": sub["id"],
+            "song": sub["song"],
+            "user_id": sub["user_id"],
+            "username": sub["username"],
+            "points": points[sub["id"]],
+            "rank": rank + 1
+        })
+    
+    winner = rankings[0] if rankings else None
+    
+    return RoundResultResponse(
+        id=str(uuid.uuid4()),
+        round_id=round_id,
+        rankings=rankings,
+        winner=winner,
+        total_voters=len(votes)
+    )
+
+# ==================== SONG SEARCH (DEEZER PROXY) ====================
+
+@api_router.get("/songs/search")
+async def search_songs(q: str, limit: int = 20):
+    """Search songs using Deezer API"""
+    if not q or len(q) < 2:
+        return {"data": []}
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(
+                f"https://api.deezer.com/search",
+                params={"q": q, "limit": limit},
+                timeout=10.0
+            )
+            data = response.json()
+            
+            # Transform Deezer response to our format
+            songs = []
+            for track in data.get("data", []):
+                songs.append({
+                    "deezer_id": track["id"],
+                    "title": track["title"],
+                    "artist": track["artist"]["name"],
+                    "album": track["album"]["title"],
+                    "preview_url": track["preview"],
+                    "cover_url": track["album"]["cover_medium"],
+                    "duration": track["duration"]
+                })
+            
+            return {"data": songs}
+        except Exception as e:
+            logger.error(f"Deezer API error: {e}")
+            raise HTTPException(status_code=500, detail="Failed to search songs")
+
+# ==================== ROOT ENDPOINT ====================
+
 @api_router.get("/")
 async def root():
-    return {"message": "Hello World"}
-
-@api_router.post("/status", response_model=StatusCheck)
-async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.dict()
-    status_obj = StatusCheck(**status_dict)
-    _ = await db.status_checks.insert_one(status_obj.dict())
-    return status_obj
-
-@api_router.get("/status", response_model=List[StatusCheck])
-async def get_status_checks():
-    status_checks = await db.status_checks.find().to_list(1000)
-    return [StatusCheck(**status_check) for status_check in status_checks]
+    return {"message": "Music League API", "version": "1.0.0"}
 
 # Include the router in the main app
 app.include_router(api_router)
@@ -62,13 +616,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
