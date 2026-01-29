@@ -104,6 +104,16 @@ export const getLeague = (id: string) => api.get<League>(`/leagues/${id}`);
 export const joinLeague = (code: string) => 
   api.post<League>('/leagues/join', { league_code: code });
 
+export const deleteLeague = (id: string) => 
+  api.delete(`/leagues/${id}`);
+
+export const leaveLeague = (id: string) => 
+  api.post(`/leagues/${id}/leave`);
+
+// User Profile APIs
+export const updateProfile = (data: { username?: string; profile_photo?: string }) =>
+  api.put('/auth/me', data);
+
 // Round APIs
 export const createRound = (leagueId: string) => 
   api.post<Round>(`/leagues/${leagueId}/rounds`);
