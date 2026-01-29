@@ -8,6 +8,8 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
+  ActionSheetIOS,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -59,11 +61,11 @@ export default function ProfileScreen() {
     );
   };
 
-  const handlePickImage = async () => {
+  const pickFromGallery = async () => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Please grant camera roll permissions to upload a photo.');
+        Alert.alert('Permission Required', 'Please grant photo library permissions.');
         return;
       }
 
@@ -88,11 +90,67 @@ export default function ProfileScreen() {
     }
   };
 
+  const takePhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please grant camera permissions.');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets[0].base64) {
+        setUploading(true);
+        const base64Image = `data:image/jpeg;base64,${result.assets[0].base64}`;
+        await updateUser({ profile_photo: base64Image });
+        Alert.alert('Success', 'Profile photo updated!');
+        setUploading(false);
+      }
+    } catch (error: any) {
+      setUploading(false);
+      Alert.alert('Error', error.response?.data?.detail || 'Failed to update profile photo');
+    }
+  };
+
+  const handleChangePhoto = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', 'Take Photo', 'Choose from Library'],
+          cancelButtonIndex: 0,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) {
+            takePhoto();
+          } else if (buttonIndex === 2) {
+            pickFromGallery();
+          }
+        }
+      );
+    } else {
+      Alert.alert(
+        'Change Profile Photo',
+        'Choose an option',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Take Photo', onPress: takePhoto },
+          { text: 'Choose from Library', onPress: pickFromGallery },
+        ]
+      );
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <TouchableOpacity style={styles.avatarContainer} onPress={handlePickImage} disabled={uploading}>
+          <TouchableOpacity style={styles.avatarContainer} onPress={handleChangePhoto} disabled={uploading}>
             {uploading ? (
               <ActivityIndicator size="large" color="#6366f1" />
             ) : user?.profile_photo ? (
@@ -100,9 +158,9 @@ export default function ProfileScreen() {
             ) : (
               <Ionicons name="person" size={50} color="#6366f1" />
             )}
-            <View style={styles.editBadge}>
-              <Ionicons name="camera" size={14} color="#fff" />
-            </View>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.editBadge} onPress={handleChangePhoto} disabled={uploading}>
+            <Ionicons name="camera" size={16} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.username}>{user?.username}</Text>
           <Text style={styles.email}>{user?.email}</Text>
@@ -212,6 +270,7 @@ const styles = StyleSheet.create({
     paddingVertical: 32,
     borderBottomWidth: 1,
     borderBottomColor: '#1a1a1a',
+    position: 'relative',
   },
   avatarContainer: {
     width: 100,
@@ -230,21 +289,24 @@ const styles = StyleSheet.create({
   },
   editBadge: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
+    top: 100,
+    right: '50%',
+    marginRight: -50,
     backgroundColor: '#6366f1',
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: '#0a0a0a',
+    zIndex: 10,
   },
   username: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#fff',
+    marginTop: 8,
   },
   email: {
     fontSize: 14,
