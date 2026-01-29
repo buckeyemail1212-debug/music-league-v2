@@ -1,0 +1,222 @@
+import React from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  ScrollView,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../../src/context/AuthContext';
+import { format } from 'date-fns';
+
+export default function ProfileScreen() {
+  const { user, logout } = useAuth();
+  const router = useRouter();
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            await logout();
+            router.replace('/(auth)/login');
+          },
+        },
+      ]
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <View style={styles.avatarContainer}>
+            <Ionicons name="person" size={50} color="#6366f1" />
+          </View>
+          <Text style={styles.username}>{user?.username}</Text>
+          <Text style={styles.email}>{user?.email}</Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Account Info</Text>
+          <View style={styles.infoCard}>
+            <View style={styles.infoRow}>
+              <View style={styles.infoLeft}>
+                <Ionicons name="calendar-outline" size={20} color="#888" />
+                <Text style={styles.infoLabel}>Member Since</Text>
+              </View>
+              <Text style={styles.infoValue}>
+                {user?.created_at ? format(new Date(user.created_at), 'MMM d, yyyy') : 'N/A'}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>How to Play</Text>
+          <View style={styles.infoCard}>
+            <View style={styles.helpItem}>
+              <View style={styles.helpNumber}>
+                <Text style={styles.helpNumberText}>1</Text>
+              </View>
+              <Text style={styles.helpText}>Create a league or join one with a code</Text>
+            </View>
+            <View style={styles.helpItem}>
+              <View style={styles.helpNumber}>
+                <Text style={styles.helpNumberText}>2</Text>
+              </View>
+              <Text style={styles.helpText}>Submit a song matching the round's theme</Text>
+            </View>
+            <View style={styles.helpItem}>
+              <View style={styles.helpNumber}>
+                <Text style={styles.helpNumberText}>3</Text>
+              </View>
+              <Text style={styles.helpText}>Vote on songs by ranking them best to worst</Text>
+            </View>
+            <View style={styles.helpItem}>
+              <View style={styles.helpNumber}>
+                <Text style={styles.helpNumberText}>4</Text>
+              </View>
+              <Text style={styles.helpText}>See who wins when voting ends!</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <Ionicons name="log-out-outline" size={22} color="#ef4444" />
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.version}>Music League v1.0.0</Text>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0a0a0a',
+  },
+  header: {
+    alignItems: 'center',
+    paddingVertical: 32,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1a1a1a',
+  },
+  avatarContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  username: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  email: {
+    fontSize: 14,
+    color: '#888',
+    marginTop: 4,
+  },
+  section: {
+    paddingHorizontal: 20,
+    marginTop: 24,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#888',
+    marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  infoCard: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  infoLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  infoLabel: {
+    fontSize: 14,
+    color: '#888',
+  },
+  infoValue: {
+    fontSize: 14,
+    color: '#fff',
+    fontWeight: '500',
+  },
+  helpItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  helpNumber: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#6366f1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  helpNumberText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  helpText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#ccc',
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    paddingVertical: 16,
+    borderRadius: 12,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#ef4444',
+  },
+  logoutText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ef4444',
+  },
+  version: {
+    fontSize: 12,
+    color: '#444',
+    textAlign: 'center',
+    marginTop: 32,
+    marginBottom: 20,
+  },
+});
