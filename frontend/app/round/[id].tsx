@@ -17,7 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
+import { useAudioPlayer } from 'expo-audio';
 import { useAuth } from '../../src/context/AuthContext';
 import {
   getRound,
@@ -52,7 +52,7 @@ export default function RoundScreen() {
 
   // Audio playback
   const [playingSongId, setPlayingSongId] = useState<number | null>(null);
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const player = useAudioPlayer(null);
 
   // Voting
   const [rankings, setRankings] = useState<string[]>([]);
@@ -60,9 +60,7 @@ export default function RoundScreen() {
 
   useEffect(() => {
     return () => {
-      if (soundRef.current) {
-        soundRef.current.unloadAsync();
-      }
+      player.pause();
     };
   }, []);
 
@@ -129,29 +127,16 @@ export default function RoundScreen() {
 
   const playPreview = async (song: Song) => {
     try {
-      if (soundRef.current) {
-        await soundRef.current.stopAsync();
-        await soundRef.current.unloadAsync();
-        soundRef.current = null;
-      }
-
       if (playingSongId === song.deezer_id) {
+        player.pause();
         setPlayingSongId(null);
         return;
       }
 
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: song.preview_url },
-        { shouldPlay: true }
-      );
-      soundRef.current = sound;
+      player.pause();
+      player.replace({ uri: song.preview_url });
+      player.play();
       setPlayingSongId(song.deezer_id);
-
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded && status.didJustFinish) {
-          setPlayingSongId(null);
-        }
-      });
     } catch (error) {
       console.error('Failed to play preview:', error);
     }
