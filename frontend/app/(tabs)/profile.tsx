@@ -4,12 +4,12 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Alert,
   ScrollView,
   Image,
   ActivityIndicator,
   ActionSheetIOS,
   Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -81,12 +81,10 @@ export default function ProfileScreen() {
         setUploading(true);
         const base64Image = `data:image/jpeg;base64,${result.assets[0].base64}`;
         await updateUser({ profile_photo: base64Image });
-        Alert.alert('Success', 'Profile photo updated!');
         setUploading(false);
       }
     } catch (error: any) {
       setUploading(false);
-      Alert.alert('Error', error.response?.data?.detail || 'Failed to update profile photo');
     }
   };
 
@@ -109,12 +107,10 @@ export default function ProfileScreen() {
         setUploading(true);
         const base64Image = `data:image/jpeg;base64,${result.assets[0].base64}`;
         await updateUser({ profile_photo: base64Image });
-        Alert.alert('Success', 'Profile photo updated!');
         setUploading(false);
       }
     } catch (error: any) {
       setUploading(false);
-      Alert.alert('Error', error.response?.data?.detail || 'Failed to update profile photo');
     }
   };
 
@@ -176,23 +172,7 @@ export default function ProfileScreen() {
               </Text>
               <Text style={styles.statLabel}>Total Wins</Text>
             </View>
-            <View style={[styles.statCard, { backgroundColor: '#10b981' }]}>
-              <Ionicons name="musical-notes" size={28} color="#fff" />
-              <Text style={styles.statValue}>
-                {loadingStats ? '-' : stats?.rounds_played || 0}
-              </Text>
-              <Text style={styles.statLabel}>Rounds Played</Text>
-            </View>
-          </View>
-          <View style={styles.statsRow}>
-            <View style={[styles.statCard, { backgroundColor: '#f59e0b' }]}>
-              <Ionicons name="trending-up" size={28} color="#fff" />
-              <Text style={styles.statValue}>
-                {loadingStats ? '-' : `${stats?.win_rate || 0}%`}
-              </Text>
-              <Text style={styles.statLabel}>Win Rate</Text>
-            </View>
-            <View style={[styles.statCard, { backgroundColor: '#ec4899' }]}>
+            <View style={[styles.statCard, { backgroundColor: '#6366f1' }]}>
               <Ionicons name="people" size={28} color="#fff" />
               <Text style={styles.statValue}>
                 {loadingStats ? '-' : stats?.leagues_count || 0}
@@ -320,22 +300,21 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 12,
   },
   statCard: {
     flex: 1,
-    padding: 16,
+    padding: 20,
     borderRadius: 16,
     alignItems: 'center',
   },
   statValue: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
     color: '#fff',
     marginTop: 8,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 14,
     color: 'rgba(255,255,255,0.8)',
     marginTop: 4,
     fontWeight: '500',
