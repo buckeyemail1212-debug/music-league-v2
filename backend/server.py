@@ -340,6 +340,47 @@ async def join_league(request: JoinLeagueRequest, current_user: dict = Depends(g
     league = await db.leagues.find_one({"id": league["id"]})
     return LeagueResponse(**league)
 
+@api_router.delete("/leagues/{league_id}")
+async def delete_league(league_id: str, current_user: dict = Depends(get_current_user)):
+    league = await db.leagues.find_one({"id": league_id})
+    if not league:
+        raise HTTPException(status_code=404, detail="League not found")
+    
+    # Only creator can delete
+    if league["creator_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Only the league creator can delete the league")
+    
+    # Delete all related data
+    await db.rounds.delete_many({"league_id": league_id})
+    await db.submissions.delete_many({"round_id": {"$in": [r["id"] for r in await db.rounds.find({"league_id": league_id}).to_list(1000)]}})
+    await db.votes.delete_many({"round_id": {"$in": [r["id"] for r in await db.rounds.find({"league_id": league_id}).to_list(1000)]}})
+    await db.leagues.delete_one({"id": league_id})
+    
+    return {"message": "League deleted successfully"}
+
+@api_router.post("/leagues/{league_id}/leave")
+async def leave_league(league_id: str, current_user: dict = Depends(get_current_user)):
+    league = await db.leagues.find_one({"id": league_id})
+    if not league:
+        raise HTTPException(status_code=404, detail="League not found")
+    
+    # Check if user is member
+    is_member = any(m["id"] == current_user["id"] for m in league["members"])
+    if not is_member:
+        raise HTTPException(status_code=400, detail="You are not a member of this league")
+    
+    # Creator cannot leave - they must delete the league
+    if league["creator_id"] == current_user["id"]:
+        raise HTTPException(status_code=400, detail="As the creator, you cannot leave. Delete the league instead.")
+    
+    # Remove user from members
+    await db.leagues.update_one(
+        {"id": league_id},
+        {"$pull": {"members": {"id": current_user["id"]}}}
+    )
+    
+    return {"message": "Left league successfully"}
+
 # ==================== ROUND ENDPOINTS ====================
 
 @api_router.post("/leagues/{league_id}/rounds", response_model=RoundResponse)
