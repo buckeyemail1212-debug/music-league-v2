@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,16 +6,20 @@ import {
   TouchableOpacity,
   Alert,
   ScrollView,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../src/context/AuthContext';
 import { format } from 'date-fns';
 
 export default function ProfileScreen() {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const router = useRouter();
+  const [uploading, setUploading] = useState(false);
 
   const handleLogout = () => {
     Alert.alert(
@@ -35,13 +39,51 @@ export default function ProfileScreen() {
     );
   };
 
+  const handlePickImage = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please grant camera roll permissions to upload a photo.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets[0].base64) {
+        setUploading(true);
+        const base64Image = `data:image/jpeg;base64,${result.assets[0].base64}`;
+        await updateUser({ profile_photo: base64Image });
+        Alert.alert('Success', 'Profile photo updated!');
+        setUploading(false);
+      }
+    } catch (error: any) {
+      setUploading(false);
+      Alert.alert('Error', error.response?.data?.detail || 'Failed to update profile photo');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <View style={styles.avatarContainer}>
-            <Ionicons name="person" size={50} color="#6366f1" />
-          </View>
+          <TouchableOpacity style={styles.avatarContainer} onPress={handlePickImage} disabled={uploading}>
+            {uploading ? (
+              <ActivityIndicator size="large" color="#6366f1" />
+            ) : user?.profile_photo ? (
+              <Image source={{ uri: user.profile_photo }} style={styles.avatarImage} />
+            ) : (
+              <Ionicons name="person" size={50} color="#6366f1" />
+            )}
+            <View style={styles.editBadge}>
+              <Ionicons name="camera" size={14} color="#fff" />
+            </View>
+          </TouchableOpacity>
           <Text style={styles.username}>{user?.username}</Text>
           <Text style={styles.email}>{user?.email}</Text>
         </View>
@@ -123,6 +165,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+  },
+  editBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#6366f1',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#0a0a0a',
   },
   username: {
     fontSize: 24,
