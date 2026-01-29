@@ -12,12 +12,11 @@ import {
   TextInput,
   Image,
   Linking,
-  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useAudioPlayer } from 'expo-audio';
+import { Audio } from 'expo-av';
 import { useAuth } from '../../src/context/AuthContext';
 import {
   getRound,
@@ -52,20 +51,24 @@ export default function RoundScreen() {
 
   // Audio playback
   const [playingSongId, setPlayingSongId] = useState<number | null>(null);
-  const player = useAudioPlayer(null);
+  const soundRef = useRef<Audio.Sound | null>(null);
 
   // Voting
   const [rankings, setRankings] = useState<string[]>([]);
   const [votingSubmitting, setVotingSubmitting] = useState(false);
 
   useEffect(() => {
+    // Configure audio mode
+    Audio.setAudioModeAsync({
+      allowsRecordingIOS: false,
+      playsInSilentModeIOS: true,
+      staysActiveInBackground: false,
+      shouldDuckAndroid: true,
+    });
+
     return () => {
-      try {
-        if (player?.playing) {
-          player.pause();
-        }
-      } catch (e) {
-        // Ignore cleanup errors
+      if (soundRef.current) {
+        soundRef.current.unloadAsync();
       }
     };
   }, []);
@@ -133,26 +136,34 @@ export default function RoundScreen() {
 
   const playPreview = async (song: Song) => {
     try {
+      // Stop and unload current sound
+      if (soundRef.current) {
+        await soundRef.current.stopAsync();
+        await soundRef.current.unloadAsync();
+        soundRef.current = null;
+      }
+
       if (playingSongId === song.deezer_id) {
-        try {
-          player.pause();
-        } catch (e) {
-          // Ignore pause errors
-        }
         setPlayingSongId(null);
         return;
       }
 
-      try {
-        player.pause();
-      } catch (e) {
-        // Ignore pause errors
-      }
-      player.replace({ uri: song.preview_url });
-      player.play();
+      // Create and play new sound
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: song.preview_url },
+        { shouldPlay: true }
+      );
+      soundRef.current = sound;
       setPlayingSongId(song.deezer_id);
+
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          setPlayingSongId(null);
+        }
+      });
     } catch (error) {
       console.error('Failed to play preview:', error);
+      setPlayingSongId(null);
     }
   };
 
@@ -196,17 +207,17 @@ export default function RoundScreen() {
 
   const openInService = (song: Song, service: 'spotify' | 'apple' | 'youtube') => {
     let url = '';
-    const searchQuery = encodeURIComponent(`${song.title} ${song.artist}`);
+    const query = encodeURIComponent(`${song.title} ${song.artist}`);
 
     switch (service) {
       case 'spotify':
-        url = `https://open.spotify.com/search/${searchQuery}`;
+        url = `https://open.spotify.com/search/${query}`;
         break;
       case 'apple':
-        url = `https://music.apple.com/search?term=${searchQuery}`;
+        url = `https://music.apple.com/search?term=${query}`;
         break;
       case 'youtube':
-        url = `https://www.youtube.com/results?search_query=${searchQuery}`;
+        url = `https://www.youtube.com/results?search_query=${query}`;
         break;
     }
 
@@ -219,7 +230,7 @@ export default function RoundScreen() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const renderSubmissionItem = ({ item, index }: { item: Submission; index: number }) => (
+  const renderSubmissionItem = ({ item }: { item: Submission }) => (
     <View style={styles.submissionCard}>
       <Image source={{ uri: item.song.cover_url }} style={styles.albumCover} />
       <View style={styles.songInfo}>
@@ -525,10 +536,7 @@ export default function RoundScreen() {
                   </View>
                   <TouchableOpacity
                     style={[styles.playButtonSmall, playingSongId === item.deezer_id && styles.playingButton]}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      playPreview(item);
-                    }}
+                    onPress={() => playPreview(item)}
                   >
                     <Ionicons
                       name={playingSongId === item.deezer_id ? 'pause' : 'play'}
@@ -727,7 +735,6 @@ const styles = StyleSheet.create({
     color: '#888',
     marginTop: 8,
   },
-  // Voting styles
   votingInstructions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -819,7 +826,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fff',
   },
-  // Results styles
   winnerBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -883,7 +889,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fff',
   },
-  // Modal styles
   modalContainer: {
     flex: 1,
     backgroundColor: '#0a0a0a',
