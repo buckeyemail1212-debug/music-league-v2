@@ -228,7 +228,9 @@ export default function RoundScreen() {
 
   const renderVotingItem = ({ item, index }: { item: string; index: number }) => {
     const submission = submissions.find(s => s.id === item);
-    if (!submission) return null;
+    if (!submission) {
+      return <View style={styles.votingCard}><Text style={styles.emptyText}>Loading...</Text></View>;
+    }
 
     return (
       <View style={styles.votingCard}>
@@ -272,22 +274,24 @@ export default function RoundScreen() {
             </TouchableOpacity>
           </View>
         </View>
-        <View style={styles.moveButtons}>
-          <TouchableOpacity
-            style={[styles.moveButton, index === 0 && styles.moveButtonDisabled]}
-            onPress={() => moveRanking(index, 'up')}
-            disabled={index === 0}
-          >
-            <Ionicons name="chevron-up" size={20} color={index === 0 ? '#444' : '#fff'} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.moveButton, index === rankings.length - 1 && styles.moveButtonDisabled]}
-            onPress={() => moveRanking(index, 'down')}
-            disabled={index === rankings.length - 1}
-          >
-            <Ionicons name="chevron-down" size={20} color={index === rankings.length - 1 ? '#444' : '#fff'} />
-          </TouchableOpacity>
-        </View>
+        {!round?.has_user_voted && (
+          <View style={styles.moveButtons}>
+            <TouchableOpacity
+              style={[styles.moveButton, index === 0 && styles.moveButtonDisabled]}
+              onPress={() => moveRanking(index, 'up')}
+              disabled={index === 0}
+            >
+              <Ionicons name="chevron-up" size={20} color={index === 0 ? '#444' : '#fff'} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.moveButton, index === rankings.length - 1 && styles.moveButtonDisabled]}
+              onPress={() => moveRanking(index, 'down')}
+              disabled={index === rankings.length - 1}
+            >
+              <Ionicons name="chevron-down" size={20} color={index === rankings.length - 1 ? '#444' : '#fff'} />
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     );
   };
