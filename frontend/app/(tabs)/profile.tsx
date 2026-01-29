@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,16 +10,36 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../src/context/AuthContext';
+import { getUserStats, UserStats } from '../../src/services/api';
 import { format } from 'date-fns';
 
 export default function ProfileScreen() {
   const { user, logout, updateUser } = useAuth();
   const router = useRouter();
   const [uploading, setUploading] = useState(false);
+  const [stats, setStats] = useState<UserStats | null>(null);
+  const [loadingStats, setLoadingStats] = useState(true);
+
+  const fetchStats = async () => {
+    try {
+      const response = await getUserStats();
+      setStats(response.data);
+    } catch (error) {
+      console.error('Failed to fetch stats:', error);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchStats();
+    }, [])
+  );
 
   const handleLogout = () => {
     Alert.alert(
@@ -86,6 +106,42 @@ export default function ProfileScreen() {
           </TouchableOpacity>
           <Text style={styles.username}>{user?.username}</Text>
           <Text style={styles.email}>{user?.email}</Text>
+        </View>
+
+        {/* Stats Cards */}
+        <View style={styles.statsContainer}>
+          <View style={styles.statsRow}>
+            <View style={[styles.statCard, { backgroundColor: '#6366f1' }]}>
+              <Ionicons name="trophy" size={28} color="#fff" />
+              <Text style={styles.statValue}>
+                {loadingStats ? '-' : stats?.total_wins || 0}
+              </Text>
+              <Text style={styles.statLabel}>Total Wins</Text>
+            </View>
+            <View style={[styles.statCard, { backgroundColor: '#10b981' }]}>
+              <Ionicons name="musical-notes" size={28} color="#fff" />
+              <Text style={styles.statValue}>
+                {loadingStats ? '-' : stats?.rounds_played || 0}
+              </Text>
+              <Text style={styles.statLabel}>Rounds Played</Text>
+            </View>
+          </View>
+          <View style={styles.statsRow}>
+            <View style={[styles.statCard, { backgroundColor: '#f59e0b' }]}>
+              <Ionicons name="trending-up" size={28} color="#fff" />
+              <Text style={styles.statValue}>
+                {loadingStats ? '-' : `${stats?.win_rate || 0}%`}
+              </Text>
+              <Text style={styles.statLabel}>Win Rate</Text>
+            </View>
+            <View style={[styles.statCard, { backgroundColor: '#ec4899' }]}>
+              <Ionicons name="people" size={28} color="#fff" />
+              <Text style={styles.statValue}>
+                {loadingStats ? '-' : stats?.leagues_count || 0}
+              </Text>
+              <Text style={styles.statLabel}>Leagues</Text>
+            </View>
+          </View>
         </View>
 
         <View style={styles.section}>
@@ -194,6 +250,33 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#888',
     marginTop: 4,
+  },
+  statsContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  statCard: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginTop: 8,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 4,
+    fontWeight: '500',
   },
   section: {
     paddingHorizontal: 20,
