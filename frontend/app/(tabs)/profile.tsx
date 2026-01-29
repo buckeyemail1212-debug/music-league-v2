@@ -269,9 +269,8 @@ const styles = StyleSheet.create({
   },
   editBadge: {
     position: 'absolute',
-    top: 100,
-    right: '50%',
-    marginRight: -50,
+    bottom: 60,
+    right: '35%',
     backgroundColor: '#6366f1',
     width: 36,
     height: 36,
