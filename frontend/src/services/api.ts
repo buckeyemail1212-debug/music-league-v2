@@ -89,6 +89,16 @@ export interface RoundResult {
   total_voters: number;
 }
 
+export interface UserStats {
+  total_wins: number;
+  rounds_played: number;
+  win_rate: number;
+  leagues_count: number;
+}
+
+// User Stats API
+export const getUserStats = () => api.get<UserStats>('/auth/stats');
+
 // League APIs
 export const createLeague = (data: {
   name: string;
