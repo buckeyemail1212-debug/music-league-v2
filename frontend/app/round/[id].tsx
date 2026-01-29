@@ -60,7 +60,13 @@ export default function RoundScreen() {
 
   useEffect(() => {
     return () => {
-      player.pause();
+      try {
+        if (player?.playing) {
+          player.pause();
+        }
+      } catch (e) {
+        // Ignore cleanup errors
+      }
     };
   }, []);
 
