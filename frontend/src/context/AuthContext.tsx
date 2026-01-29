@@ -99,8 +99,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
+  const updateUser = async (data: Partial<User>) => {
+    if (!token) return;
+    
+    const response = await axios.put(`${API_URL}/api/auth/me`, data, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    
+    const updatedUser = response.data;
+    await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+    setUser(updatedUser);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
