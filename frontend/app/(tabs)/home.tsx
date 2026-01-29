@@ -303,12 +303,16 @@ export default function HomeScreen() {
               <Text style={styles.inputLabel}>League Code</Text>
               <TextInput
                 style={[styles.modalInput, styles.codeInput]}
-                placeholder="Enter 6-digit code"
+                placeholder="XXXXXX"
                 placeholderTextColor="#666"
                 value={leagueCode}
-                onChangeText={(text) => setLeagueCode(text.toUpperCase())}
+                onChangeText={(text) => setLeagueCode(text.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
                 autoCapitalize="characters"
+                autoCorrect={false}
+                autoComplete="off"
+                spellCheck={false}
                 maxLength={6}
+                selectionColor="#6366f1"
               />
 
               <TouchableOpacity
