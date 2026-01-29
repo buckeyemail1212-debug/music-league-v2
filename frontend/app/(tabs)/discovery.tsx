@@ -26,7 +26,13 @@ export default function DiscoveryScreen() {
 
   useEffect(() => {
     return () => {
-      player.pause();
+      try {
+        if (player?.playing) {
+          player.pause();
+        }
+      } catch (e) {
+        // Ignore cleanup errors
+      }
     };
   }, []);
 
@@ -59,13 +65,21 @@ export default function DiscoveryScreen() {
     try {
       // If same song was playing, just stop
       if (playingSongId === song.deezer_id) {
-        player.pause();
+        try {
+          player.pause();
+        } catch (e) {
+          // Ignore pause errors
+        }
         setPlayingSongId(null);
         return;
       }
 
       // Play new song
-      player.pause();
+      try {
+        player.pause();
+      } catch (e) {
+        // Ignore pause errors
+      }
       player.replace({ uri: song.preview_url });
       player.play();
       setPlayingSongId(song.deezer_id);
