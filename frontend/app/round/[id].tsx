@@ -238,16 +238,38 @@ export default function RoundScreen() {
         <Text style={styles.artistName} numberOfLines={1}>{item.song.artist}</Text>
         <Text style={styles.submittedBy}>by {item.username}</Text>
       </View>
-      <TouchableOpacity
-        style={[styles.playButton, playingSongId === item.song.deezer_id && styles.playingButton]}
-        onPress={() => playPreview(item.song)}
-      >
-        <Ionicons
-          name={playingSongId === item.song.deezer_id ? 'pause' : 'play'}
-          size={20}
-          color="#fff"
-        />
-      </TouchableOpacity>
+      <View style={styles.submissionActions}>
+        <TouchableOpacity
+          style={[styles.playButton, playingSongId === item.song.deezer_id && styles.playingButton]}
+          onPress={() => playPreview(item.song)}
+        >
+          <Ionicons
+            name={playingSongId === item.song.deezer_id ? 'pause' : 'play'}
+            size={20}
+            color="#fff"
+          />
+        </TouchableOpacity>
+        <View style={styles.serviceButtonsSmall}>
+          <TouchableOpacity
+            style={[styles.serviceButtonSmall, { backgroundColor: '#1DB954' }]}
+            onPress={() => openInService(item.song, 'spotify')}
+          >
+            <Ionicons name="musical-notes" size={12} color="#fff" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.serviceButtonSmall, { backgroundColor: '#FA243C' }]}
+            onPress={() => openInService(item.song, 'apple')}
+          >
+            <Ionicons name="phone-portrait" size={12} color="#fff" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.serviceButtonSmall, { backgroundColor: '#FF0000' }]}
+            onPress={() => openInService(item.song, 'youtube')}
+          >
+            <Ionicons name="play-circle" size={12} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </View>
     </View>
   );
 
