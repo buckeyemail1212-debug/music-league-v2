@@ -111,11 +111,14 @@ backend:
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "Tested with curl - registration returns JWT token and user data"
+      - working: true
+        agent: "testing"
+        comment: "✅ COMPREHENSIVE TEST PASSED: Registration creates unique users with JWT tokens, validates email/username uniqueness, returns proper UserResponse with TokenResponse structure. Tested with realistic data (alice.johnson@musicleague.com, bob.smith@musicleague.com)"
 
   - task: "User Login API"
     implemented: true
@@ -123,11 +126,14 @@ backend:
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "Login endpoint implemented with JWT authentication"
+      - working: true
+        agent: "testing"
+        comment: "✅ COMPREHENSIVE TEST PASSED: Login validates credentials, returns JWT token and user data. Authentication flow working correctly with proper error handling for invalid credentials"
 
   - task: "League CRUD APIs"
     implemented: true
@@ -135,11 +141,14 @@ backend:
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "Create league, get leagues, join league by code all tested via curl"
+      - working: true
+        agent: "testing"
+        comment: "✅ COMPREHENSIVE TEST PASSED: All league operations working - create league generates unique codes (ALAITF), get user leagues returns proper list, join league by code adds members correctly. League creator permissions enforced properly"
 
   - task: "Round Management APIs"
     implemented: true
@@ -147,35 +156,44 @@ backend:
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "Create round, get rounds, advance round status endpoints working"
+      - working: true
+        agent: "testing"
+        comment: "✅ COMPREHENSIVE TEST PASSED: Round creation restricted to league creators, rounds advance properly through phases (submission -> voting -> completed), get rounds returns accurate status and user participation flags"
 
   - task: "Song Submission APIs"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Implemented but needs testing with actual song data"
+      - working: true
+        agent: "testing"
+        comment: "✅ COMPREHENSIVE TEST PASSED: Song submissions working perfectly - accepts Deezer song data (Bohemian Rhapsody, Stairway to Heaven), prevents duplicate submissions per user, validates round status, returns proper SubmissionResponse. Get submissions hides usernames during voting phase as expected"
 
   - task: "Voting System APIs"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Vote submission and results calculation implemented"
+      - working: true
+        agent: "testing"
+        comment: "✅ COMPREHENSIVE TEST PASSED: Voting system fully functional - accepts ranking arrays, prevents duplicate votes, validates submission IDs, calculates points correctly (inverse ranking system), determines winner properly. Results show Bohemian Rhapsody won with 3 points from 2 voters"
 
   - task: "Deezer Song Search API"
     implemented: true
@@ -183,11 +201,14 @@ backend:
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "Tested with curl - returns songs with preview URLs from Deezer API"
+      - working: true
+        agent: "testing"
+        comment: "✅ COMPREHENSIVE TEST PASSED: Deezer API integration working - search for 'Queen Bohemian Rhapsody' returns 5 songs with proper metadata (deezer_id, title, artist, album, preview_url, cover_url, duration). API proxy functioning correctly"
 
 frontend:
   - task: "Login/Register Screens"
