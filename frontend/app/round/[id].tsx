@@ -254,19 +254,19 @@ export default function RoundScreen() {
             style={[styles.serviceButtonSmall, { backgroundColor: '#1DB954' }]}
             onPress={() => openInService(item.song, 'spotify')}
           >
-            <Ionicons name="musical-notes" size={12} color="#fff" />
+            <Ionicons name="logo-spotify" size={12} color="#fff" />
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.serviceButtonSmall, { backgroundColor: '#FA243C' }]}
             onPress={() => openInService(item.song, 'apple')}
           >
-            <Ionicons name="phone-portrait" size={12} color="#fff" />
+            <Ionicons name="logo-apple" size={12} color="#fff" />
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.serviceButtonSmall, { backgroundColor: '#FF0000' }]}
             onPress={() => openInService(item.song, 'youtube')}
           >
-            <Ionicons name="play-circle" size={12} color="#fff" />
+            <Ionicons name="logo-youtube" size={12} color="#fff" />
           </TouchableOpacity>
         </View>
       </View>
@@ -305,19 +305,19 @@ export default function RoundScreen() {
               style={[styles.serviceButtonSmall, { backgroundColor: '#1DB954' }]}
               onPress={() => openInService(submission.song, 'spotify')}
             >
-              <Ionicons name="musical-notes" size={12} color="#fff" />
+              <Ionicons name="logo-spotify" size={12} color="#fff" />
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.serviceButtonSmall, { backgroundColor: '#FA243C' }]}
               onPress={() => openInService(submission.song, 'apple')}
             >
-              <Ionicons name="phone-portrait" size={12} color="#fff" />
+              <Ionicons name="logo-apple" size={12} color="#fff" />
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.serviceButtonSmall, { backgroundColor: '#FF0000' }]}
               onPress={() => openInService(submission.song, 'youtube')}
             >
-              <Ionicons name="play-circle" size={12} color="#fff" />
+              <Ionicons name="logo-youtube" size={12} color="#fff" />
             </TouchableOpacity>
           </View>
         </View>
