@@ -134,12 +134,20 @@ export default function RoundScreen() {
   const playPreview = async (song: Song) => {
     try {
       if (playingSongId === song.deezer_id) {
-        player.pause();
+        try {
+          player.pause();
+        } catch (e) {
+          // Ignore pause errors
+        }
         setPlayingSongId(null);
         return;
       }
 
-      player.pause();
+      try {
+        player.pause();
+      } catch (e) {
+        // Ignore pause errors
+      }
       player.replace({ uri: song.preview_url });
       player.play();
       setPlayingSongId(song.deezer_id);
