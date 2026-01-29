@@ -33,6 +33,7 @@ export default function LeagueDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [creatingRound, setCreatingRound] = useState(false);
+  const [advancing, setAdvancing] = useState<string | null>(null);
 
   const fetchData = async () => {
     try {
@@ -98,11 +99,15 @@ export default function LeagueDetailScreen() {
         {
           text: 'Advance',
           onPress: async () => {
+            setAdvancing(roundId);
             try {
               await advanceRound(roundId);
               await fetchData();
+              Alert.alert('Success', `Round advanced to ${nextPhase}!`);
             } catch (error: any) {
               Alert.alert('Error', error.response?.data?.detail || 'Failed to advance round');
+            } finally {
+              setAdvancing(null);
             }
           },
         },
@@ -123,88 +128,81 @@ export default function LeagueDetailScreen() {
   };
 
   const renderRoundItem = ({ item }: { item: Round }) => (
-    <TouchableOpacity
-      style={styles.roundCard}
-      onPress={() => router.push(`/round/${item.id}`)}
-    >
-      <View style={styles.roundHeader}>
-        <View style={styles.roundNumber}>
-          <Text style={styles.roundNumberText}>R{item.round_number}</Text>
-        </View>
-        <View style={styles.roundInfo}>
-          <Text style={styles.roundTheme}>{item.theme}</Text>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}>
-            <View style={[styles.statusDot, { backgroundColor: getStatusColor(item.status) }]} />
-            <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-              {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
-            </Text>
+    <View style={styles.roundCard}>
+      <TouchableOpacity
+        style={styles.roundContent}
+        onPress={() => router.push(`/round/${item.id}`)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.roundHeader}>
+          <View style={styles.roundNumber}>
+            <Text style={styles.roundNumberText}>R{item.round_number}</Text>
           </View>
+          <View style={styles.roundInfo}>
+            <Text style={styles.roundTheme}>{item.theme}</Text>
+            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}>
+              <View style={[styles.statusDot, { backgroundColor: getStatusColor(item.status) }]} />
+              <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
+                {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+              </Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#666" />
         </View>
-        <Ionicons name="chevron-forward" size={20} color="#666" />
-      </View>
 
-      <View style={styles.roundStats}>
-        <View style={styles.roundStat}>
-          <Ionicons name="musical-note" size={14} color="#888" />
-          <Text style={styles.roundStatText}>{item.submissions_count} songs</Text>
+        <View style={styles.roundStats}>
+          <View style={styles.roundStat}>
+            <Ionicons name="musical-note" size={14} color="#888" />
+            <Text style={styles.roundStatText}>{item.submissions_count} songs</Text>
+          </View>
+          {item.status === 'submission' && (
+            <View style={styles.roundStat}>
+              <Ionicons
+                name={item.has_user_submitted ? 'checkmark-circle' : 'time-outline'}
+                size={14}
+                color={item.has_user_submitted ? '#10b981' : '#888'}
+              />
+              <Text style={[styles.roundStatText, item.has_user_submitted && { color: '#10b981' }]}>
+                {item.has_user_submitted ? 'Submitted' : 'Pending'}
+              </Text>
+            </View>
+          )}
+          {item.status === 'voting' && (
+            <View style={styles.roundStat}>
+              <Ionicons
+                name={item.has_user_voted ? 'checkmark-circle' : 'time-outline'}
+                size={14}
+                color={item.has_user_voted ? '#10b981' : '#888'}
+              />
+              <Text style={[styles.roundStatText, item.has_user_voted && { color: '#10b981' }]}>
+                {item.has_user_voted ? 'Voted' : 'Vote Pending'}
+              </Text>
+            </View>
+          )}
         </View>
-        {item.status === 'submission' && (
-          <View style={styles.roundStat}>
-            <Ionicons
-              name={item.has_user_submitted ? 'checkmark-circle' : 'time-outline'}
-              size={14}
-              color={item.has_user_submitted ? '#10b981' : '#888'}
-            />
-            <Text style={[styles.roundStatText, item.has_user_submitted && { color: '#10b981' }]}>
-              {item.has_user_submitted ? 'Submitted' : 'Pending'}
-            </Text>
-          </View>
-        )}
-        {item.status === 'voting' && (
-          <View style={styles.roundStat}>
-            <Ionicons
-              name={item.has_user_voted ? 'checkmark-circle' : 'time-outline'}
-              size={14}
-              color={item.has_user_voted ? '#10b981' : '#888'}
-            />
-            <Text style={[styles.roundStatText, item.has_user_voted && { color: '#10b981' }]}>
-              {item.has_user_voted ? 'Voted' : 'Vote Pending'}
-            </Text>
-          </View>
-        )}
-      </View>
+      </TouchableOpacity>
 
       {isCreator && item.status !== 'completed' && (
         <TouchableOpacity
           style={styles.advanceButton}
           onPress={() => handleAdvanceRound(item.id, item.status)}
           activeOpacity={0.7}
+          disabled={advancing === item.id}
         >
-          <Ionicons name="arrow-forward" size={16} color="#6366f1" />
-          <Text style={styles.advanceButtonText}>
-            Advance to {item.status === 'submission' ? 'Voting' : 'Results'}
-          </Text>
+          {advancing === item.id ? (
+            <ActivityIndicator size="small" color="#6366f1" />
+          ) : (
+            <>
+              <Ionicons name="arrow-forward" size={16} color="#6366f1" />
+              <Text style={styles.advanceButtonText}>
+                Advance to {item.status === 'submission' ? 'Voting' : 'Results'}
+              </Text>
+            </>
+          )}
         </TouchableOpacity>
       )}
     </View>
   );
-
-  const handleRoundPress = (roundId: string) => {
-    router.push(`/round/${roundId}`);
-  };
-
-  const renderRoundItemWrapper = ({ item }: { item: Round }) => (
-    <TouchableOpacity
-      style={styles.roundCard}
-      onPress={() => handleRoundPress(item.id)}
-      activeOpacity={0.8}
-    >
-      {renderRoundItem({ item })}
-    </TouchableOpacity>
-  );
-
-  const renderRoundItem = ({ item }: { item: Round }) => (
-    <>
 
   if (loading) {
     return (
@@ -411,10 +409,13 @@ const styles = StyleSheet.create({
   roundCard: {
     backgroundColor: '#1a1a1a',
     borderRadius: 12,
-    padding: 16,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: '#333',
+    overflow: 'hidden',
+  },
+  roundContent: {
+    padding: 16,
   },
   roundHeader: {
     flexDirection: 'row',
@@ -482,10 +483,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
     backgroundColor: 'rgba(99, 102, 241, 0.15)',
-    borderRadius: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#333',
     gap: 6,
   },
   advanceButtonText: {
