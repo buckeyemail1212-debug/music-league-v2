@@ -63,7 +63,12 @@ class UserResponse(BaseModel):
     id: str
     email: str
     username: str
+    profile_photo: Optional[str] = None
     created_at: datetime
+
+class UserUpdate(BaseModel):
+    username: Optional[str] = None
+    profile_photo: Optional[str] = None
 
 class TokenResponse(BaseModel):
     access_token: str
