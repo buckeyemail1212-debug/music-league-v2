@@ -138,19 +138,19 @@ export default function DiscoveryScreen() {
             style={[styles.serviceButton, { backgroundColor: '#1DB954' }]}
             onPress={() => openInService(item, 'spotify')}
           >
-            <Ionicons name="logo-spotify" size={16} color="#fff" />
+            <Ionicons name="musical-notes" size={16} color="#fff" />
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.serviceButton, { backgroundColor: '#FA243C' }]}
             onPress={() => openInService(item, 'apple')}
           >
-            <Ionicons name="logo-apple" size={16} color="#fff" />
+            <Ionicons name="phone-portrait" size={16} color="#fff" />
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.serviceButton, { backgroundColor: '#FF0000' }]}
             onPress={() => openInService(item, 'youtube')}
           >
-            <Ionicons name="logo-youtube" size={16} color="#fff" />
+            <Ionicons name="play-circle" size={16} color="#fff" />
           </TouchableOpacity>
         </View>
       </View>
