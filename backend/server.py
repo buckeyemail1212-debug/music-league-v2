@@ -669,24 +669,38 @@ async def get_results(round_id: str, current_user: dict = Depends(get_current_us
     # Sort by points
     sorted_subs = sorted(submissions, key=lambda s: points[s["id"]], reverse=True)
     
+    # Assign ranks with tie handling
     rankings = []
-    for rank, sub in enumerate(sorted_subs):
+    current_rank = 1
+    prev_points = None
+    
+    for i, sub in enumerate(sorted_subs):
+        sub_points = points[sub["id"]]
+        
+        # If points are different from previous, update the rank
+        if prev_points is not None and sub_points < prev_points:
+            current_rank = i + 1
+        
         rankings.append({
             "submission_id": sub["id"],
             "song": sub["song"],
             "user_id": sub["user_id"],
             "username": sub["username"],
-            "points": points[sub["id"]],
-            "rank": rank + 1
+            "points": sub_points,
+            "rank": current_rank
         })
+        prev_points = sub_points
     
-    winner = rankings[0] if rankings else None
+    # Find all winners (those with rank 1)
+    winners = [r for r in rankings if r["rank"] == 1]
+    is_tie = len(winners) > 1
     
     return RoundResultResponse(
         id=str(uuid.uuid4()),
         round_id=round_id,
         rankings=rankings,
-        winner=winner,
+        winners=winners,
+        is_tie=is_tie,
         total_voters=len(votes)
     )
 
