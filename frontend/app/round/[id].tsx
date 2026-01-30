@@ -341,26 +341,29 @@ export default function RoundScreen() {
     );
   };
 
-  const renderResultItem = ({ item, index }: { item: RoundResult['rankings'][0]; index: number }) => (
-    <View style={[styles.resultCard, index === 0 && styles.winnerCard]}>
-      <View style={[styles.rankBadge, index === 0 && styles.winnerBadge]}>
-        {index === 0 ? (
-          <Ionicons name="trophy" size={16} color="#fbbf24" />
-        ) : (
-          <Text style={styles.rankNumber}>{item.rank}</Text>
-        )}
+  const renderResultItem = ({ item, index }: { item: RoundResult['rankings'][0]; index: number }) => {
+    const isWinner = item.rank === 1;
+    return (
+      <View style={[styles.resultCard, isWinner && styles.winnerCard]}>
+        <View style={[styles.rankBadge, isWinner && styles.winnerBadge]}>
+          {isWinner ? (
+            <Ionicons name="trophy" size={16} color="#fbbf24" />
+          ) : (
+            <Text style={styles.rankNumber}>{item.rank}</Text>
+          )}
+        </View>
+        <Image source={{ uri: item.song.cover_url }} style={styles.albumCoverSmall} />
+        <View style={styles.resultInfo}>
+          <Text style={styles.songTitle} numberOfLines={1}>{item.song.title}</Text>
+          <Text style={styles.artistName} numberOfLines={1}>{item.song.artist}</Text>
+          <Text style={styles.submittedBy}>by {item.username}</Text>
+        </View>
+        <View style={styles.pointsBadge}>
+          <Text style={styles.pointsText}>{item.points} pts</Text>
+        </View>
       </View>
-      <Image source={{ uri: item.song.cover_url }} style={styles.albumCoverSmall} />
-      <View style={styles.resultInfo}>
-        <Text style={styles.songTitle} numberOfLines={1}>{item.song.title}</Text>
-        <Text style={styles.artistName} numberOfLines={1}>{item.song.artist}</Text>
-        <Text style={styles.submittedBy}>by {item.username}</Text>
-      </View>
-      <View style={styles.pointsBadge}>
-        <Text style={styles.pointsText}>{item.points} pts</Text>
-      </View>
-    </View>
-  );
+    );
+  };
 
   if (loading) {
     return (
