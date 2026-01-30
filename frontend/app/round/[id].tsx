@@ -492,13 +492,26 @@ export default function RoundScreen() {
       {/* COMPLETED - RESULTS */}
       {round.status === 'completed' && results && (
         <>
-          {results.winner && (
-            <View style={styles.winnerBanner}>
-              <Ionicons name="trophy" size={32} color="#fbbf24" />
+          {results.winners && results.winners.length > 0 && (
+            <View style={[styles.winnerBanner, results.is_tie && styles.tieBanner]}>
+              <Ionicons name={results.is_tie ? "ribbon" : "trophy"} size={32} color="#fbbf24" />
               <View style={styles.winnerInfo}>
-                <Text style={styles.winnerLabel}>Winner</Text>
-                <Text style={styles.winnerSong}>{results.winner.song.title}</Text>
-                <Text style={styles.winnerUser}>by {results.winner.username}</Text>
+                <Text style={styles.winnerLabel}>
+                  {results.is_tie ? `It's a Tie! (${results.winners.length} Winners)` : 'Winner'}
+                </Text>
+                {results.is_tie ? (
+                  results.winners.map((winner, index) => (
+                    <View key={winner.submission_id} style={styles.tieWinnerItem}>
+                      <Text style={styles.winnerSong}>{winner.song.title}</Text>
+                      <Text style={styles.winnerUser}>by {winner.username}</Text>
+                    </View>
+                  ))
+                ) : (
+                  <>
+                    <Text style={styles.winnerSong}>{results.winners[0].song.title}</Text>
+                    <Text style={styles.winnerUser}>by {results.winners[0].username}</Text>
+                  </>
+                )}
               </View>
             </View>
           )}
