@@ -403,36 +403,46 @@ export default function RoundScreen() {
       {round.status === 'submission' && (
         <>
           {!round.has_user_submitted ? (
-            <TouchableOpacity
-              style={styles.submitSongButton}
-              onPress={() => setShowSongModal(true)}
-            >
-              <Ionicons name="add-circle" size={24} color="#fff" />
-              <Text style={styles.submitSongText}>Submit Your Song</Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.submittedBanner}>
-              <Ionicons name="checkmark-circle" size={24} color="#10b981" />
-              <Text style={styles.submittedText}>You've submitted your song!</Text>
-            </View>
-          )}
-
-          <Text style={styles.sectionTitle}>Submissions ({submissions.length})</Text>
-          <FlatList
-            data={submissions}
-            keyExtractor={(item) => item.id}
-            renderItem={renderSubmissionItem}
-            contentContainerStyle={styles.listContent}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6366f1" />
-            }
-            ListEmptyComponent={
-              <View style={styles.emptyState}>
-                <Ionicons name="musical-notes" size={40} color="#333" />
-                <Text style={styles.emptyText}>No submissions yet</Text>
+            <>
+              <TouchableOpacity
+                style={styles.submitSongButton}
+                onPress={() => setShowSongModal(true)}
+              >
+                <Ionicons name="add-circle" size={24} color="#fff" />
+                <Text style={styles.submitSongText}>Submit Your Song</Text>
+              </TouchableOpacity>
+              <View style={styles.hiddenSubmissionsNote}>
+                <Ionicons name="eye-off" size={20} color="#888" />
+                <Text style={styles.hiddenSubmissionsText}>
+                  Other submissions will be visible after you submit your song
+                </Text>
               </View>
-            }
-          />
+            </>
+          ) : (
+            <>
+              <View style={styles.submittedBanner}>
+                <Ionicons name="checkmark-circle" size={24} color="#10b981" />
+                <Text style={styles.submittedText}>You've submitted your song!</Text>
+              </View>
+
+              <Text style={styles.sectionTitle}>Submissions ({submissions.length})</Text>
+              <FlatList
+                data={submissions}
+                keyExtractor={(item) => item.id}
+                renderItem={renderSubmissionItem}
+                contentContainerStyle={styles.listContent}
+                refreshControl={
+                  <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6366f1" />
+                }
+                ListEmptyComponent={
+                  <View style={styles.emptyState}>
+                    <Ionicons name="musical-notes" size={40} color="#333" />
+                    <Text style={styles.emptyText}>No submissions yet</Text>
+                  </View>
+                }
+              />
+            </>
+          )}
         </>
       )}
 
