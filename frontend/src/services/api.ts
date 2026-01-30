@@ -78,14 +78,15 @@ export interface RoundResult {
     points: number;
     rank: number;
   }[];
-  winner: {
+  winners: {
     submission_id: string;
     song: Song;
     user_id: string;
     username: string;
     points: number;
     rank: number;
-  } | null;
+  }[];
+  is_tie: boolean;
   total_voters: number;
 }
 
