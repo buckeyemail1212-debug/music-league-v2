@@ -923,6 +923,15 @@ const styles = StyleSheet.create({
     color: '#fbbf24',
     marginTop: 2,
   },
+  tieBanner: {
+    alignItems: 'flex-start',
+  },
+  tieWinnerItem: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(251, 191, 36, 0.3)',
+  },
   resultCard: {
     flexDirection: 'row',
     alignItems: 'center',
