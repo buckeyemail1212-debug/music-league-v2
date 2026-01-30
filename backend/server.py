@@ -138,7 +138,8 @@ class RoundResultResponse(BaseModel):
     id: str
     round_id: str
     rankings: List[dict]  # [{submission_id, song, user_id, username, points, rank}]
-    winner: Optional[dict]
+    winners: List[dict]  # List of winners (can be multiple in case of tie)
+    is_tie: bool
     total_voters: int
 
 # ==================== HELPER FUNCTIONS ====================
