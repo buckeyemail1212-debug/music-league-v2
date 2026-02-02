@@ -57,6 +57,9 @@ export default function RoundScreen() {
   const [rankings, setRankings] = useState<string[]>([]);
   const [votingSubmitting, setVotingSubmitting] = useState(false);
 
+  // Timer
+  const [timeRemaining, setTimeRemaining] = useState<string>('');
+
   useEffect(() => {
     // Configure audio mode
     Audio.setAudioModeAsync({
@@ -72,6 +75,49 @@ export default function RoundScreen() {
       }
     };
   }, []);
+
+  // Timer effect
+  useEffect(() => {
+    if (!round || round.status === 'completed') return;
+
+    const calculateTimeRemaining = () => {
+      const now = new Date();
+      let endTime: Date;
+      
+      if (round.status === 'submission' && round.submission_deadline) {
+        endTime = new Date(round.submission_deadline);
+      } else if (round.status === 'voting' && round.voting_deadline) {
+        endTime = new Date(round.voting_deadline);
+      } else {
+        setTimeRemaining('');
+        return;
+      }
+
+      const diff = endTime.getTime() - now.getTime();
+      
+      if (diff <= 0) {
+        setTimeRemaining('Time expired');
+        return;
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      if (days > 0) {
+        setTimeRemaining(`${days}d ${hours}h ${minutes}m`);
+      } else if (hours > 0) {
+        setTimeRemaining(`${hours}h ${minutes}m ${seconds}s`);
+      } else {
+        setTimeRemaining(`${minutes}m ${seconds}s`);
+      }
+    };
+
+    calculateTimeRemaining();
+    const interval = setInterval(calculateTimeRemaining, 1000);
+    return () => clearInterval(interval);
+  }, [round]);
 
   const fetchData = async () => {
     try {
