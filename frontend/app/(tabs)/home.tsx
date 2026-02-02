@@ -563,6 +563,39 @@ const styles = StyleSheet.create({
     color: '#888',
     marginTop: 2,
   },
+  durationRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    paddingHorizontal: 4,
+  },
+  durationItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  durationText: {
+    fontSize: 12,
+    color: '#888',
+  },
+  timerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    gap: 6,
+  },
+  timerLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  timerValue: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
   leagueStats: {
     flexDirection: 'row',
     marginTop: 12,
