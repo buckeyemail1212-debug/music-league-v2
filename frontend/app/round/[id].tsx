@@ -911,6 +911,18 @@ const styles = StyleSheet.create({
     color: '#6366f1',
     fontWeight: '500',
   },
+  ownSongNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 16,
+    marginTop: 8,
+    gap: 6,
+  },
+  ownSongNoteText: {
+    fontSize: 12,
+    color: '#888',
+  },
   votingCard: {
     flexDirection: 'row',
     alignItems: 'center',
