@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -20,18 +20,20 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
-import { getLeagues, createLeague, joinLeague, League } from '../../src/services/api';
+import { getLeagues, createLeague, joinLeague, getRounds, League, Round } from '../../src/services/api';
 
 export default function HomeScreen() {
   const { user } = useAuth();
   const router = useRouter();
   const [leagues, setLeagues] = useState<League[]>([]);
+  const [activeRounds, setActiveRounds] = useState<{ [leagueId: string]: Round | null }>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [joining, setJoining] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   // Create league form
   const [leagueName, setLeagueName] = useState('');
@@ -48,6 +50,14 @@ export default function HomeScreen() {
     { label: '3 days', value: '72' },
     { label: '7 days', value: '168' },
   ];
+
+  // Timer update effect
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Join league form
   const [leagueCode, setLeagueCode] = useState('');
