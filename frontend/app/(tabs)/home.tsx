@@ -39,6 +39,16 @@ export default function HomeScreen() {
   const [submissionHours, setSubmissionHours] = useState('24');
   const [votingHours, setVotingHours] = useState('24');
 
+  // Time options
+  const timeOptions = [
+    { label: '1 hr', value: '1' },
+    { label: '6 hrs', value: '6' },
+    { label: '12 hrs', value: '12' },
+    { label: '1 day', value: '24' },
+    { label: '3 days', value: '72' },
+    { label: '7 days', value: '168' },
+  ];
+
   // Join league form
   const [leagueCode, setLeagueCode] = useState('');
 
