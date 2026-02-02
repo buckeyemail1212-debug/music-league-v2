@@ -449,6 +449,17 @@ export default function RoundScreen() {
         </View>
       </View>
 
+      {/* Timer */}
+      {round.status !== 'completed' && timeRemaining && (
+        <View style={styles.timerContainer}>
+          <Ionicons name="time-outline" size={18} color="#f59e0b" />
+          <Text style={styles.timerLabel}>
+            {round.status === 'submission' ? 'Submission ends in:' : 'Voting ends in:'}
+          </Text>
+          <Text style={styles.timerValue}>{timeRemaining}</Text>
+        </View>
+      )}
+
       {/* SUBMISSION PHASE */}
       {round.status === 'submission' && (
         <>
