@@ -175,37 +175,83 @@ export default function HomeScreen() {
     setVotingHours('24');
   };
 
-  const renderLeagueItem = ({ item }: { item: League }) => (
-    <TouchableOpacity
-      style={styles.leagueCard}
-      onPress={() => router.push(`/league/${item.id}`)}
-    >
-      <View style={styles.leagueHeader}>
-        <View style={styles.leagueIcon}>
-          <Ionicons name="trophy" size={24} color="#6366f1" />
+  const renderLeagueItem = ({ item }: { item: League }) => {
+    const activeRound = activeRounds[item.id];
+    
+    return (
+      <TouchableOpacity
+        style={styles.leagueCard}
+        onPress={() => router.push(`/league/${item.id}`)}
+      >
+        <View style={styles.leagueHeader}>
+          <View style={styles.leagueIcon}>
+            <Ionicons name="trophy" size={24} color="#6366f1" />
+          </View>
+          <View style={styles.leagueInfo}>
+            <Text style={styles.leagueName}>{item.name}</Text>
+            <Text style={styles.leagueTheme}>{item.theme}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#666" />
         </View>
-        <View style={styles.leagueInfo}>
-          <Text style={styles.leagueName}>{item.name}</Text>
-          <Text style={styles.leagueTheme}>{item.theme}</Text>
+        
+        {/* League Duration Info */}
+        <View style={styles.durationRow}>
+          <View style={styles.durationItem}>
+            <Ionicons name="musical-note" size={14} color="#6366f1" />
+            <Text style={styles.durationText}>Submit: {formatDuration(item.submission_hours)}</Text>
+          </View>
+          <View style={styles.durationItem}>
+            <Ionicons name="thumbs-up" size={14} color="#f59e0b" />
+            <Text style={styles.durationText}>Vote: {formatDuration(item.voting_hours)}</Text>
+          </View>
         </View>
-        <Ionicons name="chevron-forward" size={20} color="#666" />
-      </View>
-      <View style={styles.leagueStats}>
-        <View style={styles.stat}>
-          <Ionicons name="people" size={16} color="#888" />
-          <Text style={styles.statText}>{item.members.length} members</Text>
+
+        {/* Active Round Timer */}
+        {activeRound && (
+          <View style={[
+            styles.timerRow,
+            { backgroundColor: activeRound.status === 'submission' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)' }
+          ]}>
+            <Ionicons 
+              name="time-outline" 
+              size={16} 
+              color={activeRound.status === 'submission' ? '#10b981' : '#f59e0b'} 
+            />
+            <Text style={[
+              styles.timerLabel,
+              { color: activeRound.status === 'submission' ? '#10b981' : '#f59e0b' }
+            ]}>
+              {activeRound.status === 'submission' ? 'Submission:' : 'Voting:'}
+            </Text>
+            <Text style={[
+              styles.timerValue,
+              { color: activeRound.status === 'submission' ? '#10b981' : '#f59e0b' }
+            ]}>
+              {activeRound.status === 'submission' 
+                ? getTimeRemaining(activeRound.submission_deadline)
+                : getTimeRemaining(activeRound.voting_deadline)
+              }
+            </Text>
+          </View>
+        )}
+
+        <View style={styles.leagueStats}>
+          <View style={styles.stat}>
+            <Ionicons name="people" size={16} color="#888" />
+            <Text style={styles.statText}>{item.members.length} members</Text>
+          </View>
+          <View style={styles.stat}>
+            <Ionicons name="repeat" size={16} color="#888" />
+            <Text style={styles.statText}>Round {item.current_round}</Text>
+          </View>
+          <View style={styles.codeContainer}>
+            <Text style={styles.codeLabel}>Code:</Text>
+            <Text style={styles.codeText}>{item.league_code}</Text>
+          </View>
         </View>
-        <View style={styles.stat}>
-          <Ionicons name="repeat" size={16} color="#888" />
-          <Text style={styles.statText}>Round {item.current_round}</Text>
-        </View>
-        <View style={styles.codeContainer}>
-          <Text style={styles.codeLabel}>Code:</Text>
-          <Text style={styles.codeText}>{item.league_code}</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
