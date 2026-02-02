@@ -281,7 +281,10 @@ export default function RoundScreen() {
       <View style={styles.songInfo}>
         <Text style={styles.songTitle} numberOfLines={1}>{item.song.title}</Text>
         <Text style={styles.artistName} numberOfLines={1}>{item.song.artist}</Text>
-        <Text style={styles.submittedBy}>by {item.username}</Text>
+        {/* Hide username during submission phase - only show in voting/completed */}
+        {round?.status !== 'submission' && (
+          <Text style={styles.submittedBy}>by {item.username}</Text>
+        )}
       </View>
       <View style={styles.submissionActions}>
         <TouchableOpacity
