@@ -80,14 +80,23 @@ export default function RoundScreen() {
   useEffect(() => {
     if (!round || round.status === 'completed') return;
 
+    const parseUTCDate = (dateStr: string): Date => {
+      // Backend sends UTC time, ensure we parse it correctly
+      if (dateStr.endsWith('Z') || dateStr.includes('+')) {
+        return new Date(dateStr);
+      }
+      // Append Z to treat as UTC
+      return new Date(dateStr + 'Z');
+    };
+
     const calculateTimeRemaining = () => {
       const now = new Date();
       let endTime: Date;
       
       if (round.status === 'submission' && round.submission_deadline) {
-        endTime = new Date(round.submission_deadline);
+        endTime = parseUTCDate(round.submission_deadline);
       } else if (round.status === 'voting' && round.voting_deadline) {
-        endTime = new Date(round.voting_deadline);
+        endTime = parseUTCDate(round.voting_deadline);
       } else {
         setTimeRemaining('');
         return;
