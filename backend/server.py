@@ -135,6 +135,11 @@ class RoundResponse(BaseModel):
     has_user_submitted: bool
     has_user_voted: bool
     created_at: datetime
+    
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z' if v.tzinfo else v.strftime('%Y-%m-%dT%H:%M:%SZ')
+        }
 
 class RoundResultResponse(BaseModel):
     id: str
