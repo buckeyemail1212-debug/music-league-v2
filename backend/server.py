@@ -456,7 +456,7 @@ async def create_round(league_id: str, current_user: dict = Depends(get_current_
     
     round_number = league["current_round"] + 1
     round_id = str(uuid.uuid4())
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     
     round_doc = {
         "id": round_id,
