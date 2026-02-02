@@ -64,6 +64,8 @@ export default function LoginScreen() {
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                autoComplete="off"
+                textContentType="none"
               />
             </View>
 
