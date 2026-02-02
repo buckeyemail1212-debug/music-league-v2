@@ -106,6 +106,9 @@ export default function RegisterScreen() {
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
+                  autoComplete="off"
+                  textContentType="none"
+                  autoCorrect={false}
                 />
                 <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                   <Ionicons
@@ -125,6 +128,9 @@ export default function RegisterScreen() {
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   secureTextEntry={!showPassword}
+                  autoComplete="off"
+                  textContentType="none"
+                  autoCorrect={false}
                 />
               </View>
 
