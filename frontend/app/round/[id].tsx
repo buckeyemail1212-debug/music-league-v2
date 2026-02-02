@@ -519,10 +519,18 @@ export default function RoundScreen() {
               <Text style={styles.submittedText}>You've submitted your vote!</Text>
             </View>
           ) : (
-            <View style={styles.votingInstructions}>
-              <Ionicons name="swap-vertical" size={20} color="#6366f1" />
-              <Text style={styles.votingInstructionsText}>Rank songs from best to worst</Text>
-            </View>
+            <>
+              <View style={styles.votingInstructions}>
+                <Ionicons name="swap-vertical" size={20} color="#6366f1" />
+                <Text style={styles.votingInstructionsText}>Rank songs from best to worst</Text>
+              </View>
+              {round.has_user_submitted && (
+                <View style={styles.ownSongNote}>
+                  <Ionicons name="information-circle" size={16} color="#888" />
+                  <Text style={styles.ownSongNoteText}>Your song is not shown - you cannot vote for yourself</Text>
+                </View>
+              )}
+            </>
           )}
 
           <FlatList
