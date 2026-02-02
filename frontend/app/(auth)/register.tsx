@@ -82,6 +82,8 @@ export default function RegisterScreen() {
                   onChangeText={setEmail}
                   keyboardType="email-address"
                   autoCapitalize="none"
+                  autoComplete="off"
+                  textContentType="none"
                 />
               </View>
 
@@ -94,6 +96,8 @@ export default function RegisterScreen() {
                   value={username}
                   onChangeText={setUsername}
                   autoCapitalize="none"
+                  autoComplete="off"
+                  textContentType="none"
                 />
               </View>
 
