@@ -98,8 +98,17 @@ export default function HomeScreen() {
 
   // Helper to calculate time remaining
   const getTimeRemaining = (deadline: string): string => {
-    const endTime = new Date(deadline);
-    const diff = endTime.getTime() - currentTime.getTime();
+    // Ensure we parse as UTC time
+    let endTime: Date;
+    if (deadline.endsWith('Z') || deadline.includes('+')) {
+      endTime = new Date(deadline);
+    } else {
+      // Backend sends UTC time without Z suffix, so append it
+      endTime = new Date(deadline + 'Z');
+    }
+    
+    const now = new Date();
+    const diff = endTime.getTime() - now.getTime();
     
     if (diff <= 0) return 'Expired';
 
