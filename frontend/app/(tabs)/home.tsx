@@ -207,7 +207,7 @@ export default function HomeScreen() {
         </View>
 
         {/* Active Round Timer */}
-        {activeRound && (
+        {activeRound ? (
           <View style={[
             styles.timerRow,
             { backgroundColor: activeRound.status === 'submission' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)' }
@@ -232,6 +232,11 @@ export default function HomeScreen() {
                 : getTimeRemaining(activeRound.voting_deadline)
               }
             </Text>
+          </View>
+        ) : (
+          <View style={[styles.timerRow, { backgroundColor: 'rgba(136, 136, 136, 0.1)' }]}>
+            <Ionicons name="time-outline" size={16} color="#666" />
+            <Text style={[styles.timerLabel, { color: '#666' }]}>No active round</Text>
           </View>
         )}
 
