@@ -127,9 +127,10 @@ export default function RoundScreen() {
       if (roundRes.data.status !== 'completed') {
         const subsRes = await getSubmissions(id!);
         setSubmissions(subsRes.data);
-        // Initialize rankings for voting
+        // Initialize rankings for voting (excluding user's own submission)
         if (roundRes.data.status === 'voting' && !roundRes.data.has_user_voted) {
-          setRankings(subsRes.data.map(s => s.id));
+          const otherSubmissions = subsRes.data.filter(s => s.user_id !== user?.id);
+          setRankings(otherSubmissions.map(s => s.id));
         }
       } else {
         const resultsRes = await getResults(id!);
