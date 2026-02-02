@@ -66,11 +66,51 @@ export default function HomeScreen() {
     try {
       const response = await getLeagues();
       setLeagues(response.data);
+      
+      // Fetch active rounds for each league
+      const roundsData: { [leagueId: string]: Round | null } = {};
+      for (const league of response.data) {
+        try {
+          const roundsRes = await getRounds(league.id);
+          // Find active round (submission or voting status)
+          const activeRound = roundsRes.data.find(
+            (r: Round) => r.status === 'submission' || r.status === 'voting'
+          );
+          roundsData[league.id] = activeRound || null;
+        } catch {
+          roundsData[league.id] = null;
+        }
+      }
+      setActiveRounds(roundsData);
     } catch (error) {
       console.error('Failed to fetch leagues:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Helper to format time duration
+  const formatDuration = (hours: number): string => {
+    if (hours < 24) return `${hours} hr${hours > 1 ? 's' : ''}`;
+    const days = hours / 24;
+    return `${days} day${days > 1 ? 's' : ''}`;
+  };
+
+  // Helper to calculate time remaining
+  const getTimeRemaining = (deadline: string): string => {
+    const endTime = new Date(deadline);
+    const diff = endTime.getTime() - currentTime.getTime();
+    
+    if (diff <= 0) return 'Expired';
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+    if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+    if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+    return `${minutes}m ${seconds}s`;
   };
 
   useFocusEffect(
