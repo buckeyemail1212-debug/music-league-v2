@@ -254,25 +254,43 @@ export default function HomeScreen() {
                   onChangeText={setLeagueTheme}
                 />
 
-                <Text style={styles.inputLabel}>Submission Time (hours)</Text>
-                <TextInput
-                  style={styles.modalInput}
-                  placeholder="24"
-                  placeholderTextColor="#666"
-                  value={submissionHours}
-                  onChangeText={setSubmissionHours}
-                  keyboardType="number-pad"
-                />
+                <Text style={styles.inputLabel}>Submission Time</Text>
+                <View style={styles.timeOptionsContainer}>
+                  {timeOptions.map((option) => (
+                    <TouchableOpacity
+                      key={`sub-${option.value}`}
+                      style={[
+                        styles.timeOption,
+                        submissionHours === option.value && styles.timeOptionSelected
+                      ]}
+                      onPress={() => setSubmissionHours(option.value)}
+                    >
+                      <Text style={[
+                        styles.timeOptionText,
+                        submissionHours === option.value && styles.timeOptionTextSelected
+                      ]}>{option.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
 
-                <Text style={styles.inputLabel}>Voting Time (hours)</Text>
-                <TextInput
-                  style={styles.modalInput}
-                  placeholder="24"
-                  placeholderTextColor="#666"
-                  value={votingHours}
-                  onChangeText={setVotingHours}
-                  keyboardType="number-pad"
-                />
+                <Text style={styles.inputLabel}>Voting Time</Text>
+                <View style={styles.timeOptionsContainer}>
+                  {timeOptions.map((option) => (
+                    <TouchableOpacity
+                      key={`vote-${option.value}`}
+                      style={[
+                        styles.timeOption,
+                        votingHours === option.value && styles.timeOptionSelected
+                      ]}
+                      onPress={() => setVotingHours(option.value)}
+                    >
+                      <Text style={[
+                        styles.timeOptionText,
+                        votingHours === option.value && styles.timeOptionTextSelected
+                      ]}>{option.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
 
                 <TouchableOpacity
                   style={[styles.submitButton, creating && styles.buttonDisabled]}
