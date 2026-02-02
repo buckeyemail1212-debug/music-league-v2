@@ -569,6 +569,32 @@ const styles = StyleSheet.create({
     borderColor: '#333',
     marginBottom: 16,
   },
+  timeOptionsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  timeOption: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    backgroundColor: '#0a0a0a',
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  timeOptionSelected: {
+    backgroundColor: '#6366f1',
+    borderColor: '#6366f1',
+  },
+  timeOptionText: {
+    fontSize: 14,
+    color: '#888',
+    fontWeight: '500',
+  },
+  timeOptionTextSelected: {
+    color: '#fff',
+  },
   codeInput: {
     textAlign: 'center',
     fontSize: 24,
