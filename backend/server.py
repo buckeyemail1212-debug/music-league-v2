@@ -382,8 +382,12 @@ async def create_league(league_data: LeagueCreate, current_user: dict = Depends(
 
 def add_league_defaults(league: dict) -> dict:
     """Add default values for new fields to support existing leagues"""
-    league.setdefault("theme_mode", "all_rounds")
     league.setdefault("total_rounds", 0)
+    # Remove old fields if they exist (migration)
+    league.pop("theme", None)
+    league.pop("theme_mode", None)
+    league.pop("submission_hours", None)
+    league.pop("voting_hours", None)
     return league
 
 @api_router.get("/leagues", response_model=List[LeagueResponse])
