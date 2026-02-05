@@ -26,8 +26,10 @@ import {
   advanceRound,
   deleteLeague,
   leaveLeague,
+  getLeagueStandings,
   League,
   Round,
+  LeagueStandings,
 } from '../../src/services/api';
 
 export default function LeagueDetailScreen() {
@@ -36,10 +38,12 @@ export default function LeagueDetailScreen() {
   const router = useRouter();
   const [league, setLeague] = useState<League | null>(null);
   const [rounds, setRounds] = useState<Round[]>([]);
+  const [standings, setStandings] = useState<LeagueStandings | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [creatingRound, setCreatingRound] = useState(false);
   const [advancing, setAdvancing] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'rounds' | 'standings'>('rounds');
   
   // Start round modal state
   const [showStartRoundModal, setShowStartRoundModal] = useState(false);
