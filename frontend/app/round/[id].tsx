@@ -958,6 +958,12 @@ const styles = StyleSheet.create({
     color: '#6366f1',
     marginTop: 4,
   },
+  submittedByYou: {
+    fontSize: 12,
+    color: '#888',
+    fontStyle: 'italic',
+    marginTop: 4,
+  },
   duration: {
     fontSize: 11,
     color: '#666',
