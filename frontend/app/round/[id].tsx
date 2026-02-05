@@ -137,10 +137,28 @@ export default function RoundScreen() {
       if (roundRes.data.status !== 'completed') {
         const subsRes = await getSubmissions(id!);
         setSubmissions(subsRes.data);
-        // Initialize rankings for voting (excluding user's own submission)
-        if (roundRes.data.status === 'voting' && !roundRes.data.has_user_voted) {
-          const otherSubmissions = subsRes.data.filter(s => s.user_id !== user?.id);
-          setRankings(otherSubmissions.map(s => s.id));
+        
+        // Handle voting phase
+        if (roundRes.data.status === 'voting') {
+          const otherSubmissions = subsRes.data.filter(s => s.user_id !== user?.id && s.user_id !== 'hidden');
+          
+          if (roundRes.data.has_user_voted) {
+            // User has voted - check if locked
+            setVoteSaved(true);
+            // Try to get existing vote rankings
+            try {
+              const { getMyVote } = await import('../../src/services/api');
+              const voteRes = await getMyVote(id!);
+              setRankings(voteRes.data.rankings);
+            } catch {
+              // If can't get vote, use current order
+              setRankings(otherSubmissions.map(s => s.id));
+            }
+          } else {
+            // User hasn't voted yet
+            setVoteSaved(false);
+            setRankings(otherSubmissions.map(s => s.id));
+          }
         }
       } else {
         const resultsRes = await getResults(id!);
