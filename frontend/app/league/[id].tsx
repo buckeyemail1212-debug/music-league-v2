@@ -774,6 +774,119 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
   },
+  // Tab styles
+  tabContainer: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 8,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 4,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 10,
+    gap: 6,
+  },
+  tabActive: {
+    backgroundColor: '#0a0a0a',
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#888',
+  },
+  tabTextActive: {
+    color: '#6366f1',
+  },
+  // Standings styles
+  standingsContainer: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
+  standingsHeader: {
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  standingsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  roundsCompleted: {
+    fontSize: 13,
+    color: '#888',
+    marginTop: 4,
+  },
+  standingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1a1a1a',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  firstPlace: {
+    backgroundColor: 'rgba(251, 191, 36, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.3)',
+  },
+  secondPlace: {
+    backgroundColor: 'rgba(156, 163, 175, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(156, 163, 175, 0.2)',
+  },
+  thirdPlace: {
+    backgroundColor: 'rgba(217, 119, 6, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(217, 119, 6, 0.2)',
+  },
+  rankContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#0a0a0a',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  rankNumber: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#888',
+  },
+  playerInfo: {
+    flex: 1,
+  },
+  playerName: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#fff',
+  },
+  playerStats: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 2,
+  },
+  pointsContainer: {
+    alignItems: 'center',
+  },
+  pointsValue: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#6366f1',
+  },
+  pointsLabel: {
+    fontSize: 11,
+    color: '#888',
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
