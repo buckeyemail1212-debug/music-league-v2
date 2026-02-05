@@ -336,48 +336,54 @@ export default function RoundScreen() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const renderSubmissionItem = ({ item }: { item: Submission }) => (
-    <View style={styles.submissionCard}>
-      <Image source={{ uri: item.song.cover_url }} style={styles.albumCover} />
-      <View style={styles.songInfo}>
-        <Text style={styles.songTitle} numberOfLines={1}>{item.song.title}</Text>
-        <Text style={styles.artistName} numberOfLines={1}>{item.song.artist}</Text>
-        {/* Hide username during submission phase - only show in voting/completed */}
-        {round?.status !== 'submission' && (
-          <Text style={styles.submittedBy}>by {item.username}</Text>
-        )}
-      </View>
-      <View style={styles.submissionActions}>
-        <TouchableOpacity
-          style={[styles.playButton, playingSongId === item.song.deezer_id && styles.playingButton]}
-          onPress={() => playPreview(item.song)}
-        >
-          <Ionicons
-            name={playingSongId === item.song.deezer_id ? 'pause' : 'play'}
-            size={20}
-            color="#fff"
-          />
-        </TouchableOpacity>
-        <View style={styles.serviceButtonsSmall}>
-          <TouchableOpacity
-            style={[styles.serviceButtonSmall, { backgroundColor: '#1DB954' }]}
-            onPress={() => openInService(item.song, 'spotify')}
-          >
-            <FontAwesome name="spotify" size={12} color="#fff" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.serviceButtonSmall, { backgroundColor: '#FA243C' }]}
-            onPress={() => openInService(item.song, 'apple')}
-          >
-            <Ionicons name="logo-apple" size={12} color="#fff" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.serviceButtonSmall, { backgroundColor: '#FF0000' }]}
-            onPress={() => openInService(item.song, 'youtube')}
-          >
-            <Ionicons name="logo-youtube" size={12} color="#fff" />
-          </TouchableOpacity>
+  const renderSubmissionItem = ({ item }: { item: Submission }) => {
+    const isOwnSubmission = item.user_id === user?.id;
+    
+    return (
+      <View style={styles.submissionCard}>
+        <Image source={{ uri: item.song.cover_url }} style={styles.albumCover} />
+        <View style={styles.songInfo}>
+          <Text style={styles.songTitle} numberOfLines={1}>{item.song.title}</Text>
+          <Text style={styles.artistName} numberOfLines={1}>{item.song.artist}</Text>
+          {/* During submission: only show "Submitted by you" for own song */}
+          {/* During voting/completed: show username for all */}
+          {round?.status === 'submission' ? (
+            isOwnSubmission && <Text style={styles.submittedByYou}>Submitted by you</Text>
+          ) : (
+            <Text style={styles.submittedBy}>by {item.username}</Text>
+          )}
         </View>
+        <View style={styles.submissionActions}>
+          <TouchableOpacity
+            style={[styles.playButton, playingSongId === item.song.deezer_id && styles.playingButton]}
+            onPress={() => playPreview(item.song)}
+          >
+            <Ionicons
+              name={playingSongId === item.song.deezer_id ? 'pause' : 'play'}
+              size={20}
+              color="#fff"
+            />
+          </TouchableOpacity>
+          <View style={styles.serviceButtonsSmall}>
+            <TouchableOpacity
+              style={[styles.serviceButtonSmall, { backgroundColor: '#1DB954' }]}
+              onPress={() => openInService(item.song, 'spotify')}
+            >
+              <FontAwesome name="spotify" size={12} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.serviceButtonSmall, { backgroundColor: '#FA243C' }]}
+              onPress={() => openInService(item.song, 'apple')}
+            >
+              <Ionicons name="logo-apple" size={12} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.serviceButtonSmall, { backgroundColor: '#FF0000' }]}
+              onPress={() => openInService(item.song, 'youtube')}
+            >
+              <Ionicons name="logo-youtube" size={12} color="#fff" />
+            </TouchableOpacity>
+          </View>
       </View>
     </View>
   );
