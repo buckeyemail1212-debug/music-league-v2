@@ -129,6 +129,15 @@ class SubmissionResponse(BaseModel):
 
 class VoteRequest(BaseModel):
     rankings: List[str]  # List of submission IDs in order (best to worst)
+    locked: bool = False  # If true, vote is final and cannot be changed
+
+class VoteResponse(BaseModel):
+    id: str
+    round_id: str
+    user_id: str
+    rankings: List[str]
+    locked: bool
+    created_at: datetime
 
 class RoundResponse(BaseModel):
     id: str
@@ -141,6 +150,7 @@ class RoundResponse(BaseModel):
     submissions_count: int
     has_user_submitted: bool
     has_user_voted: bool
+    user_vote_locked: bool  # Whether user's vote is locked
     created_at: datetime
     
     class Config:
@@ -155,6 +165,12 @@ class RoundResultResponse(BaseModel):
     winners: List[dict]  # List of winners (can be multiple in case of tie)
     is_tie: bool
     total_voters: int
+
+class LeagueStandingsResponse(BaseModel):
+    league_id: str
+    standings: List[dict]  # [{user_id, username, total_points, wins, rounds_played}]
+    rounds_completed: int
+    total_rounds: int
 
 # ==================== HELPER FUNCTIONS ====================
 
