@@ -189,7 +189,7 @@ export default function HomeScreen() {
           <View style={styles.leagueInfo}>
             <Text style={styles.leagueName}>{item.name}</Text>
             <Text style={styles.leagueTheme}>
-              Round {item.current_round} of {item.total_rounds || '∞'}
+              Round {item.current_round} of {item.total_rounds > 0 ? item.total_rounds : 'Unlimited'}
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#666" />
