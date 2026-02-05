@@ -9,6 +9,11 @@ import {
   Alert,
   ActivityIndicator,
   Share,
+  Modal,
+  TextInput,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
@@ -35,6 +40,22 @@ export default function LeagueDetailScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [creatingRound, setCreatingRound] = useState(false);
   const [advancing, setAdvancing] = useState<string | null>(null);
+  
+  // Start round modal state
+  const [showStartRoundModal, setShowStartRoundModal] = useState(false);
+  const [roundTheme, setRoundTheme] = useState('');
+  const [submissionHours, setSubmissionHours] = useState('24');
+  const [votingHours, setVotingHours] = useState('24');
+
+  // Time options
+  const timeOptions = [
+    { label: '1 hr', value: '1' },
+    { label: '6 hrs', value: '6' },
+    { label: '12 hrs', value: '12' },
+    { label: '1 day', value: '24' },
+    { label: '3 days', value: '72' },
+    { label: '7 days', value: '168' },
+  ];
 
   const fetchData = async () => {
     try {
@@ -80,7 +101,15 @@ export default function LeagueDetailScreen() {
     
     setCreatingRound(true);
     try {
-      await createRound(league.id);
+      await createRound(league.id, {
+        theme: roundTheme.trim(),
+        submission_hours: parseInt(submissionHours) || 24,
+        voting_hours: parseInt(votingHours) || 24,
+      });
+      setShowStartRoundModal(false);
+      setRoundTheme('');
+      setSubmissionHours('24');
+      setVotingHours('24');
       await fetchData();
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.detail || 'Failed to start round');
