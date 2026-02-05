@@ -129,8 +129,8 @@ export default function HomeScreen() {
   };
 
   const handleCreateLeague = async () => {
-    if (!leagueName.trim() || !leagueTheme.trim()) {
-      Alert.alert('Error', 'Please fill in league name and theme');
+    if (!leagueName.trim()) {
+      Alert.alert('Error', 'Please enter a league name');
       return;
     }
 
@@ -138,9 +138,7 @@ export default function HomeScreen() {
     try {
       await createLeague({
         name: leagueName.trim(),
-        theme: leagueTheme.trim(),
-        submission_hours: parseInt(submissionHours) || 24,
-        voting_hours: parseInt(votingHours) || 24,
+        total_rounds: parseInt(totalRounds) || 3,
       });
       setShowCreateModal(false);
       resetCreateForm();
