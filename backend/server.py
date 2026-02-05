@@ -489,18 +489,18 @@ async def create_round(league_id: str, round_data: StartRoundRequest = None, cur
     if total_rounds > 0 and league["current_round"] >= total_rounds:
         raise HTTPException(status_code=400, detail="League has reached maximum number of rounds")
     
+    # Require round_data for theme and times
+    if not round_data:
+        raise HTTPException(status_code=400, detail="Round configuration required (theme, submission_hours, voting_hours)")
+    
     round_number = league["current_round"] + 1
     round_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc)
     
-    # Determine theme based on theme_mode
-    theme_mode = league.get("theme_mode", "all_rounds")
-    if theme_mode == "no_theme":
-        theme = ""
-    elif theme_mode == "per_round":
-        theme = round_data.theme if round_data and round_data.theme else ""
-    else:  # all_rounds
-        theme = league.get("theme", "")
+    # Use theme and times from round_data
+    submission_hours = round_data.submission_hours
+    voting_hours = round_data.voting_hours
+    theme = round_data.theme
     
     round_doc = {
         "id": round_id,
@@ -508,8 +508,10 @@ async def create_round(league_id: str, round_data: StartRoundRequest = None, cur
         "round_number": round_number,
         "theme": theme,
         "status": "submission",
-        "submission_deadline": now + timedelta(hours=league["submission_hours"]),
-        "voting_deadline": now + timedelta(hours=league["submission_hours"] + league["voting_hours"]),
+        "submission_hours": submission_hours,
+        "voting_hours": voting_hours,
+        "submission_deadline": now + timedelta(hours=submission_hours),
+        "voting_deadline": now + timedelta(hours=submission_hours + voting_hours),
         "created_at": now
     }
     await db.rounds.insert_one(round_doc)
