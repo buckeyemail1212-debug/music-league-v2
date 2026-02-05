@@ -387,6 +387,7 @@ export default function RoundScreen() {
       </View>
     </View>
   );
+  };
 
   const renderVotingItem = ({ item, index }: { item: string; index: number }) => {
     const submission = submissions.find(s => s.id === item);
