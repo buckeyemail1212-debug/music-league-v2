@@ -83,7 +83,10 @@ export default function RegisterScreen() {
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoComplete="off"
+                  autoCorrect={false}
                   textContentType="none"
+                  importantForAutofill="no"
+                  spellCheck={false}
                 />
               </View>
 
@@ -97,7 +100,10 @@ export default function RegisterScreen() {
                   onChangeText={setUsername}
                   autoCapitalize="none"
                   autoComplete="off"
+                  autoCorrect={false}
                   textContentType="none"
+                  importantForAutofill="no"
+                  spellCheck={false}
                 />
               </View>
 
@@ -111,8 +117,11 @@ export default function RegisterScreen() {
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
                   autoComplete="off"
-                  textContentType="none"
                   autoCorrect={false}
+                  textContentType="none"
+                  importantForAutofill="no"
+                  spellCheck={false}
+                  passwordRules=""
                 />
                 <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                   <Ionicons
