@@ -32,13 +32,9 @@ export interface Song {
 export interface League {
   id: string;
   name: string;
-  theme: string;
-  theme_mode: 'all_rounds' | 'per_round' | 'no_theme';
   league_code: string;
   creator_id: string;
   creator_username: string;
-  submission_hours: number;
-  voting_hours: number;
   total_rounds: number;
   members: { id: string; username: string }[];
   current_round: number;
@@ -52,6 +48,8 @@ export interface Round {
   round_number: number;
   theme: string;
   status: 'submission' | 'voting' | 'completed';
+  submission_hours: number;
+  voting_hours: number;
   submission_deadline: string;
   voting_deadline: string;
   submissions_count: number;
