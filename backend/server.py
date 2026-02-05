@@ -467,7 +467,7 @@ async def leave_league(league_id: str, current_user: dict = Depends(get_current_
 # ==================== ROUND ENDPOINTS ====================
 
 @api_router.post("/leagues/{league_id}/rounds", response_model=RoundResponse)
-async def create_round(league_id: str, current_user: dict = Depends(get_current_user)):
+async def create_round(league_id: str, round_data: StartRoundRequest = None, current_user: dict = Depends(get_current_user)):
     league = await db.leagues.find_one({"id": league_id})
     if not league:
         raise HTTPException(status_code=404, detail="League not found")
@@ -484,15 +484,29 @@ async def create_round(league_id: str, current_user: dict = Depends(get_current_
     if active_round:
         raise HTTPException(status_code=400, detail="There is already an active round")
     
+    # Check if league has reached max rounds
+    total_rounds = league.get("total_rounds", 0)
+    if total_rounds > 0 and league["current_round"] >= total_rounds:
+        raise HTTPException(status_code=400, detail="League has reached maximum number of rounds")
+    
     round_number = league["current_round"] + 1
     round_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc)
+    
+    # Determine theme based on theme_mode
+    theme_mode = league.get("theme_mode", "all_rounds")
+    if theme_mode == "no_theme":
+        theme = ""
+    elif theme_mode == "per_round":
+        theme = round_data.theme if round_data and round_data.theme else ""
+    else:  # all_rounds
+        theme = league.get("theme", "")
     
     round_doc = {
         "id": round_id,
         "league_id": league_id,
         "round_number": round_number,
-        "theme": league["theme"],
+        "theme": theme,
         "status": "submission",
         "submission_deadline": now + timedelta(hours=league["submission_hours"]),
         "voting_deadline": now + timedelta(hours=league["submission_hours"] + league["voting_hours"]),
@@ -510,7 +524,8 @@ async def create_round(league_id: str, current_user: dict = Depends(get_current_
         **round_doc,
         submissions_count=0,
         has_user_submitted=False,
-        has_user_voted=False
+        has_user_voted=False,
+        user_vote_locked=False
     )
 
 @api_router.get("/leagues/{league_id}/rounds", response_model=List[RoundResponse])
