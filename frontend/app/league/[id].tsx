@@ -465,7 +465,6 @@ export default function LeagueDetailScreen() {
           )}
         </ScrollView>
       )}
-      )}
 
       {/* Start Round Modal */}
       <Modal
