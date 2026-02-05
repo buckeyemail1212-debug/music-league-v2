@@ -63,12 +63,14 @@ export default function LeagueDetailScreen() {
 
   const fetchData = async () => {
     try {
-      const [leagueRes, roundsRes] = await Promise.all([
+      const [leagueRes, roundsRes, standingsRes] = await Promise.all([
         getLeague(id!),
         getRounds(id!),
+        getLeagueStandings(id!),
       ]);
       setLeague(leagueRes.data);
       setRounds(roundsRes.data);
+      setStandings(standingsRes.data);
     } catch (error: any) {
       console.error('Failed to fetch league:', error);
       Alert.alert('Error', 'Failed to load league details');
