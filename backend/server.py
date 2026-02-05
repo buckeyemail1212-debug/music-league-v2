@@ -529,6 +529,8 @@ async def create_round(league_id: str, round_data: StartRoundRequest = None, cur
     return RoundResponse(
         **round_doc,
         submissions_count=0,
+        votes_count=0,
+        total_members=len(league["members"]),
         has_user_submitted=False,
         has_user_voted=False,
         user_vote_locked=False
