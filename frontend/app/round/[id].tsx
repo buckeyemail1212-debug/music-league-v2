@@ -140,7 +140,8 @@ export default function RoundScreen() {
         
         // Handle voting phase
         if (roundRes.data.status === 'voting') {
-          const otherSubmissions = subsRes.data.filter(s => s.user_id !== user?.id && s.user_id !== 'hidden');
+          // Filter out only our own submission (not the 'hidden' ones which are other users' songs)
+          const otherSubmissions = subsRes.data.filter(s => s.user_id !== user?.id);
           
           if (roundRes.data.has_user_voted) {
             // User has voted - check if locked
