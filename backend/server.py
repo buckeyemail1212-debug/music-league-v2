@@ -578,7 +578,12 @@ async def get_round(round_id: str, current_user: dict = Depends(get_current_user
     if not round_doc:
         raise HTTPException(status_code=404, detail="Round not found")
     
+    # Get league to count members
+    league = await db.leagues.find_one({"id": round_doc["league_id"]})
+    total_members = len(league.get("members", [])) if league else 0
+    
     submissions_count = await db.submissions.count_documents({"round_id": round_id})
+    votes_count = await db.votes.count_documents({"round_id": round_id})
     has_submitted = await db.submissions.find_one({
         "round_id": round_id,
         "user_id": current_user["id"]
@@ -593,6 +598,8 @@ async def get_round(round_id: str, current_user: dict = Depends(get_current_user
     return RoundResponse(
         **round_doc,
         submissions_count=submissions_count,
+        votes_count=votes_count,
+        total_members=total_members,
         has_user_submitted=has_submitted,
         has_user_voted=has_voted,
         user_vote_locked=user_vote_locked
