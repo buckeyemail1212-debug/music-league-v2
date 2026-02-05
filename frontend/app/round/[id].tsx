@@ -1295,6 +1295,12 @@ const styles = StyleSheet.create({
   winnerBadge: {
     backgroundColor: 'rgba(251, 191, 36, 0.2)',
   },
+  secondBadge: {
+    backgroundColor: 'rgba(148, 163, 184, 0.2)',
+  },
+  thirdBadge: {
+    backgroundColor: 'rgba(205, 127, 50, 0.2)',
+  },
   resultInfo: {
     flex: 1,
     marginLeft: 10,
