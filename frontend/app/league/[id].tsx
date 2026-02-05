@@ -421,7 +421,7 @@ export default function LeagueDetailScreen() {
           <View style={styles.standingsHeader}>
             <Text style={styles.standingsTitle}>League Standings</Text>
             <Text style={styles.roundsCompleted}>
-              {standings?.rounds_completed || 0} of {league.total_rounds || '∞'} rounds completed
+              {standings?.rounds_completed || 0} of {league.total_rounds > 0 ? league.total_rounds : 'Unlimited'} rounds completed
             </Text>
           </View>
 
