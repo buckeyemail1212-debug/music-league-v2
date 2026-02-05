@@ -378,6 +378,92 @@ export default function LeagueDetailScreen() {
           </Text>
         </View>
       )}
+
+      {/* Start Round Modal */}
+      <Modal
+        visible={showStartRoundModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowStartRoundModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Start New Round</Text>
+              <TouchableOpacity onPress={() => setShowStartRoundModal(false)}>
+                <Ionicons name="close" size={24} color="#888" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={styles.modalForm}>
+                <Text style={styles.inputLabel}>Theme / Prompt (Optional)</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="e.g., Songs that make you dance"
+                  placeholderTextColor="#666"
+                  value={roundTheme}
+                  onChangeText={setRoundTheme}
+                  autoComplete="off"
+                  textContentType="none"
+                />
+
+                <Text style={styles.inputLabel}>Submission Time</Text>
+                <View style={styles.timeOptionsContainer}>
+                  {timeOptions.map((option) => (
+                    <TouchableOpacity
+                      key={`sub-${option.value}`}
+                      style={[
+                        styles.timeOption,
+                        submissionHours === option.value && styles.timeOptionSelected
+                      ]}
+                      onPress={() => setSubmissionHours(option.value)}
+                    >
+                      <Text style={[
+                        styles.timeOptionText,
+                        submissionHours === option.value && styles.timeOptionTextSelected
+                      ]}>{option.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <Text style={styles.inputLabel}>Voting Time</Text>
+                <View style={styles.timeOptionsContainer}>
+                  {timeOptions.map((option) => (
+                    <TouchableOpacity
+                      key={`vote-${option.value}`}
+                      style={[
+                        styles.timeOption,
+                        votingHours === option.value && styles.timeOptionSelected
+                      ]}
+                      onPress={() => setVotingHours(option.value)}
+                    >
+                      <Text style={[
+                        styles.timeOptionText,
+                        votingHours === option.value && styles.timeOptionTextSelected
+                      ]}>{option.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.submitButton, creatingRound && styles.buttonDisabled]}
+                  onPress={handleStartRound}
+                  disabled={creatingRound}
+                >
+                  {creatingRound ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={styles.submitButtonText}>Start Round</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
