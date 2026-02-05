@@ -426,36 +426,37 @@ export default function LeagueDetailScreen() {
           </View>
 
           {standings && standings.standings.length > 0 ? (
-            standings.standings.map((player, index) => (
-              <View key={player.user_id} style={[
-                styles.standingRow,
-                index === 0 && styles.firstPlace,
-                index === 1 && styles.secondPlace,
-                index === 2 && styles.thirdPlace,
-              ]}>
-                <View style={styles.rankContainer}>
-                  {index === 0 ? (
-                    <Ionicons name="trophy" size={20} color="#fbbf24" />
-                  ) : index === 1 ? (
-                    <Ionicons name="medal" size={20} color="#9ca3af" />
-                  ) : index === 2 ? (
-                    <Ionicons name="medal" size={20} color="#d97706" />
-                  ) : (
-                    <Text style={styles.rankNumber}>{index + 1}</Text>
-                  )}
+            standings.standings.map((player, index) => {
+              // Only highlight if player has points
+              const hasPoints = player.total_points > 0;
+              return (
+                <View key={player.user_id} style={[
+                  styles.standingRow,
+                  hasPoints && index === 0 && styles.firstPlace,
+                  hasPoints && index === 1 && styles.secondPlace,
+                  hasPoints && index === 2 && styles.thirdPlace,
+                ]}>
+                  <View style={styles.rankContainer}>
+                    {hasPoints && index === 0 ? (
+                      <Ionicons name="trophy" size={20} color="#fbbf24" />
+                    ) : hasPoints && index === 1 ? (
+                      <Ionicons name="medal" size={20} color="#9ca3af" />
+                    ) : hasPoints && index === 2 ? (
+                      <Ionicons name="medal" size={20} color="#d97706" />
+                    ) : (
+                      <Text style={styles.rankNumber}>{index + 1}</Text>
+                    )}
+                  </View>
+                  <View style={styles.playerInfo}>
+                    <Text style={styles.playerName}>{player.username}</Text>
+                  </View>
+                  <View style={styles.pointsContainer}>
+                    <Text style={styles.pointsValue}>{player.total_points}</Text>
+                    <Text style={styles.pointsLabel}>pts</Text>
+                  </View>
                 </View>
-                <View style={styles.playerInfo}>
-                  <Text style={styles.playerName}>{player.username}</Text>
-                  <Text style={styles.playerStats}>
-                    {player.wins} win{player.wins !== 1 ? 's' : ''} • {player.rounds_played} round{player.rounds_played !== 1 ? 's' : ''}
-                  </Text>
-                </View>
-                <View style={styles.pointsContainer}>
-                  <Text style={styles.pointsValue}>{player.total_points}</Text>
-                  <Text style={styles.pointsLabel}>pts</Text>
-                </View>
-              </View>
-            ))
+              );
+            })
           ) : (
             <View style={styles.emptyState}>
               <Ionicons name="podium" size={60} color="#333" />
