@@ -460,15 +460,28 @@ export default function RoundScreen() {
   };
 
   const renderResultItem = ({ item, index }: { item: RoundResult['rankings'][0]; index: number }) => {
-    const isWinner = item.rank === 1;
+    // All users with the same rank get the same award
+    const isFirst = item.rank === 1;
+    const isSecond = item.rank === 2;
+    const isThird = item.rank === 3;
+    
+    // Determine badge icon and color based on rank
+    const getBadgeContent = () => {
+      if (isFirst) {
+        return <Ionicons name="trophy" size={16} color="#fbbf24" />; // Gold
+      } else if (isSecond) {
+        return <Ionicons name="medal" size={16} color="#94a3b8" />; // Silver
+      } else if (isThird) {
+        return <Ionicons name="medal" size={16} color="#cd7f32" />; // Bronze
+      } else {
+        return <Text style={styles.rankNumber}>{item.rank}</Text>;
+      }
+    };
+    
     return (
-      <View style={[styles.resultCard, isWinner && styles.winnerCard]}>
-        <View style={[styles.rankBadge, isWinner && styles.winnerBadge]}>
-          {isWinner ? (
-            <Ionicons name="trophy" size={16} color="#fbbf24" />
-          ) : (
-            <Text style={styles.rankNumber}>{item.rank}</Text>
-          )}
+      <View style={[styles.resultCard, isFirst && styles.winnerCard]}>
+        <View style={[styles.rankBadge, isFirst && styles.winnerBadge, isSecond && styles.secondBadge, isThird && styles.thirdBadge]}>
+          {getBadgeContent()}
         </View>
         <Image source={{ uri: item.song.cover_url }} style={styles.albumCoverSmall} />
         <View style={styles.resultInfo}>
