@@ -160,26 +160,6 @@ export default function ProfileScreen() {
           <Text style={styles.email}>{user?.email}</Text>
         </View>
 
-        {/* Stats Cards */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statsRow}>
-            <View style={[styles.statCard, { backgroundColor: '#6366f1' }]}>
-              <Ionicons name="trophy" size={28} color="#fff" />
-              <Text style={styles.statValue}>
-                {loadingStats ? '-' : stats?.total_wins || 0}
-              </Text>
-              <Text style={styles.statLabel}>Total Wins</Text>
-            </View>
-            <View style={[styles.statCard, { backgroundColor: '#6366f1' }]}>
-              <Ionicons name="people" size={28} color="#fff" />
-              <Text style={styles.statValue}>
-                {loadingStats ? '-' : stats?.leagues_count || 0}
-              </Text>
-              <Text style={styles.statLabel}>Leagues</Text>
-            </View>
-          </View>
-        </View>
-
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account Info</Text>
           <View style={styles.infoCard}>
