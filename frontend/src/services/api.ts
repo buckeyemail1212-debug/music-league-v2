@@ -173,7 +173,7 @@ export const getSubmissions = (roundId: string) =>
   api.get<Submission[]>(`/rounds/${roundId}/submissions`);
 
 // Vote APIs
-export const submitVote = (roundId: string, rankings: string[]) => 
+export const submitVote = (roundId: string, rankings: string[], locked: boolean = false) => 
   api.post<Vote>(`/rounds/${roundId}/vote`, { rankings, locked });
 
 export const getMyVote = (roundId: string) => 
