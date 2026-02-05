@@ -722,7 +722,95 @@ async def submit_vote(round_id: str, request: VoteRequest, current_user: dict = 
     }
     await db.votes.insert_one(vote)
     
-    return {"message": "Vote submitted successfully"}
+    return VoteResponse(
+        id=vote_id,
+        round_id=round_id,
+        user_id=current_user["id"],
+        rankings=request.rankings,
+        locked=request.locked,
+        created_at=now
+    )
+
+@api_router.get("/rounds/{round_id}/my-vote", response_model=VoteResponse)
+async def get_my_vote(round_id: str, current_user: dict = Depends(get_current_user)):
+    """Get current user's vote for a round"""
+    vote = await db.votes.find_one({
+        "round_id": round_id,
+        "voter_id": current_user["id"]
+    })
+    if not vote:
+        raise HTTPException(status_code=404, detail="No vote found")
+    
+    return VoteResponse(
+        id=vote["id"],
+        round_id=round_id,
+        user_id=current_user["id"],
+        rankings=vote["rankings"],
+        locked=vote.get("locked", False),
+        created_at=vote.get("created_at", vote.get("voted_at", datetime.now(timezone.utc)))
+    )
+
+@api_router.get("/leagues/{league_id}/standings", response_model=LeagueStandingsResponse)
+async def get_league_standings(league_id: str, current_user: dict = Depends(get_current_user)):
+    """Get accumulated standings for all members in a league"""
+    league = await db.leagues.find_one({"id": league_id})
+    if not league:
+        raise HTTPException(status_code=404, detail="League not found")
+    
+    # Get all completed rounds
+    completed_rounds = await db.rounds.find({
+        "league_id": league_id,
+        "status": "completed"
+    }).to_list(100)
+    
+    # Calculate accumulated points and wins for each user
+    user_stats = {}
+    for member in league["members"]:
+        user_stats[member["id"]] = {
+            "user_id": member["id"],
+            "username": member["username"],
+            "total_points": 0,
+            "wins": 0,
+            "rounds_played": 0
+        }
+    
+    for round_doc in completed_rounds:
+        submissions = await db.submissions.find({"round_id": round_doc["id"]}).to_list(100)
+        votes = await db.votes.find({"round_id": round_doc["id"]}).to_list(100)
+        
+        if not submissions:
+            continue
+        
+        # Calculate points for this round
+        points = {}
+        for sub in submissions:
+            points[sub["id"]] = 0
+        
+        num_submissions = len(submissions)
+        for vote in votes:
+            for rank, sub_id in enumerate(vote["rankings"]):
+                points[sub_id] = points.get(sub_id, 0) + (num_submissions - rank)
+        
+        # Find winner(s) and update stats
+        max_points = max(points.values()) if points else 0
+        for sub in submissions:
+            user_id = sub["user_id"]
+            if user_id in user_stats:
+                sub_points = points.get(sub["id"], 0)
+                user_stats[user_id]["total_points"] += sub_points
+                user_stats[user_id]["rounds_played"] += 1
+                if sub_points == max_points and max_points > 0:
+                    user_stats[user_id]["wins"] += 1
+    
+    # Sort by total points descending
+    standings = sorted(user_stats.values(), key=lambda x: (-x["total_points"], -x["wins"]))
+    
+    return LeagueStandingsResponse(
+        league_id=league_id,
+        standings=standings,
+        rounds_completed=len(completed_rounds),
+        total_rounds=league.get("total_rounds", 0)
+    )
 
 @api_router.get("/rounds/{round_id}/results", response_model=RoundResultResponse)
 async def get_results(round_id: str, current_user: dict = Depends(get_current_user)):
