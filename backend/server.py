@@ -363,13 +363,9 @@ async def create_league(league_data: LeagueCreate, current_user: dict = Depends(
     league = {
         "id": league_id,
         "name": league_data.name,
-        "theme": league_data.theme,
-        "theme_mode": league_data.theme_mode,
         "league_code": league_code,
         "creator_id": current_user["id"],
         "creator_username": current_user["username"],
-        "submission_hours": league_data.submission_hours,
-        "voting_hours": league_data.voting_hours,
         "total_rounds": league_data.total_rounds,
         "members": [{"id": current_user["id"], "username": current_user["username"]}],
         "current_round": 0,
