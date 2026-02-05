@@ -129,8 +129,10 @@ export const getUserStats = () => api.get<UserStats>('/auth/stats');
 export const createLeague = (data: {
   name: string;
   theme: string;
+  theme_mode?: string;
   submission_hours: number;
   voting_hours: number;
+  total_rounds?: number;
 }) => api.post<League>('/leagues', data);
 
 export const getLeagues = () => api.get<League[]>('/leagues');
@@ -146,13 +148,16 @@ export const deleteLeague = (id: string) =>
 export const leaveLeague = (id: string) => 
   api.post(`/leagues/${id}/leave`);
 
+export const getLeagueStandings = (leagueId: string) => 
+  api.get<LeagueStandings>(`/leagues/${leagueId}/standings`);
+
 // User Profile APIs
 export const updateProfile = (data: { username?: string; profile_photo?: string }) =>
   api.put('/auth/me', data);
 
 // Round APIs
-export const createRound = (leagueId: string) => 
-  api.post<Round>(`/leagues/${leagueId}/rounds`);
+export const createRound = (leagueId: string, theme?: string) => 
+  api.post<Round>(`/leagues/${leagueId}/rounds`, { theme: theme || '' });
 
 export const getRounds = (leagueId: string) => 
   api.get<Round[]>(`/leagues/${leagueId}/rounds`);
