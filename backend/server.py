@@ -386,10 +386,16 @@ async def create_league(league_data: LeagueCreate, current_user: dict = Depends(
     
     return LeagueResponse(**league)
 
+def add_league_defaults(league: dict) -> dict:
+    """Add default values for new fields to support existing leagues"""
+    league.setdefault("theme_mode", "all_rounds")
+    league.setdefault("total_rounds", 0)
+    return league
+
 @api_router.get("/leagues", response_model=List[LeagueResponse])
 async def get_user_leagues(current_user: dict = Depends(get_current_user)):
     leagues = await db.leagues.find({"members.id": current_user["id"]}).to_list(100)
-    return [LeagueResponse(**league) for league in leagues]
+    return [LeagueResponse(**add_league_defaults(league)) for league in leagues]
 
 @api_router.get("/leagues/{league_id}", response_model=LeagueResponse)
 async def get_league(league_id: str, current_user: dict = Depends(get_current_user)):
@@ -402,7 +408,7 @@ async def get_league(league_id: str, current_user: dict = Depends(get_current_us
     if not is_member:
         raise HTTPException(status_code=403, detail="You are not a member of this league")
     
-    return LeagueResponse(**league)
+    return LeagueResponse(**add_league_defaults(league))
 
 @api_router.post("/leagues/join", response_model=LeagueResponse)
 async def join_league(request: JoinLeagueRequest, current_user: dict = Depends(get_current_user)):
