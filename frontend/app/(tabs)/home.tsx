@@ -171,9 +171,7 @@ export default function HomeScreen() {
 
   const resetCreateForm = () => {
     setLeagueName('');
-    setLeagueTheme('');
-    setSubmissionHours('24');
-    setVotingHours('24');
+    setTotalRounds('3');
   };
 
   const renderLeagueItem = ({ item }: { item: League }) => {
@@ -190,7 +188,9 @@ export default function HomeScreen() {
           </View>
           <View style={styles.leagueInfo}>
             <Text style={styles.leagueName}>{item.name}</Text>
-            <Text style={styles.leagueTheme}>{item.theme}</Text>
+            <Text style={styles.leagueTheme}>
+              Round {item.current_round} of {item.total_rounds || '∞'}
+            </Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#666" />
         </View>
