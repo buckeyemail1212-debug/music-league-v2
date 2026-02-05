@@ -603,14 +603,21 @@ async def advance_round(round_id: str, current_user: dict = Depends(get_current_
     
     if round_doc["status"] == "submission":
         # Reset voting deadline to start from NOW when advancing to voting
+        # Use the round's voting_hours (set when round was created)
         now = datetime.now(timezone.utc)
-        new_voting_deadline = now + timedelta(hours=league["voting_hours"])
+        voting_hours = round_doc.get("voting_hours", 24)
+        new_voting_deadline = now + timedelta(hours=voting_hours)
         await db.rounds.update_one(
             {"id": round_id}, 
             {"$set": {"status": "voting", "voting_deadline": new_voting_deadline}}
         )
         return {"message": "Round advanced to voting phase"}
     elif round_doc["status"] == "voting":
+        # Auto-lock all unlocked votes when completing the round
+        await db.votes.update_many(
+            {"round_id": round_id, "locked": False},
+            {"$set": {"locked": True}}
+        )
         await db.rounds.update_one({"id": round_id}, {"$set": {"status": "completed"}})
         return {"message": "Round completed"}
     else:
