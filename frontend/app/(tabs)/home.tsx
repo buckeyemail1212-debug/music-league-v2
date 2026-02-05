@@ -35,21 +35,15 @@ export default function HomeScreen() {
   const [joining, setJoining] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
 
-  // Create league form
+  // Create league form - simplified
   const [leagueName, setLeagueName] = useState('');
-  const [leagueTheme, setLeagueTheme] = useState('');
-  const [submissionHours, setSubmissionHours] = useState('24');
-  const [votingHours, setVotingHours] = useState('24');
+  const [totalRounds, setTotalRounds] = useState('3');
 
-  // Time options
-  const timeOptions = [
-    { label: '1 hr', value: '1' },
-    { label: '6 hrs', value: '6' },
-    { label: '12 hrs', value: '12' },
-    { label: '1 day', value: '24' },
-    { label: '3 days', value: '72' },
-    { label: '7 days', value: '168' },
-  ];
+  // Rounds options (1-10)
+  const roundsOptions = Array.from({ length: 10 }, (_, i) => ({
+    label: `${i + 1} Round${i > 0 ? 's' : ''}`,
+    value: String(i + 1)
+  }));
 
   // Timer update effect
   useEffect(() => {
