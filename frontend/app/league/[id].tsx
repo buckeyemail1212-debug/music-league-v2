@@ -310,7 +310,7 @@ export default function LeagueDetailScreen() {
         </TouchableOpacity>
         <View style={styles.headerInfo}>
           <Text style={styles.leagueName}>{league.name}</Text>
-          <Text style={styles.leagueTheme}>Round {league.current_round} of {league.total_rounds || '∞'}</Text>
+          <Text style={styles.leagueTheme}>Round {league.current_round} of {league.total_rounds > 0 ? league.total_rounds : 'Unlimited'}</Text>
         </View>
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.headerButton} onPress={handleShareCode}>
