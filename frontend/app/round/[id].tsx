@@ -56,6 +56,7 @@ export default function RoundScreen() {
   // Voting
   const [rankings, setRankings] = useState<string[]>([]);
   const [votingSubmitting, setVotingSubmitting] = useState(false);
+  const [voteSaved, setVoteSaved] = useState(false);  // Vote has been saved but not locked
 
   // Timer
   const [timeRemaining, setTimeRemaining] = useState<string>('');
