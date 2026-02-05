@@ -638,7 +638,7 @@ async def submit_song(round_id: str, request: SubmitSongRequest, current_user: d
         "user_id": current_user["id"],
         "username": current_user["username"],
         "song": request.song.dict(),
-        "submitted_at": datetime.utcnow()
+        "submitted_at": datetime.now(timezone.utc)
     }
     await db.submissions.insert_one(submission)
     
@@ -666,7 +666,7 @@ async def get_submissions(round_id: str, current_user: dict = Depends(get_curren
 
 # ==================== VOTING ENDPOINTS ====================
 
-@api_router.post("/rounds/{round_id}/vote")
+@api_router.post("/rounds/{round_id}/vote", response_model=VoteResponse)
 async def submit_vote(round_id: str, request: VoteRequest, current_user: dict = Depends(get_current_user)):
     round_doc = await db.rounds.find_one({"id": round_id})
     if not round_doc:
@@ -680,8 +680,6 @@ async def submit_vote(round_id: str, request: VoteRequest, current_user: dict = 
         "round_id": round_id,
         "voter_id": current_user["id"]
     })
-    if existing:
-        raise HTTPException(status_code=400, detail="You have already voted for this round")
     
     # Validate all submission IDs exist
     for sub_id in request.rankings:
@@ -689,13 +687,38 @@ async def submit_vote(round_id: str, request: VoteRequest, current_user: dict = 
         if not sub:
             raise HTTPException(status_code=400, detail=f"Invalid submission ID: {sub_id}")
     
+    if existing:
+        # Check if vote is already locked
+        if existing.get("locked", False):
+            raise HTTPException(status_code=400, detail="Your vote is locked and cannot be changed")
+        
+        # Update existing vote
+        await db.votes.update_one(
+            {"id": existing["id"]},
+            {"$set": {"rankings": request.rankings, "locked": request.locked, "updated_at": datetime.now(timezone.utc)}}
+        )
+        existing["rankings"] = request.rankings
+        existing["locked"] = request.locked
+        return VoteResponse(
+            id=existing["id"],
+            round_id=round_id,
+            user_id=current_user["id"],
+            rankings=request.rankings,
+            locked=request.locked,
+            created_at=existing.get("created_at", existing.get("voted_at", datetime.now(timezone.utc)))
+        )
+    
+    # Create new vote
     vote_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc)
     vote = {
         "id": vote_id,
         "round_id": round_id,
         "voter_id": current_user["id"],
         "rankings": request.rankings,
-        "voted_at": datetime.utcnow()
+        "locked": request.locked,
+        "created_at": now,
+        "voted_at": now
     }
     await db.votes.insert_one(vote)
     
