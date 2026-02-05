@@ -53,6 +53,8 @@ export interface Round {
   submission_deadline: string;
   voting_deadline: string;
   submissions_count: number;
+  votes_count: number;
+  total_members: number;
   has_user_submitted: boolean;
   has_user_voted: boolean;
   user_vote_locked: boolean;
