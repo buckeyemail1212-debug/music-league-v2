@@ -573,12 +573,45 @@ export default function RoundScreen() {
       {/* VOTING PHASE */}
       {round.status === 'voting' && (
         <>
-          {round.has_user_voted ? (
-            <View style={styles.submittedBanner}>
-              <Ionicons name="checkmark-circle" size={24} color="#10b981" />
-              <Text style={styles.submittedText}>You've submitted your vote!</Text>
+          {round.user_vote_locked ? (
+            // Vote is locked
+            <View style={styles.lockedBanner}>
+              <Ionicons name="lock-closed" size={24} color="#10b981" />
+              <Text style={styles.lockedText}>Your vote is locked in!</Text>
+            </View>
+          ) : voteSaved ? (
+            // Vote saved but not locked - show confirmation
+            <View style={styles.voteSavedContainer}>
+              <View style={styles.voteSavedBanner}>
+                <Ionicons name="checkmark-circle" size={24} color="#f59e0b" />
+                <Text style={styles.voteSavedText}>Vote saved! Ready to lock in?</Text>
+              </View>
+              <View style={styles.voteActionButtons}>
+                <TouchableOpacity
+                  style={styles.changeVoteButton}
+                  onPress={handleChangeVote}
+                >
+                  <Ionicons name="create-outline" size={20} color="#6366f1" />
+                  <Text style={styles.changeVoteText}>Change Vote</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.lockVoteButton, votingSubmitting && styles.buttonDisabled]}
+                  onPress={handleLockVote}
+                  disabled={votingSubmitting}
+                >
+                  {votingSubmitting ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <>
+                      <Ionicons name="lock-closed" size={20} color="#fff" />
+                      <Text style={styles.lockVoteText}>Lock It In</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
           ) : (
+            // Still ranking - show instructions
             <>
               <View style={styles.votingInstructions}>
                 <Ionicons name="swap-vertical" size={20} color="#6366f1" />
@@ -593,27 +626,45 @@ export default function RoundScreen() {
             </>
           )}
 
-          <FlatList
-            data={rankings}
-            keyExtractor={(item) => item}
-            renderItem={renderVotingItem}
-            contentContainerStyle={styles.listContent}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6366f1" />
-            }
-          />
+          {/* Show rankings list if not locked */}
+          {!round.user_vote_locked && (
+            <FlatList
+              data={rankings}
+              keyExtractor={(item) => item}
+              renderItem={renderVotingItem}
+              contentContainerStyle={styles.listContent}
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6366f1" />
+              }
+            />
+          )}
 
-          {!round.has_user_voted && (
+          {/* Show current rankings if locked */}
+          {round.user_vote_locked && (
+            <View style={styles.lockedRankingsContainer}>
+              <Text style={styles.sectionTitle}>Your Rankings</Text>
+              <FlatList
+                data={rankings}
+                keyExtractor={(item) => item}
+                renderItem={renderVotingItem}
+                contentContainerStyle={styles.listContent}
+                scrollEnabled={false}
+              />
+            </View>
+          )}
+
+          {/* Save vote button - only show when actively ranking */}
+          {!voteSaved && !round.user_vote_locked && (
             <View style={styles.submitVoteContainer}>
               <TouchableOpacity
                 style={[styles.submitVoteButton, votingSubmitting && styles.buttonDisabled]}
-                onPress={handleSubmitVote}
+                onPress={handleSaveVote}
                 disabled={votingSubmitting}
               >
                 {votingSubmitting ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.submitVoteText}>Submit Vote</Text>
+                  <Text style={styles.submitVoteText}>Save Vote</Text>
                 )}
               </TouchableOpacity>
             </View>
