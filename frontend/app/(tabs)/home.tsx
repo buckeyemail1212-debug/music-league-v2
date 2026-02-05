@@ -194,18 +194,6 @@ export default function HomeScreen() {
           </View>
           <Ionicons name="chevron-forward" size={20} color="#666" />
         </View>
-        
-        {/* League Duration Info */}
-        <View style={styles.durationRow}>
-          <View style={styles.durationItem}>
-            <Ionicons name="musical-note" size={14} color="#6366f1" />
-            <Text style={styles.durationText}>Submit: {formatDuration(item.submission_hours)}</Text>
-          </View>
-          <View style={styles.durationItem}>
-            <Ionicons name="thumbs-up" size={14} color="#f59e0b" />
-            <Text style={styles.durationText}>Vote: {formatDuration(item.voting_hours)}</Text>
-          </View>
-        </View>
 
         {/* Active Round Timer */}
         {activeRound ? (
@@ -245,10 +233,6 @@ export default function HomeScreen() {
           <View style={styles.stat}>
             <Ionicons name="people" size={16} color="#888" />
             <Text style={styles.statText}>{item.members.length} members</Text>
-          </View>
-          <View style={styles.stat}>
-            <Ionicons name="repeat" size={16} color="#888" />
-            <Text style={styles.statText}>Round {item.current_round}</Text>
           </View>
           <View style={styles.codeContainer}>
             <Text style={styles.codeLabel}>Code:</Text>
