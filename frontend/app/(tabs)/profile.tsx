@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -12,36 +12,16 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../src/context/AuthContext';
-import { getUserStats, UserStats } from '../../src/services/api';
 import { format } from 'date-fns';
 
 export default function ProfileScreen() {
   const { user, logout, updateUser } = useAuth();
   const router = useRouter();
   const [uploading, setUploading] = useState(false);
-  const [stats, setStats] = useState<UserStats | null>(null);
-  const [loadingStats, setLoadingStats] = useState(true);
-
-  const fetchStats = async () => {
-    try {
-      const response = await getUserStats();
-      setStats(response.data);
-    } catch (error) {
-      console.error('Failed to fetch stats:', error);
-    } finally {
-      setLoadingStats(false);
-    }
-  };
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchStats();
-    }, [])
-  );
 
   const handleLogout = () => {
     Alert.alert(
