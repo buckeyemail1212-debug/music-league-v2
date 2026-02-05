@@ -139,6 +139,8 @@ class RoundResponse(BaseModel):
     round_number: int
     theme: str
     status: str  # "submission", "voting", "completed"
+    submission_hours: int = 24
+    voting_hours: int = 24
     submission_deadline: datetime
     voting_deadline: datetime
     submissions_count: int
