@@ -304,7 +304,7 @@ export default function LeagueDetailScreen() {
         </TouchableOpacity>
         <View style={styles.headerInfo}>
           <Text style={styles.leagueName}>{league.name}</Text>
-          <Text style={styles.leagueTheme}>{league.theme}</Text>
+          <Text style={styles.leagueTheme}>Round {league.current_round} of {league.total_rounds || '∞'}</Text>
         </View>
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.headerButton} onPress={handleShareCode}>
@@ -334,10 +334,10 @@ export default function LeagueDetailScreen() {
         </View>
       </View>
 
-      {isCreator && !activeRound && (
+      {isCreator && !activeRound && (league.total_rounds === 0 || league.current_round < league.total_rounds) && (
         <TouchableOpacity
           style={[styles.startRoundButton, creatingRound && styles.buttonDisabled]}
-          onPress={handleStartRound}
+          onPress={() => setShowStartRoundModal(true)}
           disabled={creatingRound}
         >
           {creatingRound ? (
