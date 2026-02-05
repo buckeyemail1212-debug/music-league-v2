@@ -357,14 +357,59 @@ export default function LeagueDetailScreen() {
         </TouchableOpacity>
       )}
 
-      <Text style={styles.sectionTitle}>Rounds</Text>
+      {/* Tab Selector */}
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'rounds' && styles.tabActive]}
+          onPress={() => setActiveTab('rounds')}
+        >
+          <Ionicons name="flag" size={18} color={activeTab === 'rounds' ? '#6366f1' : '#888'} />
+          <Text style={[styles.tabText, activeTab === 'rounds' && styles.tabTextActive]}>Rounds</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'standings' && styles.tabActive]}
+          onPress={() => setActiveTab('standings')}
+        >
+          <Ionicons name="trophy" size={18} color={activeTab === 'standings' ? '#6366f1' : '#888'} />
+          <Text style={[styles.tabText, activeTab === 'standings' && styles.tabTextActive]}>Standings</Text>
+        </TouchableOpacity>
+      </View>
 
-      {rounds.length > 0 ? (
-        <FlatList
-          data={rounds}
-          keyExtractor={(item) => item.id}
-          renderItem={renderRoundItem}
-          contentContainerStyle={styles.listContent}
+      {/* Rounds Tab */}
+      {activeTab === 'rounds' && (
+        <>
+          {rounds.length > 0 ? (
+            <FlatList
+              data={rounds}
+              keyExtractor={(item) => item.id}
+              renderItem={renderRoundItem}
+              contentContainerStyle={styles.listContent}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  tintColor="#6366f1"
+                />
+              }
+            />
+          ) : (
+            <View style={styles.emptyState}>
+              <Ionicons name="flag" size={60} color="#333" />
+              <Text style={styles.emptyTitle}>No Rounds Yet</Text>
+              <Text style={styles.emptyText}>
+                {isCreator
+                  ? 'Start a new round to begin the competition!'
+                  : 'Waiting for the league creator to start a round.'}
+              </Text>
+            </View>
+          )}
+        </>
+      )}
+
+      {/* Standings Tab */}
+      {activeTab === 'standings' && (
+        <ScrollView
+          style={styles.standingsContainer}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -372,17 +417,54 @@ export default function LeagueDetailScreen() {
               tintColor="#6366f1"
             />
           }
-        />
-      ) : (
-        <View style={styles.emptyState}>
-          <Ionicons name="flag" size={60} color="#333" />
-          <Text style={styles.emptyTitle}>No Rounds Yet</Text>
-          <Text style={styles.emptyText}>
-            {isCreator
-              ? 'Start a new round to begin the competition!'
-              : 'Waiting for the league creator to start a round.'}
-          </Text>
-        </View>
+        >
+          <View style={styles.standingsHeader}>
+            <Text style={styles.standingsTitle}>League Standings</Text>
+            <Text style={styles.roundsCompleted}>
+              {standings?.rounds_completed || 0} of {league.total_rounds || '∞'} rounds completed
+            </Text>
+          </View>
+
+          {standings && standings.standings.length > 0 ? (
+            standings.standings.map((player, index) => (
+              <View key={player.user_id} style={[
+                styles.standingRow,
+                index === 0 && styles.firstPlace,
+                index === 1 && styles.secondPlace,
+                index === 2 && styles.thirdPlace,
+              ]}>
+                <View style={styles.rankContainer}>
+                  {index === 0 ? (
+                    <Ionicons name="trophy" size={20} color="#fbbf24" />
+                  ) : index === 1 ? (
+                    <Ionicons name="medal" size={20} color="#9ca3af" />
+                  ) : index === 2 ? (
+                    <Ionicons name="medal" size={20} color="#d97706" />
+                  ) : (
+                    <Text style={styles.rankNumber}>{index + 1}</Text>
+                  )}
+                </View>
+                <View style={styles.playerInfo}>
+                  <Text style={styles.playerName}>{player.username}</Text>
+                  <Text style={styles.playerStats}>
+                    {player.wins} win{player.wins !== 1 ? 's' : ''} • {player.rounds_played} round{player.rounds_played !== 1 ? 's' : ''}
+                  </Text>
+                </View>
+                <View style={styles.pointsContainer}>
+                  <Text style={styles.pointsValue}>{player.total_points}</Text>
+                  <Text style={styles.pointsLabel}>pts</Text>
+                </View>
+              </View>
+            ))
+          ) : (
+            <View style={styles.emptyState}>
+              <Ionicons name="podium" size={60} color="#333" />
+              <Text style={styles.emptyTitle}>No Standings Yet</Text>
+              <Text style={styles.emptyText}>Complete a round to see standings!</Text>
+            </View>
+          )}
+        </ScrollView>
+      )}
       )}
 
       {/* Start Round Modal */}
