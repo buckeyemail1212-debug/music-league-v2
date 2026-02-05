@@ -142,8 +142,11 @@ export default function RegisterScreen() {
                   onChangeText={setConfirmPassword}
                   secureTextEntry={!showPassword}
                   autoComplete="off"
-                  textContentType="none"
                   autoCorrect={false}
+                  textContentType="none"
+                  importantForAutofill="no"
+                  spellCheck={false}
+                  passwordRules=""
                 />
               </View>
 
