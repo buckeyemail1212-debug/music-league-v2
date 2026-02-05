@@ -79,22 +79,14 @@ class TokenResponse(BaseModel):
 
 class LeagueCreate(BaseModel):
     name: str
-    theme: str = ""  # Default theme for all rounds (can be empty)
-    theme_mode: str = "all_rounds"  # 'all_rounds', 'per_round', 'no_theme'
-    submission_hours: int = 24
-    voting_hours: int = 24
-    total_rounds: int = 0  # 0 means unlimited rounds
+    total_rounds: int = 1  # Number of rounds (1-10)
 
 class LeagueResponse(BaseModel):
     id: str
     name: str
-    theme: str
-    theme_mode: str
     league_code: str
     creator_id: str
     creator_username: str
-    submission_hours: int
-    voting_hours: int
     total_rounds: int
     members: List[dict]
     current_round: int
@@ -105,7 +97,9 @@ class JoinLeagueRequest(BaseModel):
     league_code: str
 
 class StartRoundRequest(BaseModel):
-    theme: str = ""  # Theme for this specific round (used when theme_mode is 'per_round')
+    theme: str = ""  # Theme/prompt for this round
+    submission_hours: int = 24  # Hours for submission phase
+    voting_hours: int = 24  # Hours for voting phase
 
 class SongData(BaseModel):
     deezer_id: int
