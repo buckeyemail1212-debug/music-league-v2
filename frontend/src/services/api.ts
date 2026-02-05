@@ -33,11 +33,13 @@ export interface League {
   id: string;
   name: string;
   theme: string;
+  theme_mode: 'all_rounds' | 'per_round' | 'no_theme';
   league_code: string;
   creator_id: string;
   creator_username: string;
   submission_hours: number;
   voting_hours: number;
+  total_rounds: number;
   members: { id: string; username: string }[];
   current_round: number;
   status: string;
@@ -55,6 +57,7 @@ export interface Round {
   submissions_count: number;
   has_user_submitted: boolean;
   has_user_voted: boolean;
+  user_vote_locked: boolean;
   created_at: string;
 }
 
@@ -65,6 +68,15 @@ export interface Submission {
   username: string;
   song: Song;
   submitted_at: string;
+}
+
+export interface Vote {
+  id: string;
+  round_id: string;
+  user_id: string;
+  rankings: string[];
+  locked: boolean;
+  created_at: string;
 }
 
 export interface RoundResult {
@@ -88,6 +100,19 @@ export interface RoundResult {
   }[];
   is_tie: boolean;
   total_voters: number;
+}
+
+export interface LeagueStandings {
+  league_id: string;
+  standings: {
+    user_id: string;
+    username: string;
+    total_points: number;
+    wins: number;
+    rounds_played: number;
+  }[];
+  rounds_completed: number;
+  total_rounds: number;
 }
 
 export interface UserStats {
