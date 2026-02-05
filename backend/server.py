@@ -543,16 +543,19 @@ async def get_rounds(league_id: str, current_user: dict = Depends(get_current_us
             "round_id": round_doc["id"],
             "user_id": current_user["id"]
         }) is not None
-        has_voted = await db.votes.find_one({
+        user_vote = await db.votes.find_one({
             "round_id": round_doc["id"],
             "voter_id": current_user["id"]
-        }) is not None
+        })
+        has_voted = user_vote is not None
+        user_vote_locked = user_vote.get("locked", False) if user_vote else False
         
         result.append(RoundResponse(
             **round_doc,
             submissions_count=submissions_count,
             has_user_submitted=has_submitted,
-            has_user_voted=has_voted
+            has_user_voted=has_voted,
+            user_vote_locked=user_vote_locked
         ))
     
     return result
@@ -568,16 +571,19 @@ async def get_round(round_id: str, current_user: dict = Depends(get_current_user
         "round_id": round_id,
         "user_id": current_user["id"]
     }) is not None
-    has_voted = await db.votes.find_one({
+    user_vote = await db.votes.find_one({
         "round_id": round_id,
         "voter_id": current_user["id"]
-    }) is not None
+    })
+    has_voted = user_vote is not None
+    user_vote_locked = user_vote.get("locked", False) if user_vote else False
     
     return RoundResponse(
         **round_doc,
         submissions_count=submissions_count,
         has_user_submitted=has_submitted,
-        has_user_voted=has_voted
+        has_user_voted=has_voted,
+        user_vote_locked=user_vote_locked
     )
 
 @api_router.post("/rounds/{round_id}/advance")
@@ -592,7 +598,13 @@ async def advance_round(round_id: str, current_user: dict = Depends(get_current_
         raise HTTPException(status_code=403, detail="Only league creator can advance rounds")
     
     if round_doc["status"] == "submission":
-        await db.rounds.update_one({"id": round_id}, {"$set": {"status": "voting"}})
+        # Reset voting deadline to start from NOW when advancing to voting
+        now = datetime.now(timezone.utc)
+        new_voting_deadline = now + timedelta(hours=league["voting_hours"])
+        await db.rounds.update_one(
+            {"id": round_id}, 
+            {"$set": {"status": "voting", "voting_deadline": new_voting_deadline}}
+        )
         return {"message": "Round advanced to voting phase"}
     elif round_doc["status"] == "voting":
         await db.rounds.update_one({"id": round_id}, {"$set": {"status": "completed"}})
