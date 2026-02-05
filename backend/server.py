@@ -542,11 +542,13 @@ async def get_rounds(league_id: str, current_user: dict = Depends(get_current_us
     if not league:
         raise HTTPException(status_code=404, detail="League not found")
     
+    total_members = len(league.get("members", []))
     rounds = await db.rounds.find({"league_id": league_id}).sort("round_number", -1).to_list(100)
     
     result = []
     for round_doc in rounds:
         submissions_count = await db.submissions.count_documents({"round_id": round_doc["id"]})
+        votes_count = await db.votes.count_documents({"round_id": round_doc["id"]})
         has_submitted = await db.submissions.find_one({
             "round_id": round_doc["id"],
             "user_id": current_user["id"]
@@ -561,6 +563,8 @@ async def get_rounds(league_id: str, current_user: dict = Depends(get_current_us
         result.append(RoundResponse(
             **round_doc,
             submissions_count=submissions_count,
+            votes_count=votes_count,
+            total_members=total_members,
             has_user_submitted=has_submitted,
             has_user_voted=has_voted,
             user_vote_locked=user_vote_locked
