@@ -523,11 +523,24 @@ export default function RoundScreen() {
       {/* Timer */}
       {round.status !== 'completed' && timeRemaining && (
         <View style={styles.timerContainer}>
-          <Ionicons name="time-outline" size={18} color="#f59e0b" />
+          <Ionicons name="time-outline" size={18} color="#fff" />
           <Text style={styles.timerLabel}>
             {round.status === 'submission' ? 'Submission ends in:' : 'Voting ends in:'}
           </Text>
           <Text style={styles.timerValue}>{timeRemaining}</Text>
+        </View>
+      )}
+
+      {/* Progress Indicator */}
+      {round.status !== 'completed' && (
+        <View style={styles.progressContainer}>
+          <Ionicons name="people" size={16} color="#888" />
+          <Text style={styles.progressText}>
+            {round.status === 'submission' 
+              ? `${round.submissions_count}/${round.total_members} submitted`
+              : `${round.votes_count || 0}/${round.total_members} voted`
+            }
+          </Text>
         </View>
       )}
 
