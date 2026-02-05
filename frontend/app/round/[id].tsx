@@ -266,16 +266,48 @@ export default function RoundScreen() {
     setRankings(newRankings);
   };
 
-  const handleSubmitVote = async () => {
+  // Save vote (not locked - can be changed)
+  const handleSaveVote = async () => {
     setVotingSubmitting(true);
     try {
-      await submitVote(id!, rankings);
+      await submitVote(id!, rankings, false);  // locked = false
+      setVoteSaved(true);
       await fetchData();
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.detail || 'Failed to submit vote');
+      Alert.alert('Error', error.response?.data?.detail || 'Failed to save vote');
     } finally {
       setVotingSubmitting(false);
     }
+  };
+
+  // Lock in vote (final - cannot be changed)
+  const handleLockVote = async () => {
+    Alert.alert(
+      'Lock In Your Vote',
+      'Are you sure? Once locked, you cannot change your vote.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Lock It In',
+          onPress: async () => {
+            setVotingSubmitting(true);
+            try {
+              await submitVote(id!, rankings, true);  // locked = true
+              await fetchData();
+            } catch (error: any) {
+              Alert.alert('Error', error.response?.data?.detail || 'Failed to lock vote');
+            } finally {
+              setVotingSubmitting(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Change vote (go back to editing)
+  const handleChangeVote = () => {
+    setVoteSaved(false);
   };
 
   const openInService = (song: Song, service: 'spotify' | 'apple' | 'youtube') => {
