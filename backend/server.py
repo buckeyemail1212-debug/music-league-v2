@@ -144,6 +144,8 @@ class RoundResponse(BaseModel):
     submission_deadline: datetime
     voting_deadline: datetime
     submissions_count: int
+    votes_count: int = 0  # Number of users who have voted
+    total_members: int = 0  # Total members in the league
     has_user_submitted: bool
     has_user_voted: bool
     user_vote_locked: bool  # Whether user's vote is locked
