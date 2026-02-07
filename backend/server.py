@@ -170,6 +170,26 @@ class LeagueStandingsResponse(BaseModel):
     rounds_completed: int
     total_rounds: int
 
+class MessageCreate(BaseModel):
+    content: str
+
+class MessageResponse(BaseModel):
+    id: str
+    league_id: str
+    user_id: str
+    username: str
+    content: str
+    created_at: datetime
+    
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z' if v.tzinfo else v.strftime('%Y-%m-%dT%H:%M:%SZ')
+        }
+
+class ChatStatusResponse(BaseModel):
+    has_unread: bool
+    last_message_at: Optional[datetime] = None
+
 # ==================== HELPER FUNCTIONS ====================
 
 def generate_league_code() -> str:
