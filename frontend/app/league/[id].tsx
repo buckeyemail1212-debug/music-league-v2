@@ -56,6 +56,15 @@ export default function LeagueDetailScreen() {
   const [submissionHours, setSubmissionHours] = useState('24');
   const [votingHours, setVotingHours] = useState('24');
 
+  // Chat state
+  const [showChatModal, setShowChatModal] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [hasUnread, setHasUnread] = useState(false);
+  const chatListRef = useRef<FlatList>(null);
+
   // Time options
   const timeOptions = [
     { label: '1 hr', value: '1' },
