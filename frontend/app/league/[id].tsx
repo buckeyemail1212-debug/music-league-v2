@@ -643,6 +643,103 @@ export default function LeagueDetailScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Chat Modal */}
+      <Modal
+        visible={showChatModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowChatModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.chatModalContainer}
+        >
+          <View style={styles.chatModalContent}>
+            <View style={styles.chatModalHeader}>
+              <Text style={styles.chatModalTitle}>League Chat</Text>
+              <TouchableOpacity onPress={() => setShowChatModal(false)}>
+                <Ionicons name="close" size={24} color="#888" />
+              </TouchableOpacity>
+            </View>
+
+            {loadingMessages ? (
+              <View style={styles.chatLoadingContainer}>
+                <ActivityIndicator size="large" color="#6366f1" />
+              </View>
+            ) : messages.length === 0 ? (
+              <View style={styles.chatEmptyState}>
+                <Ionicons name="chatbubbles-outline" size={60} color="#333" />
+                <Text style={styles.chatEmptyTitle}>No messages yet</Text>
+                <Text style={styles.chatEmptyText}>Start the conversation!</Text>
+              </View>
+            ) : (
+              <FlatList
+                ref={chatListRef}
+                data={messages}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={styles.chatListContent}
+                renderItem={({ item }) => {
+                  const isOwnMessage = item.user_id === user?.id;
+                  return (
+                    <View style={[
+                      styles.messageContainer,
+                      isOwnMessage && styles.ownMessageContainer
+                    ]}>
+                      <View style={[
+                        styles.messageBubble,
+                        isOwnMessage ? styles.ownMessageBubble : styles.otherMessageBubble
+                      ]}>
+                        {!isOwnMessage && (
+                          <Text style={styles.messageUsername}>{item.username}</Text>
+                        )}
+                        <Text style={[
+                          styles.messageText,
+                          isOwnMessage && styles.ownMessageText
+                        ]}>{item.content}</Text>
+                        <Text style={[
+                          styles.messageTime,
+                          isOwnMessage && styles.ownMessageTime
+                        ]}>
+                          {format(new Date(item.created_at), 'MMM d, h:mm a')}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                }}
+              />
+            )}
+
+            <View style={styles.chatInputContainer}>
+              <TextInput
+                style={styles.chatInput}
+                placeholder="Type a message..."
+                placeholderTextColor="#666"
+                value={newMessage}
+                onChangeText={setNewMessage}
+                multiline
+                maxLength={500}
+                autoComplete="off"
+                autoCorrect={false}
+                textContentType="none"
+                importantForAutofill="no"
+                spellCheck={false}
+              />
+              <TouchableOpacity
+                style={[styles.sendButton, (!newMessage.trim() || sendingMessage) && styles.sendButtonDisabled]}
+                onPress={handleSendMessage}
+                disabled={!newMessage.trim() || sendingMessage}
+              >
+                {sendingMessage ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Ionicons name="send" size={20} color="#fff" />
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
