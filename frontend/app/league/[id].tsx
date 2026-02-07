@@ -85,12 +85,66 @@ export default function LeagueDetailScreen() {
       setLeague(leagueRes.data);
       setRounds(roundsRes.data);
       setStandings(standingsRes.data);
+      
+      // Check for unread messages
+      try {
+        const chatStatusRes = await getChatStatus(id!);
+        setHasUnread(chatStatusRes.data.has_unread);
+      } catch (e) {
+        // Ignore chat status errors
+      }
     } catch (error: any) {
       console.error('Failed to fetch league:', error);
       Alert.alert('Error', 'Failed to load league details');
     } finally {
       setLoading(false);
     }
+  };
+
+  // Fetch chat messages
+  const fetchMessages = async () => {
+    if (!id) return;
+    setLoadingMessages(true);
+    try {
+      const response = await getLeagueMessages(id);
+      setMessages(response.data);
+      setHasUnread(false);
+      // Scroll to bottom after loading
+      setTimeout(() => {
+        chatListRef.current?.scrollToEnd({ animated: false });
+      }, 100);
+    } catch (error) {
+      console.error('Failed to fetch messages:', error);
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+
+  // Send a message
+  const handleSendMessage = async () => {
+    if (!id || !newMessage.trim() || sendingMessage) return;
+    
+    setSendingMessage(true);
+    try {
+      const response = await sendLeagueMessage(id, newMessage.trim());
+      setMessages(prev => [...prev, response.data]);
+      setNewMessage('');
+      // Scroll to bottom
+      setTimeout(() => {
+        chatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      Alert.alert('Error', 'Failed to send message');
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+
+  // Open chat modal
+  const openChat = () => {
+    setShowChatModal(true);
+    fetchMessages();
   };
 
   useFocusEffect(
