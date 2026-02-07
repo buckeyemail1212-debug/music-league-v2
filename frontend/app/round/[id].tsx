@@ -771,6 +771,11 @@ export default function RoundScreen() {
               value={searchQuery}
               onChangeText={handleSearchSongs}
               autoFocus
+              autoComplete="off"
+              autoCorrect={false}
+              textContentType="none"
+              importantForAutofill="no"
+              spellCheck={false}
             />
           </View>
 
