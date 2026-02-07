@@ -405,6 +405,7 @@ export default function HomeScreen() {
                     autoComplete="off"
                     spellCheck={false}
                     textContentType="none"
+                    importantForAutofill="no"
                     keyboardType="default"
                     maxLength={6}
                     selectionColor="#6366f1"
