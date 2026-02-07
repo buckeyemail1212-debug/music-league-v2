@@ -511,7 +511,10 @@ export default function LeagueDetailScreen() {
                   value={roundTheme}
                   onChangeText={setRoundTheme}
                   autoComplete="off"
+                  autoCorrect={false}
                   textContentType="none"
+                  importantForAutofill="no"
+                  spellCheck={false}
                 />
 
                 <Text style={styles.inputLabel}>Submission Time</Text>
