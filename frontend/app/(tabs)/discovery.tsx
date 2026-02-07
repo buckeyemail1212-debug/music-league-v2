@@ -184,6 +184,11 @@ export default function DiscoveryScreen() {
           placeholderTextColor="#666"
           value={query}
           onChangeText={handleSearch}
+          autoComplete="off"
+          autoCorrect={false}
+          textContentType="none"
+          importantForAutofill="no"
+          spellCheck={false}
         />
         {query.length > 0 && (
           <TouchableOpacity onPress={() => handleSearch('')}>
