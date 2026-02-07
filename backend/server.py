@@ -964,8 +964,8 @@ async def get_league_messages(league_id: str, current_user: dict = Depends(get_c
     if not league:
         raise HTTPException(status_code=404, detail="League not found")
     
-    # Check if user is a member
-    member_ids = [m["user_id"] for m in league.get("members", [])]
+    # Check if user is a member (handle both 'id' and 'user_id' formats)
+    member_ids = [m.get("user_id") or m.get("id") for m in league.get("members", [])]
     if current_user["id"] not in member_ids:
         raise HTTPException(status_code=403, detail="Not a member of this league")
     
@@ -987,8 +987,8 @@ async def send_message(league_id: str, message: MessageCreate, current_user: dic
     if not league:
         raise HTTPException(status_code=404, detail="League not found")
     
-    # Check if user is a member
-    member_ids = [m["user_id"] for m in league.get("members", [])]
+    # Check if user is a member (handle both 'id' and 'user_id' formats)
+    member_ids = [m.get("user_id") or m.get("id") for m in league.get("members", [])]
     if current_user["id"] not in member_ids:
         raise HTTPException(status_code=403, detail="Not a member of this league")
     
