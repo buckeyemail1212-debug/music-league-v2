@@ -1158,4 +1158,136 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fff',
   },
+  // Chat styles
+  unreadBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#ef4444',
+  },
+  chatModalContainer: {
+    flex: 1,
+    backgroundColor: '#0a0a0a',
+  },
+  chatModalContent: {
+    flex: 1,
+  },
+  chatModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+    backgroundColor: '#1a1a1a',
+  },
+  chatModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  chatLoadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  chatEmptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  chatEmptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+    marginTop: 16,
+  },
+  chatEmptyText: {
+    fontSize: 14,
+    color: '#888',
+    marginTop: 8,
+  },
+  chatListContent: {
+    padding: 16,
+    flexGrow: 1,
+  },
+  messageContainer: {
+    marginBottom: 12,
+    flexDirection: 'row',
+  },
+  ownMessageContainer: {
+    justifyContent: 'flex-end',
+  },
+  messageBubble: {
+    maxWidth: '80%',
+    borderRadius: 16,
+    padding: 12,
+  },
+  ownMessageBubble: {
+    backgroundColor: '#6366f1',
+    borderBottomRightRadius: 4,
+  },
+  otherMessageBubble: {
+    backgroundColor: '#1a1a1a',
+    borderBottomLeftRadius: 4,
+  },
+  messageUsername: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6366f1',
+    marginBottom: 4,
+  },
+  messageText: {
+    fontSize: 15,
+    color: '#fff',
+    lineHeight: 20,
+  },
+  ownMessageText: {
+    color: '#fff',
+  },
+  messageTime: {
+    fontSize: 11,
+    color: '#666',
+    marginTop: 6,
+  },
+  ownMessageTime: {
+    color: 'rgba(255, 255, 255, 0.6)',
+  },
+  chatInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    padding: 12,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 12,
+    backgroundColor: '#1a1a1a',
+    borderTopWidth: 1,
+    borderTopColor: '#333',
+    gap: 12,
+  },
+  chatInput: {
+    flex: 1,
+    backgroundColor: '#0a0a0a',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    color: '#fff',
+    fontSize: 15,
+    maxHeight: 100,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  sendButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#6366f1',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sendButtonDisabled: {
+    backgroundColor: '#333',
+  },
 });
