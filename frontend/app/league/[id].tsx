@@ -381,6 +381,10 @@ export default function LeagueDetailScreen() {
           <Text style={styles.leagueTheme}>Round {league.current_round} of {league.total_rounds > 0 ? league.total_rounds : 'Unlimited'}</Text>
         </View>
         <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.headerButton} onPress={openChat}>
+            <Ionicons name="chatbubble-outline" size={22} color="#6366f1" />
+            {hasUnread && <View style={styles.unreadBadge} />}
+          </TouchableOpacity>
           <TouchableOpacity style={styles.headerButton} onPress={handleShareCode}>
             <Ionicons name="share-outline" size={22} color="#6366f1" />
           </TouchableOpacity>
