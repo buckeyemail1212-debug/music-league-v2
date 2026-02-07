@@ -115,6 +115,20 @@ export interface LeagueStandings {
   total_rounds: number;
 }
 
+export interface Message {
+  id: string;
+  league_id: string;
+  user_id: string;
+  username: string;
+  content: string;
+  created_at: string;
+}
+
+export interface ChatStatus {
+  has_unread: boolean;
+  last_message_at: string | null;
+}
+
 export interface UserStats {
   total_wins: number;
   rounds_played: number;
