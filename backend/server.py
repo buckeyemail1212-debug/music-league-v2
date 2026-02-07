@@ -955,6 +955,103 @@ async def search_songs(q: str, limit: int = 20):
             logger.error(f"Deezer API error: {e}")
             raise HTTPException(status_code=500, detail="Failed to search songs")
 
+# ==================== CHAT ENDPOINTS ====================
+
+@api_router.get("/leagues/{league_id}/messages", response_model=List[MessageResponse])
+async def get_league_messages(league_id: str, current_user: dict = Depends(get_current_user)):
+    """Get all messages for a league"""
+    league = await db.leagues.find_one({"id": league_id})
+    if not league:
+        raise HTTPException(status_code=404, detail="League not found")
+    
+    # Check if user is a member
+    member_ids = [m["user_id"] for m in league.get("members", [])]
+    if current_user["id"] not in member_ids:
+        raise HTTPException(status_code=403, detail="Not a member of this league")
+    
+    messages = await db.messages.find({"league_id": league_id}).sort("created_at", 1).to_list(1000)
+    
+    # Update user's last read timestamp for this league
+    await db.chat_reads.update_one(
+        {"user_id": current_user["id"], "league_id": league_id},
+        {"$set": {"last_read_at": datetime.now(timezone.utc)}},
+        upsert=True
+    )
+    
+    return [MessageResponse(**msg) for msg in messages]
+
+@api_router.post("/leagues/{league_id}/messages", response_model=MessageResponse)
+async def send_message(league_id: str, message: MessageCreate, current_user: dict = Depends(get_current_user)):
+    """Send a message to a league chat"""
+    league = await db.leagues.find_one({"id": league_id})
+    if not league:
+        raise HTTPException(status_code=404, detail="League not found")
+    
+    # Check if user is a member
+    member_ids = [m["user_id"] for m in league.get("members", [])]
+    if current_user["id"] not in member_ids:
+        raise HTTPException(status_code=403, detail="Not a member of this league")
+    
+    if not message.content.strip():
+        raise HTTPException(status_code=400, detail="Message cannot be empty")
+    
+    message_doc = {
+        "id": str(uuid.uuid4()),
+        "league_id": league_id,
+        "user_id": current_user["id"],
+        "username": current_user["username"],
+        "content": message.content.strip(),
+        "created_at": datetime.now(timezone.utc)
+    }
+    
+    await db.messages.insert_one(message_doc)
+    
+    # Update sender's last read timestamp
+    await db.chat_reads.update_one(
+        {"user_id": current_user["id"], "league_id": league_id},
+        {"$set": {"last_read_at": datetime.now(timezone.utc)}},
+        upsert=True
+    )
+    
+    return MessageResponse(**message_doc)
+
+@api_router.get("/leagues/{league_id}/chat-status", response_model=ChatStatusResponse)
+async def get_chat_status(league_id: str, current_user: dict = Depends(get_current_user)):
+    """Check if there are unread messages in the league chat"""
+    league = await db.leagues.find_one({"id": league_id})
+    if not league:
+        raise HTTPException(status_code=404, detail="League not found")
+    
+    # Get the latest message
+    latest_message = await db.messages.find_one(
+        {"league_id": league_id},
+        sort=[("created_at", -1)]
+    )
+    
+    if not latest_message:
+        return ChatStatusResponse(has_unread=False, last_message_at=None)
+    
+    # Get user's last read timestamp
+    chat_read = await db.chat_reads.find_one({
+        "user_id": current_user["id"],
+        "league_id": league_id
+    })
+    
+    last_read_at = chat_read.get("last_read_at") if chat_read else None
+    last_message_at = latest_message.get("created_at")
+    
+    # Check if there are unread messages (message after last read, or never read)
+    has_unread = False
+    if last_message_at:
+        if not last_read_at:
+            has_unread = True
+        elif last_message_at > last_read_at:
+            # Don't count as unread if the latest message is from the current user
+            if latest_message.get("user_id") != current_user["id"]:
+                has_unread = True
+    
+    return ChatStatusResponse(has_unread=has_unread, last_message_at=last_message_at)
+
 # ==================== ROOT ENDPOINT ====================
 
 @api_router.get("/")
