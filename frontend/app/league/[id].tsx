@@ -425,43 +425,59 @@ export default function LeagueDetailScreen() {
             </Text>
           </View>
 
-          {standings && standings.standings.length > 0 ? (
-            standings.standings.map((player, index) => {
-              // Only highlight if player has points
-              const hasPoints = player.total_points > 0;
-              return (
-                <View key={player.user_id} style={[
-                  styles.standingRow,
-                  hasPoints && index === 0 && styles.firstPlace,
-                  hasPoints && index === 1 && styles.secondPlace,
-                  hasPoints && index === 2 && styles.thirdPlace,
-                ]}>
-                  <View style={styles.rankContainer}>
-                    {hasPoints && index === 0 ? (
-                      <Ionicons name="trophy" size={20} color="#fbbf24" />
-                    ) : hasPoints && index === 1 ? (
-                      <Ionicons name="medal" size={20} color="#9ca3af" />
-                    ) : hasPoints && index === 2 ? (
-                      <Ionicons name="medal" size={20} color="#d97706" />
-                    ) : (
-                      <Text style={styles.rankNumber}>{index + 1}</Text>
-                    )}
+          {standings && standings.standings.length > 0 && standings.standings.some(p => p.total_points > 0) ? (
+            (() => {
+              // Calculate actual ranks accounting for ties
+              let currentRank = 1;
+              let prevPoints: number | null = null;
+              const rankedPlayers = standings.standings.map((player, index) => {
+                if (prevPoints !== null && player.total_points < prevPoints) {
+                  currentRank = index + 1;
+                }
+                prevPoints = player.total_points;
+                return { ...player, rank: currentRank };
+              });
+
+              return rankedPlayers.map((player) => {
+                const hasPoints = player.total_points > 0;
+                const isFirst = player.rank === 1 && hasPoints;
+                const isSecond = player.rank === 2 && hasPoints;
+                const isThird = player.rank === 3 && hasPoints;
+                
+                return (
+                  <View key={player.user_id} style={[
+                    styles.standingRow,
+                    isFirst && styles.firstPlace,
+                    isSecond && styles.secondPlace,
+                    isThird && styles.thirdPlace,
+                  ]}>
+                    <View style={styles.rankContainer}>
+                      {isFirst ? (
+                        <Ionicons name="trophy" size={20} color="#fbbf24" />
+                      ) : isSecond ? (
+                        <Ionicons name="medal" size={20} color="#9ca3af" />
+                      ) : isThird ? (
+                        <Ionicons name="medal" size={20} color="#d97706" />
+                      ) : (
+                        <Text style={styles.rankNumber}>{player.rank}</Text>
+                      )}
+                    </View>
+                    <View style={styles.playerInfo}>
+                      <Text style={styles.playerName}>{player.username}</Text>
+                    </View>
+                    <View style={styles.pointsContainer}>
+                      <Text style={styles.pointsValue}>{player.total_points}</Text>
+                      <Text style={styles.pointsLabel}>pts</Text>
+                    </View>
                   </View>
-                  <View style={styles.playerInfo}>
-                    <Text style={styles.playerName}>{player.username}</Text>
-                  </View>
-                  <View style={styles.pointsContainer}>
-                    <Text style={styles.pointsValue}>{player.total_points}</Text>
-                    <Text style={styles.pointsLabel}>pts</Text>
-                  </View>
-                </View>
-              );
-            })
+                );
+              });
+            })()
           ) : (
             <View style={styles.emptyState}>
               <Ionicons name="podium" size={60} color="#333" />
               <Text style={styles.emptyTitle}>No Standings Yet</Text>
-              <Text style={styles.emptyText}>Complete a round to see standings!</Text>
+              <Text style={styles.emptyText}>Standings will be updated once rounds are completed</Text>
             </View>
           )}
         </ScrollView>
