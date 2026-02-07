@@ -657,67 +657,76 @@ export default function LeagueDetailScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.chatModalContainer}
         >
-          <View style={styles.chatModalContent}>
-            <View style={styles.chatModalHeader}>
-              <Text style={styles.chatModalTitle}>League Chat</Text>
-              <TouchableOpacity onPress={() => setShowChatModal(false)}>
-                <Ionicons name="close" size={24} color="#888" />
-              </TouchableOpacity>
-            </View>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={styles.chatModalContent}>
+              <View style={styles.chatModalHeader}>
+                <Text style={styles.chatModalTitle}>League Chat</Text>
+                <TouchableOpacity onPress={() => { Keyboard.dismiss(); setShowChatModal(false); }}>
+                  <Ionicons name="close" size={24} color="#888" />
+                </TouchableOpacity>
+              </View>
 
-            {loadingMessages ? (
-              <View style={styles.chatLoadingContainer}>
-                <ActivityIndicator size="large" color="#6366f1" />
-              </View>
-            ) : messages.length === 0 ? (
-              <View style={styles.chatEmptyState}>
-                <Ionicons name="chatbubbles-outline" size={60} color="#333" />
-                <Text style={styles.chatEmptyTitle}>No messages yet</Text>
-                <Text style={styles.chatEmptyText}>Start the conversation!</Text>
-              </View>
-            ) : (
-              <FlatList
-                ref={chatListRef}
-                data={messages}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.chatListContent}
-                renderItem={({ item }) => {
-                  const isOwnMessage = item.user_id === user?.id;
-                  return (
-                    <View style={[
-                      styles.messageContainer,
-                      isOwnMessage && styles.ownMessageContainer
-                    ]}>
-                      <View style={[
-                        styles.messageBubble,
-                        isOwnMessage ? styles.ownMessageBubble : styles.otherMessageBubble
-                      ]}>
-                        {!isOwnMessage && (
-                          <Text style={styles.messageUsername}>{item.username}</Text>
-                        )}
-                        <Text style={[
-                          styles.messageText,
-                          isOwnMessage && styles.ownMessageText
-                        ]}>{item.content}</Text>
-                        <Text style={[
-                          styles.messageTime,
-                          isOwnMessage && styles.ownMessageTime
+              {loadingMessages ? (
+                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                  <View style={styles.chatLoadingContainer}>
+                    <ActivityIndicator size="large" color="#6366f1" />
+                  </View>
+                </TouchableWithoutFeedback>
+              ) : messages.length === 0 ? (
+                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                  <View style={styles.chatEmptyState}>
+                    <Ionicons name="chatbubbles-outline" size={60} color="#333" />
+                    <Text style={styles.chatEmptyTitle}>No messages yet</Text>
+                    <Text style={styles.chatEmptyText}>Start the conversation!</Text>
+                  </View>
+                </TouchableWithoutFeedback>
+              ) : (
+                <FlatList
+                  ref={chatListRef}
+                  data={messages}
+                  keyExtractor={(item) => item.id}
+                  contentContainerStyle={styles.chatListContent}
+                  keyboardShouldPersistTaps="handled"
+                  onScrollBeginDrag={Keyboard.dismiss}
+                  renderItem={({ item }) => {
+                    const isOwnMessage = item.user_id === user?.id;
+                    return (
+                      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                        <View style={[
+                          styles.messageContainer,
+                          isOwnMessage && styles.ownMessageContainer
                         ]}>
-                          {format(new Date(item.created_at), 'MMM d, h:mm a')}
-                        </Text>
-                      </View>
-                    </View>
-                  );
-                }}
-              />
-            )}
+                          <View style={[
+                            styles.messageBubble,
+                            isOwnMessage ? styles.ownMessageBubble : styles.otherMessageBubble
+                          ]}>
+                            {!isOwnMessage && (
+                              <Text style={styles.messageUsername}>{item.username}</Text>
+                            )}
+                            <Text style={[
+                              styles.messageText,
+                              isOwnMessage && styles.ownMessageText
+                            ]}>{item.content}</Text>
+                            <Text style={[
+                              styles.messageTime,
+                              isOwnMessage && styles.ownMessageTime
+                            ]}>
+                              {format(new Date(item.created_at), 'MMM d, h:mm a')}
+                            </Text>
+                          </View>
+                        </View>
+                      </TouchableWithoutFeedback>
+                    );
+                  }}
+                />
+              )}
 
-            <View style={styles.chatInputContainer}>
-              <TextInput
-                style={styles.chatInput}
-                placeholder="Type a message..."
-                placeholderTextColor="#666"
-                value={newMessage}
+              <View style={styles.chatInputContainer}>
+                <TextInput
+                  style={styles.chatInput}
+                  placeholder="Type a message..."
+                  placeholderTextColor="#666"
+                  value={newMessage}
                 onChangeText={setNewMessage}
                 multiline
                 maxLength={500}
