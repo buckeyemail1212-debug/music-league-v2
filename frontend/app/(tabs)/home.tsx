@@ -330,7 +330,10 @@ export default function HomeScreen() {
                   value={leagueName}
                   onChangeText={setLeagueName}
                   autoComplete="off"
+                  autoCorrect={false}
                   textContentType="none"
+                  importantForAutofill="no"
+                  spellCheck={false}
                 />
 
                 <Text style={styles.inputLabel}>Number of Rounds</Text>
