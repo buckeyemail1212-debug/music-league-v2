@@ -174,6 +174,31 @@ export default function LeagueDetailScreen() {
     fetchMessages();
   };
 
+  // Check for unread messages (silent background check)
+  const checkUnreadMessages = async () => {
+    if (!id || showChatModal) return; // Don't check if chat is open
+    try {
+      const chatStatusRes = await getChatStatus(id);
+      setHasUnread(chatStatusRes.data.has_unread);
+    } catch (e) {
+      // Ignore errors
+    }
+  };
+
+  // Auto-refresh unread indicator while on league page
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+    
+    if (id && !showChatModal) {
+      // Check for unread messages every 5 seconds
+      intervalId = setInterval(checkUnreadMessages, 5000);
+    }
+    
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [id, showChatModal]);
+
   useFocusEffect(
     useCallback(() => {
       fetchData();
