@@ -103,40 +103,65 @@ export default function LeagueDetailScreen() {
     }
   };
 
-  // Fetch chat messages
-  const fetchMessages = async () => {
+  // Fetch chat messages (silent refresh doesn't show loading)
+  const fetchMessages = async (silent = false) => {
     if (!id) return;
-    setLoadingMessages(true);
+    if (!silent) setLoadingMessages(true);
     try {
       const response = await getLeagueMessages(id);
-      setMessages(response.data);
+      const newMessages = response.data;
+      
+      // Only scroll to bottom if there are new messages
+      const hasNewMessages = newMessages.length > messages.length;
+      setMessages(newMessages);
       setHasUnread(false);
-      // Scroll to bottom after loading
-      setTimeout(() => {
-        chatListRef.current?.scrollToEnd({ animated: false });
-      }, 100);
+      
+      if (hasNewMessages || !silent) {
+        setTimeout(() => {
+          chatListRef.current?.scrollToEnd({ animated: silent });
+        }, 100);
+      }
     } catch (error) {
       console.error('Failed to fetch messages:', error);
     } finally {
-      setLoadingMessages(false);
+      if (!silent) setLoadingMessages(false);
     }
   };
+
+  // Auto-refresh messages while chat is open
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+    
+    if (showChatModal && id) {
+      // Refresh messages every 3 seconds
+      intervalId = setInterval(() => {
+        fetchMessages(true); // silent refresh
+      }, 3000);
+    }
+    
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [showChatModal, id]);
 
   // Send a message
   const handleSendMessage = async () => {
     if (!id || !newMessage.trim() || sendingMessage) return;
     
+    const messageContent = newMessage.trim();
+    setNewMessage(''); // Clear input immediately for better UX
     setSendingMessage(true);
+    
     try {
-      const response = await sendLeagueMessage(id, newMessage.trim());
+      const response = await sendLeagueMessage(id, messageContent);
       setMessages(prev => [...prev, response.data]);
-      setNewMessage('');
       // Scroll to bottom
       setTimeout(() => {
         chatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     } catch (error) {
       console.error('Failed to send message:', error);
+      setNewMessage(messageContent); // Restore message on error
       Alert.alert('Error', 'Failed to send message');
     } finally {
       setSendingMessage(false);
