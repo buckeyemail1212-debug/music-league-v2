@@ -202,4 +202,14 @@ export const getResults = (roundId: string) =>
 export const searchSongs = (query: string) => 
   api.get<{ data: Song[] }>('/songs/search', { params: { q: query } });
 
+// Chat APIs
+export const getLeagueMessages = (leagueId: string) => 
+  api.get<Message[]>(`/leagues/${leagueId}/messages`);
+
+export const sendLeagueMessage = (leagueId: string, content: string) => 
+  api.post<Message>(`/leagues/${leagueId}/messages`, { content });
+
+export const getChatStatus = (leagueId: string) => 
+  api.get<ChatStatus>(`/leagues/${leagueId}/chat-status`);
+
 export default api;
