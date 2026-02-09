@@ -274,8 +274,8 @@ export default function HomeScreen() {
           style={[styles.actionButton, styles.joinButton]}
           onPress={() => setShowJoinModal(true)}
         >
-          <Ionicons name="enter" size={24} color="#fff" />
-          <Text style={[styles.actionButtonText, { color: '#fff' }]}>Join League</Text>
+          <Ionicons name="enter" size={24} color="#000" />
+          <Text style={[styles.actionButtonText, { color: '#000' }]}>Join League</Text>
         </TouchableOpacity>
       </View>
 
