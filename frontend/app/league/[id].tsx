@@ -72,6 +72,11 @@ export default function LeagueDetailScreen() {
   const [hasUnread, setHasUnread] = useState(false);
   const chatListRef = useRef<FlatList>(null);
 
+  // Share card state
+  const [showShareCard, setShowShareCard] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+  const shareCardRef = useRef<ViewShot>(null);
+
   // Time options
   const timeOptions = [
     { label: '1 hr', value: '1' },
@@ -81,6 +86,11 @@ export default function LeagueDetailScreen() {
     { label: '3 days', value: '72' },
     { label: '7 days', value: '168' },
   ];
+
+  // Check if league is complete
+  const isLeagueComplete = league && standings && 
+    league.total_rounds > 0 && 
+    standings.rounds_completed >= league.total_rounds;
 
   const fetchData = async () => {
     try {
