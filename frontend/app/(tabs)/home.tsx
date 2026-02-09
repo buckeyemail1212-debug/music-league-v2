@@ -473,7 +473,8 @@ const styles = StyleSheet.create({
     borderColor: '#6366f1',
   },
   joinButton: {
-    borderColor: '#10b981',
+    borderColor: '#fff',
+    backgroundColor: '#fff',
   },
   actionButtonText: {
     fontSize: 14,
