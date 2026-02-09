@@ -909,12 +909,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     gap: 8,
     borderWidth: 1,
-    borderColor: '#10b981',
+    borderColor: '#fff',
   },
   submittedText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#10b981',
+    color: '#fff',
   },
   timerContainer: {
     flexDirection: 'row',
