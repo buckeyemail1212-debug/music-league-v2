@@ -617,7 +617,7 @@ export default function RoundScreen() {
             // Vote saved but not locked - show confirmation
             <View style={styles.voteSavedContainer}>
               <View style={styles.voteSavedBanner}>
-                <Ionicons name="checkmark-circle" size={24} color="#f59e0b" />
+                <Ionicons name="checkmark-circle" size={24} color="#fff" />
                 <Text style={styles.voteSavedText}>Vote saved! Ready to lock in?</Text>
               </View>
               <View style={styles.voteActionButtons}>
