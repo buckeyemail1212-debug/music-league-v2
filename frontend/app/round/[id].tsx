@@ -610,7 +610,7 @@ export default function RoundScreen() {
           {round.user_vote_locked ? (
             // Vote is locked
             <View style={styles.lockedBanner}>
-              <Ionicons name="lock-closed" size={24} color="#10b981" />
+              <Ionicons name="lock-closed" size={24} color="#fff" />
               <Text style={styles.lockedText}>Your vote is locked in!</Text>
             </View>
           ) : voteSaved ? (
