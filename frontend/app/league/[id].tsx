@@ -237,6 +237,40 @@ export default function LeagueDetailScreen() {
     }
   };
 
+  // Share results card as image
+  const handleShareResults = async () => {
+    if (!shareCardRef.current) return;
+    
+    setIsSharing(true);
+    try {
+      // Capture the view as an image
+      const uri = await shareCardRef.current.capture?.();
+      
+      if (uri) {
+        // Check if sharing is available
+        const isAvailable = await Sharing.isAvailableAsync();
+        
+        if (isAvailable) {
+          await Sharing.shareAsync(uri, {
+            mimeType: 'image/png',
+            dialogTitle: 'Share League Results',
+          });
+        } else {
+          // Fallback to basic share
+          await Share.share({
+            message: `🏆 ${league?.name} Final Results!\n\n${standings?.standings.slice(0, 3).map((p, i) => `${i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'} ${p.username}: ${p.total_points} pts`).join('\n')}\n\nPlayed on Music League 🎵`,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Share failed:', error);
+      Alert.alert('Error', 'Failed to share results');
+    } finally {
+      setIsSharing(false);
+      setShowShareCard(false);
+    }
+  };
+
   const handleStartRound = async () => {
     if (!league) return;
     
