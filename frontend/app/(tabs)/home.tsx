@@ -709,13 +709,13 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   joinSubmitButton: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#fff',
   },
   buttonDisabled: {
     opacity: 0.7,
   },
   submitButtonText: {
-    color: '#fff',
+    color: '#000',
     fontSize: 16,
     fontWeight: '600',
   },
