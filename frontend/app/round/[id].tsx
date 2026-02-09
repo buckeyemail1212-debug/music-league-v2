@@ -579,7 +579,7 @@ export default function RoundScreen() {
           ) : (
             <>
               <View style={styles.submittedBanner}>
-                <Ionicons name="checkmark-circle" size={24} color="#10b981" />
+                <Ionicons name="checkmark-circle" size={24} color="#fff" />
                 <Text style={styles.submittedText}>You've submitted your song!</Text>
               </View>
 
