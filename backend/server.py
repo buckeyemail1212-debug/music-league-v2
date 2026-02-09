@@ -280,6 +280,7 @@ async def login(credentials: UserLogin):
             id=user["id"],
             email=user["email"],
             username=user["username"],
+            profile_photo=user.get("profile_photo"),
             created_at=user["created_at"]
         )
     )
