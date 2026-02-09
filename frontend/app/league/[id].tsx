@@ -653,8 +653,99 @@ export default function LeagueDetailScreen() {
               <Text style={styles.emptyText}>Standings will be updated once rounds are completed</Text>
             </View>
           )}
+
+          {/* Share Results Button - Always visible when there are standings */}
+          {standings && standings.standings.length > 0 && standings.standings.some(p => p.total_points > 0) && (
+            <TouchableOpacity
+              style={styles.shareResultsButton}
+              onPress={() => setShowShareCard(true)}
+            >
+              <Ionicons name="share-social" size={20} color="#fff" />
+              <Text style={styles.shareResultsText}>Share Results</Text>
+            </TouchableOpacity>
+          )}
         </ScrollView>
       )}
+
+      {/* Share Card Modal */}
+      <Modal
+        visible={showShareCard}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setShowShareCard(false)}
+      >
+        <View style={styles.shareModalOverlay}>
+          <View style={styles.shareModalContent}>
+            <View style={styles.shareModalHeader}>
+              <Text style={styles.shareModalTitle}>Share Results</Text>
+              <TouchableOpacity onPress={() => setShowShareCard(false)}>
+                <Ionicons name="close" size={24} color="#888" />
+              </TouchableOpacity>
+            </View>
+
+            {/* The shareable card */}
+            <ViewShot ref={shareCardRef} options={{ format: 'png', quality: 1 }}>
+              <View style={styles.shareCard}>
+                <LinearGradient
+                  colors={['#1a1a2e', '#16213e', '#0f3460']}
+                  style={styles.shareCardGradient}
+                >
+                  {/* Header */}
+                  <View style={styles.shareCardHeader}>
+                    <Text style={styles.shareCardEmoji}>🏆</Text>
+                    <Text style={styles.shareCardTitle}>{league?.name}</Text>
+                    <Text style={styles.shareCardSubtitle}>Final Results</Text>
+                  </View>
+
+                  {/* Standings */}
+                  <View style={styles.shareCardStandings}>
+                    {standings?.standings.slice(0, 5).map((player, index) => {
+                      const emoji = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
+                      const isWinner = index === 0;
+                      return (
+                        <View key={player.user_id} style={[
+                          styles.shareCardRow,
+                          isWinner && styles.shareCardWinnerRow
+                        ]}>
+                          <Text style={styles.shareCardRankEmoji}>{emoji}</Text>
+                          <Text style={[styles.shareCardUsername, isWinner && styles.shareCardWinnerText]}>
+                            {player.username}
+                          </Text>
+                          <Text style={[styles.shareCardPoints, isWinner && styles.shareCardWinnerText]}>
+                            {player.total_points} pts
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+
+                  {/* Footer */}
+                  <View style={styles.shareCardFooter}>
+                    <Text style={styles.shareCardBranding}>🎵 Music League</Text>
+                    <Text style={styles.shareCardCTA}>Create your own league!</Text>
+                  </View>
+                </LinearGradient>
+              </View>
+            </ViewShot>
+
+            {/* Share Button */}
+            <TouchableOpacity
+              style={[styles.shareButton, isSharing && styles.buttonDisabled]}
+              onPress={handleShareResults}
+              disabled={isSharing}
+            >
+              {isSharing ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="share-outline" size={20} color="#fff" />
+                  <Text style={styles.shareButtonText}>Share to Stories / Messages</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Start Round Modal */}
       <Modal
