@@ -634,10 +634,10 @@ export default function RoundScreen() {
                   disabled={votingSubmitting}
                 >
                   {votingSubmitting ? (
-                    <ActivityIndicator color="#fff" />
+                    <ActivityIndicator color="#000" />
                   ) : (
                     <>
-                      <Ionicons name="lock-closed" size={20} color="#fff" />
+                      <Ionicons name="lock-closed" size={20} color="#000" />
                       <Text style={styles.lockVoteText}>Lock It In</Text>
                     </>
                   )}
