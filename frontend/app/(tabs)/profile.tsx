@@ -145,7 +145,7 @@ export default function ProfileScreen() {
           <View style={styles.infoCard}>
             <View style={styles.infoRow}>
               <View style={styles.infoLeft}>
-                <Ionicons name="calendar-outline" size={20} color="#888" />
+                <Ionicons name="calendar-outline" size={20} color="#B8C5B0" />
                 <Text style={styles.infoLabel}>Member Since</Text>
               </View>
               <Text style={styles.infoValue}>
