@@ -228,7 +228,7 @@ export default function DiscoveryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#212F36',
   },
   header: {
     paddingHorizontal: 20,
@@ -238,23 +238,23 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#F9FCF2',
   },
   subtitle: {
     fontSize: 14,
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
     marginTop: 4,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#4A6070',
     marginHorizontal: 20,
     marginVertical: 16,
     borderRadius: 12,
     paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: '#5A7080',
   },
   searchIcon: {
     marginRight: 12,
@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     height: 48,
-    color: '#fff',
+    color: '#F9FCF2',
     fontSize: 16,
   },
   loadingContainer: {
@@ -276,12 +276,12 @@ const styles = StyleSheet.create({
   },
   songCard: {
     flexDirection: 'row',
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#4A6070',
     borderRadius: 12,
     padding: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: '#5A7080',
   },
   albumCover: {
     width: 80,
@@ -296,21 +296,21 @@ const styles = StyleSheet.create({
   songTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: '#F9FCF2',
   },
   artistName: {
     fontSize: 14,
-    color: '#888',
+    color: 'rgba(249, 252, 242, 0.7)',
     marginTop: 2,
   },
   albumName: {
     fontSize: 12,
-    color: '#666',
+    color: 'rgba(141, 161, 155, 0.8)',
     marginTop: 2,
   },
   duration: {
     fontSize: 12,
-    color: '#666',
+    color: 'rgba(141, 161, 155, 0.8)',
     marginTop: 4,
   },
   songActions: {
@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#6366f1',
+    backgroundColor: '#B8C5B0',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -349,12 +349,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#fff',
+    color: '#F9FCF2',
     marginTop: 16,
   },
   emptyText: {
     fontSize: 14,
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
     textAlign: 'center',
     marginTop: 8,
   },
