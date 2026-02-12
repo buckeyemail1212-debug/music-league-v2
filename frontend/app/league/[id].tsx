@@ -396,8 +396,8 @@ export default function LeagueDetailScreen() {
           </View>
           <View style={styles.roundInfo}>
             <Text style={styles.roundTheme}>{item.theme}</Text>
-            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}>
-              <View style={[styles.statusDot, { backgroundColor: getStatusColor(item.status) }]} />
+            <View style={[styles.statusBadge, { backgroundColor: getStatusBgColor(item.status) }]}>
+              <View style={[styles.statusDot, { backgroundColor: item.status === 'voting' ? '#4A6070' : getStatusColor(item.status) }]} />
               <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
                 {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
               </Text>
