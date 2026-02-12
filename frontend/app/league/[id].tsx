@@ -475,7 +475,7 @@ export default function LeagueDetailScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
+          <Ionicons name="arrow-back" size={24} color="#F9FCF2" />
         </TouchableOpacity>
         <View style={styles.headerInfo}>
           <Text style={styles.leagueName}>{league.name}</Text>
@@ -483,11 +483,11 @@ export default function LeagueDetailScreen() {
         </View>
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.headerButton} onPress={openChat}>
-            <Ionicons name="chatbubble-outline" size={22} color="#6366f1" />
+            <Ionicons name="chatbubble-outline" size={22} color="#B8C5B0" />
             {hasUnread && <View style={styles.unreadBadge} />}
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerButton} onPress={handleShareCode}>
-            <Ionicons name="share-outline" size={22} color="#6366f1" />
+            <Ionicons name="share-outline" size={22} color="#B8C5B0" />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.headerButton}
