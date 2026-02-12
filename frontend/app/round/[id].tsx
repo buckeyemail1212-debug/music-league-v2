@@ -911,13 +911,13 @@ const styles = StyleSheet.create({
   submitSongText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   submittedBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    backgroundColor: 'rgba(184, 197, 176, 0.15)',
     marginHorizontal: 16,
     paddingVertical: 16,
     borderRadius: 12,
