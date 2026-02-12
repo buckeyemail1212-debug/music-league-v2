@@ -223,7 +223,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     except JWTError:
         raise credentials_exception
     
-    user = await db.users.find_one({"id": user_id})
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
     if user is None:
         raise credentials_exception
     return user
@@ -233,12 +233,12 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 @api_router.post("/auth/register", response_model=TokenResponse)
 async def register(user_data: UserCreate):
     # Check if email exists
-    existing_user = await db.users.find_one({"email": user_data.email})
+    existing_user = await db.users.find_one({"email": user_data.email}, {"_id": 0, "id": 1})
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
     
     # Check if username exists
-    existing_username = await db.users.find_one({"username": user_data.username})
+    existing_username = await db.users.find_one({"username": user_data.username}, {"_id": 0, "id": 1})
     if existing_username:
         raise HTTPException(status_code=400, detail="Username already taken")
     
