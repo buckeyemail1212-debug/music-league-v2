@@ -836,7 +836,7 @@ export default function RoundScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#212F36',
   },
   loadingContainer: {
     flex: 1,
@@ -850,7 +850,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
   },
   header: {
     flexDirection: 'row',
@@ -868,11 +868,11 @@ const styles = StyleSheet.create({
   roundTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#F9FCF2',
   },
   roundTheme: {
     fontSize: 14,
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
   },
   statusPill: {
     paddingHorizontal: 12,
@@ -882,13 +882,13 @@ const styles = StyleSheet.create({
   statusPillText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#fff',
+    color: '#F9FCF2',
   },
   submitSongButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#6366f1',
+    backgroundColor: '#F9FCF2',
     marginHorizontal: 16,
     paddingVertical: 16,
     borderRadius: 12,
@@ -897,7 +897,7 @@ const styles = StyleSheet.create({
   submitSongText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: '#F9FCF2',
   },
   submittedBanner: {
     flexDirection: 'row',
@@ -914,7 +914,7 @@ const styles = StyleSheet.create({
   submittedText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#fff',
+    color: '#F9FCF2',
   },
   timerContainer: {
     flexDirection: 'row',
@@ -932,12 +932,12 @@ const styles = StyleSheet.create({
   },
   timerLabel: {
     fontSize: 14,
-    color: '#fff',
+    color: '#F9FCF2',
   },
   timerValue: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#fff',
+    color: '#F9FCF2',
   },
   progressContainer: {
     flexDirection: 'row',
@@ -949,12 +949,12 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 13,
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: '#F9FCF2',
     paddingHorizontal: 16,
     marginTop: 20,
     marginBottom: 12,
@@ -966,12 +966,12 @@ const styles = StyleSheet.create({
   submissionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#4A6070',
     borderRadius: 12,
     padding: 12,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: '#5A7080',
   },
   albumCover: {
     width: 60,
@@ -990,34 +990,34 @@ const styles = StyleSheet.create({
   songTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#fff',
+    color: '#F9FCF2',
   },
   artistName: {
     fontSize: 13,
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
     marginTop: 2,
   },
   submittedBy: {
     fontSize: 12,
-    color: '#6366f1',
+    color: '#B8C5B0',
     marginTop: 4,
   },
   submittedByYou: {
     fontSize: 12,
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
     fontStyle: 'italic',
     marginTop: 4,
   },
   duration: {
     fontSize: 11,
-    color: '#666',
+    color: 'rgba(141, 161, 155, 0.6)',
     marginTop: 2,
   },
   playButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#6366f1',
+    backgroundColor: '#F9FCF2',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1025,7 +1025,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#6366f1',
+    backgroundColor: '#F9FCF2',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1042,7 +1042,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 14,
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
     marginTop: 8,
   },
   hiddenSubmissionsNote: {
@@ -1053,15 +1053,15 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingVertical: 16,
     paddingHorizontal: 20,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#4A6070',
     borderRadius: 12,
     gap: 10,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: '#5A7080',
   },
   hiddenSubmissionsText: {
     fontSize: 14,
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
     flex: 1,
   },
   votingInstructions: {
@@ -1076,7 +1076,7 @@ const styles = StyleSheet.create({
   },
   votingInstructionsText: {
     fontSize: 14,
-    color: '#6366f1',
+    color: '#B8C5B0',
     fontWeight: '500',
   },
   ownSongNote: {
@@ -1089,17 +1089,17 @@ const styles = StyleSheet.create({
   },
   ownSongNoteText: {
     fontSize: 12,
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
   },
   votingCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#4A6070',
     borderRadius: 12,
     padding: 12,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: '#5A7080',
   },
   rankBadge: {
     width: 32,
@@ -1113,7 +1113,7 @@ const styles = StyleSheet.create({
   rankNumber: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#fff',
+    color: '#F9FCF2',
   },
   votingSongInfo: {
     flex: 1,
@@ -1149,12 +1149,12 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 16,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#212F36',
     borderTopWidth: 1,
     borderTopColor: '#1a1a1a',
   },
   submitVoteButton: {
-    backgroundColor: '#6366f1',
+    backgroundColor: '#F9FCF2',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -1165,7 +1165,7 @@ const styles = StyleSheet.create({
   submitVoteText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: '#F9FCF2',
   },
   lockedBanner: {
     flexDirection: 'row',
@@ -1182,7 +1182,7 @@ const styles = StyleSheet.create({
   lockedText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: '#F9FCF2',
   },
   voteSavedContainer: {
     marginHorizontal: 16,
@@ -1202,7 +1202,7 @@ const styles = StyleSheet.create({
   voteSavedText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: '#F9FCF2',
   },
   voteActionButtons: {
     flexDirection: 'row',
@@ -1213,7 +1213,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#4A6070',
     paddingVertical: 14,
     borderRadius: 12,
     gap: 8,
@@ -1223,7 +1223,7 @@ const styles = StyleSheet.create({
   changeVoteText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#6366f1',
+    color: '#B8C5B0',
   },
   lockVoteButton: {
     flex: 1,
@@ -1266,7 +1266,7 @@ const styles = StyleSheet.create({
   winnerSong: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#F9FCF2',
     marginTop: 4,
   },
   winnerUser: {
@@ -1286,12 +1286,12 @@ const styles = StyleSheet.create({
   resultCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#4A6070',
     borderRadius: 12,
     padding: 12,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: '#5A7080',
   },
   winnerCard: {
     borderColor: '#fbbf24',
@@ -1311,7 +1311,7 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   pointsBadge: {
-    backgroundColor: '#6366f1',
+    backgroundColor: '#F9FCF2',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
@@ -1319,11 +1319,11 @@ const styles = StyleSheet.create({
   pointsText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#fff',
+    color: '#F9FCF2',
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#212F36',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1337,12 +1337,12 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
+    color: '#F9FCF2',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#4A6070',
     marginHorizontal: 16,
     marginVertical: 12,
     borderRadius: 12,
@@ -1352,7 +1352,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     height: 48,
-    color: '#fff',
+    color: '#F9FCF2',
     fontSize: 16,
   },
   searchResultsList: {
@@ -1362,12 +1362,12 @@ const styles = StyleSheet.create({
   searchResultItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#4A6070',
     borderRadius: 12,
     padding: 12,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: '#5A7080',
   },
   searchResultInfo: {
     flex: 1,
