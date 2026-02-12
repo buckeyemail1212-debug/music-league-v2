@@ -375,7 +375,7 @@ export default function RoundScreen() {
             <Ionicons
               name={playingSongId === item.song.deezer_id ? 'pause' : 'play'}
               size={20}
-              color="#fff"
+              color={playingSongId === item.song.deezer_id ? '#fff' : '#212F36'}
             />
           </TouchableOpacity>
           <View style={styles.serviceButtonsSmall}>
