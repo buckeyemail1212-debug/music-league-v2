@@ -570,7 +570,7 @@ export default function LeagueDetailScreen() {
                 <RefreshControl
                   refreshing={refreshing}
                   onRefresh={onRefresh}
-                  tintColor="#6366f1"
+                  tintColor="#B8C5B0"
                 />
               }
             />
@@ -596,7 +596,7 @@ export default function LeagueDetailScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor="#6366f1"
+              tintColor="#B8C5B0"
             />
           }
         >
@@ -868,7 +868,7 @@ export default function LeagueDetailScreen() {
               {loadingMessages ? (
                 <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                   <View style={styles.chatLoadingContainer}>
-                    <ActivityIndicator size="large" color="#6366f1" />
+                    <ActivityIndicator size="large" color="#B8C5B0" />
                   </View>
                 </TouchableWithoutFeedback>
               ) : messages.length === 0 ? (
@@ -1347,7 +1347,7 @@ const styles = StyleSheet.create({
   },
   timeOptionSelected: {
     backgroundColor: '#F9FCF2',
-    borderColor: '#6366f1',
+    borderColor: '#B8C5B0',
   },
   timeOptionText: {
     fontSize: 14,
