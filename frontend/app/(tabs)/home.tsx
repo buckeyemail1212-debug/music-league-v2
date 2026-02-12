@@ -184,7 +184,7 @@ export default function HomeScreen() {
       >
         <View style={styles.leagueHeader}>
           <View style={styles.leagueIcon}>
-            <Ionicons name="trophy" size={24} color="#6366f1" />
+            <Ionicons name="trophy" size={24} color="#B8C5B0" />
           </View>
           <View style={styles.leagueInfo}>
             <Text style={styles.leagueName}>{item.name}</Text>
@@ -192,30 +192,21 @@ export default function HomeScreen() {
               Round {item.current_round} of {item.total_rounds > 0 ? item.total_rounds : 'Unlimited'}
             </Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="#666" />
+          <Ionicons name="chevron-forward" size={20} color="rgba(141, 161, 155, 0.6)" />
         </View>
 
         {/* Active Round Timer */}
         {activeRound ? (
-          <View style={[
-            styles.timerRow,
-            { backgroundColor: activeRound.status === 'submission' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)' }
-          ]}>
+          <View style={styles.timerRow}>
             <Ionicons 
               name="time-outline" 
               size={16} 
-              color={activeRound.status === 'submission' ? '#10b981' : '#f59e0b'} 
+              color="#F9FCF2" 
             />
-            <Text style={[
-              styles.timerLabel,
-              { color: activeRound.status === 'submission' ? '#10b981' : '#f59e0b' }
-            ]}>
+            <Text style={styles.timerLabel}>
               {activeRound.status === 'submission' ? 'Submission:' : 'Voting:'}
             </Text>
-            <Text style={[
-              styles.timerValue,
-              { color: activeRound.status === 'submission' ? '#10b981' : '#f59e0b' }
-            ]}>
+            <Text style={styles.timerValue}>
               {activeRound.status === 'submission' 
                 ? getTimeRemaining(activeRound.submission_deadline)
                 : getTimeRemaining(activeRound.voting_deadline)
@@ -223,15 +214,15 @@ export default function HomeScreen() {
             </Text>
           </View>
         ) : (
-          <View style={[styles.timerRow, { backgroundColor: 'rgba(136, 136, 136, 0.1)' }]}>
-            <Ionicons name="time-outline" size={16} color="#666" />
-            <Text style={[styles.timerLabel, { color: '#666' }]}>No active round</Text>
+          <View style={[styles.timerRow, { backgroundColor: 'rgba(90, 112, 128, 0.3)' }]}>
+            <Ionicons name="time-outline" size={16} color="#F9FCF2" />
+            <Text style={[styles.timerLabel, { color: '#F9FCF2' }]}>No active round</Text>
           </View>
         )}
 
         <View style={styles.leagueStats}>
           <View style={styles.stat}>
-            <Ionicons name="people" size={16} color="#888" />
+            <Ionicons name="people" size={16} color="rgba(141, 161, 155, 0.8)" />
             <Text style={styles.statText}>{item.members.length} members</Text>
           </View>
           <View style={styles.codeContainer}>
@@ -245,7 +236,7 @@ export default function HomeScreen() {
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <Ionicons name="musical-notes" size={80} color="#333" />
+      <Ionicons name="musical-notes" size={64} color="#B8C5B0" />
       <Text style={styles.emptyTitle}>No Leagues Yet</Text>
       <Text style={styles.emptyText}>
         Create a new league or join an existing one to start competing!
