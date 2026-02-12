@@ -435,7 +435,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#212F36',
   },
   header: {
     flexDirection: 'row',
@@ -447,12 +447,12 @@ const styles = StyleSheet.create({
   },
   greeting: {
     fontSize: 14,
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
   },
   username: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#F9FCF2',
   },
   actionButtons: {
     flexDirection: 'row',
@@ -465,26 +465,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#4A6070',
     paddingVertical: 16,
     borderRadius: 12,
     gap: 8,
     borderWidth: 1,
-    borderColor: '#6366f1',
+    borderColor: '#5A7080',
   },
   joinButton: {
-    borderColor: '#fff',
-    backgroundColor: '#fff',
+    borderColor: '#F9FCF2',
+    backgroundColor: '#F9FCF2',
   },
   actionButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6366f1',
+    color: '#F9FCF2',
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
+    color: '#F9FCF2',
     paddingHorizontal: 20,
     marginBottom: 12,
   },
@@ -499,12 +499,12 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   leagueCard: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 16,
+    backgroundColor: '#4A6070',
+    borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: '#5A7080',
   },
   leagueHeader: {
     flexDirection: 'row',
@@ -514,7 +514,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 12,
-    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    backgroundColor: 'rgba(184, 197, 176, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -525,11 +525,11 @@ const styles = StyleSheet.create({
   leagueName: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
+    color: '#F9FCF2',
   },
   leagueTheme: {
     fontSize: 14,
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
     marginTop: 2,
   },
   durationRow: {
@@ -545,7 +545,7 @@ const styles = StyleSheet.create({
   },
   durationText: {
     fontSize: 12,
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
   },
   timerRow: {
     flexDirection: 'row',
@@ -554,23 +554,26 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    borderRadius: 8,
+    borderRadius: 12,
     gap: 6,
+    backgroundColor: 'rgba(184, 197, 176, 0.15)',
   },
   timerLabel: {
     fontSize: 13,
     fontWeight: '500',
+    color: '#F9FCF2',
   },
   timerValue: {
     fontSize: 14,
     fontWeight: '700',
+    color: '#F9FCF2',
   },
   leagueStats: {
     flexDirection: 'row',
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#333',
+    borderTopColor: '#5A7080',
   },
   stat: {
     flexDirection: 'row',
@@ -580,26 +583,26 @@ const styles = StyleSheet.create({
   },
   statText: {
     fontSize: 13,
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
   },
   codeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginLeft: 'auto',
-    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    backgroundColor: 'rgba(184, 197, 176, 0.2)',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 6,
   },
   codeLabel: {
     fontSize: 12,
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
     marginRight: 4,
   },
   codeText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#6366f1',
+    color: '#B8C5B0',
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   emptyState: {
@@ -611,28 +614,31 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#fff',
+    color: '#F9FCF2',
     marginTop: 16,
   },
   emptyText: {
     fontSize: 14,
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
     textAlign: 'center',
     marginTop: 8,
     paddingHorizontal: 40,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: 'rgba(33, 47, 54, 0.95)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#4A6070',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 20,
     paddingBottom: 40,
     maxHeight: '80%',
+    borderWidth: 1,
+    borderColor: '#5A7080',
+    borderBottomWidth: 0,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -640,12 +646,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: '#5A7080',
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#fff',
+    color: '#F9FCF2',
   },
   modalForm: {
     paddingTop: 20,
@@ -653,18 +659,18 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
     marginBottom: 8,
   },
   modalInput: {
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#212F36',
     borderRadius: 12,
     paddingHorizontal: 16,
     height: 52,
-    color: '#fff',
+    color: '#F9FCF2',
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: '#5A7080',
     marginBottom: 16,
   },
   timeOptionsContainer: {
@@ -676,22 +682,22 @@ const styles = StyleSheet.create({
   timeOption: {
     paddingVertical: 10,
     paddingHorizontal: 14,
-    borderRadius: 8,
-    backgroundColor: '#0a0a0a',
+    borderRadius: 12,
+    backgroundColor: '#212F36',
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: '#5A7080',
   },
   timeOptionSelected: {
-    backgroundColor: '#6366f1',
-    borderColor: '#6366f1',
+    backgroundColor: '#B8C5B0',
+    borderColor: '#B8C5B0',
   },
   timeOptionText: {
     fontSize: 14,
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
     fontWeight: '500',
   },
   timeOptionTextSelected: {
-    color: '#fff',
+    color: '#212F36',
   },
   codeInput: {
     textAlign: 'center',
@@ -701,7 +707,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   submitButton: {
-    backgroundColor: '#6366f1',
+    backgroundColor: '#F9FCF2',
     height: 52,
     borderRadius: 12,
     alignItems: 'center',
@@ -709,13 +715,13 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   joinSubmitButton: {
-    backgroundColor: '#fff',
+    backgroundColor: '#F9FCF2',
   },
   buttonDisabled: {
     opacity: 0.7,
   },
   submitButtonText: {
-    color: '#000',
+    color: '#212F36',
     fontSize: 16,
     fontWeight: '600',
   },
