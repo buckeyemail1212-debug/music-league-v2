@@ -1053,7 +1053,7 @@ const styles = StyleSheet.create({
   startRoundText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   sectionTitle: {
     fontSize: 18,
@@ -1355,7 +1355,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   timeOptionTextSelected: {
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   submitButton: {
     backgroundColor: '#F9FCF2',
@@ -1367,7 +1367,7 @@ const styles = StyleSheet.create({
   submitButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   // Chat styles
   unreadBadge: {
@@ -1458,7 +1458,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   ownMessageText: {
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   messageTime: {
     fontSize: 11,
@@ -1517,7 +1517,7 @@ const styles = StyleSheet.create({
   shareResultsText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   shareModalOverlay: {
     flex: 1,
@@ -1644,6 +1644,6 @@ const styles = StyleSheet.create({
   shareButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
 });

@@ -1309,7 +1309,6 @@ const styles = StyleSheet.create({
   },
   winnerCard: {
     borderColor: '#fbbf24',
-    backgroundColor: 'rgba(251, 191, 36, 0.1)',
   },
   winnerBadge: {
     backgroundColor: 'rgba(251, 191, 36, 0.2)',
@@ -1333,7 +1332,7 @@ const styles = StyleSheet.create({
   pointsText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   modalContainer: {
     flex: 1,
