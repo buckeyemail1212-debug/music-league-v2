@@ -593,36 +593,58 @@ async def create_round(league_id: str, round_data: StartRoundRequest = None, cur
 
 @api_router.get("/leagues/{league_id}/rounds", response_model=List[RoundResponse])
 async def get_rounds(league_id: str, current_user: dict = Depends(get_current_user)):
-    league = await db.leagues.find_one({"id": league_id})
+    league = await db.leagues.find_one({"id": league_id}, {"_id": 0, "members": 1})
     if not league:
         raise HTTPException(status_code=404, detail="League not found")
     
     total_members = len(league.get("members", []))
     rounds = await db.rounds.find({"league_id": league_id}).sort("round_number", -1).to_list(100)
     
+    if not rounds:
+        return []
+    
+    # Batch fetch: Get all round IDs
+    round_ids = [r["id"] for r in rounds]
+    
+    # Batch fetch submissions counts using aggregation
+    submissions_pipeline = [
+        {"$match": {"round_id": {"$in": round_ids}}},
+        {"$group": {"_id": "$round_id", "count": {"$sum": 1}}}
+    ]
+    submissions_counts = {doc["_id"]: doc["count"] async for doc in db.submissions.aggregate(submissions_pipeline)}
+    
+    # Batch fetch votes counts using aggregation
+    votes_pipeline = [
+        {"$match": {"round_id": {"$in": round_ids}}},
+        {"$group": {"_id": "$round_id", "count": {"$sum": 1}}}
+    ]
+    votes_counts = {doc["_id"]: doc["count"] async for doc in db.votes.aggregate(votes_pipeline)}
+    
+    # Batch fetch user's submissions
+    user_submissions = await db.submissions.find(
+        {"round_id": {"$in": round_ids}, "user_id": current_user["id"]},
+        {"_id": 0, "round_id": 1}
+    ).to_list(100)
+    user_submitted_rounds = {s["round_id"] for s in user_submissions}
+    
+    # Batch fetch user's votes
+    user_votes = await db.votes.find(
+        {"round_id": {"$in": round_ids}, "voter_id": current_user["id"]},
+        {"_id": 0, "round_id": 1, "locked": 1}
+    ).to_list(100)
+    user_votes_map = {v["round_id"]: v.get("locked", False) for v in user_votes}
+    
     result = []
     for round_doc in rounds:
-        submissions_count = await db.submissions.count_documents({"round_id": round_doc["id"]})
-        votes_count = await db.votes.count_documents({"round_id": round_doc["id"]})
-        has_submitted = await db.submissions.find_one({
-            "round_id": round_doc["id"],
-            "user_id": current_user["id"]
-        }) is not None
-        user_vote = await db.votes.find_one({
-            "round_id": round_doc["id"],
-            "voter_id": current_user["id"]
-        })
-        has_voted = user_vote is not None
-        user_vote_locked = user_vote.get("locked", False) if user_vote else False
-        
+        round_id = round_doc["id"]
         result.append(RoundResponse(
             **round_doc,
-            submissions_count=submissions_count,
-            votes_count=votes_count,
+            submissions_count=submissions_counts.get(round_id, 0),
+            votes_count=votes_counts.get(round_id, 0),
             total_members=total_members,
-            has_user_submitted=has_submitted,
-            has_user_voted=has_voted,
-            user_vote_locked=user_vote_locked
+            has_user_submitted=round_id in user_submitted_rounds,
+            has_user_voted=round_id in user_votes_map,
+            user_vote_locked=user_votes_map.get(round_id, False)
         ))
     
     return result
