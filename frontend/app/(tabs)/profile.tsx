@@ -128,11 +128,11 @@ export default function ProfileScreen() {
         <View style={styles.header}>
           <TouchableOpacity style={styles.avatarContainer} onPress={handleChangePhoto} disabled={uploading}>
             {uploading ? (
-              <ActivityIndicator size="large" color="#6366f1" />
+              <ActivityIndicator size="large" color="#B8C5B0" />
             ) : user?.profile_photo ? (
               <Image source={{ uri: user.profile_photo }} style={styles.avatarImage} />
             ) : (
-              <Ionicons name="person" size={50} color="#6366f1" />
+              <Ionicons name="person" size={50} color="#B8C5B0" />
             )}
           </TouchableOpacity>
           <Text style={styles.tapToChange}>Tap photo to change</Text>
