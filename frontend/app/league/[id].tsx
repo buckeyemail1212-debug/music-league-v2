@@ -981,11 +981,11 @@ const styles = StyleSheet.create({
   leagueName: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#F9FCF2',
   },
   leagueTheme: {
     fontSize: 14,
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
   },
   headerActions: {
     flexDirection: 'row',
@@ -998,24 +998,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#4A6070',
     marginHorizontal: 16,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: '#5A7080',
   },
   codeInfo: {
     flex: 1,
   },
   codeLabel: {
     fontSize: 12,
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
   },
   codeValue: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#6366f1',
+    color: '#B8C5B0',
     letterSpacing: 2,
   },
   memberInfo: {
@@ -1025,13 +1025,13 @@ const styles = StyleSheet.create({
   },
   memberCount: {
     fontSize: 14,
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
   },
   startRoundButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#6366f1',
+    backgroundColor: '#F9FCF2',
     marginHorizontal: 16,
     marginTop: 16,
     paddingVertical: 16,
@@ -1044,12 +1044,12 @@ const styles = StyleSheet.create({
   startRoundText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: '#F9FCF2',
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
+    color: '#F9FCF2',
     paddingHorizontal: 16,
     marginTop: 24,
     marginBottom: 12,
@@ -1059,11 +1059,11 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   roundCard: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#4A6070',
     borderRadius: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: '#5A7080',
     overflow: 'hidden',
   },
   roundContent: {
@@ -1084,7 +1084,7 @@ const styles = StyleSheet.create({
   roundNumberText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6366f1',
+    color: '#B8C5B0',
   },
   roundInfo: {
     flex: 1,
@@ -1093,7 +1093,7 @@ const styles = StyleSheet.create({
   roundTheme: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#fff',
+    color: '#F9FCF2',
   },
   statusBadge: {
     flexDirection: 'row',
@@ -1119,7 +1119,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#333',
+    borderTopColor: '#5A7080',
     gap: 16,
   },
   roundStat: {
@@ -1129,7 +1129,7 @@ const styles = StyleSheet.create({
   },
   roundStatText: {
     fontSize: 13,
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
   },
   advanceButton: {
     flexDirection: 'row',
@@ -1138,13 +1138,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: 'rgba(99, 102, 241, 0.15)',
     borderTopWidth: 1,
-    borderTopColor: '#333',
+    borderTopColor: '#5A7080',
     gap: 6,
   },
   advanceButtonText: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#6366f1',
+    color: '#B8C5B0',
   },
   emptyState: {
     flex: 1,
@@ -1155,12 +1155,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
+    color: '#F9FCF2',
     marginTop: 16,
   },
   emptyText: {
     fontSize: 14,
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
     textAlign: 'center',
     marginTop: 8,
   },
@@ -1170,7 +1170,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 16,
     marginBottom: 8,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#4A6070',
     borderRadius: 12,
     padding: 4,
   },
@@ -1184,15 +1184,15 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   tabActive: {
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#212F36',
   },
   tabText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
   },
   tabTextActive: {
-    color: '#6366f1',
+    color: '#B8C5B0',
   },
   // Standings styles
   standingsContainer: {
@@ -1203,22 +1203,22 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: '#5A7080',
   },
   standingsTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
+    color: '#F9FCF2',
   },
   roundsCompleted: {
     fontSize: 13,
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
     marginTop: 4,
   },
   standingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#4A6070',
     padding: 16,
     borderRadius: 12,
     marginBottom: 8,
@@ -1242,7 +1242,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#212F36',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -1250,7 +1250,7 @@ const styles = StyleSheet.create({
   rankNumber: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
   },
   playerInfo: {
     flex: 1,
@@ -1258,11 +1258,11 @@ const styles = StyleSheet.create({
   playerName: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#fff',
+    color: '#F9FCF2',
   },
   playerStats: {
     fontSize: 12,
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
     marginTop: 2,
   },
   pointsContainer: {
@@ -1271,11 +1271,11 @@ const styles = StyleSheet.create({
   pointsValue: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#6366f1',
+    color: '#B8C5B0',
   },
   pointsLabel: {
     fontSize: 11,
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
   },
   modalOverlay: {
     flex: 1,
@@ -1283,7 +1283,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#4A6070',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '80%',
@@ -1295,12 +1295,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: '#5A7080',
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#F9FCF2',
   },
   modalForm: {
     padding: 20,
@@ -1308,18 +1308,18 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
     marginBottom: 8,
   },
   modalInput: {
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#212F36',
     borderRadius: 12,
     paddingHorizontal: 16,
     height: 52,
-    color: '#fff',
+    color: '#F9FCF2',
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: '#5A7080',
     marginBottom: 16,
   },
   timeOptionsContainer: {
@@ -1332,24 +1332,24 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 8,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#212F36',
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: '#5A7080',
   },
   timeOptionSelected: {
-    backgroundColor: '#6366f1',
+    backgroundColor: '#F9FCF2',
     borderColor: '#6366f1',
   },
   timeOptionText: {
     fontSize: 14,
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
     fontWeight: '500',
   },
   timeOptionTextSelected: {
-    color: '#fff',
+    color: '#F9FCF2',
   },
   submitButton: {
-    backgroundColor: '#6366f1',
+    backgroundColor: '#F9FCF2',
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
@@ -1358,7 +1358,7 @@ const styles = StyleSheet.create({
   submitButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: '#F9FCF2',
   },
   // Chat styles
   unreadBadge: {
@@ -1372,7 +1372,7 @@ const styles = StyleSheet.create({
   },
   chatModalContainer: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#212F36',
   },
   chatModalContent: {
     flex: 1,
@@ -1383,13 +1383,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
-    backgroundColor: '#1a1a1a',
+    borderBottomColor: '#5A7080',
+    backgroundColor: '#4A6070',
   },
   chatModalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#F9FCF2',
   },
   chatLoadingContainer: {
     flex: 1,
@@ -1405,12 +1405,12 @@ const styles = StyleSheet.create({
   chatEmptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
+    color: '#F9FCF2',
     marginTop: 16,
   },
   chatEmptyText: {
     fontSize: 14,
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
     marginTop: 8,
   },
   chatListContent: {
@@ -1430,30 +1430,30 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   ownMessageBubble: {
-    backgroundColor: '#6366f1',
+    backgroundColor: '#F9FCF2',
     borderBottomRightRadius: 4,
   },
   otherMessageBubble: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#4A6070',
     borderBottomLeftRadius: 4,
   },
   messageUsername: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#6366f1',
+    color: '#B8C5B0',
     marginBottom: 4,
   },
   messageText: {
     fontSize: 15,
-    color: '#fff',
+    color: '#F9FCF2',
     lineHeight: 20,
   },
   ownMessageText: {
-    color: '#fff',
+    color: '#F9FCF2',
   },
   messageTime: {
     fontSize: 11,
-    color: '#666',
+    color: 'rgba(141, 161, 155, 0.6)',
     marginTop: 6,
   },
   ownMessageTime: {
@@ -1464,28 +1464,28 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     padding: 12,
     paddingBottom: Platform.OS === 'ios' ? 24 : 12,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#4A6070',
     borderTopWidth: 1,
-    borderTopColor: '#333',
+    borderTopColor: '#5A7080',
     gap: 12,
   },
   chatInput: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#212F36',
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    color: '#fff',
+    color: '#F9FCF2',
     fontSize: 15,
     maxHeight: 100,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: '#5A7080',
   },
   sendButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#6366f1',
+    backgroundColor: '#F9FCF2',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1497,7 +1497,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#6366f1',
+    backgroundColor: '#F9FCF2',
     marginHorizontal: 16,
     marginTop: 24,
     marginBottom: 32,
@@ -1508,7 +1508,7 @@ const styles = StyleSheet.create({
   shareResultsText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: '#F9FCF2',
   },
   shareModalOverlay: {
     flex: 1,
@@ -1520,7 +1520,7 @@ const styles = StyleSheet.create({
   shareModalContent: {
     width: '100%',
     maxWidth: 380,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#4A6070',
     borderRadius: 20,
     overflow: 'hidden',
   },
@@ -1530,12 +1530,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: '#5A7080',
   },
   shareModalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
+    color: '#F9FCF2',
   },
   shareCard: {
     width: '100%',
@@ -1558,7 +1558,7 @@ const styles = StyleSheet.create({
   shareCardTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#F9FCF2',
     textAlign: 'center',
     marginBottom: 4,
   },
@@ -1596,7 +1596,7 @@ const styles = StyleSheet.create({
   shareCardUsername: {
     flex: 1,
     fontSize: 18,
-    color: '#fff',
+    color: '#F9FCF2',
     fontWeight: '500',
   },
   shareCardWinnerText: {
@@ -1615,7 +1615,7 @@ const styles = StyleSheet.create({
   shareCardBranding: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#F9FCF2',
     marginBottom: 8,
   },
   shareCardCTA: {
@@ -1626,7 +1626,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#6366f1',
+    backgroundColor: '#F9FCF2',
     margin: 16,
     paddingVertical: 16,
     borderRadius: 12,
@@ -1635,6 +1635,6 @@ const styles = StyleSheet.create({
   shareButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: '#F9FCF2',
   },
 });
