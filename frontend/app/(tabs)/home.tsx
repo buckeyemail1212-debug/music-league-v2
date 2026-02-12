@@ -267,15 +267,15 @@ export default function HomeScreen() {
           style={styles.actionButton}
           onPress={() => setShowCreateModal(true)}
         >
-          <Ionicons name="add-circle" size={24} color="#6366f1" />
+          <Ionicons name="add-circle" size={24} color="#B8C5B0" />
           <Text style={styles.actionButtonText}>Create League</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.actionButton, styles.joinButton]}
           onPress={() => setShowJoinModal(true)}
         >
-          <Ionicons name="enter" size={24} color="#000" />
-          <Text style={[styles.actionButtonText, { color: '#000' }]}>Join League</Text>
+          <Ionicons name="enter" size={24} color="#212F36" />
+          <Text style={[styles.actionButtonText, { color: '#212F36' }]}>Join League</Text>
         </TouchableOpacity>
       </View>
 
@@ -283,7 +283,7 @@ export default function HomeScreen() {
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#6366f1" />
+          <ActivityIndicator size="large" color="#B8C5B0" />
         </View>
       ) : (
         <FlatList
