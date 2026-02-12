@@ -464,7 +464,7 @@ export default function LeagueDetailScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#6366f1" />
+          <ActivityIndicator size="large" color="#B8C5B0" />
         </View>
       </SafeAreaView>
     );
