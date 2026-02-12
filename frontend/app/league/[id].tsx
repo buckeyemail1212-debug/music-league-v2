@@ -941,9 +941,9 @@ export default function LeagueDetailScreen() {
                 disabled={!newMessage.trim() || sendingMessage}
               >
                 {sendingMessage ? (
-                  <ActivityIndicator size="small" color="#fff" />
+                  <ActivityIndicator size="small" color="#212F36" />
                 ) : (
-                  <Ionicons name="send" size={20} color="#fff" />
+                  <Ionicons name="send" size={20} color="#212F36" />
                 )}
               </TouchableOpacity>
             </View>
