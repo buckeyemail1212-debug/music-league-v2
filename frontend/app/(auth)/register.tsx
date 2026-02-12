@@ -66,18 +66,18 @@ export default function RegisterScreen() {
             </TouchableOpacity>
 
             <View style={styles.header}>
-              <Ionicons name="musical-notes" size={60} color="#6366f1" />
+              <Ionicons name="musical-notes" size={60} color="#F9FCF2" />
               <Text style={styles.title}>Create Account</Text>
               <Text style={styles.subtitle}>Join the music competition</Text>
             </View>
 
             <View style={styles.form}>
               <View style={styles.inputContainer}>
-                <Ionicons name="mail-outline" size={20} color="#888" style={styles.inputIcon} />
+                <Ionicons name="mail-outline" size={20} color="#8DA19B" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   placeholder="Email"
-                  placeholderTextColor="#666"
+                  placeholderTextColor="#8DA19B"
                   value={email}
                   onChangeText={setEmail}
                   keyboardType="email-address"
@@ -91,11 +91,11 @@ export default function RegisterScreen() {
               </View>
 
               <View style={styles.inputContainer}>
-                <Ionicons name="person-outline" size={20} color="#888" style={styles.inputIcon} />
+                <Ionicons name="person-outline" size={20} color="#8DA19B" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   placeholder="Username"
-                  placeholderTextColor="#666"
+                  placeholderTextColor="#8DA19B"
                   value={username}
                   onChangeText={setUsername}
                   autoCapitalize="none"
@@ -108,11 +108,11 @@ export default function RegisterScreen() {
               </View>
 
               <View style={styles.inputContainer}>
-                <Ionicons name="lock-closed-outline" size={20} color="#888" style={styles.inputIcon} />
+                <Ionicons name="lock-closed-outline" size={20} color="#8DA19B" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   placeholder="Password"
-                  placeholderTextColor="#666"
+                  placeholderTextColor="#8DA19B"
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
@@ -127,17 +127,17 @@ export default function RegisterScreen() {
                   <Ionicons
                     name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                     size={20}
-                    color="#888"
+                    color="#8DA19B"
                   />
                 </TouchableOpacity>
               </View>
 
               <View style={styles.inputContainer}>
-                <Ionicons name="lock-closed-outline" size={20} color="#888" style={styles.inputIcon} />
+                <Ionicons name="lock-closed-outline" size={20} color="#8DA19B" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   placeholder="Confirm Password"
-                  placeholderTextColor="#666"
+                  placeholderTextColor="#8DA19B"
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   secureTextEntry={!showPassword}
@@ -156,7 +156,7 @@ export default function RegisterScreen() {
                 disabled={loading}
               >
                 {loading ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color="#212F36" />
                 ) : (
                   <Text style={styles.buttonText}>Create Account</Text>
                 )}
@@ -256,12 +256,13 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   footerText: {
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#F9FCF2',
     fontSize: 14,
+    fontWeight: '600',
   },
   footerLink: {
     color: '#B8C5B0',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });
