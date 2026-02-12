@@ -604,7 +604,7 @@ export default function RoundScreen() {
                 renderItem={renderSubmissionItem}
                 contentContainerStyle={styles.listContent}
                 refreshControl={
-                  <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6366f1" />
+                  <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#B8C5B0" />
                 }
                 ListEmptyComponent={
                   <View style={styles.emptyState}>
@@ -639,7 +639,7 @@ export default function RoundScreen() {
                   style={styles.changeVoteButton}
                   onPress={handleChangeVote}
                 >
-                  <Ionicons name="create-outline" size={20} color="#6366f1" />
+                  <Ionicons name="create-outline" size={20} color="#B8C5B0" />
                   <Text style={styles.changeVoteText}>Change Vote</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -662,7 +662,7 @@ export default function RoundScreen() {
             // Still ranking - show instructions
             <>
               <View style={styles.votingInstructions}>
-                <Ionicons name="swap-vertical" size={20} color="#6366f1" />
+                <Ionicons name="swap-vertical" size={20} color="#B8C5B0" />
                 <Text style={styles.votingInstructionsText}>Rank songs from best to worst</Text>
               </View>
               {round.has_user_submitted && (
@@ -682,7 +682,7 @@ export default function RoundScreen() {
               renderItem={renderVotingItem}
               contentContainerStyle={styles.listContent}
               refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6366f1" />
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#B8C5B0" />
               }
             />
           )}
@@ -754,7 +754,7 @@ export default function RoundScreen() {
             renderItem={renderResultItem}
             contentContainerStyle={styles.listContent}
             refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6366f1" />
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#B8C5B0" />
             }
           />
         </>
@@ -1232,7 +1232,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     gap: 8,
     borderWidth: 1,
-    borderColor: '#6366f1',
+    borderColor: '#B8C5B0',
   },
   changeVoteText: {
     fontSize: 15,
