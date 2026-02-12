@@ -580,11 +580,11 @@ export default function RoundScreen() {
                 style={styles.submitSongButton}
                 onPress={() => setShowSongModal(true)}
               >
-                <Ionicons name="add-circle" size={24} color="#fff" />
+                <Ionicons name="add-circle" size={24} color="#212F36" />
                 <Text style={styles.submitSongText}>Submit Your Song</Text>
               </TouchableOpacity>
               <View style={styles.hiddenSubmissionsNote}>
-                <Ionicons name="eye-off" size={20} color="#888" />
+                <Ionicons name="eye-off" size={20} color="rgba(141, 161, 155, 0.8)" />
                 <Text style={styles.hiddenSubmissionsText}>
                   Other submissions will be visible after you submit your song
                 </Text>
