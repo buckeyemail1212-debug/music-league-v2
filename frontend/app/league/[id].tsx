@@ -399,7 +399,7 @@ export default function LeagueDetailScreen() {
 
         <View style={styles.roundStats}>
           <View style={styles.roundStat}>
-            <Ionicons name="musical-note" size={14} color="#888" />
+            <Ionicons name="musical-note" size={14} color="#B8C5B0" />
             <Text style={styles.roundStatText}>{item.submissions_count} songs</Text>
           </View>
           {item.status === 'submission' && (
@@ -407,9 +407,9 @@ export default function LeagueDetailScreen() {
               <Ionicons
                 name={item.has_user_submitted ? 'checkmark-circle' : 'time-outline'}
                 size={14}
-                color={item.has_user_submitted ? '#10b981' : '#888'}
+                color={item.has_user_submitted ? '#B8C5B0' : 'rgba(141, 161, 155, 0.8)'}
               />
-              <Text style={[styles.roundStatText, item.has_user_submitted && { color: '#10b981' }]}>
+              <Text style={[styles.roundStatText, item.has_user_submitted && { color: '#B8C5B0' }]}>
                 {item.has_user_submitted ? 'Submitted' : 'Pending'}
               </Text>
             </View>
@@ -419,9 +419,9 @@ export default function LeagueDetailScreen() {
               <Ionicons
                 name={item.has_user_voted ? 'checkmark-circle' : 'time-outline'}
                 size={14}
-                color={item.has_user_voted ? '#10b981' : '#888'}
+                color={item.has_user_voted ? '#B8C5B0' : 'rgba(141, 161, 155, 0.8)'}
               />
-              <Text style={[styles.roundStatText, item.has_user_voted && { color: '#10b981' }]}>
+              <Text style={[styles.roundStatText, item.has_user_voted && { color: '#B8C5B0' }]}>
                 {item.has_user_voted ? 'Voted' : 'Vote Pending'}
               </Text>
             </View>
@@ -437,10 +437,10 @@ export default function LeagueDetailScreen() {
           disabled={advancing === item.id}
         >
           {advancing === item.id ? (
-            <ActivityIndicator size="small" color="#6366f1" />
+            <ActivityIndicator size="small" color="#212F36" />
           ) : (
             <>
-              <Ionicons name="arrow-forward" size={16} color="#6366f1" />
+              <Ionicons name="arrow-forward" size={16} color="#212F36" />
               <Text style={styles.advanceButtonText}>
                 Advance to {item.status === 'submission' ? 'Voting' : 'Results'}
               </Text>
