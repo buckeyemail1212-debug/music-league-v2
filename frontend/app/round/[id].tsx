@@ -77,6 +77,20 @@ export default function RoundScreen() {
     };
   }, []);
 
+  // Stop audio when leaving the screen
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        // Cleanup when screen loses focus
+        if (soundRef.current) {
+          soundRef.current.stopAsync();
+          soundRef.current.unloadAsync();
+          setPlayingSongId(null);
+        }
+      };
+    }, [])
+  );
+
   // Timer effect
   useEffect(() => {
     if (!round || round.status === 'completed') return;
