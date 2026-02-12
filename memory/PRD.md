@@ -44,6 +44,11 @@ A "fantasy sports for music" app where users:
 - Fixed points text visibility on result cards
 - Fixed button text/icon colors on cream buttons throughout app
 - Fixed chat message text and send button colors
+- **Fixed "Voting" status pill** - Changed from orange to cream background with dark text
+- **Fixed tab icons** - Changed Rounds flag and Standings trophy from purple to theme colors (cream when active, grey-green when inactive)
+- **Fixed loading indicators** - Changed from purple to sage green (#B8C5B0)
+- **Fixed refresh control tint** - Changed from purple to sage green
+- **Fixed play button in song search modal** - Icon now uses dark color for visibility
 
 ## Known Issues
 None currently.
