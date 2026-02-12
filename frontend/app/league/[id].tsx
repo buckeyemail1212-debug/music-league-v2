@@ -367,10 +367,10 @@ export default function LeagueDetailScreen() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'submission': return '#10b981';
-      case 'voting': return '#f59e0b';
-      case 'completed': return '#6366f1';
-      default: return '#888';
+      case 'submission': return '#B8C5B0';  // Sage green
+      case 'voting': return '#F9FCF2';      // Cream/off-white
+      case 'completed': return '#8DA19B';   // Muted grey-green
+      default: return 'rgba(141, 161, 155, 0.8)';
     }
   };
 
@@ -394,7 +394,7 @@ export default function LeagueDetailScreen() {
               </Text>
             </View>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="#666" />
+          <Ionicons name="chevron-forward" size={20} color="rgba(141, 161, 155, 0.6)" />
         </View>
 
         <View style={styles.roundStats}>
