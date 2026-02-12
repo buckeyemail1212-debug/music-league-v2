@@ -855,9 +855,36 @@ async def get_league_standings(league_id: str, current_user: dict = Depends(get_
             "rounds_played": 0
         }
     
+    if not completed_rounds:
+        # No completed rounds, return empty standings
+        standings = sorted(user_stats.values(), key=lambda x: (-x["total_points"], -x["wins"]))
+        return LeagueStandingsResponse(
+            league_id=league_id,
+            standings=standings,
+            rounds_completed=0,
+            total_rounds=league.get("total_rounds", 0)
+        )
+    
+    # Batch fetch all submissions and votes for completed rounds
+    round_ids = [r["id"] for r in completed_rounds]
+    all_submissions = await db.submissions.find({
+        "round_id": {"$in": round_ids}
+    }).to_list(10000)
+    all_votes = await db.votes.find({
+        "round_id": {"$in": round_ids}
+    }).to_list(10000)
+    
+    # Group by round_id
+    submissions_by_round = {}
+    votes_by_round = {}
+    for sub in all_submissions:
+        submissions_by_round.setdefault(sub["round_id"], []).append(sub)
+    for vote in all_votes:
+        votes_by_round.setdefault(vote["round_id"], []).append(vote)
+    
     for round_doc in completed_rounds:
-        submissions = await db.submissions.find({"round_id": round_doc["id"]}).to_list(100)
-        votes = await db.votes.find({"round_id": round_doc["id"]}).to_list(100)
+        submissions = submissions_by_round.get(round_doc["id"], [])
+        votes = votes_by_round.get(round_doc["id"], [])
         
         if not submissions:
             continue
