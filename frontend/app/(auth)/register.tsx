@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   footerLink: {
-    color: '#6366f1',
+    color: '#B8C5B0',
     fontSize: 14,
     fontWeight: '600',
   },
