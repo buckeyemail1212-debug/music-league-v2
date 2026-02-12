@@ -201,20 +201,20 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#212F36',
   },
   header: {
     alignItems: 'center',
     paddingVertical: 32,
     borderBottomWidth: 1,
-    borderBottomColor: '#1a1a1a',
+    borderBottomColor: '#4A6070',
     position: 'relative',
   },
   avatarContainer: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    backgroundColor: 'rgba(184, 197, 176, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -227,18 +227,18 @@ const styles = StyleSheet.create({
   },
   tapToChange: {
     fontSize: 12,
-    color: '#6366f1',
+    color: '#B8C5B0',
     marginTop: 8,
   },
   username: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#F9FCF2',
     marginTop: 8,
   },
   email: {
     fontSize: 14,
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
     marginTop: 4,
   },
   statsContainer: {
@@ -252,18 +252,18 @@ const styles = StyleSheet.create({
   statCard: {
     flex: 1,
     padding: 20,
-    borderRadius: 16,
+    borderRadius: 12,
     alignItems: 'center',
   },
   statValue: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#F9FCF2',
     marginTop: 8,
   },
   statLabel: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(249, 252, 242, 0.8)',
     marginTop: 4,
     fontWeight: '500',
   },
@@ -274,17 +274,17 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
     marginBottom: 12,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
   infoCard: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#4A6070',
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: '#5A7080',
   },
   infoRow: {
     flexDirection: 'row',
@@ -298,11 +298,11 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 14,
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
   },
   infoValue: {
     fontSize: 14,
-    color: '#fff',
+    color: '#F9FCF2',
     fontWeight: '500',
   },
   helpItem: {
@@ -314,7 +314,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#6366f1',
+    backgroundColor: '#B8C5B0',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -322,12 +322,12 @@ const styles = StyleSheet.create({
   helpNumberText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#fff',
+    color: '#212F36',
   },
   helpText: {
     flex: 1,
     fontSize: 14,
-    color: '#ccc',
+    color: '#F9FCF2',
   },
   logoutButton: {
     flexDirection: 'row',
@@ -347,7 +347,7 @@ const styles = StyleSheet.create({
   },
   version: {
     fontSize: 12,
-    color: '#444',
+    color: 'rgba(141, 161, 155, 0.5)',
     textAlign: 'center',
     marginTop: 32,
     marginBottom: 20,
