@@ -368,9 +368,18 @@ export default function LeagueDetailScreen() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'submission': return '#B8C5B0';  // Sage green
-      case 'voting': return '#F9FCF2';      // Cream/off-white
+      case 'voting': return '#4A6070';      // Dark blue for text on cream
       case 'completed': return '#8DA19B';   // Muted grey-green
       default: return 'rgba(141, 161, 155, 0.8)';
+    }
+  };
+
+  const getStatusBgColor = (status: string) => {
+    switch (status) {
+      case 'submission': return 'rgba(184, 197, 176, 0.2)';
+      case 'voting': return '#F9FCF2';  // Cream background for voting
+      case 'completed': return 'rgba(141, 161, 155, 0.2)';
+      default: return 'rgba(141, 161, 155, 0.2)';
     }
   };
 
