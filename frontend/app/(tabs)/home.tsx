@@ -317,7 +317,7 @@ export default function HomeScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Create League</Text>
               <TouchableOpacity onPress={() => setShowCreateModal(false)}>
-                <Ionicons name="close" size={24} color="#888" />
+                <Ionicons name="close" size={24} color="rgba(141, 161, 155, 0.8)" />
               </TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
@@ -326,7 +326,7 @@ export default function HomeScreen() {
                 <TextInput
                   style={styles.modalInput}
                   placeholder="e.g., Friday Night Jams"
-                  placeholderTextColor="#666"
+                  placeholderTextColor="rgba(141, 161, 155, 0.6)"
                   value={leagueName}
                   onChangeText={setLeagueName}
                   autoComplete="off"
