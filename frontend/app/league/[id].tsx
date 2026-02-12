@@ -949,7 +949,7 @@ export default function LeagueDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#212F36',
   },
   loadingContainer: {
     flex: 1,
@@ -963,7 +963,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    color: '#888',
+    color: 'rgba(141, 161, 155, 0.8)',
   },
   header: {
     flexDirection: 'row',
