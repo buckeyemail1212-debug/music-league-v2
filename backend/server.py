@@ -307,36 +307,70 @@ async def get_user_stats(current_user: dict = Depends(get_current_user)):
     submissions = await db.submissions.find({"user_id": user_id}).to_list(1000)
     rounds_played = len(submissions)
     
-    # Calculate wins by checking completed rounds
+    if not submissions:
+        return {
+            "total_wins": 0,
+            "rounds_played": 0,
+            "win_rate": 0,
+            "leagues_count": leagues_count
+        }
+    
+    # Get all unique round IDs from submissions
+    round_ids = list(set(sub["round_id"] for sub in submissions))
+    
+    # Batch fetch all completed rounds
+    completed_rounds = await db.rounds.find({
+        "id": {"$in": round_ids},
+        "status": "completed"
+    }).to_list(1000)
+    completed_round_ids = {r["id"] for r in completed_rounds}
+    
+    # Batch fetch all submissions and votes for completed rounds
+    all_round_submissions = await db.submissions.find({
+        "round_id": {"$in": list(completed_round_ids)}
+    }).to_list(10000)
+    all_votes = await db.votes.find({
+        "round_id": {"$in": list(completed_round_ids)}
+    }).to_list(10000)
+    
+    # Group by round_id
+    submissions_by_round = {}
+    votes_by_round = {}
+    for sub in all_round_submissions:
+        submissions_by_round.setdefault(sub["round_id"], []).append(sub)
+    for vote in all_votes:
+        votes_by_round.setdefault(vote["round_id"], []).append(vote)
+    
+    # Calculate wins
     total_wins = 0
     for submission in submissions:
-        round_doc = await db.rounds.find_one({"id": submission["round_id"], "status": "completed"})
-        if round_doc:
-            # Get all submissions for this round and calculate winner
-            round_submissions = await db.submissions.find({"round_id": submission["round_id"]}).to_list(100)
-            votes = await db.votes.find({"round_id": submission["round_id"]}).to_list(100)
+        if submission["round_id"] not in completed_round_ids:
+            continue
             
-            if votes and round_submissions:
-                # Calculate points
-                points = {}
-                for sub in round_submissions:
-                    points[sub["id"]] = 0
-                
-                num_submissions = len(round_submissions)
-                for vote in votes:
-                    for rank, sub_id in enumerate(vote["rankings"]):
-                        points[sub_id] = points.get(sub_id, 0) + (num_submissions - rank)
-                
-                # Find winner
-                max_points = max(points.values()) if points else 0
-                winner_id = None
-                for sub_id, pts in points.items():
-                    if pts == max_points:
-                        winner_id = sub_id
-                        break
-                
-                if winner_id == submission["id"]:
-                    total_wins += 1
+        round_submissions = submissions_by_round.get(submission["round_id"], [])
+        votes = votes_by_round.get(submission["round_id"], [])
+        
+        if votes and round_submissions:
+            # Calculate points
+            points = {}
+            for sub in round_submissions:
+                points[sub["id"]] = 0
+            
+            num_submissions = len(round_submissions)
+            for vote in votes:
+                for rank, sub_id in enumerate(vote["rankings"]):
+                    points[sub_id] = points.get(sub_id, 0) + (num_submissions - rank)
+            
+            # Find winner
+            max_points = max(points.values()) if points else 0
+            winner_id = None
+            for sub_id, pts in points.items():
+                if pts == max_points:
+                    winner_id = sub_id
+                    break
+            
+            if winner_id == submission["id"]:
+                total_wins += 1
     
     win_rate = round((total_wins / rounds_played * 100)) if rounds_played > 0 else 0
     
