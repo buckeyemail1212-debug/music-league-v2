@@ -529,10 +529,10 @@ export default function LeagueDetailScreen() {
           disabled={creatingRound}
         >
           {creatingRound ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color="#212F36" />
           ) : (
             <>
-              <Ionicons name="play" size={20} color="#fff" />
+              <Ionicons name="play" size={20} color="#212F36" />
               <Text style={styles.startRoundText}>Start New Round</Text>
             </>
           )}
@@ -669,7 +669,7 @@ export default function LeagueDetailScreen() {
               style={styles.shareResultsButton}
               onPress={() => setShowShareCard(true)}
             >
-              <Ionicons name="share-social" size={20} color="#fff" />
+              <Ionicons name="share-social" size={20} color="#212F36" />
               <Text style={styles.shareResultsText}>Share Results</Text>
             </TouchableOpacity>
           )}
@@ -744,10 +744,10 @@ export default function LeagueDetailScreen() {
               disabled={isSharing}
             >
               {isSharing ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color="#212F36" />
               ) : (
                 <>
-                  <Ionicons name="share-outline" size={20} color="#fff" />
+                  <Ionicons name="share-outline" size={20} color="#212F36" />
                   <Text style={styles.shareButtonText}>Share to Stories / Messages</Text>
                 </>
               )}
