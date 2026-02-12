@@ -27,7 +27,7 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ.get('DB_NAME', 'music_league')]
 
 # JWT Settings
-SECRET_KEY = os.environ.get('JWT_SECRET', 'music-league-secret-key-2025')
+SECRET_KEY = os.environ['JWT_SECRET']
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 
@@ -328,10 +328,10 @@ async def get_user_stats(current_user: dict = Depends(get_current_user)):
     # Batch fetch all submissions and votes for completed rounds
     all_round_submissions = await db.submissions.find({
         "round_id": {"$in": list(completed_round_ids)}
-    }).to_list(10000)
+    }, {"_id": 0, "id": 1, "round_id": 1, "user_id": 1}).to_list(1000)
     all_votes = await db.votes.find({
         "round_id": {"$in": list(completed_round_ids)}
-    }).to_list(10000)
+    }, {"_id": 0, "round_id": 1, "voter_id": 1, "rankings": 1}).to_list(1000)
     
     # Group by round_id
     submissions_by_round = {}
@@ -891,10 +891,10 @@ async def get_league_standings(league_id: str, current_user: dict = Depends(get_
     round_ids = [r["id"] for r in completed_rounds]
     all_submissions = await db.submissions.find({
         "round_id": {"$in": round_ids}
-    }).to_list(10000)
+    }, {"_id": 0, "id": 1, "round_id": 1, "user_id": 1}).to_list(1000)
     all_votes = await db.votes.find({
         "round_id": {"$in": round_ids}
-    }).to_list(10000)
+    }, {"_id": 0, "round_id": 1, "rankings": 1}).to_list(1000)
     
     # Group by round_id
     submissions_by_round = {}
