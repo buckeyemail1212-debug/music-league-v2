@@ -44,11 +44,16 @@ A "fantasy sports for music" app where users:
 - Fixed points text visibility on result cards
 - Fixed button text/icon colors on cream buttons throughout app
 - Fixed chat message text and send button colors
-- **Fixed "Voting" status pill** - Changed from orange to cream background with dark text
-- **Fixed tab icons** - Changed Rounds flag and Standings trophy from purple to theme colors (cream when active, grey-green when inactive)
-- **Fixed loading indicators** - Changed from purple to sage green (#B8C5B0)
-- **Fixed refresh control tint** - Changed from purple to sage green
-- **Fixed play button in song search modal** - Icon now uses dark color for visibility
+- Fixed "Voting" status pill - Changed from orange to cream background with dark text
+- Fixed tab icons - Changed Rounds flag and Standings trophy from purple to theme colors
+- Fixed loading indicators - Changed from purple to sage green (#B8C5B0)
+- Fixed refresh control tint - Changed from purple to sage green
+- Fixed play button in song search modal - Icon now uses dark color for visibility
+- **Fixed login/register screens** - Updated logo to cream, placeholder text to visible grey-green, footer text bolded
+- **Deployment Fixes (Health Check)**:
+  - Fixed Expo environment config (EXPO_PACKAGER_PROXY_URL)
+  - Optimized N+1 database queries in `get_rounds` endpoint using batch aggregation
+  - Added projections to database queries to exclude unnecessary fields (password_hash, _id)
 
 ## Known Issues
 None currently.
