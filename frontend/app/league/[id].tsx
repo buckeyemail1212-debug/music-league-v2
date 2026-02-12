@@ -545,14 +545,14 @@ export default function LeagueDetailScreen() {
           style={[styles.tab, activeTab === 'rounds' && styles.tabActive]}
           onPress={() => setActiveTab('rounds')}
         >
-          <Ionicons name="flag" size={18} color={activeTab === 'rounds' ? '#6366f1' : '#888'} />
+          <Ionicons name="flag" size={18} color={activeTab === 'rounds' ? '#F9FCF2' : '#8DA19B'} />
           <Text style={[styles.tabText, activeTab === 'rounds' && styles.tabTextActive]}>Rounds</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'standings' && styles.tabActive]}
           onPress={() => setActiveTab('standings')}
         >
-          <Ionicons name="trophy" size={18} color={activeTab === 'standings' ? '#6366f1' : '#888'} />
+          <Ionicons name="trophy" size={18} color={activeTab === 'standings' ? '#F9FCF2' : '#8DA19B'} />
           <Text style={[styles.tabText, activeTab === 'standings' && styles.tabTextActive]}>Standings</Text>
         </TouchableOpacity>
       </View>

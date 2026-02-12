@@ -540,8 +540,8 @@ export default function RoundScreen() {
           <Text style={styles.roundTitle}>Round {round.round_number}</Text>
           <Text style={styles.roundTheme}>{round.theme}</Text>
         </View>
-        <View style={[styles.statusPill, { backgroundColor: round.status === 'submission' ? '#10b981' : round.status === 'voting' ? '#f59e0b' : '#6366f1' }]}>
-          <Text style={styles.statusPillText}>
+        <View style={[styles.statusPill, { backgroundColor: round.status === 'submission' ? '#B8C5B0' : round.status === 'voting' ? '#F9FCF2' : '#B8C5B0' }]}>
+          <Text style={[styles.statusPillText, { color: round.status === 'voting' ? '#212F36' : '#212F36' }]}>
             {round.status.charAt(0).toUpperCase() + round.status.slice(1)}
           </Text>
         </View>
@@ -820,7 +820,7 @@ export default function RoundScreen() {
                     <Ionicons
                       name={playingSongId === item.deezer_id ? 'pause' : 'play'}
                       size={16}
-                      color="#fff"
+                      color={playingSongId === item.deezer_id ? '#fff' : '#212F36'}
                     />
                   </TouchableOpacity>
                   <Ionicons name="chevron-forward" size={20} color="#666" />
