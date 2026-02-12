@@ -710,7 +710,7 @@ export default function RoundScreen() {
                 disabled={votingSubmitting}
               >
                 {votingSubmitting ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color="#212F36" />
                 ) : (
                   <Text style={styles.submitVoteText}>Save Vote</Text>
                 )}
