@@ -66,7 +66,7 @@ export default function LoginScreen() {
                 autoCapitalize="none"
                 autoComplete="off"
                 autoCorrect={false}
-                textContentType="none"
+                textContentType="oneTimeCode"
                 importantForAutofill="no"
                 spellCheck={false}
               />
@@ -83,7 +83,7 @@ export default function LoginScreen() {
                 secureTextEntry={!showPassword}
                 autoComplete="off"
                 autoCorrect={false}
-                textContentType="none"
+                textContentType="oneTimeCode"
                 importantForAutofill="no"
                 spellCheck={false}
                 passwordRules=""
