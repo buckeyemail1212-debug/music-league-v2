@@ -3,67 +3,54 @@
 ## Original Problem Statement
 Create a mobile app called "Music League". It has three pages: home, discovery, and profile. Users sign in to create or join leagues.
 
-## Core Features
-A "fantasy sports for music" app where users:
-- Join leagues and create or join with a code
-- Submit songs to rounds based on a theme
-- Vote on each other's submissions
-- Compete for points based on rankings
+## Product Overview
+A "fantasy sports for music" app where users join leagues, submit songs to rounds based on a theme, and vote on each other's submissions.
+
+## Core Features (Implemented)
+- **Authentication**: JWT-based custom auth with email/username/password
+- **Song Search**: Deezer API integration for song search and 30-second previews
+- **Leagues**: Create leagues, join with code, league chat
+- **Rounds**: Submission phase, voting phase, results phase with timers
+- **Results & Standings**: Ranked results with tie handling, cumulative leaderboard
+- **Shareable Results**: Generate shareable image of final results
+- **Profile**: User profile with photo upload
 
 ## Technical Stack
-- **Frontend**: React Native, Expo, TypeScript
-- **Backend**: FastAPI, Python
-- **Database**: MongoDB
-- **Authentication**: JWT stored in AsyncStorage
+- **Frontend**: React Native, Expo, Expo Router, TypeScript
+- **Backend**: FastAPI, Python, Pydantic
+- **Database**: MongoDB (via motor async driver)
+- **Authentication**: JWT with secret key from environment variable
 
-## Design System - Neutral Blue/Slate Palette
-- **Background**: Dark slate (`#212F36`)
-- **Containers/Cards**: Mid-dark blue (`#4A6070`) with border `#5A7080`, `12px` border radius
-- **Primary Buttons**: Off-white/cream (`#F9FCF2`) with dark text/icons (`#212F36`)
-- **Accents/Icons**: Muted sage green (`#B8C5B0`)
-- **Text**: Headlines cream (`#F9FCF2`), subtext grey-green (`#8DA19B`)
-- **Navigation**: Dark slate tabs with active icon in cream
-
-## Completed Features
-- [x] JWT-based authentication with autofill disabled
-- [x] League creation/joining with invite codes
-- [x] Round management (Submission → Voting → Results phases)
-- [x] Song search via Deezer API with 30-second previews
-- [x] Audio playback stops on navigation
-- [x] Countdown timers (timezone-aware)
-- [x] Tie-handling for rankings and standings
-- [x] Cumulative league standings
-- [x] League chat with auto-refresh and unread indicators
-- [x] Shareable results card (image export)
-- [x] Profile photo persistence across sessions
-- [x] Complete UI/UX overhaul to Neutral Blue/Slate theme
-- [x] UI color visibility fixes (Dec 2025)
-
-## Latest Changes (December 2025)
-- Fixed result card highlighting (removed yellow background)
-- Fixed points text visibility on result cards
-- Fixed button text/icon colors on cream buttons throughout app
-- Fixed chat message text and send button colors
-- Fixed "Voting" status pill - Changed from orange to cream background with dark text
-- Fixed tab icons - Changed Rounds flag and Standings trophy from purple to theme colors
-- Fixed loading indicators - Changed from purple to sage green (#B8C5B0)
-- Fixed refresh control tint - Changed from purple to sage green
-- Fixed play button in song search modal - Icon now uses dark color for visibility
-- **Fixed login/register screens** - Updated logo to cream, placeholder text to visible grey-green, footer text bolded
-- **Deployment Fixes (Health Check)**:
-  - Fixed Expo environment config (EXPO_PACKAGER_PROXY_URL)
-  - Optimized N+1 database queries in `get_rounds` endpoint using batch aggregation
-  - Added projections to database queries to exclude unnecessary fields (password_hash, _id)
-
-## Known Issues
-None currently.
-
-## Future Backlog
-- Backend refactoring: Split `server.py` into routes/models/services
-- Frontend refactoring: Extract complex logic from `league/[id].tsx` and `round/[id].tsx` into custom hooks
+## Deployment Status
+- **Backend**: Running on Emergent preview server (https://fantasy-music-app.preview.emergentagent.com)
+- **Frontend**: Published to Expo (https://expo.dev/accounts/puchalski.12/projects/music-league)
+- **QR Code**: Permanent QR code available for sharing via Expo Go app
 
 ## Key Files
-- `/app/frontend/app/league/[id].tsx` - League detail, chat, standings
-- `/app/frontend/app/round/[id].tsx` - Round gameplay (submit, vote, results)
-- `/app/backend/server.py` - All API endpoints
-- `/app/frontend/src/services/api.ts` - API client
+- `/app/frontend/src/context/AuthContext.tsx` - Authentication logic
+- `/app/frontend/src/services/api.ts` - API service layer
+- `/app/backend/server.py` - FastAPI backend
+- `/app/frontend/app.json` - Expo configuration
+
+## Environment Variables
+- `EXPO_PUBLIC_BACKEND_URL` - Backend API URL
+- `JWT_SECRET` - JWT signing secret
+- `MONGO_URL` - MongoDB connection string
+- `DB_NAME` - Database name
+
+## Publishing History
+- v1.0 - Initial publish (backend URL missing)
+- v1.1 - Added .env file with backend URL
+- v1.2 - Hardcoded fallback API URL in source files (WORKING)
+
+## User Account
+- Expo username: puchalski.12
+- Project: music-league
+
+## Date
+February 12, 2026
+
+## Notes
+- The app uses Expo Go for distribution (no App Store/TestFlight yet)
+- Backend runs on Emergent preview which may sleep during inactivity
+- For permanent always-on backend, would need separate hosting (Railway, Render, etc.)
