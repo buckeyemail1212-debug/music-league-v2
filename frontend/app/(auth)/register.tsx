@@ -84,7 +84,7 @@ export default function RegisterScreen() {
                   autoCapitalize="none"
                   autoComplete="off"
                   autoCorrect={false}
-                  textContentType="none"
+                  textContentType="oneTimeCode"
                   importantForAutofill="no"
                   spellCheck={false}
                 />
@@ -101,7 +101,7 @@ export default function RegisterScreen() {
                   autoCapitalize="none"
                   autoComplete="off"
                   autoCorrect={false}
-                  textContentType="none"
+                  textContentType="oneTimeCode"
                   importantForAutofill="no"
                   spellCheck={false}
                 />
@@ -118,7 +118,7 @@ export default function RegisterScreen() {
                   secureTextEntry={!showPassword}
                   autoComplete="off"
                   autoCorrect={false}
-                  textContentType="none"
+                  textContentType="oneTimeCode"
                   importantForAutofill="no"
                   spellCheck={false}
                   passwordRules=""
