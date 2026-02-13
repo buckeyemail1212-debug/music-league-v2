@@ -395,11 +395,11 @@ export default function HomeScreen() {
                     autoCorrect={false}
                     autoComplete="off"
                     spellCheck={false}
-                    textContentType="none"
+                    textContentType="oneTimeCode"
                     importantForAutofill="no"
                     keyboardType="default"
                     maxLength={6}
-                    selectionColor="#6366f1"
+                    selectionColor="#B8C5B0"
                   />
 
                   <TouchableOpacity
