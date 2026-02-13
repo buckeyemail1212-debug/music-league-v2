@@ -8,10 +8,10 @@
     "scheme": "musicleague",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "owner": "your-expo-username",
+    "owner": "puchalski.12",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yourname.musicleague"
+      "bundleIdentifier": "com.puchalski12.musicleague"
     },
     "android": {
       "adaptiveIcon": {
@@ -19,7 +19,7 @@
         "backgroundColor": "#212F36"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.yourname.musicleague"
+      "package": "com.puchalski12.musicleague"
     },
     "web": {
       "bundler": "metro",
