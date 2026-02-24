@@ -648,6 +648,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: '#4A6070',
+    overflow: 'hidden',
+  },
+  memberAvatarImage: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
   },
   memberAvatarText: {
     fontSize: 12,
