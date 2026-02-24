@@ -1076,27 +1076,100 @@ async def get_results(round_id: str, current_user: dict = Depends(get_current_us
     submissions = await db.submissions.find({"round_id": round_id}).to_list(100)
     votes = await db.votes.find({"round_id": round_id}).to_list(100)
     
-    # Calculate points (inverse ranking - higher rank = more points)
-    points = {}
-    for sub in submissions:
-        points[sub["id"]] = 0
+    if not submissions:
+        return RoundResultResponse(
+            id=str(uuid.uuid4()),
+            round_id=round_id,
+            rankings=[],
+            winners=[],
+            is_tie=False,
+            total_voters=0
+        )
     
-    num_submissions = len(submissions)
+    # Calculate points using Dynamic Point Pool with Linear Decay
+    # Each voter has 100 points to distribute
+    # Points = (N - r + 1) / sum(1 to N) * 100 where N = songs being voted on, r = rank
+    
+    submission_scores = {sub["id"]: [] for sub in submissions}  # Store all scores for each submission
+    
     for vote in votes:
-        for rank, sub_id in enumerate(vote["rankings"]):
-            # First place gets most points, last gets least
-            points[sub_id] = points.get(sub_id, 0) + (num_submissions - rank)
+        voter_id = vote.get("voter_id")
+        rankings = vote["rankings"]
+        N = len(rankings)  # Number of songs this voter is ranking (excludes their own)
+        
+        if N == 0:
+            continue
+            
+        # Calculate sum of 1 to N for normalization
+        sum_n = sum(range(1, N + 1))
+        
+        for rank_index, sub_id in enumerate(rankings):
+            r = rank_index + 1  # Rank (1-indexed)
+            # Points = (N - r + 1) / sum(1 to N) * 100
+            points = ((N - r + 1) / sum_n) * 100
+            submission_scores[sub_id].append(points)
     
-    # Sort by points
-    sorted_subs = sorted(submissions, key=lambda s: points[s["id"]], reverse=True)
+    # Calculate Mean (Average) Score for each submission
+    final_scores = {}
+    std_devs = {}
+    for sub_id, scores in submission_scores.items():
+        if scores:
+            mean_score = sum(scores) / len(scores)
+            final_scores[sub_id] = mean_score
+            # Calculate standard deviation for tie-breaker
+            if len(scores) > 1:
+                variance = sum((s - mean_score) ** 2 for s in scores) / len(scores)
+                std_devs[sub_id] = variance ** 0.5
+            else:
+                std_devs[sub_id] = 0
+        else:
+            final_scores[sub_id] = 0
+            std_devs[sub_id] = 0
+    
+    # Sort by mean score (descending), then by standard deviation (ascending) for tie-breaker
+    sorted_subs = sorted(submissions, key=lambda s: (-final_scores[s["id"]], std_devs[s["id"]]))
     
     # Assign ranks with tie handling
     rankings = []
     current_rank = 1
-    prev_points = None
+    prev_score = None
+    prev_std = None
     
     for i, sub in enumerate(sorted_subs):
-        sub_points = points[sub["id"]]
+        sub_score = final_scores[sub["id"]]
+        sub_std = std_devs[sub["id"]]
+        
+        # Check if this is a tie (same score AND same std dev)
+        if prev_score is not None and abs(sub_score - prev_score) < 0.001 and abs(sub_std - prev_std) < 0.001:
+            # Same rank as previous
+            pass
+        else:
+            current_rank = i + 1
+        
+        rankings.append({
+            "submission_id": sub["id"],
+            "song": sub["song"],
+            "user_id": sub["user_id"],
+            "username": sub["username"],
+            "points": round(sub_score, 2),
+            "rank": current_rank
+        })
+        
+        prev_score = sub_score
+        prev_std = sub_std
+    
+    # Determine winners (rank 1)
+    winners = [r for r in rankings if r["rank"] == 1]
+    is_tie = len(winners) > 1
+    
+    return RoundResultResponse(
+        id=str(uuid.uuid4()),
+        round_id=round_id,
+        rankings=rankings,
+        winners=winners,
+        is_tie=is_tie,
+        total_voters=len(votes)
+    )
         
         # If points are different from previous, update the rank
         if prev_points is not None and sub_points < prev_points:
