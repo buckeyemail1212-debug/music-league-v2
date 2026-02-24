@@ -151,9 +151,24 @@ export default function RoundScreen() {
     // Reset loading state when starting to fetch
     setLoading(true);
     setRound(null);
+    setError(null);
+    
+    // Guard against missing id
+    if (!id) {
+      setError('No round ID provided');
+      setLoading(false);
+      return;
+    }
     
     try {
-      const roundRes = await getRound(id!);
+      const roundRes = await getRound(id);
+      
+      if (!roundRes.data) {
+        setError('Round data not found');
+        setLoading(false);
+        return;
+      }
+      
       setRound(roundRes.data);
 
       if (roundRes.data.status !== 'completed') {
