@@ -484,7 +484,6 @@ async def join_league(request: JoinLeagueRequest, current_user: dict = Depends(g
         {"id": league["id"]},
         {"$push": {"members": {"id": current_user["id"], "username": current_user["username"]}}}
     )
-    )
     
     # Fetch updated league
     league = await db.leagues.find_one({"id": league["id"]})
