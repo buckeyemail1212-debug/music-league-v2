@@ -199,6 +199,14 @@ def generate_league_code() -> str:
     """Generate a unique 6-character league code"""
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
+def ensure_utc(dt: datetime) -> datetime:
+    """Ensure datetime is UTC-aware for comparison"""
+    if dt is None:
+        return datetime.now(timezone.utc)
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
@@ -451,6 +459,18 @@ def add_league_defaults(league: dict) -> dict:
 @api_router.get("/leagues", response_model=List[LeagueResponse])
 async def get_user_leagues(current_user: dict = Depends(get_current_user)):
     leagues = await db.leagues.find({"members.id": current_user["id"]}).to_list(100)
+    
+    # Fetch profile photos for all members
+    for league in leagues:
+        member_ids = [m["id"] for m in league.get("members", [])]
+        users = await db.users.find({"id": {"$in": member_ids}}, {"_id": 0, "id": 1, "username": 1, "profile_photo": 1}).to_list(100)
+        user_map = {u["id"]: u for u in users}
+        
+        # Update members with profile photos
+        for member in league.get("members", []):
+            user_data = user_map.get(member["id"], {})
+            member["profile_photo"] = user_data.get("profile_photo")
+    
     return [LeagueResponse(**add_league_defaults(league)) for league in leagues]
 
 @api_router.get("/leagues/{league_id}", response_model=LeagueResponse)
@@ -463,6 +483,16 @@ async def get_league(league_id: str, current_user: dict = Depends(get_current_us
     is_member = any(m["id"] == current_user["id"] for m in league["members"])
     if not is_member:
         raise HTTPException(status_code=403, detail="You are not a member of this league")
+    
+    # Fetch profile photos for all members
+    member_ids = [m["id"] for m in league.get("members", [])]
+    users = await db.users.find({"id": {"$in": member_ids}}, {"_id": 0, "id": 1, "username": 1, "profile_photo": 1}).to_list(100)
+    user_map = {u["id"]: u for u in users}
+    
+    # Update members with profile photos
+    for member in league.get("members", []):
+        user_data = user_map.get(member["id"], {})
+        member["profile_photo"] = user_data.get("profile_photo")
     
     return LeagueResponse(**add_league_defaults(league))
 
@@ -606,7 +636,7 @@ async def get_rounds(league_id: str, current_user: dict = Depends(get_current_us
         raise HTTPException(status_code=404, detail="League not found")
     
     total_members = len(league.get("members", []))
-    rounds = await db.rounds.find({"league_id": league_id}).sort("round_number", -1).to_list(100)
+    rounds = await db.rounds.find({"league_id": league_id}, {"_id": 0}).sort("round_number", -1).to_list(100)
     
     if not rounds:
         return []
@@ -651,7 +681,10 @@ async def get_rounds(league_id: str, current_user: dict = Depends(get_current_us
         status = round_doc["status"]
         
         # Auto-advance logic: check if deadline passed
-        if status == "submission" and round_doc["submission_deadline"] < now:
+        submission_deadline = ensure_utc(round_doc.get("submission_deadline"))
+        voting_deadline_dt = ensure_utc(round_doc.get("voting_deadline"))
+        
+        if status == "submission" and submission_deadline < now:
             # Auto-lock all unlocked submissions and advance to voting
             await db.submissions.update_many(
                 {"round_id": round_id, "locked": {"$ne": True}},
@@ -667,7 +700,7 @@ async def get_rounds(league_id: str, current_user: dict = Depends(get_current_us
             round_doc["status"] = status
             round_doc["voting_deadline"] = new_voting_deadline
             
-        elif status == "voting" and round_doc["voting_deadline"] < now:
+        elif status == "voting" and voting_deadline_dt < now:
             # Auto-lock all unlocked votes and complete round
             await db.votes.update_many(
                 {"round_id": round_id, "locked": {"$ne": True}},
@@ -695,7 +728,7 @@ async def get_rounds(league_id: str, current_user: dict = Depends(get_current_us
 
 @api_router.get("/rounds/{round_id}", response_model=RoundResponse)
 async def get_round(round_id: str, current_user: dict = Depends(get_current_user)):
-    round_doc = await db.rounds.find_one({"id": round_id})
+    round_doc = await db.rounds.find_one({"id": round_id}, {"_id": 0})
     if not round_doc:
         raise HTTPException(status_code=404, detail="Round not found")
     
@@ -707,7 +740,10 @@ async def get_round(round_id: str, current_user: dict = Depends(get_current_user
     status = round_doc["status"]
     
     # Auto-advance logic: check if deadline passed
-    if status == "submission" and round_doc["submission_deadline"] < now:
+    submission_deadline = ensure_utc(round_doc.get("submission_deadline"))
+    voting_deadline = ensure_utc(round_doc.get("voting_deadline"))
+    
+    if status == "submission" and submission_deadline < now:
         # Auto-lock all unlocked submissions and advance to voting
         await db.submissions.update_many(
             {"round_id": round_id, "locked": {"$ne": True}},
@@ -723,7 +759,7 @@ async def get_round(round_id: str, current_user: dict = Depends(get_current_user
         round_doc["status"] = status
         round_doc["voting_deadline"] = new_voting_deadline
         
-    elif status == "voting" and round_doc["voting_deadline"] < now:
+    elif status == "voting" and voting_deadline < now:
         # Auto-lock all unlocked votes and complete round
         await db.votes.update_many(
             {"round_id": round_id, "locked": {"$ne": True}},
@@ -1054,30 +1090,74 @@ async def get_results(round_id: str, current_user: dict = Depends(get_current_us
     submissions = await db.submissions.find({"round_id": round_id}).to_list(100)
     votes = await db.votes.find({"round_id": round_id}).to_list(100)
     
-    # Calculate points (inverse ranking - higher rank = more points)
-    points = {}
-    for sub in submissions:
-        points[sub["id"]] = 0
+    if not submissions:
+        return RoundResultResponse(
+            id=str(uuid.uuid4()),
+            round_id=round_id,
+            rankings=[],
+            winners=[],
+            is_tie=False,
+            total_voters=0
+        )
     
-    num_submissions = len(submissions)
+    # Calculate points using Dynamic Point Pool with Linear Decay
+    # Each voter has 100 points to distribute
+    # Points = (N - r + 1) / sum(1 to N) * 100 where N = songs being voted on, r = rank
+    
+    submission_scores = {sub["id"]: [] for sub in submissions}  # Store all scores for each submission
+    
     for vote in votes:
-        for rank, sub_id in enumerate(vote["rankings"]):
-            # First place gets most points, last gets least
-            points[sub_id] = points.get(sub_id, 0) + (num_submissions - rank)
+        voter_id = vote.get("voter_id")
+        rankings = vote["rankings"]
+        N = len(rankings)  # Number of songs this voter is ranking (excludes their own)
+        
+        if N == 0:
+            continue
+            
+        # Calculate sum of 1 to N for normalization
+        sum_n = sum(range(1, N + 1))
+        
+        for rank_index, sub_id in enumerate(rankings):
+            r = rank_index + 1  # Rank (1-indexed)
+            # Points = (N - r + 1) / sum(1 to N) * 100
+            points = ((N - r + 1) / sum_n) * 100
+            submission_scores[sub_id].append(points)
     
-    # Sort by points
-    sorted_subs = sorted(submissions, key=lambda s: points[s["id"]], reverse=True)
+    # Calculate Mean (Average) Score for each submission
+    final_scores = {}
+    std_devs = {}
+    for sub_id, scores in submission_scores.items():
+        if scores:
+            mean_score = sum(scores) / len(scores)
+            final_scores[sub_id] = mean_score
+            # Calculate standard deviation for tie-breaker
+            if len(scores) > 1:
+                variance = sum((s - mean_score) ** 2 for s in scores) / len(scores)
+                std_devs[sub_id] = variance ** 0.5
+            else:
+                std_devs[sub_id] = 0
+        else:
+            final_scores[sub_id] = 0
+            std_devs[sub_id] = 0
+    
+    # Sort by mean score (descending), then by standard deviation (ascending) for tie-breaker
+    sorted_subs = sorted(submissions, key=lambda s: (-final_scores[s["id"]], std_devs[s["id"]]))
     
     # Assign ranks with tie handling
     rankings = []
     current_rank = 1
-    prev_points = None
+    prev_score = None
+    prev_std = None
     
     for i, sub in enumerate(sorted_subs):
-        sub_points = points[sub["id"]]
+        sub_score = final_scores[sub["id"]]
+        sub_std = std_devs[sub["id"]]
         
-        # If points are different from previous, update the rank
-        if prev_points is not None and sub_points < prev_points:
+        # Check if this is a tie (same score AND same std dev)
+        if prev_score is not None and abs(sub_score - prev_score) < 0.001 and abs(sub_std - prev_std) < 0.001:
+            # Same rank as previous
+            pass
+        else:
             current_rank = i + 1
         
         rankings.append({
@@ -1085,12 +1165,14 @@ async def get_results(round_id: str, current_user: dict = Depends(get_current_us
             "song": sub["song"],
             "user_id": sub["user_id"],
             "username": sub["username"],
-            "points": sub_points,
+            "points": round(sub_score, 2),
             "rank": current_rank
         })
-        prev_points = sub_points
+        
+        prev_score = sub_score
+        prev_std = sub_std
     
-    # Find all winners (those with rank 1)
+    # Determine winners (rank 1)
     winners = [r for r in rankings if r["rank"] == 1]
     is_tie = len(winners) > 1
     
@@ -1111,13 +1193,13 @@ async def search_songs(q: str, limit: int = 20):
     if not q or len(q) < 2:
         return {"data": []}
     
-    async with httpx.AsyncClient() as client:
-        try:
+    try:
+        async with httpx.AsyncClient(verify=False, timeout=30.0) as client:
             response = await client.get(
-                f"https://api.deezer.com/search",
-                params={"q": q, "limit": limit},
-                timeout=10.0
+                "https://api.deezer.com/search",
+                params={"q": q, "limit": limit}
             )
+            response.raise_for_status()
             data = response.json()
             
             # Transform Deezer response to our format
@@ -1134,9 +1216,15 @@ async def search_songs(q: str, limit: int = 20):
                 })
             
             return {"data": songs}
-        except Exception as e:
-            logger.error(f"Deezer API error: {e}")
-            raise HTTPException(status_code=500, detail="Failed to search songs")
+    except httpx.TimeoutException:
+        logger.error("Deezer API timeout")
+        raise HTTPException(status_code=504, detail="Song search timed out. Please try again.")
+    except httpx.HTTPError as e:
+        logger.error(f"Deezer HTTP error: {e}")
+        raise HTTPException(status_code=502, detail="Could not connect to song service")
+    except Exception as e:
+        logger.error(f"Deezer API error: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to search songs: {type(e).__name__}")
 
 # ==================== CHAT ENDPOINTS ====================
 
