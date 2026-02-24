@@ -274,6 +274,27 @@ export default function LeagueDetailScreen() {
   const handleStartRound = async () => {
     if (!league) return;
     
+    // If this is the first round, show a warning
+    if (rounds.length === 0) {
+      Alert.alert(
+        'Start First Round?',
+        'Once you start a round, new members will no longer be able to join this league. Make sure everyone has joined before continuing.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Start Round',
+            onPress: () => doStartRound(),
+          },
+        ]
+      );
+    } else {
+      doStartRound();
+    }
+  };
+
+  const doStartRound = async () => {
+    if (!league) return;
+    
     setCreatingRound(true);
     try {
       await createRound(league.id, {
