@@ -552,16 +552,19 @@ export default function LeagueDetailScreen() {
         </View>
       </View>
 
-      <View style={styles.codeBar}>
+      <TouchableOpacity style={styles.codeBar} onPress={handleShareLeagueCode} activeOpacity={0.7}>
         <View style={styles.codeInfo}>
           <Text style={styles.codeLabel}>League Code</Text>
-          <Text style={styles.codeValue}>{league.league_code}</Text>
+          <View style={styles.codeRow}>
+            <Text style={styles.codeValue}>{league.league_code}</Text>
+            <Ionicons name="share-outline" size={18} color="#B8C5B0" style={{ marginLeft: 8 }} />
+          </View>
         </View>
         <View style={styles.memberInfo}>
           <Ionicons name="people" size={16} color="#888" />
           <Text style={styles.memberCount}>{league.members.length} members</Text>
         </View>
-      </View>
+      </TouchableOpacity>
 
       {isCreator && !activeRound && (league.total_rounds === 0 || league.current_round < league.total_rounds) && (
         <TouchableOpacity
