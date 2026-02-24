@@ -739,9 +739,25 @@ async def submit_song(round_id: str, request: SubmitSongRequest, current_user: d
         "round_id": round_id,
         "user_id": current_user["id"]
     })
-    if existing:
-        raise HTTPException(status_code=400, detail="You have already submitted a song for this round")
     
+    if existing:
+        # If existing submission is locked, cannot change
+        if existing.get("locked", False):
+            raise HTTPException(status_code=400, detail="Your submission is locked and cannot be changed")
+        
+        # Update existing submission
+        await db.submissions.update_one(
+            {"id": existing["id"]},
+            {"$set": {
+                "song": request.song.dict(),
+                "locked": request.locked,
+                "submitted_at": datetime.now(timezone.utc)
+            }}
+        )
+        updated = await db.submissions.find_one({"id": existing["id"]})
+        return SubmissionResponse(**updated)
+    
+    # Create new submission
     submission_id = str(uuid.uuid4())
     submission = {
         "id": submission_id,
@@ -749,6 +765,7 @@ async def submit_song(round_id: str, request: SubmitSongRequest, current_user: d
         "user_id": current_user["id"],
         "username": current_user["username"],
         "song": request.song.dict(),
+        "locked": request.locked,
         "submitted_at": datetime.now(timezone.utc)
     }
     await db.submissions.insert_one(submission)
