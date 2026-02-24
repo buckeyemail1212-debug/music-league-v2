@@ -737,7 +737,10 @@ async def get_round(round_id: str, current_user: dict = Depends(get_current_user
     status = round_doc["status"]
     
     # Auto-advance logic: check if deadline passed
-    if status == "submission" and round_doc["submission_deadline"] < now:
+    submission_deadline = ensure_utc(round_doc.get("submission_deadline"))
+    voting_deadline = ensure_utc(round_doc.get("voting_deadline"))
+    
+    if status == "submission" and submission_deadline < now:
         # Auto-lock all unlocked submissions and advance to voting
         await db.submissions.update_many(
             {"round_id": round_id, "locked": {"$ne": True}},
