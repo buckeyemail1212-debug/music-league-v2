@@ -628,7 +628,7 @@ async def get_rounds(league_id: str, current_user: dict = Depends(get_current_us
         raise HTTPException(status_code=404, detail="League not found")
     
     total_members = len(league.get("members", []))
-    rounds = await db.rounds.find({"league_id": league_id}).sort("round_number", -1).to_list(100)
+    rounds = await db.rounds.find({"league_id": league_id}, {"_id": 0}).sort("round_number", -1).to_list(100)
     
     if not rounds:
         return []
