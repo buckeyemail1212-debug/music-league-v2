@@ -703,12 +703,49 @@ async def get_round(round_id: str, current_user: dict = Depends(get_current_user
     league = await db.leagues.find_one({"id": round_doc["league_id"]})
     total_members = len(league.get("members", [])) if league else 0
     
+    now = datetime.now(timezone.utc)
+    status = round_doc["status"]
+    
+    # Auto-advance logic: check if deadline passed
+    if status == "submission" and round_doc["submission_deadline"] < now:
+        # Auto-lock all unlocked submissions and advance to voting
+        await db.submissions.update_many(
+            {"round_id": round_id, "locked": {"$ne": True}},
+            {"$set": {"locked": True}}
+        )
+        voting_hours = round_doc.get("voting_hours", 24)
+        new_voting_deadline = now + timedelta(hours=voting_hours)
+        await db.rounds.update_one(
+            {"id": round_id},
+            {"$set": {"status": "voting", "voting_deadline": new_voting_deadline}}
+        )
+        status = "voting"
+        round_doc["status"] = status
+        round_doc["voting_deadline"] = new_voting_deadline
+        
+    elif status == "voting" and round_doc["voting_deadline"] < now:
+        # Auto-lock all unlocked votes and complete round
+        await db.votes.update_many(
+            {"round_id": round_id, "locked": {"$ne": True}},
+            {"$set": {"locked": True}}
+        )
+        await db.rounds.update_one(
+            {"id": round_id},
+            {"$set": {"status": "completed"}}
+        )
+        status = "completed"
+        round_doc["status"] = status
+    
     submissions_count = await db.submissions.count_documents({"round_id": round_id})
     votes_count = await db.votes.count_documents({"round_id": round_id})
-    has_submitted = await db.submissions.find_one({
+    
+    user_submission = await db.submissions.find_one({
         "round_id": round_id,
         "user_id": current_user["id"]
-    }) is not None
+    })
+    has_submitted = user_submission is not None
+    user_submission_locked = user_submission.get("locked", False) if user_submission else False
+    
     user_vote = await db.votes.find_one({
         "round_id": round_id,
         "voter_id": current_user["id"]
@@ -723,7 +760,8 @@ async def get_round(round_id: str, current_user: dict = Depends(get_current_user
         total_members=total_members,
         has_user_submitted=has_submitted,
         has_user_voted=has_voted,
-        user_vote_locked=user_vote_locked
+        user_vote_locked=user_vote_locked,
+        user_submission_locked=user_submission_locked
     )
 
 @api_router.post("/rounds/{round_id}/advance")
