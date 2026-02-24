@@ -626,6 +626,34 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: '#5A7080',
+    alignItems: 'center',
+  },
+  memberAvatarsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  memberAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#B8C5B0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#4A6070',
+  },
+  memberAvatarText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#212F36',
+  },
+  memberAvatarMore: {
+    backgroundColor: '#5A7080',
+  },
+  memberAvatarMoreText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#F9FCF2',
   },
   stat: {
     flexDirection: 'row',
