@@ -40,6 +40,7 @@ export default function RoundScreen() {
   const [results, setResults] = useState<RoundResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Song selection
   const [showSongModal, setShowSongModal] = useState(false);
