@@ -61,6 +61,9 @@ export default function RoundScreen() {
   // Timer
   const [timeRemaining, setTimeRemaining] = useState<string>('');
 
+  // Computed: user's own submission
+  const userSubmission = submissions.find(s => s.user_id === user?.id) || null;
+
   useEffect(() => {
     // Configure audio mode
     Audio.setAudioModeAsync({
