@@ -144,6 +144,10 @@ export default function RoundScreen() {
   }, [round]);
 
   const fetchData = async () => {
+    // Reset loading state when starting to fetch
+    setLoading(true);
+    setRound(null);
+    
     try {
       const roundRes = await getRound(id!);
       setRound(roundRes.data);
