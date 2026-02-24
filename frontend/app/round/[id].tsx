@@ -257,10 +257,10 @@ export default function RoundScreen() {
     }
   };
 
-  const handleSubmitSong = async (song: Song) => {
+  const handleSubmitSong = async (song: Song, locked: boolean = false) => {
     setSubmitting(true);
     try {
-      await submitSong(id!, song);
+      await submitSong(id!, song, locked);
       setShowSongModal(false);
       setSearchQuery('');
       setSearchResults([]);
@@ -270,6 +270,33 @@ export default function RoundScreen() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleLockSubmission = async () => {
+    if (!userSubmission) return;
+    
+    Alert.alert(
+      'Lock Your Submission?',
+      'Once locked, you cannot change your song for this round. Are you sure?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Lock It In',
+          style: 'destructive',
+          onPress: async () => {
+            setSubmitting(true);
+            try {
+              await submitSong(id!, userSubmission.song, true);
+              await fetchData();
+            } catch (error: any) {
+              Alert.alert('Error', error.response?.data?.detail || 'Failed to lock submission');
+            } finally {
+              setSubmitting(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const moveRanking = (index: number, direction: 'up' | 'down') => {
