@@ -184,8 +184,8 @@ export const advanceRound = (roundId: string) =>
   api.post(`/rounds/${roundId}/advance`);
 
 // Submission APIs
-export const submitSong = (roundId: string, song: Song) => 
-  api.post<Submission>(`/rounds/${roundId}/submit`, { song });
+export const submitSong = (roundId: string, song: Song, locked: boolean = false) => 
+  api.post<Submission>(`/rounds/${roundId}/submit`, { song, locked });
 
 export const getSubmissions = (roundId: string) => 
   api.get<Submission[]>(`/rounds/${roundId}/submissions`);
