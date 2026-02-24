@@ -474,10 +474,16 @@ async def join_league(request: JoinLeagueRequest, current_user: dict = Depends(g
     if is_member:
         raise HTTPException(status_code=400, detail="You are already a member of this league")
     
+    # Check if league has started (has any rounds)
+    has_rounds = await db.rounds.find_one({"league_id": league["id"]}, {"_id": 0, "id": 1})
+    if has_rounds:
+        raise HTTPException(status_code=400, detail="This league has already started. New members cannot join once rounds have begun.")
+    
     # Add user to members
     await db.leagues.update_one(
         {"id": league["id"]},
         {"$push": {"members": {"id": current_user["id"], "username": current_user["username"]}}}
+    )
     )
     
     # Fetch updated league
