@@ -199,6 +199,14 @@ def generate_league_code() -> str:
     """Generate a unique 6-character league code"""
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
+def ensure_utc(dt: datetime) -> datetime:
+    """Ensure datetime is UTC-aware for comparison"""
+    if dt is None:
+        return datetime.now(timezone.utc)
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
