@@ -1170,33 +1170,6 @@ async def get_results(round_id: str, current_user: dict = Depends(get_current_us
         is_tie=is_tie,
         total_voters=len(votes)
     )
-        
-        # If points are different from previous, update the rank
-        if prev_points is not None and sub_points < prev_points:
-            current_rank = i + 1
-        
-        rankings.append({
-            "submission_id": sub["id"],
-            "song": sub["song"],
-            "user_id": sub["user_id"],
-            "username": sub["username"],
-            "points": sub_points,
-            "rank": current_rank
-        })
-        prev_points = sub_points
-    
-    # Find all winners (those with rank 1)
-    winners = [r for r in rankings if r["rank"] == 1]
-    is_tie = len(winners) > 1
-    
-    return RoundResultResponse(
-        id=str(uuid.uuid4()),
-        round_id=round_id,
-        rankings=rankings,
-        winners=winners,
-        is_tie=is_tie,
-        total_voters=len(votes)
-    )
 
 # ==================== SONG SEARCH (DEEZER PROXY) ====================
 
