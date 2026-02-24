@@ -967,10 +967,25 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    gap: 16,
   },
   errorText: {
     fontSize: 16,
     color: 'rgba(141, 161, 155, 0.8)',
+    textAlign: 'center',
+    marginTop: 12,
+  },
+  retryButton: {
+    backgroundColor: '#B8C5B0',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  retryButtonText: {
+    color: '#212F36',
+    fontWeight: '600',
+    fontSize: 16,
   },
   header: {
     flexDirection: 'row',
