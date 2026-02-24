@@ -590,13 +590,13 @@ export default function RoundScreen() {
       )}
 
       {/* Progress Indicator */}
-      {round.status !== 'completed' && (
+      {round.status !== 'completed' && round.total_members !== undefined && (
         <View style={styles.progressContainer}>
           <Ionicons name="people" size={16} color="#888" />
           <Text style={styles.progressText}>
             {round.status === 'submission' 
-              ? `${round.submissions_count}/${round.total_members} submitted`
-              : `${round.votes_count || 0}/${round.total_members} voted`
+              ? `${round.submissions_count ?? 0}/${round.total_members} submitted`
+              : `${round.votes_count ?? 0}/${round.total_members} voted`
             }
           </Text>
         </View>
