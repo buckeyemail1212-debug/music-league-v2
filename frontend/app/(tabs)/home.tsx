@@ -222,9 +222,25 @@ export default function HomeScreen() {
         )}
 
         <View style={styles.leagueStats}>
-          <View style={styles.stat}>
-            <Ionicons name="people" size={16} color="rgba(141, 161, 155, 0.8)" />
-            <Text style={styles.statText}>{item.members.length} members</Text>
+          <View style={styles.memberAvatarsContainer}>
+            {item.members.slice(0, 4).map((member, index) => (
+              <View 
+                key={member.id} 
+                style={[
+                  styles.memberAvatar,
+                  { marginLeft: index > 0 ? -10 : 0, zIndex: 4 - index }
+                ]}
+              >
+                <Text style={styles.memberAvatarText}>
+                  {member.username.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            ))}
+            {item.members.length > 4 && (
+              <View style={[styles.memberAvatar, styles.memberAvatarMore, { marginLeft: -10, zIndex: 0 }]}>
+                <Text style={styles.memberAvatarMoreText}>+{item.members.length - 4}</Text>
+              </View>
+            )}
           </View>
           <View style={styles.codeContainer}>
             <Text style={styles.codeLabel}>Code:</Text>
