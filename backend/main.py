@@ -759,7 +759,7 @@ async def get_round(round_id: str, current_user: dict = Depends(get_current_user
         round_doc["status"] = status
         round_doc["voting_deadline"] = new_voting_deadline
         
-    elif status == "voting" and round_doc["voting_deadline"] < now:
+    elif status == "voting" and voting_deadline < now:
         # Auto-lock all unlocked votes and complete round
         await db.votes.update_many(
             {"round_id": round_id, "locked": {"$ne": True}},
