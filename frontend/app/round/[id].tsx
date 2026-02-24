@@ -787,7 +787,7 @@ export default function RoundScreen() {
               autoFocus
               autoComplete="off"
               autoCorrect={false}
-              textContentType="none"
+              textContentType="oneTimeCode"
               importantForAutofill="no"
               spellCheck={false}
             />

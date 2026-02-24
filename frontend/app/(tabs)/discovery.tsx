@@ -186,7 +186,7 @@ export default function DiscoveryScreen() {
           onChangeText={handleSearch}
           autoComplete="off"
           autoCorrect={false}
-          textContentType="none"
+          textContentType="oneTimeCode"
           importantForAutofill="no"
           spellCheck={false}
         />
