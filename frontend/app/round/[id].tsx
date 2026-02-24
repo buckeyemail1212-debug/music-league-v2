@@ -1343,9 +1343,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 16,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#1a1a1a',
+    minHeight: 56,
   },
   modalTitle: {
     fontSize: 18,
