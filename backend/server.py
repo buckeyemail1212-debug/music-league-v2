@@ -151,6 +151,7 @@ class RoundResponse(BaseModel):
     has_user_submitted: bool
     has_user_voted: bool
     user_vote_locked: bool  # Whether user's vote is locked
+    user_submission_locked: bool = False  # Whether user's submission is locked
     created_at: datetime
     
     class Config:
