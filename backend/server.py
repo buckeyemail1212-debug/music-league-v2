@@ -112,6 +112,7 @@ class SongData(BaseModel):
 
 class SubmitSongRequest(BaseModel):
     song: SongData
+    locked: bool = False  # If true, submission is final
 
 class SubmissionResponse(BaseModel):
     id: str
@@ -119,6 +120,7 @@ class SubmissionResponse(BaseModel):
     user_id: str
     username: str
     song: SongData
+    locked: bool = False
     submitted_at: datetime
 
 class VoteRequest(BaseModel):
