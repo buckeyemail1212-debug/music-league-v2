@@ -385,6 +385,24 @@ export default function LeagueDetailScreen() {
     );
   };
 
+  const handleShareLeagueCode = async () => {
+    if (!league) return;
+    
+    const deepLink = Linking.createURL(`/join/${league.league_code}`);
+    const message = `Join my Music League "${league.name}"!\n\nCode: ${league.league_code}\n\nOr click this link: ${deepLink}`;
+    
+    try {
+      await Share.share({
+        message: message,
+        title: `Join ${league.name}`,
+      });
+    } catch (error) {
+      // If share fails, just copy to clipboard
+      await Clipboard.setStringAsync(league.league_code);
+      Alert.alert('Copied!', 'League code copied to clipboard');
+    }
+  };
+
   const isCreator = league?.creator_id === user?.id;
   const activeRound = rounds.find(r => r.status !== 'completed');
 
