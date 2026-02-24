@@ -628,12 +628,13 @@ async def get_rounds(league_id: str, current_user: dict = Depends(get_current_us
     ]
     votes_counts = {doc["_id"]: doc["count"] async for doc in db.votes.aggregate(votes_pipeline)}
     
-    # Batch fetch user's submissions
+    # Batch fetch user's submissions with locked status
     user_submissions = await db.submissions.find(
         {"round_id": {"$in": round_ids}, "user_id": current_user["id"]},
-        {"_id": 0, "round_id": 1}
+        {"_id": 0, "round_id": 1, "locked": 1}
     ).to_list(100)
     user_submitted_rounds = {s["round_id"] for s in user_submissions}
+    user_submissions_map = {s["round_id"]: s.get("locked", False) for s in user_submissions}
     
     # Batch fetch user's votes
     user_votes = await db.votes.find(
@@ -643,8 +644,42 @@ async def get_rounds(league_id: str, current_user: dict = Depends(get_current_us
     user_votes_map = {v["round_id"]: v.get("locked", False) for v in user_votes}
     
     result = []
+    now = datetime.now(timezone.utc)
+    
     for round_doc in rounds:
         round_id = round_doc["id"]
+        status = round_doc["status"]
+        
+        # Auto-advance logic: check if deadline passed
+        if status == "submission" and round_doc["submission_deadline"] < now:
+            # Auto-lock all unlocked submissions and advance to voting
+            await db.submissions.update_many(
+                {"round_id": round_id, "locked": {"$ne": True}},
+                {"$set": {"locked": True}}
+            )
+            voting_hours = round_doc.get("voting_hours", 24)
+            new_voting_deadline = now + timedelta(hours=voting_hours)
+            await db.rounds.update_one(
+                {"id": round_id},
+                {"$set": {"status": "voting", "voting_deadline": new_voting_deadline}}
+            )
+            status = "voting"
+            round_doc["status"] = status
+            round_doc["voting_deadline"] = new_voting_deadline
+            
+        elif status == "voting" and round_doc["voting_deadline"] < now:
+            # Auto-lock all unlocked votes and complete round
+            await db.votes.update_many(
+                {"round_id": round_id, "locked": {"$ne": True}},
+                {"$set": {"locked": True}}
+            )
+            await db.rounds.update_one(
+                {"id": round_id},
+                {"$set": {"status": "completed"}}
+            )
+            status = "completed"
+            round_doc["status"] = status
+        
         result.append(RoundResponse(
             **round_doc,
             submissions_count=submissions_counts.get(round_id, 0),
@@ -652,7 +687,8 @@ async def get_rounds(league_id: str, current_user: dict = Depends(get_current_us
             total_members=total_members,
             has_user_submitted=round_id in user_submitted_rounds,
             has_user_voted=round_id in user_votes_map,
-            user_vote_locked=user_votes_map.get(round_id, False)
+            user_vote_locked=user_votes_map.get(round_id, False),
+            user_submission_locked=user_submissions_map.get(round_id, False)
         ))
     
     return result
