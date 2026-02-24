@@ -451,6 +451,18 @@ def add_league_defaults(league: dict) -> dict:
 @api_router.get("/leagues", response_model=List[LeagueResponse])
 async def get_user_leagues(current_user: dict = Depends(get_current_user)):
     leagues = await db.leagues.find({"members.id": current_user["id"]}).to_list(100)
+    
+    # Fetch profile photos for all members
+    for league in leagues:
+        member_ids = [m["id"] for m in league.get("members", [])]
+        users = await db.users.find({"id": {"$in": member_ids}}, {"_id": 0, "id": 1, "username": 1, "profile_photo": 1}).to_list(100)
+        user_map = {u["id"]: u for u in users}
+        
+        # Update members with profile photos
+        for member in league.get("members", []):
+            user_data = user_map.get(member["id"], {})
+            member["profile_photo"] = user_data.get("profile_photo")
+    
     return [LeagueResponse(**add_league_defaults(league)) for league in leagues]
 
 @api_router.get("/leagues/{league_id}", response_model=LeagueResponse)
@@ -463,6 +475,16 @@ async def get_league(league_id: str, current_user: dict = Depends(get_current_us
     is_member = any(m["id"] == current_user["id"] for m in league["members"])
     if not is_member:
         raise HTTPException(status_code=403, detail="You are not a member of this league")
+    
+    # Fetch profile photos for all members
+    member_ids = [m["id"] for m in league.get("members", [])]
+    users = await db.users.find({"id": {"$in": member_ids}}, {"_id": 0, "id": 1, "username": 1, "profile_photo": 1}).to_list(100)
+    user_map = {u["id"]: u for u in users}
+    
+    # Update members with profile photos
+    for member in league.get("members", []):
+        user_data = user_map.get(member["id"], {})
+        member["profile_photo"] = user_data.get("profile_photo")
     
     return LeagueResponse(**add_league_defaults(league))
 
