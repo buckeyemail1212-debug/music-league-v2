@@ -22,7 +22,7 @@ A "fantasy sports for music" app where users join leagues, submit songs to round
 - **Authentication**: JWT with secret key from environment variable
 
 ## Deployment Status
-- **Backend**: Running on Emergent preview server (https://fantasy-music-app.preview.emergentagent.com)
+- **Backend**: Running on Emergent preview server (https://vote-and-play.preview.emergentagent.com)
 - **Frontend**: Published to Expo (https://expo.dev/accounts/puchalski.12/projects/music-league)
 - **QR Code**: Permanent QR code available for sharing via Expo Go app
 

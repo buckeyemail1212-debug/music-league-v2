@@ -1,168 +1,254 @@
 <analysis>**original_problem_statement:**
-Create a mobile app called Music League. It has three pages: home, discovery, and profile. Users sign in to create or join leagues.
+The user wants to build a mobile app called Music League, a fantasy sports for music game. Users join leagues, submit songs to themed rounds, and vote on submissions. The app is built with Expo (React Native) and FastAPI.
 
-**PRODUCT REQUIREMENTS (based on user requests):**
-- **Core Feature**: A fantasy sports for music app where users join leagues, submit songs to rounds based on a theme, and vote on each other's submissions.
-- **Authentication**: JWT-based custom auth. Autofill and strong password suggestions should be disabled across all text inputs in the app to prevent UI glitches.
-- **Song Search**: Use Deezer API for song search and 30-second previews. Song previews must stop playing if the user navigates away from the screen.
-- **Leagues**:
-    - **Creation/Joining**: Users can create leagues (, ) or join with a code.
-    - **League Chat**: Each league has a persistent chat board.
-- **Rounds**:
-    - **Phases & Timers**: Rounds progress through Submission, Voting, and Results phases.
-    - **Submission Phase**: Users submit one song.
-    - **Voting Phase**: Users rank all songs except their own.
+**PRODUCT REQUIREMENTS:**
+- **Core Gameplay**: Users create/join leagues. Leagues have multiple rounds with a specific theme. Rounds cycle through Submission, Voting, and Results phases on timers. Users submit one song per round and vote on others' submissions.
+- **Authentication**: JWT-based custom auth. A key requirement is to disable browser/OS autofill and strong password suggestions on all inputs to prevent a UI bug where the input background turns yellow/gold.
+- **Song Search**: Use the Deezer API for song search and 30-second previews.
+- **Leagues & Rounds**:
+    - Leagues can be joined via a code, but joining must be locked after the first round starts. A warning must be shown to the creator.
+    - Rounds must automatically advance to the next phase (e.g., Submission to Voting) when their timer expires, even if not all users have participated.
+    - Submissions and votes should be automatically locked in when the timer runs out.
+- **Submission & Voting**:
+    - During the submission phase, users should only see their own submitted song, not others'.
+    - A Lock It In feature should be added for song submissions, similar to the existing one for voting, allowing users to change their song before locking.
 - **Results & Standings**:
-    - **Round Results**: Displays the ranked list of songs, correctly handling ties.
-    - **Cumulative Standings**: A cumulative leaderboard, correctly handling ties.
-    - **Shareable Results Card**: A Share button generates a shareable image of the final results.
-- **Profile Page**:
-    - Users can add a profile photo that persists across sessions.
-- **UI/UX Overhaul (Neutral Blue/Slate Palette)**:
-    - A specific color palette (, , , , ) should be used consistently.
-    - All UI elements, including buttons, text, icons, and backgrounds, must adhere to this theme and be clearly visible.
+    - A new voting system is required: Voters have a 100-point pool to distribute. The final score for a song is the mean of all points it received. Ties are broken by the lower standard deviation.
+- **UI/UX**:
+    - Implement a specific Neutral Blue/Slate color palette.
+    - Fix the X button on the song search modal being too high and unclickable.
+    - Ensure the play button color for song previews is consistent across all screens.
+    - **Home Page**:
+        - Show stacked member avatars (actual profile photos, not icons) for each league, displaying up to 4 and then a +X for more.
+        - Add a subtitle showing the number of active rounds.
+        - Display the user's circular profile image in the top-right corner.
+    - **Data Persistence**: Users should not be logged out due to inactivity.
+    - **Sharing**: The league code should be tappable to generate and share a deep link.
 
 **User's preferred language**: English
 
 **what currently exists?**
-A full-stack Expo (React Native) and FastAPI application. The core features are implemented. The agent has performed multiple iterations of UI fixes to align the application with the user's specified Neutral Blue/Slate color palette. Most recently, the agent addressed several deployment readiness blockers found by a health check, including adding a JWT secret key, creating a  file, and optimizing database queries.
+A full-stack Expo (React Native) + FastAPI application. The application is fully deployed and intended to be always-on. The frontend is published on Expo, and the backend and MongoDB database are hosted on Railway. The agent has guided the user through the entire local setup and deployment process. Most of the user's feature requests and bug fixes have been implemented in the code. However, a critical crash is preventing the user from verifying the fixes.
 
 **Last working item**:
-- Last item agent was working: Fixing deployment readiness blockers identified by the . This involved creating a  file, adding a  to the backend  file and updating  to use it, and adding  projections to MongoDB queries to fix N+1 issues.
+- Last item agent was working: Debugging a critical, recurring frontend crash that occurs immediately after a user creates a league and starts the first round. The error message is .
 - Status: IN PROGRESS
-- Agent Testing Done: Y
-- Which testing method agent to use? The agent verified the backend was running via  after the fixes. The next step is to call the  for a new health check.
-- User Testing Done: N
+- Agent Testing Done: N
+- Which testing method agent to use? Frontend testing agent. The agent has confirmed via  that the backend endpoints work in isolation, but the app crashes. This points to a data contract issue or state management problem on the frontend. The test should focus on the league detail screen after a round is created.
+- User Testing Done: Y (The user is the one reporting the crash).
 
 **All Pending/In progress Issue list**:
-- **Issue 1: User cannot see applied UI changes on their device (P0)**
-- **Issue 2: Verify that deployment readiness blockers are resolved (P1)**
+- **Issue 1: App crashes when starting a round (P0)**
 
 Issues Detail:
 - **Issue 1**:
-    - **Description**: The user has twice reported This did nothing after the agent applied extensive UI color fixes to the login/register screens and other components. The agent has confirmed the code changes were saved to the files, but the user's Expo Go app is likely showing a cached, outdated version. This is the highest priority blocker as no frontend progress can be verified by the user.
-    - **Attempted fixes**: The agent correctly identified this as a probable client-side caching issue. It has restarted the Expo server, cleared the Expo cache ([17:56:42] Starting project at /app/frontend), and instructed the user to fully close and reopen the Expo Go app on their device.
+    - **Description**: The app crashes on the league detail screen () right after the first round is created. The error  suggests that the frontend component is trying to access a  property on a  object that is either undefined or doesn't have that property at that moment.
+    - **Attempted fixes**: The agent confirmed the backend () works via . The agent was starting to investigate the frontend code in  when the session ended.
     - **Next debug checklist**:
-        1.  First, ask the user to confirm they have performed a **full reload** of the app (e.g., close Expo Go from the app switcher and reopen it).
-        2.  If the issue persists, use the  tool on the login screen () to get an objective image of what the server is currently rendering. This will prove whether the changes are active on the server side.
-        3.  Re-verify that the color changes are still present in the files: , , , and .
-    - **Why fix this issue and what will be achieved with the fix?**: This resolves the communication breakdown and allows the user to see and verify all the completed UI work, unblocking further frontend development.
-    - **Status**: BLOCKED
-    - **Is recurring issue?** Y
-    - **Should Test frontend/backend/both after fix?** Frontend
-    - **Blocked on other issue**: Blocked on user action/confirmation.
-
-- **Issue 2**:
-    - **Description**: The agent fixed all blockers found during the last deployment health check. These fixes need to be validated to ensure the app is now ready for deployment.
-    - **Attempted fixes**: The agent created , added  to , updated  to use it, and added projections to database queries.
-    - **Next debug checklist**:
-        1.  Call the  tool and request another .
-        2.  Analyze the results. If any new blockers are found, prioritize fixing them.
-    - **Why fix this issue and what will be achieved with the fix?**: To confirm the application is technically ready for deployment, fulfilling the user's request.
-    - **Status**: TESTING PENDING
-    - **Is recurring issue?** N
-    - **Should Test frontend/backend/both after fix?** Backend
+        1.  Examine the data flow in . The page likely fetches league data, which includes information about the current round.
+        2.  Inspect the response from the  endpoint. What data does it return about the current round? It might only return a  instead of the full round object.
+        3.  If the backend returns an incomplete round object, the frontend () needs to be updated to handle this, either by fetching the full round details in a separate call or by displaying a loading state until the data is available.
+        4.  Alternatively, modify the backend ( endpoint in ) to embed the complete  object (including ) in the league data response. This is likely the better solution for efficiency.
+    - **Why fix this issue and what will be achieved with the fix?**: This is a P0 showstopper bug that blocks all core gameplay functionality. Fixing it will make the app usable.
+    - **Status**: IN PROGRESS
+    - **Is recurring issue?**: Y (The user has reported this multiple times and is frustrated).
+    - **Should Test frontend/backend/both after fix?** Both.
     - **Blocked on other issue**: None.
 
 **In progress Task List**:
 None.
 
 **Upcoming and Future Tasks**
-There are no outstanding future tasks. The focus is on resolving the current UI verification and deployment readiness issues.
+- **Task 1 (P0)**: Guide the user through republishing the app to Expo after the crash is fixed. This involves providing clear, step-by-step terminal commands for the user to run on their local machine.
 
 **Completed work in this session**
-- **UI Theme Corrections**:
-    - Fixed colors for the voting status badge, tab icons, loading indicators, and play buttons to match the app's theme.
-    - Removed purple colors from the UI, replacing them with theme-compliant colors (, ).
-    - Corrected text visibility on the login/register pages by changing the logo color to cream, placeholder text color to grey-green, and making the Sign Up link bold.
-- **Deployment Readiness Fixes**:
-    - Created a  file to optimize the backend container build.
-    - Added a  to  and integrated it into  to resolve a critical security vulnerability.
-    - Optimized multiple MongoDB queries in  by adding  projections to prevent  serialization errors and mitigate N+1 query patterns.
+- **Full Deployment**: Guided the user through deploying the entire application to be always on, including:
+    - Setting up a Railway project for the FastAPI backend.
+    - Provisioning and connecting a MongoDB database on Railway.
+    - Publishing the Expo frontend via  from the user's local machine.
+    - Extensive, hands-on debugging of the user's local environment (, npm <command>
+
+Usage:
+
+npm install        install all the dependencies in your project
+npm install <foo>  add the <foo> dependency to your project
+npm test           run this project's tests
+npm run <foo>      run the script named <foo>
+npm <command> -h   quick help on <command>
+npm -l             display usage info for all commands
+npm help <term>    search for help on <term>
+npm help npm       more involved overview
+
+All commands:
+
+    access, adduser, audit, bugs, cache, ci, completion,
+    config, dedupe, deprecate, diff, dist-tag, docs, doctor,
+    edit, exec, explain, explore, find-dupes, fund, get, help,
+    help-search, hook, init, install, install-ci-test,
+    install-test, link, ll, login, logout, ls, org, outdated,
+    owner, pack, ping, pkg, prefix, profile, prune, publish,
+    query, rebuild, repo, restart, root, run-script, sbom,
+    search, set, shrinkwrap, star, stars, start, stop, team,
+    test, token, uninstall, unpublish, unstar, update, version,
+    view, whoami
+
+Specify configs in the ini-formatted file:
+    /root/.npmrc
+or on the command line via: npm <command> --key=value
+
+More configuration info: npm help config
+Configuration fields: npm help 7 config
+
+npm@10.8.2 /usr/lib/node_modules/npm, usage: git [-v | --version] [-h | --help] [-C <path>] [-c <name>=<value>]
+           [--exec-path[=<path>]] [--html-path] [--man-path] [--info-path]
+           [-p | --paginate | -P | --no-pager] [--no-replace-objects] [--bare]
+           [--git-dir=<path>] [--work-tree=<path>] [--namespace=<name>]
+           [--super-prefix=<path>] [--config-env=<name>=<envvar>]
+           <command> [<args>]
+
+These are common Git commands used in various situations:
+
+start a working area (see also: git help tutorial)
+   clone     Clone a repository into a new directory
+   init      Create an empty Git repository or reinitialize an existing one
+
+work on the current change (see also: git help everyday)
+   add       Add file contents to the index
+   mv        Move or rename a file, a directory, or a symlink
+   restore   Restore working tree files
+   rm        Remove files from the working tree and from the index
+
+examine the history and state (see also: git help revisions)
+   bisect    Use binary search to find the commit that introduced a bug
+   diff      Show changes between commits, commit and working tree, etc
+   grep      Print lines matching a pattern
+   log       Show commit logs
+   show      Show various types of objects
+   status    Show the working tree status
+
+grow, mark and tweak your common history
+   branch    List, create, or delete branches
+   commit    Record changes to the repository
+   merge     Join two or more development histories together
+   rebase    Reapply commits on top of another base tip
+   reset     Reset current HEAD to the specified state
+   switch    Switch branches
+   tag       Create, list, delete or verify a tag object signed with GPG
+
+collaborate (see also: git help workflows)
+   fetch     Download objects and refs from another repository
+   pull      Fetch from and integrate with another repository or a local branch
+   push      Update remote refs along with associated objects
+
+'git help -a' and 'git help -g' list available subcommands and some
+concept guides. See 'git help <command>' or 'git help <concept>'
+to read about a specific subcommand or concept.
+See 'git help git' for an overview of the system., terminal commands).
+- **Bug Fixes**:
+    - **Autofill UI Glitch**: Disabled iOS autofill on all  components (, , , ).
+    - **Modal 'X' Button**: Fixed positioning of the close button on the song search modal in .
+    - **Play Button Color**: Standardized the play button color to  across the app.
+- **Feature Implementation**:
+    - **League Join Lock**: Backend in  now prevents users from joining a league after a round has started.
+    - **Auto-Advance/Lock**: Backend logic in  now automatically advances round phases and locks submissions/votes when deadlines expire.
+    - **Submission Locking**: Added a Lock It In feature for song submissions in .
+    - **Hide Submissions**: Submission list in  now only shows the current user's song.
+    - **New Voting Logic**: Re-implemented the results calculation in  with a 100-point pool, mean scores, and standard deviation for tie-breaking.
+    - **Home Page UI Overhaul**: Updated  with stacked member avatars (using profile photos), an active rounds count, and a profile image header button.
+    - **Shareable Links**: Made the league code in  tappable to share a deep link.
+    - **Database Reset**: Guided the user on how to clear their Railway MongoDB to start with fresh data.
 
 **Earlier issues found/mentioned but not fixed**
-None.
+None. All other reported issues were addressed, but the current crash prevents user verification.
 
 **Known issue recurrence from previous fork**
-None.
+- **Issue recurrence in this fork**: The  crash has been reported multiple times by the user in this session.
+- **Recurrence count**: 5+
+- **Status**: IN PROGRESS
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-- **Frontend**: React Native, Expo, Expo Router, TypeScript.
-- **Backend**: FastAPI, Python, Pydantic.
-- **Database**: MongoDB (via  async driver).
-- **Authentication**: JWT stored in AsyncStorage, with the secret key now managed via a  environment variable.
-- **Deployment**: Relies on a health check that looks for  files, environment variable secrets, and database performance issues.
+- **Frontend**: React Native, Expo, Expo Router, TypeScript
+- **Backend**: FastAPI, Python
+- **Database**: MongoDB (via  async driver)
+- **Deployment**:
+    - **Backend**: Hosted on Railway, auto-deploys on .
+    - **Frontend**: Published to Expo via  run from the user's local machine.
+- **Workflow**: The agent modifies the code, saves it to GitHub, and then guides the user through terminal commands to download the code and publish the frontend update. This workflow is critical to remember.
 
 **key DB schema**
-- **users**: 
 - **leagues**: 
-- **rounds**: 
 - **submissions**: 
-- **votes**: 
-- **messages**: 
+- **users**: 
 
 **changes in tech stack**
-None in this session.
+- Backend and database are now permanently hosted on Railway, independent of the Emergent environment.
+- Backend entrypoint file was renamed from  to  to work with Railway's build process.
 
 **All files of reference**
-- : Updated for UI color/visibility fixes.
-- : Updated for UI color/visibility fixes.
-- : Updated tab icon colors.
-- : Updated various component colors (status badge, buttons).
-- : Updated various component colors (buttons, loading indicators).
-- : Updated to use  from  and added  projections to DB queries.
-- : Added .
-- : Created.
+- : Contains all backend logic. Was updated extensively for new features and bug fixes.
+- : **This is the file where the current crash is happening.** It was also updated to add a warning and a shareable link feature.
+- : Updated with major UI changes (stacked avatars, etc.).
+- : Updated to add submission locking and hide other submissions.
+- : Hardcoded with the new Railway backend URL.
+- : Hardcoded with the new Railway backend URL and updated with new API types.
 
-**Areas that need refactoring**:
-- The backend  is monolithic and could be split into routers, models, and services.
-- Frontend files  and  remain very large and could benefit from custom hooks to extract logic and state.
+**Areas that need refactoring**
+- The backend URL is hardcoded in  and . This was a quick fix to help the user. The correct approach is to use an  file, and the user must be instructed to create this file locally before publishing.
+-  is a monolithic file containing all routes, models, and logic.
+-  and  are very large component files.
 
 **key api endpoints**
-- 
-- 
-- 
-- 
+- : Create a new league.
+- : Get league details. **(Likely source of the crash data issue)**.
+- : Start a new round.
+- : Get round results (with new voting logic).
 
 **Critical Info for New Agent**
-- **The user cannot see your changes.** This is the most critical problem. Do not assume your frontend changes are visible. Your first action should be to address this discrepancy by guiding the user to force-reload their app and using the  tool to provide objective proof of the current UI from the server's perspective.
-- **Verify deployment fixes.** After unblocking the UI issue, your next task is to re-run the 's  to confirm the previous fixes were successful.
-- **Do not perform more UI work until the user confirms they can see the existing changes.** Avoid the loop of implementing fixes that the user cannot see.
+- **You are a guide.** Your primary role is to fix the code and then provide the user with precise, step-by-step terminal commands (, , , An Expo user account is required to proceed.
+
+Log in to EAS with email or username (exit and run eas login --help to see other login options)
+Input is required, but stdin is not readable. Failed to display prompt: Email or username) to publish the frontend update from their Mac. The backend auto-deploys to Railway from GitHub. Do not assume you can test the frontend yourself; the user is the final tester.
+- **The user is frustrated.** The current crash has been reported multiple times. Be direct, empathetic, and prioritize fixing this bug above all else.
+- **Permanent Deployment**: The application is live and independent of Emergent.
+    - **Backend URL**:  (This is hardcoded).
+    - **Expo Project ID**: .
+- **The Crash**: The P0 bug is . Your first action must be to investigate and fix this.
 
 **documents and test reports created in this job**
--  was updated.
+None.
 
 **Last 10 User Messages and any pending HUMAN messages**
-- **User**: Once it’s deployed, does the QR code stay active longer (A question, not a task)
-- **User**: Call Deployer Agent and Run Health Check... (Task - initiated deployment fixes)
-- **User**: This did nothing (Feedback - reported login screen UI changes were not visible)
-- **User**: The text on the username and password isn’t really visible... (Task - request for login screen UI fixes)
-- **User**: That did nothing (Feedback - reported earlier UI changes were not visible)
-- **User**: fix the voting yellow to match a cream and blue text... (Task - request for more UI fixes)
-- **User**: UI color fixes please (Task - initial request to start fixing UI)
-
-The primary pending issue is that the user cannot see any of the UI changes that the agent has implemented, likely due to a caching issue on the user's device with Expo Go.
+1.  **User**: Reports the round creation error for the 5th time with a screenshot showing the . (UNRESOLVED)
+2.  **User**: Asks why the 1-member league failed before. (ANSWERED - old data)
+3.  **User**: Asks if they have to unzip the new code again or if it's automatic. (ANSWERED - must re-download)
+4.  **User**: Provides a screenshot of their local folder, showing  in the name. (ADDRESSED)
+5.  **User**: Asks if all previous feature requests are included in the new update. (ANSWERED - yes)
+6.  **User**: Confirms they cleared the database. (ACKNOWLEDGED)
+7.  **User**: Reports an error and asks for the code to be reset and the database cleared. (ADDRESSED)
+8.  **User**: Asks how to re-upload the app to their computer to get fixes. (ANSWERED)
+9.  **User**: Reports song search is not working and wants other music APIs. (ADDRESSED - explained Deezer is used, fixed Railway network issue)
+10. **User**: Confirms the app is published but reports multiple new bugs (song search, league creation error, member avatars). (PARTIALLY ADDRESSED)
 
 **Project Health Check:**
-- **Broken**: No, but there is a major discrepancy between the agent's implemented state and the user's perceived state of the frontend.
+- **Broken**: Yes. The app is unusable due to a critical crash on a core feature (starting a round).
 - **Mocked**: None.
 
 **3rd Party Integrations**
-- Deezer API (Song search/preview)
--  & 
-- 
+- **Deezer API**: For song search and previews.
+- **Expo**: For React Native development and frontend publishing.
+- **Railway**: For hosting the FastAPI backend and MongoDB database.
 
 **Testing status**
 - Testing agent used after significant changes: NO
 - Troubleshoot agent used after agent stuck in loop: NO
 - Test files created: None
-- Known regressions: The user is unable to see any new frontend changes, which could be considered a regression in the development feedback loop.
+- Known regressions: Core gameplay loop (creating a league and starting a round) is critically broken.
 
 **Credentials to test flow:**
-New users can be created via the in-app sign-up flow.
+New users can be registered directly in the app. The database can be cleared on Railway if a fresh start is needed.
 
 **What agent forgot to execute**
-The agent did not use the  tool to independently verify its own UI changes after the user reported them as not working. This would have provided objective evidence to help debug the caching issue more effectively.</analysis>
+The agent repeatedly tested backend endpoints in isolation with , confirming they worked. However, it failed to diagnose that the data being passed to the frontend on a specific screen () was incomplete, causing the crash. The agent should have traced the entire data flow for the crashing screen, not just the individual API calls.</analysis>
