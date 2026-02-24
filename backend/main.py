@@ -1133,13 +1133,13 @@ async def search_songs(q: str, limit: int = 20):
     if not q or len(q) < 2:
         return {"data": []}
     
-    async with httpx.AsyncClient() as client:
-        try:
+    try:
+        async with httpx.AsyncClient(verify=False, timeout=30.0) as client:
             response = await client.get(
-                f"https://api.deezer.com/search",
-                params={"q": q, "limit": limit},
-                timeout=10.0
+                "https://api.deezer.com/search",
+                params={"q": q, "limit": limit}
             )
+            response.raise_for_status()
             data = response.json()
             
             # Transform Deezer response to our format
@@ -1156,9 +1156,15 @@ async def search_songs(q: str, limit: int = 20):
                 })
             
             return {"data": songs}
-        except Exception as e:
-            logger.error(f"Deezer API error: {e}")
-            raise HTTPException(status_code=500, detail="Failed to search songs")
+    except httpx.TimeoutException:
+        logger.error("Deezer API timeout")
+        raise HTTPException(status_code=504, detail="Song search timed out. Please try again.")
+    except httpx.HTTPError as e:
+        logger.error(f"Deezer HTTP error: {e}")
+        raise HTTPException(status_code=502, detail="Could not connect to song service")
+    except Exception as e:
+        logger.error(f"Deezer API error: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to search songs: {type(e).__name__}")
 
 # ==================== CHAT ENDPOINTS ====================
 
