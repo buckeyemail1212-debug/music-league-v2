@@ -172,7 +172,7 @@ export default function RoundScreen() {
       setRound(roundRes.data);
 
       if (roundRes.data.status !== 'completed') {
-        const subsRes = await getSubmissions(id!);
+        const subsRes = await getSubmissions(id);
         setSubmissions(subsRes.data);
         
         // Handle voting phase
@@ -186,7 +186,7 @@ export default function RoundScreen() {
             // Try to get existing vote rankings
             try {
               const { getMyVote } = await import('../../src/services/api');
-              const voteRes = await getMyVote(id!);
+              const voteRes = await getMyVote(id);
               setRankings(voteRes.data.rankings);
             } catch {
               // If can't get vote, use current order
@@ -199,12 +199,12 @@ export default function RoundScreen() {
           }
         }
       } else {
-        const resultsRes = await getResults(id!);
+        const resultsRes = await getResults(id);
         setResults(resultsRes.data);
       }
     } catch (error: any) {
       console.error('Failed to fetch round:', error);
-      Alert.alert('Error', 'Failed to load round details');
+      setError('Failed to load round details');
     } finally {
       setLoading(false);
     }
