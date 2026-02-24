@@ -250,7 +250,25 @@ export default function HomeScreen() {
         <View>
           <Text style={styles.greeting}>Welcome back,</Text>
           <Text style={styles.username}>{user?.username}</Text>
+          <Text style={styles.activeRoundsSubtitle}>
+            {Object.values(activeRounds).filter(r => r !== null).length} active round{Object.values(activeRounds).filter(r => r !== null).length !== 1 ? 's' : ''}
+          </Text>
         </View>
+        <TouchableOpacity 
+          style={styles.profileImageContainer}
+          onPress={() => router.push('/(tabs)/profile')}
+        >
+          {user?.profile_photo ? (
+            <Image 
+              source={{ uri: user.profile_photo }} 
+              style={styles.profileImage}
+            />
+          ) : (
+            <View style={styles.profileImagePlaceholder}>
+              <Ionicons name="person" size={20} color="#8DA19B" />
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
       <View style={styles.actionButtons}>
