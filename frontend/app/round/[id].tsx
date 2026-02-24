@@ -619,27 +619,68 @@ export default function RoundScreen() {
             </>
           ) : (
             <>
-              <View style={styles.submittedBanner}>
-                <Ionicons name="checkmark-circle" size={24} color="#fff" />
-                <Text style={styles.submittedText}>You've submitted your song!</Text>
-              </View>
+              {round.user_submission_locked ? (
+                <View style={styles.lockedBanner}>
+                  <Ionicons name="lock-closed" size={24} color="#fff" />
+                  <Text style={styles.lockedText}>Your submission is locked in!</Text>
+                </View>
+              ) : (
+                <View style={styles.submittedBanner}>
+                  <Ionicons name="checkmark-circle" size={24} color="#fff" />
+                  <Text style={styles.submittedText}>Song submitted! You can still change it.</Text>
+                </View>
+              )}
 
-              <Text style={styles.sectionTitle}>Submissions ({submissions.length})</Text>
-              <FlatList
-                data={submissions}
-                keyExtractor={(item) => item.id}
-                renderItem={renderSubmissionItem}
-                contentContainerStyle={styles.listContent}
-                refreshControl={
-                  <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#B8C5B0" />
-                }
-                ListEmptyComponent={
-                  <View style={styles.emptyState}>
-                    <Ionicons name="musical-notes" size={40} color="#333" />
-                    <Text style={styles.emptyText}>No submissions yet</Text>
+              {/* Show user's own submission */}
+              <Text style={styles.sectionTitle}>Your Submission</Text>
+              {submissions.filter(s => s.user_id === user?.id).map((sub) => (
+                <View key={sub.id} style={styles.userSubmissionCard}>
+                  <Image source={{ uri: sub.song.cover_url }} style={styles.albumCover} />
+                  <View style={styles.songInfo}>
+                    <Text style={styles.songTitle} numberOfLines={1}>{sub.song.title}</Text>
+                    <Text style={styles.songArtist} numberOfLines={1}>{sub.song.artist}</Text>
                   </View>
-                }
-              />
+                  <TouchableOpacity
+                    style={styles.playButton}
+                    onPress={() => playPreview(sub.song)}
+                  >
+                    <Ionicons 
+                      name={playingSongId === sub.song.deezer_id ? 'pause' : 'play'} 
+                      size={20} 
+                      color="#212F36" 
+                    />
+                  </TouchableOpacity>
+                </View>
+              ))}
+
+              {/* Lock/Change buttons */}
+              {!round.user_submission_locked && (
+                <View style={styles.submissionButtons}>
+                  <TouchableOpacity
+                    style={styles.changeSongButton}
+                    onPress={() => setShowSongModal(true)}
+                  >
+                    <Ionicons name="swap-horizontal" size={20} color="#F9FCF2" />
+                    <Text style={styles.changeSongText}>Change Song</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.lockSubmissionButton}
+                    onPress={handleLockSubmission}
+                    disabled={submitting}
+                  >
+                    <Ionicons name="lock-closed" size={20} color="#212F36" />
+                    <Text style={styles.lockSubmissionText}>Lock It In</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* Show submission count but not actual songs */}
+              <View style={styles.otherSubmissionsInfo}>
+                <Ionicons name="people" size={20} color="#8DA19B" />
+                <Text style={styles.otherSubmissionsText}>
+                  {round.submissions_count - 1} other{round.submissions_count - 1 !== 1 ? 's have' : ' has'} submitted
+                </Text>
+              </View>
             </>
           )}
         </>
