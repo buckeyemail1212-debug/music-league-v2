@@ -717,7 +717,7 @@ async def get_rounds(league_id: str, current_user: dict = Depends(get_current_us
 
 @api_router.get("/rounds/{round_id}", response_model=RoundResponse)
 async def get_round(round_id: str, current_user: dict = Depends(get_current_user)):
-    round_doc = await db.rounds.find_one({"id": round_id})
+    round_doc = await db.rounds.find_one({"id": round_id}, {"_id": 0})
     if not round_doc:
         raise HTTPException(status_code=404, detail="Round not found")
     
