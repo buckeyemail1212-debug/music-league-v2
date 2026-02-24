@@ -275,7 +275,7 @@ export default function HomeScreen() {
           <Text style={styles.greeting}>Welcome back,</Text>
           <Text style={styles.username}>{user?.username}</Text>
           <Text style={styles.activeRoundsSubtitle}>
-            {Object.values(activeRounds).filter(r => r !== null).length} active round{Object.values(activeRounds).filter(r => r !== null).length !== 1 ? 's' : ''}
+            {leagues.length} active league{leagues.length !== 1 ? 's' : ''}
           </Text>
         </View>
         <TouchableOpacity 
