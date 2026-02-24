@@ -58,6 +58,7 @@ export interface Round {
   has_user_submitted: boolean;
   has_user_voted: boolean;
   user_vote_locked: boolean;
+  user_submission_locked: boolean;
   created_at: string;
 }
 
@@ -67,6 +68,7 @@ export interface Submission {
   user_id: string;
   username: string;
   song: Song;
+  locked: boolean;
   submitted_at: string;
 }
 
