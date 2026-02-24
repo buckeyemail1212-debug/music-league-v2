@@ -480,6 +480,32 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#F9FCF2',
   },
+  activeRoundsSubtitle: {
+    fontSize: 13,
+    color: '#B8C5B0',
+    marginTop: 4,
+  },
+  profileImageContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    overflow: 'hidden',
+  },
+  profileImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  profileImagePlaceholder: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#4A6070',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#5A7080',
+  },
   actionButtons: {
     flexDirection: 'row',
     paddingHorizontal: 20,
