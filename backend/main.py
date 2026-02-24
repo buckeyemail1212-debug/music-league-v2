@@ -681,7 +681,10 @@ async def get_rounds(league_id: str, current_user: dict = Depends(get_current_us
         status = round_doc["status"]
         
         # Auto-advance logic: check if deadline passed
-        if status == "submission" and round_doc["submission_deadline"] < now:
+        submission_deadline = ensure_utc(round_doc.get("submission_deadline"))
+        voting_deadline_dt = ensure_utc(round_doc.get("voting_deadline"))
+        
+        if status == "submission" and submission_deadline < now:
             # Auto-lock all unlocked submissions and advance to voting
             await db.submissions.update_many(
                 {"round_id": round_id, "locked": {"$ne": True}},
@@ -697,7 +700,7 @@ async def get_rounds(league_id: str, current_user: dict = Depends(get_current_us
             round_doc["status"] = status
             round_doc["voting_deadline"] = new_voting_deadline
             
-        elif status == "voting" and round_doc["voting_deadline"] < now:
+        elif status == "voting" and voting_deadline_dt < now:
             # Auto-lock all unlocked votes and complete round
             await db.votes.update_many(
                 {"round_id": round_id, "locked": {"$ne": True}},
