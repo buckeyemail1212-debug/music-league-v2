@@ -1065,6 +1065,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'rgba(141, 161, 155, 0.8)',
   },
+  codeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   codeValue: {
     fontSize: 24,
     fontWeight: 'bold',
