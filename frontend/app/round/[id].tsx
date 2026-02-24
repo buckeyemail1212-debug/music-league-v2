@@ -570,11 +570,26 @@ export default function RoundScreen() {
     );
   }
 
-  if (!round) {
+  if (error || !round) {
     return (
       <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <View style={styles.headerInfo}>
+            <Text style={styles.roundTitle}>Error</Text>
+          </View>
+        </View>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Round not found</Text>
+          <Ionicons name="alert-circle" size={48} color="#ef4444" />
+          <Text style={styles.errorText}>{error || 'Round not found'}</Text>
+          <TouchableOpacity 
+            style={styles.retryButton} 
+            onPress={() => fetchData()}
+          >
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
