@@ -231,9 +231,16 @@ export default function HomeScreen() {
                   { marginLeft: index > 0 ? -10 : 0, zIndex: 4 - index }
                 ]}
               >
-                <Text style={styles.memberAvatarText}>
-                  {member.username.charAt(0).toUpperCase()}
-                </Text>
+                {member.profile_photo ? (
+                  <Image 
+                    source={{ uri: member.profile_photo }} 
+                    style={styles.memberAvatarImage}
+                  />
+                ) : (
+                  <Text style={styles.memberAvatarText}>
+                    {member.username.charAt(0).toUpperCase()}
+                  </Text>
+                )}
               </View>
             ))}
             {item.members.length > 4 && (
