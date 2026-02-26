@@ -211,7 +211,7 @@ export default function DiscoveryScreen() {
         />
       ) : query.length >= 2 ? (
         <View style={styles.emptyState}>
-          <Ionicons name="musical-note" size={60} color="#333" />
+          <Ionicons name="musical-note" size={60} color="#B8C5B0" />
           <Text style={styles.emptyText}>No songs found</Text>
         </View>
       ) : (
