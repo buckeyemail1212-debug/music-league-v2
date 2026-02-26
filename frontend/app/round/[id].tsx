@@ -1365,7 +1365,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: '#B8C5B0',
     paddingVertical: 14,
     borderRadius: 12,
     gap: 8,
@@ -1373,7 +1373,7 @@ const styles = StyleSheet.create({
   lockVoteText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#000',
+    color: '#212F36',
   },
   lockedRankingsContainer: {
     marginTop: 16,
