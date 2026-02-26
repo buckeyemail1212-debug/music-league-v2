@@ -1024,6 +1024,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#F9FCF2',
   },
+  submissionScrollView: {
+    flex: 1,
+  },
+  submissionScrollContent: {
+    paddingBottom: 40,
+  },
   submitSongButton: {
     flexDirection: 'row',
     alignItems: 'center',
