@@ -639,7 +639,11 @@ export default function RoundScreen() {
 
       {/* SUBMISSION PHASE */}
       {round.status === 'submission' && (
-        <>
+        <ScrollView 
+          style={styles.submissionScrollView}
+          contentContainerStyle={styles.submissionScrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           {!round.has_user_submitted ? (
             <>
               <TouchableOpacity
@@ -722,7 +726,7 @@ export default function RoundScreen() {
               </View>
             </>
           )}
-        </>
+        </ScrollView>
       )}
 
       {/* VOTING PHASE */}
