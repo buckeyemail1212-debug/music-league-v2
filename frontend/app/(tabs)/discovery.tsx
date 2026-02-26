@@ -216,7 +216,7 @@ export default function DiscoveryScreen() {
         </View>
       ) : (
         <View style={styles.emptyState}>
-          <Ionicons name="headset" size={80} color="#333" />
+          <Ionicons name="headset" size={80} color="#B8C5B0" />
           <Text style={styles.emptyTitle}>Discover Music</Text>
           <Text style={styles.emptyText}>Search for songs to listen to 30-second previews</Text>
         </View>
