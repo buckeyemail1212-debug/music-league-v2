@@ -757,7 +757,7 @@ export default function RoundScreen() {
                     <ActivityIndicator color="#000" />
                   ) : (
                     <>
-                      <Ionicons name="lock-closed" size={20} color="#000" />
+                      <Ionicons name="lock-closed" size={20} color="#212F36" />
                       <Text style={styles.lockVoteText}>Lock It In</Text>
                     </>
                   )}
