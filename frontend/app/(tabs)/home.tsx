@@ -21,7 +21,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
-import { getLeagues, createLeague, joinLeague, getRounds, League, Round } from '../../src/services/api';
+import { getLeagues, createLeague, getRounds, League, Round } from '../../src/services/api';
 
 export default function HomeScreen() {
   const { user } = useAuth();
@@ -31,9 +31,7 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showJoinModal, setShowJoinModal] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [joining, setJoining] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
 
   // Create league form - simplified
@@ -53,9 +51,6 @@ export default function HomeScreen() {
     }, 1000);
     return () => clearInterval(interval);
   }, []);
-
-  // Join league form
-  const [leagueCode, setLeagueCode] = useState('');
 
   const fetchLeagues = async () => {
     try {
@@ -148,25 +143,6 @@ export default function HomeScreen() {
       Alert.alert('Error', error.response?.data?.detail || 'Failed to create league');
     } finally {
       setCreating(false);
-    }
-  };
-
-  const handleJoinLeague = async () => {
-    if (!leagueCode.trim()) {
-      Alert.alert('Error', 'Please enter a league code');
-      return;
-    }
-
-    setJoining(true);
-    try {
-      await joinLeague(leagueCode.trim().toUpperCase());
-      setShowJoinModal(false);
-      setLeagueCode('');
-      await fetchLeagues();
-    } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.detail || 'Failed to join league');
-    } finally {
-      setJoining(false);
     }
   };
 
@@ -278,38 +254,30 @@ export default function HomeScreen() {
             {leagues.length} active league{leagues.length !== 1 ? 's' : ''}
           </Text>
         </View>
-        <TouchableOpacity 
-          style={styles.profileImageContainer}
-          onPress={() => router.push('/(tabs)/profile')}
-        >
-          {user?.profile_photo ? (
-            <Image 
-              source={{ uri: user.profile_photo }} 
-              style={styles.profileImage}
-            />
-          ) : (
-            <View style={styles.profileImagePlaceholder}>
-              <Ionicons name="person" size={20} color="#8DA19B" />
-            </View>
-          )}
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.actionButtons}>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => setShowCreateModal(true)}
-        >
-          <Ionicons name="add-circle" size={24} color="#B8C5B0" />
-          <Text style={styles.actionButtonText}>Create League</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.actionButton, styles.joinButton]}
-          onPress={() => setShowJoinModal(true)}
-        >
-          <Ionicons name="enter" size={24} color="#212F36" />
-          <Text style={[styles.actionButtonText, { color: '#212F36' }]}>Join League</Text>
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity 
+            style={styles.createLeagueButton}
+            onPress={() => setShowCreateModal(true)}
+          >
+            <Ionicons name="add-circle" size={22} color="#B8C5B0" />
+            <Text style={styles.createLeagueText}>Create League</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.profileImageContainer}
+            onPress={() => router.push('/(tabs)/profile')}
+          >
+            {user?.profile_photo ? (
+              <Image 
+                source={{ uri: user.profile_photo }} 
+                style={styles.profileImage}
+              />
+            ) : (
+              <View style={styles.profileImagePlaceholder}>
+                <Ionicons name="person" size={20} color="#8DA19B" />
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       <Text style={styles.sectionTitle}>Your Leagues</Text>
@@ -405,62 +373,6 @@ export default function HomeScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Join League Modal */}
-      <Modal
-        visible={showJoinModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowJoinModal(false)}
-      >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.modalOverlay}
-          >
-            <TouchableWithoutFeedback>
-              <View style={styles.modalContent}>
-                <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>Join League</Text>
-                  <TouchableOpacity onPress={() => setShowJoinModal(false)}>
-                    <Ionicons name="close" size={24} color="#888" />
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.modalForm}>
-                  <Text style={styles.inputLabel}>League Code</Text>
-                  <TextInput
-                    style={[styles.modalInput, styles.codeInput]}
-                    placeholder="XXXXXX"
-                    placeholderTextColor="#666"
-                    value={leagueCode}
-                    onChangeText={(text) => setLeagueCode(text.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
-                    autoCapitalize="characters"
-                    autoCorrect={false}
-                    autoComplete="off"
-                    spellCheck={false}
-                    textContentType="oneTimeCode"
-                    importantForAutofill="no"
-                    keyboardType="default"
-                    maxLength={6}
-                    selectionColor="#B8C5B0"
-                  />
-
-                  <TouchableOpacity
-                    style={[styles.submitButton, styles.joinSubmitButton, joining && styles.buttonDisabled]}
-                    onPress={handleJoinLeague}
-                    disabled={joining}
-                  >
-                    {joining ? (
-                      <ActivityIndicator color="#fff" />
-                    ) : (
-                      <Text style={styles.submitButtonText}>Join League</Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </TouchableWithoutFeedback>
-          </KeyboardAvoidingView>
-        </TouchableWithoutFeedback>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -491,6 +403,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#B8C5B0',
     marginTop: 4,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  createLeagueButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  createLeagueText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#B8C5B0',
   },
   profileImageContainer: {
     width: 44,
