@@ -214,4 +214,18 @@ export const sendLeagueMessage = (leagueId: string, content: string) =>
 export const getChatStatus = (leagueId: string) => 
   api.get<ChatStatus>(`/leagues/${leagueId}/chat-status`);
 
+// Password Reset APIs
+export const forgotPassword = (email: string) =>
+  api.post('/auth/forgot-password', { email });
+
+export const verifyResetCode = (email: string, code: string) =>
+  api.post('/auth/verify-reset-code', { email, code });
+
+export const resetPassword = (email: string, code: string, new_password: string) =>
+  api.post('/auth/reset-password', { email, code, new_password });
+
+// Delete Account
+export const deleteAccount = () =>
+  api.delete('/auth/account');
+
 export default api;

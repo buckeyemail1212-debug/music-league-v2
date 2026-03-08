@@ -33,6 +33,7 @@ export default function HomeScreen() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [showProfileZoom, setShowProfileZoom] = useState(false);
 
   // Create league form - simplified
   const [leagueName, setLeagueName] = useState('');
@@ -265,6 +266,8 @@ export default function HomeScreen() {
           <TouchableOpacity 
             style={styles.profileImageContainer}
             onPress={() => router.push('/(tabs)/profile')}
+            onLongPress={() => user?.profile_photo && setShowProfileZoom(true)}
+            delayLongPress={300}
           >
             {user?.profile_photo ? (
               <Image 
@@ -371,6 +374,30 @@ export default function HomeScreen() {
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Profile Photo Zoom Modal */}
+      <Modal
+        visible={showProfileZoom}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowProfileZoom(false)}
+      >
+        <TouchableOpacity 
+          style={styles.profileZoomOverlay}
+          activeOpacity={1}
+          onPress={() => setShowProfileZoom(false)}
+        >
+          <View style={styles.profileZoomContainer}>
+            {user?.profile_photo && (
+              <Image 
+                source={{ uri: user.profile_photo }} 
+                style={styles.profileZoomImage}
+                resizeMode="contain"
+              />
+            )}
+          </View>
+        </TouchableOpacity>
       </Modal>
 
     </SafeAreaView>
@@ -744,5 +771,21 @@ const styles = StyleSheet.create({
     color: '#212F36',
     fontSize: 16,
     fontWeight: '600',
+  },
+  profileZoomOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profileZoomContainer: {
+    width: '80%',
+    aspectRatio: 1,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  profileZoomImage: {
+    width: '100%',
+    height: '100%',
   },
 });

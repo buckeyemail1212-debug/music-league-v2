@@ -17,7 +17,9 @@ import {
   Keyboard,
   TouchableWithoutFeedback,
   Dimensions,
+  Image,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import * as Clipboard from 'expo-clipboard';
 import * as Linking from 'expo-linking';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -228,14 +230,13 @@ export default function LeagueDetailScreen() {
     setRefreshing(false);
   };
 
-  const handleShareCode = async () => {
+  const handleCopyCode = async () => {
     if (!league) return;
     try {
-      await Share.share({
-        message: `Join my Music League "${league.name}"! Use code: ${league.league_code}`,
-      });
+      await Clipboard.setStringAsync(league.league_code);
+      Alert.alert('Copied!', `League code ${league.league_code} copied to clipboard`);
     } catch (error) {
-      console.error('Share failed:', error);
+      console.error('Copy failed:', error);
     }
   };
 
@@ -536,8 +537,8 @@ export default function LeagueDetailScreen() {
             <Ionicons name="chatbubble-outline" size={22} color="#B8C5B0" />
             {hasUnread && <View style={styles.unreadBadge} />}
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerButton} onPress={handleShareCode}>
-            <Ionicons name="share-outline" size={22} color="#B8C5B0" />
+          <TouchableOpacity style={styles.headerButton} onPress={handleCopyCode}>
+            <Ionicons name="copy-outline" size={22} color="#B8C5B0" />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.headerButton}
@@ -552,17 +553,31 @@ export default function LeagueDetailScreen() {
         </View>
       </View>
 
-      <TouchableOpacity style={styles.codeBar} onPress={handleShareLeagueCode} activeOpacity={0.7}>
+      <TouchableOpacity style={styles.codeBar} onPress={handleCopyCode} activeOpacity={0.7}>
         <View style={styles.codeInfo}>
           <Text style={styles.codeLabel}>League Code</Text>
           <View style={styles.codeRow}>
             <Text style={styles.codeValue}>{league.league_code}</Text>
-            <Ionicons name="share-outline" size={18} color="#B8C5B0" style={{ marginLeft: 8 }} />
+            <Ionicons name="copy-outline" size={18} color="#B8C5B0" style={{ marginLeft: 8 }} />
           </View>
         </View>
-        <View style={styles.memberInfo}>
-          <Ionicons name="people" size={16} color="#888" />
-          <Text style={styles.memberCount}>{league.members.length} members</Text>
+        <View style={styles.memberAvatarsRow}>
+          {league.members.slice(0, 4).map((member, index) => (
+            <View key={member.id} style={[styles.memberAvatarSmall, { marginLeft: index > 0 ? -8 : 0, zIndex: 4 - index }]}>
+              {member.profile_photo ? (
+                <Image source={{ uri: member.profile_photo }} style={styles.memberAvatarImage} />
+              ) : (
+                <View style={styles.memberAvatarPlaceholder}>
+                  <Text style={styles.memberAvatarInitial}>{member.username?.charAt(0).toUpperCase()}</Text>
+                </View>
+              )}
+            </View>
+          ))}
+          {league.members.length > 4 && (
+            <View style={[styles.memberAvatarSmall, styles.memberAvatarMore, { marginLeft: -8 }]}>
+              <Text style={styles.memberMoreText}>+{league.members.length - 4}</Text>
+            </View>
+          )}
         </View>
       </TouchableOpacity>
 
@@ -899,9 +914,9 @@ export default function LeagueDetailScreen() {
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.chatModalContainer}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
         >
-          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            <View style={styles.chatModalContent}>
+          <View style={styles.chatModalContent}>
               <View style={styles.chatModalHeader}>
                 <Text style={styles.chatModalTitle}>League Chat</Text>
                 <TouchableOpacity onPress={() => { Keyboard.dismiss(); setShowChatModal(false); }}>
@@ -992,7 +1007,6 @@ export default function LeagueDetailScreen() {
               </TouchableOpacity>
             </View>
           </View>
-          </TouchableWithoutFeedback>
         </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
@@ -1083,6 +1097,44 @@ const styles = StyleSheet.create({
   memberCount: {
     fontSize: 14,
     color: 'rgba(141, 161, 155, 0.8)',
+  },
+  memberAvatarsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  memberAvatarSmall: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#4A6070',
+    overflow: 'hidden',
+  },
+  memberAvatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  memberAvatarPlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#212F36',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  memberAvatarInitial: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#B8C5B0',
+  },
+  memberAvatarMore: {
+    backgroundColor: '#212F36',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  memberMoreText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#B8C5B0',
   },
   startRoundButton: {
     flexDirection: 'row',

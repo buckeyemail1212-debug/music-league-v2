@@ -16,6 +16,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../src/context/AuthContext';
+import { deleteAccount } from '../../src/services/api';
 import { format } from 'date-fns';
 
 export default function ProfileScreen() {
@@ -35,6 +36,29 @@ export default function ProfileScreen() {
           onPress: async () => {
             await logout();
             router.replace('/(auth)/login');
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to delete your account? This action cannot be undone. All your data will be permanently removed.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteAccount();
+              await logout();
+              router.replace('/(auth)/login');
+            } catch (error: any) {
+              Alert.alert('Error', error.response?.data?.detail || 'Failed to delete account');
+            }
           },
         },
       ]
@@ -186,10 +210,23 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.section}>
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Ionicons name="log-out-outline" size={22} color="#ef4444" />
-            <Text style={styles.logoutText}>Logout</Text>
-          </TouchableOpacity>
+          <View style={styles.infoCard}>
+            <TouchableOpacity style={styles.actionRow} onPress={handleLogout}>
+              <View style={styles.actionLeft}>
+                <Ionicons name="log-out-outline" size={22} color="#ef4444" />
+                <Text style={styles.actionText}>Logout</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#8DA19B" />
+            </TouchableOpacity>
+            <View style={styles.actionDivider} />
+            <TouchableOpacity style={styles.actionRow} onPress={handleDeleteAccount}>
+              <View style={styles.actionLeft}>
+                <Ionicons name="trash-outline" size={22} color="#ef4444" />
+                <Text style={styles.actionText}>Delete Account</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#8DA19B" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <Text style={styles.version}>Music League v1.0.0</Text>
@@ -328,6 +365,26 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: '#F9FCF2',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+  },
+  actionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  actionText: {
+    fontSize: 16,
+    color: '#ef4444',
+    fontWeight: '500',
+  },
+  actionDivider: {
+    height: 1,
+    backgroundColor: 'rgba(74, 96, 112, 0.5)',
   },
   logoutButton: {
     flexDirection: 'row',

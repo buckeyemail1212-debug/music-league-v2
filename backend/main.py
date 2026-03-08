@@ -56,10 +56,23 @@ class UserCreate(BaseModel):
     email: EmailStr
     username: str
     password: str
+    phone_number: str = ""
 
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class VerifyCodeRequest(BaseModel):
+    email: EmailStr
+    code: str
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    code: str
+    new_password: str
 
 class UserResponse(BaseModel):
     id: str
@@ -260,6 +273,7 @@ async def register(user_data: UserCreate):
         "email": user_data.email,
         "username": user_data.username,
         "password_hash": hash_password(user_data.password),
+        "phone_number": user_data.phone_number,
         "created_at": datetime.utcnow()
     }
     await db.users.insert_one(user)
@@ -305,6 +319,101 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         profile_photo=current_user.get("profile_photo"),
         created_at=current_user["created_at"]
     )
+
+@api_router.post("/auth/forgot-password")
+async def forgot_password(request: ForgotPasswordRequest):
+    """Send a 6-digit reset code to user's phone"""
+    user = await db.users.find_one({"email": request.email}, {"_id": 0, "id": 1, "phone_number": 1})
+    if not user:
+        # Don't reveal if email exists or not
+        return {"message": "If an account exists with this email, a code has been sent"}
+    
+    if not user.get("phone_number"):
+        raise HTTPException(status_code=400, detail="No phone number associated with this account")
+    
+    # Generate 6-digit code
+    code = ''.join(random.choices(string.digits, k=6))
+    
+    # Store code with expiry (15 minutes)
+    await db.reset_codes.delete_many({"email": request.email})  # Remove old codes
+    await db.reset_codes.insert_one({
+        "email": request.email,
+        "code": code,
+        "created_at": datetime.now(timezone.utc),
+        "expires_at": datetime.now(timezone.utc) + timedelta(minutes=15)
+    })
+    
+    # In production, send SMS here via Twilio or similar
+    # For now, we'll just log it (the code will work for testing)
+    print(f"Reset code for {request.email}: {code}")
+    
+    return {"message": "If an account exists with this email, a code has been sent"}
+
+@api_router.post("/auth/verify-reset-code")
+async def verify_reset_code(request: VerifyCodeRequest):
+    """Verify the reset code"""
+    reset_doc = await db.reset_codes.find_one({
+        "email": request.email,
+        "code": request.code
+    })
+    
+    if not reset_doc:
+        raise HTTPException(status_code=400, detail="Invalid code")
+    
+    if datetime.now(timezone.utc) > reset_doc["expires_at"].replace(tzinfo=timezone.utc):
+        raise HTTPException(status_code=400, detail="Code has expired")
+    
+    return {"valid": True}
+
+@api_router.post("/auth/reset-password")
+async def reset_password(request: ResetPasswordRequest):
+    """Reset password after verifying code"""
+    reset_doc = await db.reset_codes.find_one({
+        "email": request.email,
+        "code": request.code
+    })
+    
+    if not reset_doc:
+        raise HTTPException(status_code=400, detail="Invalid code")
+    
+    if datetime.now(timezone.utc) > reset_doc["expires_at"].replace(tzinfo=timezone.utc):
+        raise HTTPException(status_code=400, detail="Code has expired")
+    
+    # Update password
+    await db.users.update_one(
+        {"email": request.email},
+        {"$set": {"password_hash": hash_password(request.new_password)}}
+    )
+    
+    # Delete used code
+    await db.reset_codes.delete_many({"email": request.email})
+    
+    return {"message": "Password reset successfully"}
+
+@api_router.delete("/auth/account")
+async def delete_account(current_user: dict = Depends(get_current_user)):
+    """Delete user account and all associated data"""
+    user_id = current_user["id"]
+    
+    # Delete user's submissions
+    await db.submissions.delete_many({"user_id": user_id})
+    
+    # Delete user's votes
+    await db.votes.delete_many({"voter_id": user_id})
+    
+    # Remove user from all leagues
+    await db.leagues.update_many(
+        {"members.id": user_id},
+        {"$pull": {"members": {"id": user_id}}}
+    )
+    
+    # Delete leagues created by user
+    await db.leagues.delete_many({"creator_id": user_id})
+    
+    # Delete user
+    await db.users.delete_one({"id": user_id})
+    
+    return {"message": "Account deleted successfully"}
 
 @api_router.get("/auth/stats")
 async def get_user_stats(current_user: dict = Depends(get_current_user)):
