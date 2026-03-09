@@ -334,7 +334,7 @@ export default function HomeScreen() {
               />
             ) : (
               <View style={styles.profileImagePlaceholder}>
-                <Ionicons name="person" size={20} color="#8DA19B" />
+                <Ionicons name="person" size={20} color="#F5F0E8" />
               </View>
             )}
           </TouchableOpacity>
