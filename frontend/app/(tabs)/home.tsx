@@ -746,7 +746,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#5A7A6B',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   emptyState: {
     flex: 1,
@@ -844,10 +843,9 @@ const styles = StyleSheet.create({
   },
   codeInput: {
     textAlign: 'center',
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '600',
     letterSpacing: 4,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   submitButton: {
     backgroundColor: '#212F36',

@@ -605,9 +605,6 @@ export default function LeagueDetailScreen() {
             <Ionicons name="chatbubble-outline" size={22} color="#5A7A6B" />
             {hasUnread && <View style={styles.unreadBadge} />}
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerButton} onPress={handleCopyCode}>
-            <Ionicons name="copy-outline" size={22} color="#5A7A6B" />
-          </TouchableOpacity>
           <TouchableOpacity
             style={styles.headerButton}
             onPress={isCreator ? handleDeleteLeague : handleLeaveLeague}
@@ -623,10 +620,10 @@ export default function LeagueDetailScreen() {
 
       <TouchableOpacity style={styles.codeBar} onPress={handleCopyCode} activeOpacity={0.7}>
         <View style={styles.codeInfo}>
-          <Text style={styles.codeLabel}>League Code</Text>
+          <Text style={styles.codeLabel}>Tap to copy code</Text>
           <View style={styles.codeRow}>
             <Text style={styles.codeValue}>{league.league_code}</Text>
-            <Ionicons name="copy-outline" size={18} color="#5A7A6B" style={{ marginLeft: 8 }} />
+            <Ionicons name="copy-outline" size={16} color="#5A7A6B" style={{ marginLeft: 6 }} />
           </View>
         </View>
         <View style={styles.memberAvatarsRow}>
