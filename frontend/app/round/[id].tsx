@@ -867,11 +867,20 @@ export default function RoundScreen() {
           {/* Check if user hasn't submitted - they can't vote */}
           {!round.has_user_submitted ? (
             <View style={styles.noSubmissionContainer}>
-              <Ionicons name="musical-note-outline" size={48} color="#5A7080" />
-              <Text style={styles.noSubmissionTitle}>You Didn't Submit</Text>
+              <Ionicons name="ban-outline" size={48} color="#E57373" />
+              <Text style={styles.noSubmissionTitle}>You Cannot Vote</Text>
               <Text style={styles.noSubmissionText}>
-                You must submit a song to be able to vote in this round.
+                You did not submit a song during the submission phase.
               </Text>
+              <Text style={styles.noSubmissionText}>
+                Only members who submitted can participate in voting.
+              </Text>
+              <View style={styles.noSubmissionWarning}>
+                <Ionicons name="alert-circle" size={16} color="#E57373" />
+                <Text style={styles.noSubmissionWarningText}>
+                  You will receive 0 points for this round
+                </Text>
+              </View>
             </View>
           ) : round.user_vote_locked ? (
             // Vote is locked
@@ -1933,6 +1942,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(141, 161, 155, 0.8)',
     textAlign: 'center',
+    lineHeight: 20,
+  },
+  noSubmissionWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(229, 115, 115, 0.15)',
+    borderRadius: 8,
+  },
+  noSubmissionWarningText: {
+    fontSize: 13,
+    color: '#E57373',
+    fontWeight: '500',
   },
   reopenButton: {
     flexDirection: 'row',
