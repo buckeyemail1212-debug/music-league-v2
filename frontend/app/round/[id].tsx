@@ -553,7 +553,28 @@ export default function RoundScreen() {
           <Text style={styles.songTitle} numberOfLines={1}>{item.song.title}</Text>
           <Text style={styles.artistName} numberOfLines={1}>{item.song.artist}</Text>
           <Text style={styles.submittedBy}>by {item.username}</Text>
+          <View style={styles.musicLinksSmall}>
+            <TouchableOpacity style={styles.musicLinkButtonSmall} onPress={() => openInService(item.song, 'spotify')}>
+              <FontAwesome name="spotify" size={10} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.musicLinkButtonSmall} onPress={() => openInService(item.song, 'apple')}>
+              <Ionicons name="musical-note" size={10} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.musicLinkButtonSmall} onPress={() => openInService(item.song, 'youtube')}>
+              <Ionicons name="logo-youtube" size={10} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
+        <TouchableOpacity
+          style={[styles.playButtonSmall, playingSongId === item.song.deezer_id && styles.playingButton]}
+          onPress={() => playPreview(item.song)}
+        >
+          <Ionicons
+            name={playingSongId === item.song.deezer_id ? 'pause' : 'play'}
+            size={16}
+            color={playingSongId === item.song.deezer_id ? '#fff' : '#212F36'}
+          />
+        </TouchableOpacity>
         <View style={styles.pointsBadge}>
           <Text style={styles.pointsText}>{item.points} pts</Text>
         </View>
@@ -682,15 +703,35 @@ export default function RoundScreen() {
                   <View style={styles.songInfo}>
                     <Text style={styles.songTitle} numberOfLines={1}>{sub.song.title}</Text>
                     <Text style={styles.songArtist} numberOfLines={1}>{sub.song.artist}</Text>
+                    <View style={styles.musicLinks}>
+                      <TouchableOpacity
+                        style={styles.musicLinkButton}
+                        onPress={() => openInService(sub.song, 'spotify')}
+                      >
+                        <FontAwesome name="spotify" size={12} color="#fff" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.musicLinkButton}
+                        onPress={() => openInService(sub.song, 'apple')}
+                      >
+                        <Ionicons name="musical-note" size={12} color="#fff" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.musicLinkButton}
+                        onPress={() => openInService(sub.song, 'youtube')}
+                      >
+                        <Ionicons name="logo-youtube" size={12} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
                   </View>
                   <TouchableOpacity
-                    style={styles.playButton}
+                    style={[styles.playButton, playingSongId === sub.song.deezer_id && styles.playingButton]}
                     onPress={() => playPreview(sub.song)}
                   >
                     <Ionicons 
                       name={playingSongId === sub.song.deezer_id ? 'pause' : 'play'} 
                       size={20} 
-                      color="#212F36" 
+                      color={playingSongId === sub.song.deezer_id ? '#fff' : '#212F36'}
                     />
                   </TouchableOpacity>
                 </View>
@@ -844,15 +885,41 @@ export default function RoundScreen() {
                 {results.is_tie ? (
                   results.winners.map((winner, index) => (
                     <View key={winner.submission_id} style={styles.tieWinnerItem}>
-                      <Text style={styles.winnerSong}>{winner.song.title}</Text>
-                      <Text style={styles.winnerUser}>by {winner.username}</Text>
+                      <View style={styles.tieWinnerRow}>
+                        <View style={styles.tieWinnerText}>
+                          <Text style={styles.winnerSong}>{winner.song.title}</Text>
+                          <Text style={styles.winnerUser}>by {winner.username}</Text>
+                        </View>
+                        <TouchableOpacity
+                          style={[styles.playButtonWinner, playingSongId === winner.song.deezer_id && styles.playingButton]}
+                          onPress={() => playPreview(winner.song)}
+                        >
+                          <Ionicons
+                            name={playingSongId === winner.song.deezer_id ? 'pause' : 'play'}
+                            size={14}
+                            color={playingSongId === winner.song.deezer_id ? '#fff' : '#212F36'}
+                          />
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   ))
                 ) : (
-                  <>
-                    <Text style={styles.winnerSong}>{results.winners[0].song.title}</Text>
-                    <Text style={styles.winnerUser}>by {results.winners[0].username}</Text>
-                  </>
+                  <View style={styles.singleWinnerRow}>
+                    <View style={styles.singleWinnerText}>
+                      <Text style={styles.winnerSong}>{results.winners[0].song.title}</Text>
+                      <Text style={styles.winnerUser}>by {results.winners[0].username}</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[styles.playButtonWinner, playingSongId === results.winners[0].song.deezer_id && styles.playingButton]}
+                      onPress={() => playPreview(results.winners[0].song)}
+                    >
+                      <Ionicons
+                        name={playingSongId === results.winners[0].song.deezer_id ? 'pause' : 'play'}
+                        size={14}
+                        color={playingSongId === results.winners[0].song.deezer_id ? '#fff' : '#212F36'}
+                      />
+                    </TouchableOpacity>
+                  </View>
                 )}
               </View>
             </View>
@@ -1178,6 +1245,32 @@ const styles = StyleSheet.create({
   playingButton: {
     backgroundColor: '#ef4444',
   },
+  musicLinks: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 4,
+  },
+  musicLinkButton: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(184, 197, 176, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  musicLinksSmall: {
+    flexDirection: 'row',
+    gap: 4,
+    marginTop: 4,
+  },
+  musicLinkButtonSmall: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: 'rgba(184, 197, 176, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   submissionActions: {
     alignItems: 'center',
     gap: 6,
@@ -1428,6 +1521,32 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: 'rgba(251, 191, 36, 0.3)',
+  },
+  tieWinnerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  tieWinnerText: {
+    flex: 1,
+  },
+  singleWinnerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  singleWinnerText: {
+    flex: 1,
+  },
+  playButtonWinner: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#B8C5B0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
   },
   resultCard: {
     flexDirection: 'row',

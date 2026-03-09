@@ -20,8 +20,8 @@ import {
   Image,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import * as Clipboard from 'expo-clipboard';
 import * as Linking from 'expo-linking';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -64,8 +64,12 @@ export default function LeagueDetailScreen() {
   // Start round modal state
   const [showStartRoundModal, setShowStartRoundModal] = useState(false);
   const [roundTheme, setRoundTheme] = useState('');
-  const [submissionHours, setSubmissionHours] = useState('24');
-  const [votingHours, setVotingHours] = useState('24');
+  const [submissionDeadline, setSubmissionDeadline] = useState(new Date(Date.now() + 24 * 60 * 60 * 1000));
+  const [votingDeadline, setVotingDeadline] = useState(new Date(Date.now() + 48 * 60 * 60 * 1000));
+  const [timezone, setTimezone] = useState('EST');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [activePickerField, setActivePickerField] = useState<'submission' | 'voting'>('submission');
 
   // Chat state
   const [showChatModal, setShowChatModal] = useState(false);
@@ -84,14 +88,12 @@ export default function LeagueDetailScreen() {
   const [isSharing, setIsSharing] = useState(false);
   const shareCardRef = useRef<ViewShot>(null);
 
-  // Time options
-  const timeOptions = [
-    { label: '1 hr', value: '1' },
-    { label: '6 hrs', value: '6' },
-    { label: '12 hrs', value: '12' },
-    { label: '1 day', value: '24' },
-    { label: '3 days', value: '72' },
-    { label: '7 days', value: '168' },
+  // Timezone options
+  const timezones = [
+    { label: 'EST', value: 'EST', offset: -5 },
+    { label: 'CST', value: 'CST', offset: -6 },
+    { label: 'MST', value: 'MST', offset: -7 },
+    { label: 'PST', value: 'PST', offset: -8 },
   ];
 
   // Check if league is complete
@@ -303,15 +305,24 @@ export default function LeagueDetailScreen() {
     
     setCreatingRound(true);
     try {
+      // Calculate hours from deadlines for backward compatibility
+      const now = new Date();
+      const submissionHrs = Math.max(1, Math.round((submissionDeadline.getTime() - now.getTime()) / (1000 * 60 * 60)));
+      const votingHrs = Math.max(1, Math.round((votingDeadline.getTime() - submissionDeadline.getTime()) / (1000 * 60 * 60)));
+      
       await createRound(league.id, {
         theme: roundTheme.trim(),
-        submission_hours: parseInt(submissionHours) || 24,
-        voting_hours: parseInt(votingHours) || 24,
+        submission_hours: submissionHrs,
+        voting_hours: votingHrs,
+        submission_deadline: submissionDeadline.toISOString(),
+        voting_deadline: votingDeadline.toISOString(),
+        timezone: timezone,
       });
       setShowStartRoundModal(false);
       setRoundTheme('');
-      setSubmissionHours('24');
-      setVotingHours('24');
+      // Reset deadlines for next round
+      setSubmissionDeadline(new Date(Date.now() + 24 * 60 * 60 * 1000));
+      setVotingDeadline(new Date(Date.now() + 48 * 60 * 60 * 1000));
       await fetchData();
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.detail || 'Failed to start round');
@@ -855,43 +866,116 @@ export default function LeagueDetailScreen() {
                   spellCheck={false}
                 />
 
-                <Text style={styles.inputLabel}>Submission Time</Text>
-                <View style={styles.timeOptionsContainer}>
-                  {timeOptions.map((option) => (
+                <Text style={styles.inputLabel}>Timezone</Text>
+                <View style={styles.timezoneContainer}>
+                  {timezones.map((tz) => (
                     <TouchableOpacity
-                      key={`sub-${option.value}`}
+                      key={tz.value}
                       style={[
-                        styles.timeOption,
-                        submissionHours === option.value && styles.timeOptionSelected
+                        styles.timezoneOption,
+                        timezone === tz.value && styles.timezoneOptionSelected
                       ]}
-                      onPress={() => setSubmissionHours(option.value)}
+                      onPress={() => setTimezone(tz.value)}
                     >
                       <Text style={[
-                        styles.timeOptionText,
-                        submissionHours === option.value && styles.timeOptionTextSelected
-                      ]}>{option.label}</Text>
+                        styles.timezoneText,
+                        timezone === tz.value && styles.timezoneTextSelected
+                      ]}>{tz.label}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
 
-                <Text style={styles.inputLabel}>Voting Time</Text>
-                <View style={styles.timeOptionsContainer}>
-                  {timeOptions.map((option) => (
-                    <TouchableOpacity
-                      key={`vote-${option.value}`}
-                      style={[
-                        styles.timeOption,
-                        votingHours === option.value && styles.timeOptionSelected
-                      ]}
-                      onPress={() => setVotingHours(option.value)}
-                    >
-                      <Text style={[
-                        styles.timeOptionText,
-                        votingHours === option.value && styles.timeOptionTextSelected
-                      ]}>{option.label}</Text>
-                    </TouchableOpacity>
-                  ))}
+                <Text style={styles.inputLabel}>Submission Deadline</Text>
+                <View style={styles.dateTimeRow}>
+                  <TouchableOpacity 
+                    style={styles.dateTimeButton}
+                    onPress={() => {
+                      setActivePickerField('submission');
+                      setShowDatePicker(true);
+                    }}
+                  >
+                    <Ionicons name="calendar" size={18} color="#B8C5B0" />
+                    <Text style={styles.dateTimeText}>
+                      {submissionDeadline.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.dateTimeButton}
+                    onPress={() => {
+                      setActivePickerField('submission');
+                      setShowTimePicker(true);
+                    }}
+                  >
+                    <Ionicons name="time" size={18} color="#B8C5B0" />
+                    <Text style={styles.dateTimeText}>
+                      {submissionDeadline.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
+
+                <Text style={styles.inputLabel}>Voting Deadline</Text>
+                <View style={styles.dateTimeRow}>
+                  <TouchableOpacity 
+                    style={styles.dateTimeButton}
+                    onPress={() => {
+                      setActivePickerField('voting');
+                      setShowDatePicker(true);
+                    }}
+                  >
+                    <Ionicons name="calendar" size={18} color="#B8C5B0" />
+                    <Text style={styles.dateTimeText}>
+                      {votingDeadline.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.dateTimeButton}
+                    onPress={() => {
+                      setActivePickerField('voting');
+                      setShowTimePicker(true);
+                    }}
+                  >
+                    <Ionicons name="time" size={18} color="#B8C5B0" />
+                    <Text style={styles.dateTimeText}>
+                      {votingDeadline.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {(showDatePicker || showTimePicker) && (
+                  <View style={styles.pickerContainer}>
+                    <DateTimePicker
+                      value={activePickerField === 'submission' ? submissionDeadline : votingDeadline}
+                      mode={showDatePicker ? 'date' : 'time'}
+                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                      minimumDate={new Date()}
+                      onChange={(event, selectedDate) => {
+                        if (Platform.OS === 'android') {
+                          setShowDatePicker(false);
+                          setShowTimePicker(false);
+                        }
+                        if (selectedDate) {
+                          if (activePickerField === 'submission') {
+                            setSubmissionDeadline(selectedDate);
+                          } else {
+                            setVotingDeadline(selectedDate);
+                          }
+                        }
+                      }}
+                      textColor="#F9FCF2"
+                    />
+                    {Platform.OS === 'ios' && (
+                      <TouchableOpacity 
+                        style={styles.pickerDoneButton}
+                        onPress={() => {
+                          setShowDatePicker(false);
+                          setShowTimePicker(false);
+                        }}
+                      >
+                        <Text style={styles.pickerDoneText}>Done</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
 
                 <TouchableOpacity
                   style={[styles.submitButton, creatingRound && styles.buttonDisabled]}
@@ -1488,6 +1572,75 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
     marginBottom: 16,
+  },
+  timezoneContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
+  timezoneOption: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#212F36',
+    borderWidth: 1,
+    borderColor: '#5A7080',
+    alignItems: 'center',
+  },
+  timezoneOptionSelected: {
+    backgroundColor: '#B8C5B0',
+    borderColor: '#B8C5B0',
+  },
+  timezoneText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#8DA19B',
+  },
+  timezoneTextSelected: {
+    color: '#212F36',
+  },
+  dateTimeRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  dateTimeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#212F36',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#5A7080',
+    gap: 8,
+  },
+  dateTimeText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#F9FCF2',
+  },
+  pickerContainer: {
+    backgroundColor: '#2A3A42',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  pickerDoneButton: {
+    alignSelf: 'flex-end',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: '#B8C5B0',
+    borderRadius: 8,
+    marginTop: 12,
+  },
+  pickerDoneText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#212F36',
   },
   timeOption: {
     paddingVertical: 10,
