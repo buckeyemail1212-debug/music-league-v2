@@ -20,6 +20,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../src/context/AuthContext';
 import { getLeagues, createLeague, getRounds, League, Round } from '../../src/services/api';
 
@@ -38,6 +39,7 @@ export default function HomeScreen() {
   // Create league form - simplified
   const [leagueName, setLeagueName] = useState('');
   const [totalRounds, setTotalRounds] = useState('3');
+  const [leagueImage, setLeagueImage] = useState<string | null>(null);
 
   // Rounds options (1-10)
   const roundsOptions = Array.from({ length: 10 }, (_, i) => ({
@@ -125,6 +127,21 @@ export default function HomeScreen() {
     setRefreshing(false);
   };
 
+  const pickLeagueImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+      base64: true,
+    });
+
+    if (!result.canceled && result.assets[0].base64) {
+      const base64Image = `data:image/jpeg;base64,${result.assets[0].base64}`;
+      setLeagueImage(base64Image);
+    }
+  };
+
   const handleCreateLeague = async () => {
     if (!leagueName.trim()) {
       Alert.alert('Error', 'Please enter a league name');
@@ -136,6 +153,7 @@ export default function HomeScreen() {
       await createLeague({
         name: leagueName.trim(),
         total_rounds: parseInt(totalRounds) || 3,
+        league_image: leagueImage,
       });
       setShowCreateModal(false);
       resetCreateForm();
@@ -150,6 +168,7 @@ export default function HomeScreen() {
   const resetCreateForm = () => {
     setLeagueName('');
     setTotalRounds('3');
+    setLeagueImage(null);
   };
 
   const renderLeagueItem = ({ item }: { item: League }) => {
@@ -162,7 +181,14 @@ export default function HomeScreen() {
       >
         <View style={styles.leagueHeader}>
           <View style={styles.leagueIcon}>
-            <Ionicons name="trophy" size={24} color="#B8C5B0" />
+            {item.league_image ? (
+              <Image 
+                source={{ uri: item.league_image }} 
+                style={styles.leagueIconImage}
+              />
+            ) : (
+              <Ionicons name="trophy" size={24} color="#B8C5B0" />
+            )}
           </View>
           <View style={styles.leagueInfo}>
             <Text style={styles.leagueName}>{item.name}</Text>
@@ -359,6 +385,33 @@ export default function HomeScreen() {
                   ))}
                 </View>
 
+                <Text style={styles.inputLabel}>League Image (Optional)</Text>
+                <TouchableOpacity 
+                  style={styles.imagePickerButton}
+                  onPress={pickLeagueImage}
+                >
+                  {leagueImage ? (
+                    <Image 
+                      source={{ uri: leagueImage }} 
+                      style={styles.leagueImagePreview}
+                    />
+                  ) : (
+                    <View style={styles.imagePickerPlaceholder}>
+                      <Ionicons name="image-outline" size={32} color="#B8C5B0" />
+                      <Text style={styles.imagePickerText}>Tap to add image</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+                {leagueImage && (
+                  <TouchableOpacity 
+                    style={styles.removeImageButton}
+                    onPress={() => setLeagueImage(null)}
+                  >
+                    <Ionicons name="trash-outline" size={16} color="#F9FCF2" />
+                    <Text style={styles.removeImageText}>Remove Image</Text>
+                  </TouchableOpacity>
+                )}
+
                 <TouchableOpacity
                   style={[styles.submitButton, creating && styles.buttonDisabled]}
                   onPress={handleCreateLeague}
@@ -530,6 +583,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(184, 197, 176, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  leagueIconImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
   },
   leagueInfo: {
     flex: 1,
@@ -787,5 +846,42 @@ const styles = StyleSheet.create({
   profileZoomImage: {
     width: '100%',
     height: '100%',
+  },
+  imagePickerButton: {
+    width: '100%',
+    height: 120,
+    borderRadius: 12,
+    backgroundColor: '#212F36',
+    borderWidth: 1,
+    borderColor: '#5A7080',
+    borderStyle: 'dashed',
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  imagePickerPlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  imagePickerText: {
+    fontSize: 14,
+    color: 'rgba(141, 161, 155, 0.6)',
+  },
+  leagueImagePreview: {
+    width: '100%',
+    height: '100%',
+  },
+  removeImageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    marginBottom: 16,
+  },
+  removeImageText: {
+    fontSize: 14,
+    color: '#F9FCF2',
   },
 });

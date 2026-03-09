@@ -99,6 +99,7 @@ class TokenResponse(BaseModel):
 class LeagueCreate(BaseModel):
     name: str
     total_rounds: int = 1  # Number of rounds (1-10)
+    league_image: Optional[str] = None  # Custom league image URL
 
 class LeagueResponse(BaseModel):
     id: str
@@ -107,6 +108,7 @@ class LeagueResponse(BaseModel):
     creator_id: str
     creator_username: str
     total_rounds: int
+    league_image: Optional[str] = None
     members: List[dict]
     current_round: int
     status: str
@@ -621,6 +623,7 @@ async def create_league(league_data: LeagueCreate, current_user: dict = Depends(
         "creator_id": current_user["id"],
         "creator_username": current_user["username"],
         "total_rounds": league_data.total_rounds,
+        "league_image": league_data.league_image,
         "members": [{"id": current_user["id"], "username": current_user["username"]}],
         "current_round": 0,
         "status": "active",
@@ -633,6 +636,7 @@ async def create_league(league_data: LeagueCreate, current_user: dict = Depends(
 def add_league_defaults(league: dict) -> dict:
     """Add default values for new fields to support existing leagues"""
     league.setdefault("total_rounds", 0)
+    league.setdefault("league_image", None)
     # Remove old fields if they exist (migration)
     league.pop("theme", None)
     league.pop("theme_mode", None)
@@ -721,6 +725,30 @@ async def delete_league(league_id: str, current_user: dict = Depends(get_current
     await db.leagues.delete_one({"id": league_id})
     
     return {"message": "League deleted successfully"}
+
+class LeagueUpdate(BaseModel):
+    league_image: Optional[str] = None
+
+@api_router.put("/leagues/{league_id}", response_model=LeagueResponse)
+async def update_league(league_id: str, update_data: LeagueUpdate, current_user: dict = Depends(get_current_user)):
+    league = await db.leagues.find_one({"id": league_id})
+    if not league:
+        raise HTTPException(status_code=404, detail="League not found")
+    
+    # Only creator can update league
+    if league["creator_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Only the league creator can update the league")
+    
+    update_fields = {}
+    if update_data.league_image is not None:
+        update_fields["league_image"] = update_data.league_image
+    
+    if update_fields:
+        await db.leagues.update_one({"id": league_id}, {"$set": update_fields})
+    
+    # Fetch updated league
+    league = await db.leagues.find_one({"id": league_id})
+    return LeagueResponse(**add_league_defaults(league))
 
 @api_router.post("/leagues/{league_id}/leave")
 async def leave_league(league_id: str, current_user: dict = Depends(get_current_user)):

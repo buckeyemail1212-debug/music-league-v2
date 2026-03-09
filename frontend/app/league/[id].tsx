@@ -67,7 +67,21 @@ export default function LeagueDetailScreen() {
   const [votingHours, setVotingHours] = useState('24');
   const [showSubmissionPicker, setShowSubmissionPicker] = useState(false);
   const [showVotingPicker, setShowVotingPicker] = useState(false);
-  const [selectedTimezone, setSelectedTimezone] = useState<'EST' | 'PST'>('EST');
+  const [selectedTimezone, setSelectedTimezone] = useState<'EST' | 'PST'>(() => {
+    // Auto-detect timezone based on device timezone
+    try {
+      const deviceTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      // Map IANA timezone to EST or PST
+      const pacificTimezones = ['America/Los_Angeles', 'America/Vancouver', 'America/Tijuana', 'America/Phoenix', 'America/Denver'];
+      if (pacificTimezones.some(tz => deviceTimezone.includes(tz) || deviceTimezone.includes('Pacific'))) {
+        return 'PST';
+      }
+      // Default to EST for other US timezones and default
+      return 'EST';
+    } catch {
+      return 'EST';
+    }
+  });
 
   // Chat state
   const [showChatModal, setShowChatModal] = useState(false);
@@ -977,7 +991,7 @@ export default function LeagueDetailScreen() {
                   </View>
                 )}
 
-                <Text style={styles.inputLabel}>Your Timezone</Text>
+                <Text style={styles.inputLabel}>Your Timezone (Auto-detected)</Text>
                 <Text style={styles.inputHint}>
                   Deadlines will end at the same clock time in your timezone
                 </Text>

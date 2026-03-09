@@ -36,7 +36,8 @@ export interface League {
   creator_id: string;
   creator_username: string;
   total_rounds: number;
-  members: { id: string; username: string }[];
+  league_image?: string | null;
+  members: { id: string; username: string; profile_photo?: string }[];
   current_round: number;
   status: string;
   created_at: string;
@@ -145,7 +146,12 @@ export const getUserStats = () => api.get<UserStats>('/auth/stats');
 export const createLeague = (data: {
   name: string;
   total_rounds: number;
+  league_image?: string | null;
 }) => api.post<League>('/leagues', data);
+
+export const updateLeague = (id: string, data: {
+  league_image?: string | null;
+}) => api.put<League>(`/leagues/${id}`, data);
 
 export const getLeagues = () => api.get<League[]>('/leagues');
 

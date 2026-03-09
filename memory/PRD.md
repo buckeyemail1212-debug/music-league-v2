@@ -64,6 +64,8 @@ A "fantasy sports for music" app where users join leagues, submit songs to round
 ## Recent Updates (March 2025)
 1. **DST-Aware Deadlines** - Implemented "same clock time tomorrow" logic using `relativedelta(days=N)` instead of `timedelta(hours=24*N)`. This ensures a "1 day" deadline ends at the same local clock time, correctly handling Daylight Saving Time transitions.
 2. **Timezone Selector UI** - Added EST/PST toggle in the "Start Round" modal so users can specify their timezone when creating rounds.
+3. **Auto-detect Timezone** - The app now auto-detects the user's device timezone and pre-selects EST or PST accordingly when creating rounds.
+4. **Custom League Images** - League creators can now upload a custom image for their league that displays on the home page instead of the default trophy icon.
 
 ## Previous Updates (February 2025)
 1. **Phone Number on Signup** - Added phone field for account recovery
