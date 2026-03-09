@@ -24,19 +24,17 @@ export default function DiscoveryScreen() {
   const searchTimeout = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // Configure audio mode for playback
+    // Configure audio mode for playback - allow background playback
     Audio.setAudioModeAsync({
       allowsRecordingIOS: false,
       playsInSilentModeIOS: true,
-      staysActiveInBackground: false,
+      staysActiveInBackground: true,
       shouldDuckAndroid: true,
     });
 
+    // Don't cleanup on unmount - let audio continue playing
     return () => {
-      // Cleanup sound on unmount
-      if (soundRef.current) {
-        soundRef.current.unloadAsync();
-      }
+      // Only cleanup if explicitly stopped, not on page change
     };
   }, []);
 
@@ -172,16 +170,16 @@ export default function DiscoveryScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Discovery</Text>
-        <Text style={styles.subtitle}>Search millions of songs</Text>
+        <Text style={styles.title}>Discover Songs</Text>
+        <Text style={styles.subtitle}>Search songs to choose from</Text>
       </View>
 
       <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="#888" style={styles.searchIcon} />
+        <Ionicons name="search" size={20} color="#6B7A82" style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
           placeholder="Search songs, artists..."
-          placeholderTextColor="#666"
+          placeholderTextColor="#8B9A94"
           value={query}
           onChangeText={handleSearch}
           autoComplete="off"
@@ -192,14 +190,14 @@ export default function DiscoveryScreen() {
         />
         {query.length > 0 && (
           <TouchableOpacity onPress={() => handleSearch('')}>
-            <Ionicons name="close-circle" size={20} color="#666" />
+            <Ionicons name="close-circle" size={20} color="#6B7A82" />
           </TouchableOpacity>
         )}
       </View>
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#6366f1" />
+          <ActivityIndicator size="large" color="#5A7A6B" />
         </View>
       ) : songs.length > 0 ? (
         <FlatList
@@ -211,12 +209,12 @@ export default function DiscoveryScreen() {
         />
       ) : query.length >= 2 ? (
         <View style={styles.emptyState}>
-          <Ionicons name="musical-note" size={60} color="#B8C5B0" />
+          <Ionicons name="musical-note" size={60} color="#212F36" />
           <Text style={styles.emptyText}>No songs found</Text>
         </View>
       ) : (
         <View style={styles.emptyState}>
-          <Ionicons name="headset" size={80} color="#B8C5B0" />
+          <Ionicons name="headset" size={80} color="#212F36" />
           <Text style={styles.emptyTitle}>Discover Music</Text>
           <Text style={styles.emptyText}>Search for songs to listen to 30-second previews</Text>
         </View>
@@ -228,7 +226,7 @@ export default function DiscoveryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#212F36',
+    backgroundColor: '#F5F0E8',
   },
   header: {
     paddingHorizontal: 20,
@@ -238,23 +236,23 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   subtitle: {
     fontSize: 14,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
     marginTop: 4,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#4A6070',
+    backgroundColor: '#FFFFFF',
     marginHorizontal: 20,
     marginVertical: 16,
     borderRadius: 12,
     paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: '#5A7080',
+    borderColor: '#E0D8CC',
   },
   searchIcon: {
     marginRight: 12,
@@ -262,7 +260,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     height: 48,
-    color: '#F9FCF2',
+    color: '#212F36',
     fontSize: 16,
   },
   loadingContainer: {
@@ -276,12 +274,17 @@ const styles = StyleSheet.create({
   },
   songCard: {
     flexDirection: 'row',
-    backgroundColor: '#4A6070',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#5A7080',
+    borderColor: '#E0D8CC',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   albumCover: {
     width: 80,
@@ -296,21 +299,21 @@ const styles = StyleSheet.create({
   songTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   artistName: {
     fontSize: 14,
-    color: 'rgba(249, 252, 242, 0.7)',
+    color: '#5A7A6B',
     marginTop: 2,
   },
   albumName: {
     fontSize: 12,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
     marginTop: 2,
   },
   duration: {
     fontSize: 12,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#8B9A94',
     marginTop: 4,
   },
   songActions: {
@@ -322,7 +325,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#B8C5B0',
+    backgroundColor: '#212F36',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -349,12 +352,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#F9FCF2',
+    color: '#212F36',
     marginTop: 16,
   },
   emptyText: {
     fontSize: 14,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
     textAlign: 'center',
     marginTop: 8,
   },
