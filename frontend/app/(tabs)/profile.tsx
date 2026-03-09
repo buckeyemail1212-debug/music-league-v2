@@ -152,15 +152,15 @@ export default function ProfileScreen() {
         <View style={styles.header}>
           <TouchableOpacity style={styles.avatarContainer} onPress={handleChangePhoto} disabled={uploading}>
             {uploading ? (
-              <ActivityIndicator size="large" color="#B8C5B0" />
+              <ActivityIndicator size="large" color="#5A7A6B" />
             ) : user?.profile_photo ? (
               <Image source={{ uri: user.profile_photo }} style={styles.avatarImage} />
             ) : (
-              <Ionicons name="person" size={50} color="#B8C5B0" />
+              <Ionicons name="person" size={50} color="#5A7A6B" />
             )}
           </TouchableOpacity>
           <Text style={styles.tapToChange}>Tap photo to change</Text>
-          <Text style={styles.username}>{user?.username}</Text>
+          <Text style={styles.username}>{user?.display_name || user?.username}</Text>
           <Text style={styles.email}>{user?.email}</Text>
         </View>
 
@@ -169,7 +169,7 @@ export default function ProfileScreen() {
           <View style={styles.infoCard}>
             <View style={styles.infoRow}>
               <View style={styles.infoLeft}>
-                <Ionicons name="calendar-outline" size={20} color="#B8C5B0" />
+                <Ionicons name="calendar-outline" size={20} color="#5A7A6B" />
                 <Text style={styles.infoLabel}>Member Since</Text>
               </View>
               <Text style={styles.infoValue}>
@@ -238,24 +238,26 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#212F36',
+    backgroundColor: '#F5F0E8',
   },
   header: {
     alignItems: 'center',
     paddingVertical: 32,
     borderBottomWidth: 1,
-    borderBottomColor: '#4A6070',
+    borderBottomColor: '#E0D8CC',
     position: 'relative',
   },
   avatarContainer: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: 'rgba(184, 197, 176, 0.2)',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
     overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#E0D8CC',
   },
   avatarImage: {
     width: 100,
@@ -264,18 +266,18 @@ const styles = StyleSheet.create({
   },
   tapToChange: {
     fontSize: 12,
-    color: '#B8C5B0',
+    color: '#5A7A6B',
     marginTop: 8,
   },
   username: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#F9FCF2',
+    color: '#212F36',
     marginTop: 8,
   },
   email: {
     fontSize: 14,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
     marginTop: 4,
   },
   statsContainer: {
@@ -295,12 +297,12 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#F9FCF2',
+    color: '#FFFFFF',
     marginTop: 8,
   },
   statLabel: {
     fontSize: 14,
-    color: 'rgba(249, 252, 242, 0.8)',
+    color: 'rgba(255, 255, 255, 0.9)',
     marginTop: 4,
     fontWeight: '500',
   },
@@ -311,17 +313,22 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
     marginBottom: 12,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
   infoCard: {
-    backgroundColor: '#4A6070',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#5A7080',
+    borderColor: '#E0D8CC',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   infoRow: {
     flexDirection: 'row',
@@ -335,11 +342,11 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 14,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
   },
   infoValue: {
     fontSize: 14,
-    color: '#F9FCF2',
+    color: '#212F36',
     fontWeight: '500',
   },
   helpItem: {
@@ -351,7 +358,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#B8C5B0',
+    backgroundColor: '#5A7A6B',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -359,12 +366,12 @@ const styles = StyleSheet.create({
   helpNumberText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#212F36',
+    color: '#FFFFFF',
   },
   helpText: {
     flex: 1,
     fontSize: 14,
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   actionRow: {
     flexDirection: 'row',
@@ -384,7 +391,7 @@ const styles = StyleSheet.create({
   },
   actionDivider: {
     height: 1,
-    backgroundColor: 'rgba(74, 96, 112, 0.5)',
+    backgroundColor: '#E0D8CC',
   },
   logoutButton: {
     flexDirection: 'row',
@@ -404,7 +411,7 @@ const styles = StyleSheet.create({
   },
   version: {
     fontSize: 12,
-    color: 'rgba(141, 161, 155, 0.5)',
+    color: '#6B7A82',
     textAlign: 'center',
     marginTop: 32,
     marginBottom: 20,

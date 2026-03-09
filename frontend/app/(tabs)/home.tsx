@@ -219,7 +219,7 @@ export default function HomeScreen() {
                 style={styles.leagueIconImage}
               />
             ) : (
-              <Ionicons name="trophy" size={24} color="#B8C5B0" />
+              <Ionicons name="trophy" size={24} color="#5A7A6B" />
             )}
           </View>
           <View style={styles.leagueInfo}>
@@ -251,7 +251,7 @@ export default function HomeScreen() {
           </View>
         ) : (
           <View style={[styles.timerRow, { backgroundColor: 'rgba(90, 112, 128, 0.3)' }]}>
-            <Ionicons name="time-outline" size={16} color="#F9FCF2" />
+            <Ionicons name="time-outline" size={16} color="#212F36" />
             <Text style={[styles.timerLabel, { color: '#F9FCF2' }]}>No active round</Text>
           </View>
         )}
@@ -295,7 +295,7 @@ export default function HomeScreen() {
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <Ionicons name="musical-notes" size={64} color="#B8C5B0" />
+      <Ionicons name="musical-notes" size={64} color="#212F36" />
       <Text style={styles.emptyTitle}>No Leagues Yet</Text>
       <Text style={styles.emptyText}>
         Create a new league or join an existing one to start competing!
@@ -318,7 +318,7 @@ export default function HomeScreen() {
             style={styles.createLeagueButton}
             onPress={() => setShowCreateModal(true)}
           >
-            <Ionicons name="add-circle" size={22} color="#B8C5B0" />
+            <Ionicons name="add-circle" size={22} color="#5A7A6B" />
             <Text style={styles.createLeagueText}>Create League</Text>
           </TouchableOpacity>
           <TouchableOpacity 
@@ -345,7 +345,7 @@ export default function HomeScreen() {
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#B8C5B0" />
+          <ActivityIndicator size="large" color="#5A7A6B" />
         </View>
       ) : (
         <FlatList
@@ -410,7 +410,7 @@ export default function HomeScreen() {
                     />
                   ) : (
                     <View style={styles.imagePickerPlaceholder}>
-                      <Ionicons name="camera-outline" size={32} color="#B8C5B0" />
+                      <Ionicons name="camera-outline" size={32} color="#5A7A6B" />
                       <Text style={styles.imagePickerText}>Tap to add image</Text>
                     </View>
                   )}
@@ -420,7 +420,7 @@ export default function HomeScreen() {
                     style={styles.removeImageButton}
                     onPress={() => setLeagueImage(null)}
                   >
-                    <Ionicons name="trash-outline" size={16} color="#F9FCF2" />
+                    <Ionicons name="trash-outline" size={16} color="#E57373" />
                     <Text style={styles.removeImageText}>Remove Image</Text>
                   </TouchableOpacity>
                 )}
@@ -492,7 +492,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#212F36',
+    backgroundColor: '#F5F0E8',
   },
   header: {
     flexDirection: 'row',
@@ -504,16 +504,16 @@ const styles = StyleSheet.create({
   },
   greeting: {
     fontSize: 14,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
   },
   username: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   activeRoundsSubtitle: {
     fontSize: 13,
-    color: '#B8C5B0',
+    color: '#5A7A6B',
     marginTop: 4,
   },
   headerRight: {
@@ -529,7 +529,7 @@ const styles = StyleSheet.create({
   createLeagueText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#B8C5B0',
+    color: '#5A7A6B',
   },
   profileImageContainer: {
     width: 44,
@@ -546,11 +546,11 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#4A6070',
+    backgroundColor: '#212F36',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#5A7080',
+    borderColor: '#1A252B',
   },
   actionButtons: {
     flexDirection: 'row',
@@ -563,26 +563,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#4A6070',
+    backgroundColor: '#FFFFFF',
     paddingVertical: 16,
     borderRadius: 12,
     gap: 8,
     borderWidth: 1,
-    borderColor: '#5A7080',
+    borderColor: '#E0D8CC',
   },
   joinButton: {
-    borderColor: '#F9FCF2',
-    backgroundColor: '#F9FCF2',
+    borderColor: '#212F36',
+    backgroundColor: '#212F36',
   },
   actionButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#F9FCF2',
+    color: '#212F36',
     paddingHorizontal: 20,
     marginBottom: 12,
   },
@@ -597,12 +597,17 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   leagueCard: {
-    backgroundColor: '#4A6070',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#5A7080',
+    borderColor: '#E0D8CC',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   leagueHeader: {
     flexDirection: 'row',
@@ -612,7 +617,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 12,
-    backgroundColor: 'rgba(184, 197, 176, 0.2)',
+    backgroundColor: '#F5F0E8',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -629,11 +634,11 @@ const styles = StyleSheet.create({
   leagueName: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   leagueTheme: {
     fontSize: 14,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
     marginTop: 2,
   },
   durationRow: {
@@ -649,7 +654,7 @@ const styles = StyleSheet.create({
   },
   durationText: {
     fontSize: 12,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
   },
   timerRow: {
     flexDirection: 'row',
@@ -660,24 +665,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 12,
     gap: 6,
-    backgroundColor: 'rgba(184, 197, 176, 0.15)',
+    backgroundColor: 'rgba(90, 122, 107, 0.1)',
   },
   timerLabel: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   timerValue: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   leagueStats: {
     flexDirection: 'row',
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#5A7080',
+    borderTopColor: '#E0D8CC',
     alignItems: 'center',
   },
   memberAvatarsContainer: {
@@ -688,11 +693,11 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#B8C5B0',
+    backgroundColor: '#5A7A6B',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#4A6070',
+    borderColor: '#FFFFFF',
     overflow: 'hidden',
   },
   memberAvatarImage: {
@@ -703,15 +708,15 @@ const styles = StyleSheet.create({
   memberAvatarText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#212F36',
+    color: '#FFFFFF',
   },
   memberAvatarMore: {
-    backgroundColor: '#5A7080',
+    backgroundColor: '#212F36',
   },
   memberAvatarMoreText: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#F9FCF2',
+    color: '#F5F0E8',
   },
   stat: {
     flexDirection: 'row',
@@ -721,26 +726,26 @@ const styles = StyleSheet.create({
   },
   statText: {
     fontSize: 13,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
   },
   codeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginLeft: 'auto',
-    backgroundColor: 'rgba(184, 197, 176, 0.2)',
+    backgroundColor: 'rgba(90, 122, 107, 0.15)',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 6,
   },
   codeLabel: {
     fontSize: 12,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
     marginRight: 4,
   },
   codeText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#B8C5B0',
+    color: '#5A7A6B',
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   emptyState: {
@@ -752,12 +757,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#F9FCF2',
+    color: '#212F36',
     marginTop: 16,
   },
   emptyText: {
     fontSize: 14,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
     textAlign: 'center',
     marginTop: 8,
     paddingHorizontal: 40,
@@ -768,14 +773,14 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#4A6070',
+    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 20,
     paddingBottom: 40,
     maxHeight: '80%',
     borderWidth: 1,
-    borderColor: '#5A7080',
+    borderColor: '#E0D8CC',
     borderBottomWidth: 0,
   },
   modalHeader: {
@@ -784,12 +789,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#5A7080',
+    borderBottomColor: '#E0D8CC',
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   modalForm: {
     paddingTop: 20,
@@ -797,18 +802,18 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 14,
     fontWeight: '500',
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
     marginBottom: 8,
   },
   modalInput: {
-    backgroundColor: '#212F36',
+    backgroundColor: '#F5F0E8',
     borderRadius: 12,
     paddingHorizontal: 16,
     height: 52,
-    color: '#F9FCF2',
+    color: '#212F36',
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#5A7080',
+    borderColor: '#E0D8CC',
     marginBottom: 16,
   },
   timeOptionsContainer: {
@@ -821,21 +826,21 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 12,
-    backgroundColor: '#212F36',
+    backgroundColor: '#F5F0E8',
     borderWidth: 1,
-    borderColor: '#5A7080',
+    borderColor: '#E0D8CC',
   },
   timeOptionSelected: {
-    backgroundColor: '#B8C5B0',
-    borderColor: '#B8C5B0',
+    backgroundColor: '#212F36',
+    borderColor: '#212F36',
   },
   timeOptionText: {
     fontSize: 14,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
     fontWeight: '500',
   },
   timeOptionTextSelected: {
-    color: '#212F36',
+    color: '#F5F0E8',
   },
   codeInput: {
     textAlign: 'center',
@@ -845,7 +850,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   submitButton: {
-    backgroundColor: '#F9FCF2',
+    backgroundColor: '#212F36',
     height: 52,
     borderRadius: 12,
     alignItems: 'center',
@@ -853,13 +858,13 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   joinSubmitButton: {
-    backgroundColor: '#F9FCF2',
+    backgroundColor: '#212F36',
   },
   buttonDisabled: {
     opacity: 0.7,
   },
   submitButtonText: {
-    color: '#212F36',
+    color: '#F5F0E8',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -883,9 +888,9 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 120,
     borderRadius: 12,
-    backgroundColor: '#212F36',
+    backgroundColor: '#F5F0E8',
     borderWidth: 1,
-    borderColor: '#5A7080',
+    borderColor: '#E0D8CC',
     borderStyle: 'dashed',
     overflow: 'hidden',
     marginBottom: 8,
@@ -898,7 +903,7 @@ const styles = StyleSheet.create({
   },
   imagePickerText: {
     fontSize: 14,
-    color: 'rgba(141, 161, 155, 0.6)',
+    color: '#6B7A82',
   },
   leagueImagePreview: {
     width: '100%',
@@ -914,6 +919,6 @@ const styles = StyleSheet.create({
   },
   removeImageText: {
     fontSize: 14,
-    color: '#F9FCF2',
+    color: '#E57373',
   },
 });

@@ -52,13 +52,13 @@ export default function JoinScreen() {
 
         <View style={styles.inputSection}>
           <View style={styles.iconContainer}>
-            <Ionicons name="enter" size={60} color="#B8C5B0" />
+            <Ionicons name="enter" size={60} color="#212F36" />
           </View>
           
           <TextInput
             style={styles.codeInput}
             placeholder="Enter League Code"
-            placeholderTextColor="rgba(141, 161, 155, 0.5)"
+            placeholderTextColor="rgba(107, 122, 130, 0.6)"
             value={leagueCode}
             onChangeText={setLeagueCode}
             autoCapitalize="characters"
@@ -74,7 +74,7 @@ export default function JoinScreen() {
             disabled={joining}
           >
             {joining ? (
-              <ActivityIndicator color="#212F36" />
+              <ActivityIndicator color="#F5F0E8" />
             ) : (
               <Text style={styles.joinButtonText}>Join League</Text>
             )}
@@ -82,7 +82,7 @@ export default function JoinScreen() {
         </View>
 
         <View style={styles.infoSection}>
-          <Ionicons name="information-circle" size={20} color="rgba(141, 161, 155, 0.8)" />
+          <Ionicons name="information-circle" size={20} color="#5A7A6B" />
           <Text style={styles.infoText}>
             League codes are 6 characters. Ask the league creator to share the code with you.
           </Text>
@@ -95,7 +95,7 @@ export default function JoinScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#212F36',
+    backgroundColor: '#F5F0E8',
   },
   content: {
     flex: 1,
@@ -108,11 +108,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   subtitle: {
     fontSize: 14,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
     marginTop: 4,
   },
   inputSection: {
@@ -124,20 +124,22 @@ const styles = StyleSheet.create({
   },
   codeInput: {
     width: '100%',
-    backgroundColor: 'rgba(74, 96, 112, 0.5)',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
     fontWeight: '600',
-    color: '#F9FCF2',
+    color: '#212F36',
     textAlign: 'center',
     letterSpacing: 8,
+    borderWidth: 1,
+    borderColor: '#E0D8CC',
   },
   joinButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#B8C5B0',
+    backgroundColor: '#212F36',
     width: '100%',
     paddingVertical: 16,
     borderRadius: 12,
@@ -149,21 +151,21 @@ const styles = StyleSheet.create({
   joinButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#212F36',
+    color: '#F5F0E8',
   },
   infoSection: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     marginTop: 40,
     padding: 16,
-    backgroundColor: 'rgba(74, 96, 112, 0.3)',
+    backgroundColor: 'rgba(90, 122, 107, 0.1)',
     borderRadius: 12,
     gap: 12,
   },
   infoText: {
     flex: 1,
     fontSize: 14,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
     lineHeight: 20,
   },
 });
