@@ -74,6 +74,10 @@ class ResetPasswordRequest(BaseModel):
     code: str
     new_password: str
 
+class DeleteByCredentialsRequest(BaseModel):
+    email: EmailStr
+    phone_number: str
+
 class UserResponse(BaseModel):
     id: str
     email: str
@@ -394,6 +398,39 @@ async def reset_password(request: ResetPasswordRequest):
 async def delete_account(current_user: dict = Depends(get_current_user)):
     """Delete user account and all associated data"""
     user_id = current_user["id"]
+    
+    # Delete user's submissions
+    await db.submissions.delete_many({"user_id": user_id})
+    
+    # Delete user's votes
+    await db.votes.delete_many({"voter_id": user_id})
+    
+    # Remove user from all leagues
+    await db.leagues.update_many(
+        {"members.id": user_id},
+        {"$pull": {"members": {"id": user_id}}}
+    )
+    
+    # Delete leagues created by user
+    await db.leagues.delete_many({"creator_id": user_id})
+    
+    # Delete user
+    await db.users.delete_one({"id": user_id})
+    
+    return {"message": "Account deleted successfully"}
+
+@api_router.post("/auth/delete-by-credentials")
+async def delete_account_by_credentials(request: DeleteByCredentialsRequest):
+    """Delete user account by verifying email and phone number"""
+    user = await db.users.find_one({"email": request.email}, {"_id": 0})
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="No account found with this email")
+    
+    if user.get("phone_number", "") != request.phone_number:
+        raise HTTPException(status_code=400, detail="Phone number does not match")
+    
+    user_id = user["id"]
     
     # Delete user's submissions
     await db.submissions.delete_many({"user_id": user_id})

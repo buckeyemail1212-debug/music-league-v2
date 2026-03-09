@@ -76,6 +76,9 @@ export default function LeagueDetailScreen() {
   const [hasUnread, setHasUnread] = useState(false);
   const chatListRef = useRef<FlatList>(null);
 
+  // Members modal state
+  const [showMembersModal, setShowMembersModal] = useState(false);
+
   // Share card state
   const [showShareCard, setShowShareCard] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
@@ -533,6 +536,9 @@ export default function LeagueDetailScreen() {
           <Text style={styles.leagueTheme}>Round {league.current_round} of {league.total_rounds > 0 ? league.total_rounds : 'Unlimited'}</Text>
         </View>
         <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.headerButton} onPress={() => setShowMembersModal(true)}>
+            <Ionicons name="people" size={22} color="#B8C5B0" />
+          </TouchableOpacity>
           <TouchableOpacity style={styles.headerButton} onPress={openChat}>
             <Ionicons name="chatbubble-outline" size={22} color="#B8C5B0" />
             {hasUnread && <View style={styles.unreadBadge} />}
@@ -1008,6 +1014,52 @@ export default function LeagueDetailScreen() {
             </View>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Members Modal */}
+      <Modal
+        visible={showMembersModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowMembersModal(false)}
+      >
+        <View style={styles.membersModalOverlay}>
+          <View style={styles.membersModalContent}>
+            <View style={styles.membersModalHeader}>
+              <Text style={styles.membersModalTitle}>League Members</Text>
+              <TouchableOpacity onPress={() => setShowMembersModal(false)}>
+                <Ionicons name="close" size={24} color="#8DA19B" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.membersList}>
+              {league.members.map((member, index) => (
+                <View key={member.id} style={styles.memberItem}>
+                  <View style={styles.memberNumber}>
+                    <Text style={styles.memberNumberText}>{index + 1}</Text>
+                  </View>
+                  <View style={styles.memberAvatar}>
+                    {member.profile_photo ? (
+                      <Image source={{ uri: member.profile_photo }} style={styles.memberAvatarImg} />
+                    ) : (
+                      <View style={styles.memberAvatarPlaceholder}>
+                        <Text style={styles.memberInitial}>{member.username?.charAt(0).toUpperCase()}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.memberDetails}>
+                    <Text style={styles.memberName}>{member.username}</Text>
+                    <Text style={styles.memberUsername}>@{member.username}</Text>
+                  </View>
+                  {league.creator_id === member.id && (
+                    <View style={styles.creatorBadge}>
+                      <Text style={styles.creatorBadgeText}>Creator</Text>
+                    </View>
+                  )}
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -1743,6 +1795,103 @@ const styles = StyleSheet.create({
   },
   shareButtonText: {
     fontSize: 16,
+    fontWeight: '600',
+    color: '#212F36',
+  },
+  membersModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  membersModalContent: {
+    width: '85%',
+    maxHeight: '70%',
+    backgroundColor: '#2A3A42',
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  membersModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(74, 96, 112, 0.5)',
+  },
+  membersModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#F9FCF2',
+  },
+  membersList: {
+    padding: 16,
+  },
+  memberItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(74, 96, 112, 0.3)',
+  },
+  memberNumber: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(184, 197, 176, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  memberNumberText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#B8C5B0',
+  },
+  memberAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+    overflow: 'hidden',
+  },
+  memberAvatarImg: {
+    width: '100%',
+    height: '100%',
+  },
+  memberAvatarPlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#212F36',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  memberInitial: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#B8C5B0',
+  },
+  memberDetails: {
+    flex: 1,
+  },
+  memberName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#F9FCF2',
+  },
+  memberUsername: {
+    fontSize: 12,
+    color: 'rgba(141, 161, 155, 0.7)',
+    marginTop: 2,
+  },
+  creatorBadge: {
+    backgroundColor: '#B8C5B0',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  creatorBadgeText: {
+    fontSize: 10,
     fontWeight: '600',
     color: '#212F36',
   },
