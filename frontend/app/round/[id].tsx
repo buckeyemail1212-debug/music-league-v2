@@ -677,7 +677,7 @@ export default function RoundScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#B8C5B0" />
+          <ActivityIndicator size="large" color="#5A7A6B" />
         </View>
       </SafeAreaView>
     );
@@ -835,7 +835,7 @@ export default function RoundScreen() {
                     style={styles.changeSongButton}
                     onPress={() => setShowSongModal(true)}
                   >
-                    <Ionicons name="swap-horizontal" size={20} color="#F9FCF2" />
+                    <Ionicons name="swap-horizontal" size={20} color="#212F36" />
                     <Text style={styles.changeSongText}>Change Song</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -900,7 +900,7 @@ export default function RoundScreen() {
                   style={styles.changeVoteButton}
                   onPress={handleChangeVote}
                 >
-                  <Ionicons name="create-outline" size={20} color="#B8C5B0" />
+                  <Ionicons name="create-outline" size={20} color="#5A7A6B" />
                   <Text style={styles.changeVoteText}>Change Vote</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -923,7 +923,7 @@ export default function RoundScreen() {
             // Still ranking - show instructions
             <>
               <View style={styles.votingInstructions}>
-                <Ionicons name="list-outline" size={20} color="#B8C5B0" />
+                <Ionicons name="list-outline" size={20} color="#5A7A6B" />
                 <Text style={styles.votingInstructionsText}>Tap numbers to rank songs (1 = best)</Text>
               </View>
               <View style={styles.pointsExplanation}>
@@ -986,7 +986,7 @@ export default function RoundScreen() {
               style={styles.reopenButton}
               onPress={() => setShowMissingModal(true)}
             >
-              <Ionicons name="person-add-outline" size={20} color="#F9FCF2" />
+              <Ionicons name="person-add-outline" size={20} color="#212F36" />
               <Text style={styles.reopenButtonText}>
                 Reopen Submissions ({missingUsers.length} missing)
               </Text>
@@ -1096,7 +1096,7 @@ export default function RoundScreen() {
 
           {searching ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#B8C5B0" />
+              <ActivityIndicator size="large" color="#5A7A6B" />
             </View>
           ) : (
             <FlatList
@@ -1157,7 +1157,7 @@ export default function RoundScreen() {
             <View style={styles.missingModalHeader}>
               <Text style={styles.missingModalTitle}>Members Who Missed Submission</Text>
               <TouchableOpacity onPress={() => setShowMissingModal(false)}>
-                <Ionicons name="close" size={24} color="#F9FCF2" />
+                <Ionicons name="close" size={24} color="#212F36" />
               </TouchableOpacity>
             </View>
             <Text style={styles.missingModalSubtitle}>
@@ -1174,7 +1174,7 @@ export default function RoundScreen() {
                   </View>
                   {missingUser.has_extension ? (
                     <View style={styles.extensionInfo}>
-                      <Ionicons name="time-outline" size={16} color="#B8C5B0" />
+                      <Ionicons name="time-outline" size={16} color="#5A7A6B" />
                       <Text style={styles.extensionText}>
                         Expires: {new Date(missingUser.extension_deadline!).toLocaleTimeString()}
                       </Text>
@@ -1196,7 +1196,7 @@ export default function RoundScreen() {
               ))}
               {missingUsers.length === 0 && (
                 <View style={styles.noMissingUsers}>
-                  <Ionicons name="checkmark-circle" size={32} color="#B8C5B0" />
+                  <Ionicons name="checkmark-circle" size={32} color="#5A7A6B" />
                   <Text style={styles.noMissingText}>All members have submitted!</Text>
                 </View>
               )}
@@ -1211,7 +1211,7 @@ export default function RoundScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#212F36',
+    backgroundColor: '#F5F0E8',
   },
   loadingContainer: {
     flex: 1,
@@ -1226,7 +1226,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
     textAlign: 'center',
     marginTop: 12,
   },
@@ -1258,11 +1258,11 @@ const styles = StyleSheet.create({
   roundTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   roundTheme: {
     fontSize: 14,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
   },
   statusPill: {
     paddingHorizontal: 12,
@@ -1272,7 +1272,7 @@ const styles = StyleSheet.create({
   statusPillText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   submissionScrollView: {
     flex: 1,
@@ -1299,7 +1299,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(184, 197, 176, 0.15)',
+    backgroundColor: 'rgba(90, 122, 107, 0.1)',
     marginHorizontal: 16,
     paddingVertical: 16,
     borderRadius: 12,
@@ -1310,7 +1310,7 @@ const styles = StyleSheet.create({
   submittedText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   timerContainer: {
     flexDirection: 'row',
@@ -1328,12 +1328,12 @@ const styles = StyleSheet.create({
   },
   timerLabel: {
     fontSize: 14,
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   timerValue: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   progressContainer: {
     flexDirection: 'row',
@@ -1345,12 +1345,12 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 13,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#F9FCF2',
+    color: '#212F36',
     paddingHorizontal: 16,
     marginTop: 20,
     marginBottom: 12,
@@ -1362,12 +1362,12 @@ const styles = StyleSheet.create({
   submissionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#4A6070',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 12,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#5A7080',
+    borderColor: '#E0D8CC',
   },
   albumCover: {
     width: 60,
@@ -1386,27 +1386,27 @@ const styles = StyleSheet.create({
   songTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   artistName: {
     fontSize: 13,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
     marginTop: 2,
   },
   submittedBy: {
     fontSize: 12,
-    color: '#B8C5B0',
+    color: '#5A7A6B',
     marginTop: 4,
   },
   submittedByYou: {
     fontSize: 12,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
     fontStyle: 'italic',
     marginTop: 4,
   },
   duration: {
     fontSize: 11,
-    color: 'rgba(141, 161, 155, 0.6)',
+    color: '#8B9A94',
     marginTop: 2,
   },
   playButton: {
@@ -1464,7 +1464,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 14,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
     marginTop: 8,
   },
   hiddenSubmissionsNote: {
@@ -1475,15 +1475,15 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingVertical: 16,
     paddingHorizontal: 20,
-    backgroundColor: '#4A6070',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     gap: 10,
     borderWidth: 1,
-    borderColor: '#5A7080',
+    borderColor: '#E0D8CC',
   },
   hiddenSubmissionsText: {
     fontSize: 14,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
     flex: 1,
   },
   votingInstructions: {
@@ -1498,7 +1498,7 @@ const styles = StyleSheet.create({
   },
   votingInstructionsText: {
     fontSize: 14,
-    color: '#B8C5B0',
+    color: '#5A7A6B',
     fontWeight: '500',
   },
   ownSongNote: {
@@ -1511,17 +1511,17 @@ const styles = StyleSheet.create({
   },
   ownSongNoteText: {
     fontSize: 12,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
   },
   votingCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#4A6070',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 12,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#5A7080',
+    borderColor: '#E0D8CC',
   },
   rankBadge: {
     width: 32,
@@ -1535,7 +1535,7 @@ const styles = StyleSheet.create({
   rankNumber: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   votingSongInfo: {
     flex: 1,
@@ -1571,12 +1571,12 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 16,
-    backgroundColor: '#212F36',
+    backgroundColor: '#F5F0E8',
     borderTopWidth: 1,
-    borderTopColor: '#1a1a1a',
+    borderTopColor: '#E0D8CC',
   },
   submitVoteButton: {
-    backgroundColor: '#F9FCF2',
+    backgroundColor: '#212F36',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -1587,13 +1587,13 @@ const styles = StyleSheet.create({
   submitVoteText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#212F36',
+    color: '#F5F0E8',
   },
   lockedBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(184, 197, 176, 0.15)',
+    backgroundColor: 'rgba(90, 122, 107, 0.1)',
     marginHorizontal: 16,
     paddingVertical: 16,
     borderRadius: 12,
@@ -1604,7 +1604,7 @@ const styles = StyleSheet.create({
   lockedText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#B8C5B0',
+    color: '#5A7A6B',
   },
   voteSavedContainer: {
     marginHorizontal: 16,
@@ -1614,17 +1614,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'rgba(90, 122, 107, 0.15)',
     paddingVertical: 16,
     borderRadius: 12,
     gap: 8,
     borderWidth: 1,
-    borderColor: '#fff',
+    borderColor: '#5A7A6B',
   },
   voteSavedText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#F9FCF2',
+    color: '#5A7A6B',
   },
   voteActionButtons: {
     flexDirection: 'row',
@@ -1635,24 +1635,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#4A6070',
+    backgroundColor: '#FFFFFF',
     paddingVertical: 14,
     borderRadius: 12,
     gap: 8,
     borderWidth: 1,
-    borderColor: '#B8C5B0',
+    borderColor: '#E0D8CC',
   },
   changeVoteText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#B8C5B0',
+    color: '#5A7A6B',
   },
   lockVoteButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#B8C5B0',
+    backgroundColor: '#212F36',
     paddingVertical: 14,
     borderRadius: 12,
     gap: 8,
@@ -1660,7 +1660,7 @@ const styles = StyleSheet.create({
   lockVoteText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#212F36',
+    color: '#F5F0E8',
   },
   lockedRankingsContainer: {
     marginTop: 16,
@@ -1688,7 +1688,7 @@ const styles = StyleSheet.create({
   winnerSong: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#F9FCF2',
+    color: '#212F36',
     marginTop: 4,
   },
   winnerUser: {
@@ -1734,12 +1734,12 @@ const styles = StyleSheet.create({
   resultCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#4A6070',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 12,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#5A7080',
+    borderColor: '#E0D8CC',
   },
   winnerCard: {
     borderColor: '#fbbf24',
@@ -1770,7 +1770,7 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#212F36',
+    backgroundColor: '#F5F0E8',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1786,12 +1786,12 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#4A6070',
+    backgroundColor: '#FFFFFF',
     marginHorizontal: 16,
     marginVertical: 12,
     borderRadius: 12,
@@ -1801,7 +1801,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     height: 48,
-    color: '#F9FCF2',
+    color: '#212F36',
     fontSize: 16,
   },
   searchResultsList: {
@@ -1811,12 +1811,12 @@ const styles = StyleSheet.create({
   searchResultItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#4A6070',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 12,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#5A7080',
+    borderColor: '#E0D8CC',
   },
   searchResultInfo: {
     flex: 1,
@@ -1825,7 +1825,7 @@ const styles = StyleSheet.create({
   userSubmissionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#4A6070',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
@@ -1842,17 +1842,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#4A6070',
+    backgroundColor: '#FFFFFF',
     padding: 14,
     borderRadius: 12,
     gap: 8,
     borderWidth: 1,
-    borderColor: '#5A7080',
+    borderColor: '#E0D8CC',
   },
   changeSongText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   lockSubmissionButton: {
     flex: 1,
@@ -1884,7 +1884,7 @@ const styles = StyleSheet.create({
   },
   songArtist: {
     fontSize: 13,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
     marginTop: 2,
   },
   // New voting UI styles
@@ -1923,7 +1923,7 @@ const styles = StyleSheet.create({
   },
   pointsExplanationText: {
     fontSize: 12,
-    color: 'rgba(141, 161, 155, 0.6)',
+    color: '#8B9A94',
     textAlign: 'center',
   },
   noSubmissionContainer: {
@@ -1936,11 +1936,11 @@ const styles = StyleSheet.create({
   noSubmissionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   noSubmissionText: {
     fontSize: 14,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -1970,12 +1970,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     gap: 8,
     borderWidth: 1,
-    borderColor: '#5A7080',
+    borderColor: '#E0D8CC',
   },
   reopenButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   modalOverlay: {
     flex: 1,
@@ -1983,7 +1983,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   missingModalContent: {
-    backgroundColor: '#2A3B44',
+    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: 20,
@@ -2000,11 +2000,11 @@ const styles = StyleSheet.create({
   missingModalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   missingModalSubtitle: {
     fontSize: 13,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
     paddingHorizontal: 20,
     marginBottom: 16,
   },
@@ -2017,7 +2017,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(90, 112, 128, 0.3)',
+    borderBottomColor: '#E0D8CC',
   },
   missingUserInfo: {
     flex: 1,
@@ -2025,11 +2025,11 @@ const styles = StyleSheet.create({
   missingUserName: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   extensionBadge: {
     fontSize: 11,
-    color: '#B8C5B0',
+    color: '#5A7A6B',
     marginTop: 2,
   },
   extensionInfo: {
@@ -2039,7 +2039,7 @@ const styles = StyleSheet.create({
   },
   extensionText: {
     fontSize: 12,
-    color: '#B8C5B0',
+    color: '#5A7A6B',
   },
   grantExtensionButton: {
     backgroundColor: '#B8C5B0',
@@ -2059,6 +2059,6 @@ const styles = StyleSheet.create({
   },
   noMissingText: {
     fontSize: 14,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
   },
 });

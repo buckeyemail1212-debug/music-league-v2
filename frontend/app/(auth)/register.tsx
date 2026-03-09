@@ -68,18 +68,18 @@ export default function RegisterScreen() {
             </TouchableOpacity>
 
             <View style={styles.header}>
-              <Ionicons name="musical-notes" size={60} color="#F9FCF2" />
+              <Ionicons name="musical-notes" size={60} color="#212F36" />
               <Text style={styles.title}>Create Account</Text>
               <Text style={styles.subtitle}>Join the music competition</Text>
             </View>
 
             <View style={styles.form}>
               <View style={styles.inputContainer}>
-                <Ionicons name="person" size={20} color="#8DA19B" style={styles.inputIcon} />
+                <Ionicons name="person" size={20} color="#6B7A82" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   placeholder="Name (displayed to others)"
-                  placeholderTextColor="#8DA19B"
+                  placeholderTextColor="#6B7A82"
                   value={displayName}
                   onChangeText={setDisplayName}
                   autoCapitalize="words"
@@ -92,11 +92,11 @@ export default function RegisterScreen() {
               </View>
 
               <View style={styles.inputContainer}>
-                <Ionicons name="mail-outline" size={20} color="#8DA19B" style={styles.inputIcon} />
+                <Ionicons name="mail-outline" size={20} color="#6B7A82" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   placeholder="Email"
-                  placeholderTextColor="#8DA19B"
+                  placeholderTextColor="#6B7A82"
                   value={email}
                   onChangeText={setEmail}
                   keyboardType="email-address"
@@ -110,11 +110,11 @@ export default function RegisterScreen() {
               </View>
 
               <View style={styles.inputContainer}>
-                <Ionicons name="person-outline" size={20} color="#8DA19B" style={styles.inputIcon} />
+                <Ionicons name="person-outline" size={20} color="#6B7A82" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   placeholder="Username"
-                  placeholderTextColor="#8DA19B"
+                  placeholderTextColor="#6B7A82"
                   value={username}
                   onChangeText={setUsername}
                   autoCapitalize="none"
@@ -127,11 +127,11 @@ export default function RegisterScreen() {
               </View>
 
               <View style={styles.inputContainer}>
-                <Ionicons name="call-outline" size={20} color="#8DA19B" style={styles.inputIcon} />
+                <Ionicons name="call-outline" size={20} color="#6B7A82" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   placeholder="Phone Number"
-                  placeholderTextColor="#8DA19B"
+                  placeholderTextColor="#6B7A82"
                   value={phoneNumber}
                   onChangeText={setPhoneNumber}
                   keyboardType="phone-pad"
@@ -144,11 +144,11 @@ export default function RegisterScreen() {
               </View>
 
               <View style={styles.inputContainer}>
-                <Ionicons name="lock-closed-outline" size={20} color="#8DA19B" style={styles.inputIcon} />
+                <Ionicons name="lock-closed-outline" size={20} color="#6B7A82" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   placeholder="Password"
-                  placeholderTextColor="#8DA19B"
+                  placeholderTextColor="#6B7A82"
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
@@ -163,17 +163,17 @@ export default function RegisterScreen() {
                   <Ionicons
                     name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                     size={20}
-                    color="#8DA19B"
+                    color="#6B7A82"
                   />
                 </TouchableOpacity>
               </View>
 
               <View style={styles.inputContainer}>
-                <Ionicons name="lock-closed-outline" size={20} color="#8DA19B" style={styles.inputIcon} />
+                <Ionicons name="lock-closed-outline" size={20} color="#6B7A82" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   placeholder="Confirm Password"
-                  placeholderTextColor="#8DA19B"
+                  placeholderTextColor="#6B7A82"
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   secureTextEntry={!showPassword}
@@ -215,7 +215,7 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#212F36',
+    backgroundColor: '#F5F0E8',
   },
   keyboardView: {
     flex: 1,
@@ -241,12 +241,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#F9FCF2',
+    color: '#212F36',
     marginTop: 16,
   },
   subtitle: {
     fontSize: 16,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
     marginTop: 8,
   },
   form: {
@@ -255,11 +255,11 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#4A6070',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: '#5A7080',
+    borderColor: '#E0D8CC',
   },
   inputIcon: {
     marginRight: 12,
@@ -267,11 +267,11 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     height: 52,
-    color: '#F9FCF2',
+    color: '#212F36',
     fontSize: 16,
   },
   button: {
-    backgroundColor: '#F9FCF2',
+    backgroundColor: '#212F36',
     height: 52,
     borderRadius: 12,
     alignItems: 'center',
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   buttonText: {
-    color: '#212F36',
+    color: '#F5F0E8',
     fontSize: 18,
     fontWeight: '600',
   },
@@ -292,12 +292,12 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   footerText: {
-    color: '#F9FCF2',
+    color: '#212F36',
     fontSize: 14,
     fontWeight: '600',
   },
   footerLink: {
-    color: '#B8C5B0',
+    color: '#5A7A6B',
     fontSize: 14,
     fontWeight: '700',
   },

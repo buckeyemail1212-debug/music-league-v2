@@ -84,11 +84,11 @@ export default function ForgotPasswordScreen() {
 
           <View style={styles.form}>
             <View style={styles.inputContainer}>
-              <Ionicons name="mail-outline" size={20} color="#8DA19B" style={styles.inputIcon} />
+              <Ionicons name="mail-outline" size={20} color="#6B7A82" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Email"
-                placeholderTextColor="#8DA19B"
+                placeholderTextColor="#6B7A82"
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -99,11 +99,11 @@ export default function ForgotPasswordScreen() {
             </View>
 
             <View style={styles.inputContainer}>
-              <Ionicons name="call-outline" size={20} color="#8DA19B" style={styles.inputIcon} />
+              <Ionicons name="call-outline" size={20} color="#6B7A82" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Phone Number (used at signup)"
-                placeholderTextColor="#8DA19B"
+                placeholderTextColor="#6B7A82"
                 value={phoneNumber}
                 onChangeText={setPhoneNumber}
                 keyboardType="phone-pad"
@@ -147,7 +147,7 @@ export default function ForgotPasswordScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#212F36',
+    backgroundColor: '#F5F0E8',
   },
   keyboardView: {
     flex: 1,
@@ -166,12 +166,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#F9FCF2',
+    color: '#212F36',
     marginTop: 16,
   },
   subtitle: {
     fontSize: 14,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
     marginTop: 8,
     textAlign: 'center',
     lineHeight: 20,
@@ -182,10 +182,12 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(74, 96, 112, 0.5)',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     paddingHorizontal: 16,
     height: 56,
+    borderWidth: 1,
+    borderColor: '#E0D8CC',
   },
   inputIcon: {
     marginRight: 12,
@@ -193,12 +195,12 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 16,
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   warningBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
     padding: 16,
     borderRadius: 12,
     gap: 12,
@@ -208,7 +210,7 @@ const styles = StyleSheet.create({
   warningText: {
     flex: 1,
     fontSize: 13,
-    color: '#f59e0b',
+    color: '#b45309',
     lineHeight: 18,
   },
   button: {

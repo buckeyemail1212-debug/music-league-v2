@@ -28,6 +28,16 @@ A "fantasy sports for music" app where users join leagues, submit songs to round
 - **Database**: MongoDB (via motor async driver)
 - **Authentication**: JWT with 7-day expiry
 - **Timezone Handling**: ZoneInfo + dateutil.relativedelta for DST-safe "same clock time" calculations
+- **UI Theme**: Light/Cream theme with Deep Navy accents
+
+## Color Palette (Light Theme)
+- **Main Background**: Beige/Cream (#F5F0E8)
+- **Cards**: White (#FFFFFF) with soft borders (#E0D8CC)
+- **Nav Bar**: Deep Navy (#212F36) with cream icons (#F5F0E8)
+- **Primary Text**: Deep Navy (#212F36)
+- **Secondary Text**: Muted Grey (#6B7A82)
+- **Accent Color**: Muted Green (#5A7A6B)
+- **Buttons**: Deep Navy (#212F36) with cream text
 
 ## Deployment Status (Always-On)
 - **Backend**: Railway - https://amiable-learning-production.up.railway.app

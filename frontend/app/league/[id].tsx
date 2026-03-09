@@ -507,7 +507,7 @@ export default function LeagueDetailScreen() {
 
         <View style={styles.roundStats}>
           <View style={styles.roundStat}>
-            <Ionicons name="musical-note" size={14} color="#B8C5B0" />
+            <Ionicons name="musical-note" size={14} color="#5A7A6B" />
             <Text style={styles.roundStatText}>{item.submissions_count} songs</Text>
           </View>
           {item.status !== 'completed' && (
@@ -525,7 +525,7 @@ export default function LeagueDetailScreen() {
                 size={14}
                 color={item.has_user_submitted ? '#B8C5B0' : 'rgba(141, 161, 155, 0.8)'}
               />
-              <Text style={[styles.roundStatText, item.has_user_submitted && { color: '#B8C5B0' }]}>
+              <Text style={[styles.roundStatText, item.has_user_submitted && { color: '#5A7A6B' }]}>
                 {item.has_user_submitted ? 'Submitted' : 'Pending'}
               </Text>
             </View>
@@ -537,7 +537,7 @@ export default function LeagueDetailScreen() {
                 size={14}
                 color={item.has_user_voted ? '#B8C5B0' : 'rgba(141, 161, 155, 0.8)'}
               />
-              <Text style={[styles.roundStatText, item.has_user_voted && { color: '#B8C5B0' }]}>
+              <Text style={[styles.roundStatText, item.has_user_voted && { color: '#5A7A6B' }]}>
                 {item.has_user_voted ? 'Voted' : 'Vote Pending'}
               </Text>
             </View>
@@ -571,7 +571,7 @@ export default function LeagueDetailScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#B8C5B0" />
+          <ActivityIndicator size="large" color="#5A7A6B" />
         </View>
       </SafeAreaView>
     );
@@ -591,7 +591,7 @@ export default function LeagueDetailScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#F9FCF2" />
+          <Ionicons name="arrow-back" size={24} color="#212F36" />
         </TouchableOpacity>
         <View style={styles.headerInfo}>
           <Text style={styles.leagueName}>{league.name}</Text>
@@ -599,14 +599,14 @@ export default function LeagueDetailScreen() {
         </View>
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.headerButton} onPress={() => setShowMembersModal(true)}>
-            <Ionicons name="people" size={22} color="#B8C5B0" />
+            <Ionicons name="people" size={22} color="#5A7A6B" />
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerButton} onPress={openChat}>
-            <Ionicons name="chatbubble-outline" size={22} color="#B8C5B0" />
+            <Ionicons name="chatbubble-outline" size={22} color="#5A7A6B" />
             {hasUnread && <View style={styles.unreadBadge} />}
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerButton} onPress={handleCopyCode}>
-            <Ionicons name="copy-outline" size={22} color="#B8C5B0" />
+            <Ionicons name="copy-outline" size={22} color="#5A7A6B" />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.headerButton}
@@ -626,7 +626,7 @@ export default function LeagueDetailScreen() {
           <Text style={styles.codeLabel}>League Code</Text>
           <View style={styles.codeRow}>
             <Text style={styles.codeValue}>{league.league_code}</Text>
-            <Ionicons name="copy-outline" size={18} color="#B8C5B0" style={{ marginLeft: 8 }} />
+            <Ionicons name="copy-outline" size={18} color="#5A7A6B" style={{ marginLeft: 8 }} />
           </View>
         </View>
         <View style={styles.memberAvatarsRow}>
@@ -922,9 +922,9 @@ export default function LeagueDetailScreen() {
                   style={styles.dropdownButton}
                   onPress={() => setShowSubmissionPicker(!showSubmissionPicker)}
                 >
-                  <Ionicons name="time" size={20} color="#B8C5B0" />
+                  <Ionicons name="time" size={20} color="#5A7A6B" />
                   <Text style={styles.dropdownButtonText}>{getTimeLabel(submissionHours)}</Text>
-                  <Ionicons name={showSubmissionPicker ? "chevron-up" : "chevron-down"} size={20} color="#B8C5B0" />
+                  <Ionicons name={showSubmissionPicker ? "chevron-up" : "chevron-down"} size={20} color="#5A7A6B" />
                 </TouchableOpacity>
                 {showSubmissionPicker && (
                   <View style={styles.dropdownList}>
@@ -946,7 +946,7 @@ export default function LeagueDetailScreen() {
                             submissionHours === option.value && styles.dropdownItemTextSelected
                           ]}>{option.label}</Text>
                           {submissionHours === option.value && (
-                            <Ionicons name="checkmark" size={18} color="#B8C5B0" />
+                            <Ionicons name="checkmark" size={18} color="#5A7A6B" />
                           )}
                         </TouchableOpacity>
                       ))}
@@ -959,9 +959,9 @@ export default function LeagueDetailScreen() {
                   style={styles.dropdownButton}
                   onPress={() => setShowVotingPicker(!showVotingPicker)}
                 >
-                  <Ionicons name="time" size={20} color="#B8C5B0" />
+                  <Ionicons name="time" size={20} color="#5A7A6B" />
                   <Text style={styles.dropdownButtonText}>{getTimeLabel(votingHours)}</Text>
-                  <Ionicons name={showVotingPicker ? "chevron-up" : "chevron-down"} size={20} color="#B8C5B0" />
+                  <Ionicons name={showVotingPicker ? "chevron-up" : "chevron-down"} size={20} color="#5A7A6B" />
                 </TouchableOpacity>
                 {showVotingPicker && (
                   <View style={styles.dropdownList}>
@@ -983,7 +983,7 @@ export default function LeagueDetailScreen() {
                             votingHours === option.value && styles.dropdownItemTextSelected
                           ]}>{option.label}</Text>
                           {votingHours === option.value && (
-                            <Ionicons name="checkmark" size={18} color="#B8C5B0" />
+                            <Ionicons name="checkmark" size={18} color="#5A7A6B" />
                           )}
                         </TouchableOpacity>
                       ))}
@@ -1070,7 +1070,7 @@ export default function LeagueDetailScreen() {
               {loadingMessages ? (
                 <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                   <View style={styles.chatLoadingContainer}>
-                    <ActivityIndicator size="large" color="#B8C5B0" />
+                    <ActivityIndicator size="large" color="#5A7A6B" />
                   </View>
                 </TouchableWithoutFeedback>
               ) : messages.length === 0 ? (
@@ -1205,7 +1205,7 @@ export default function LeagueDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#212F36',
+    backgroundColor: '#F5F0E8',
   },
   loadingContainer: {
     flex: 1,
@@ -1219,7 +1219,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
   },
   header: {
     flexDirection: 'row',
@@ -1237,11 +1237,11 @@ const styles = StyleSheet.create({
   leagueName: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   leagueTheme: {
     fontSize: 14,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
   },
   headerActions: {
     flexDirection: 'row',
@@ -1254,19 +1254,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#4A6070',
+    backgroundColor: '#FFFFFF',
     marginHorizontal: 16,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#5A7080',
+    borderColor: '#E0D8CC',
   },
   codeInfo: {
     flex: 1,
   },
   codeLabel: {
     fontSize: 12,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
   },
   codeRow: {
     flexDirection: 'row',
@@ -1275,7 +1275,7 @@ const styles = StyleSheet.create({
   codeValue: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#B8C5B0',
+    color: '#5A7A6B',
     letterSpacing: 2,
   },
   memberInfo: {
@@ -1285,7 +1285,7 @@ const styles = StyleSheet.create({
   },
   memberCount: {
     fontSize: 14,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
   },
   memberAvatarsRow: {
     flexDirection: 'row',
@@ -1306,24 +1306,24 @@ const styles = StyleSheet.create({
   memberAvatarPlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#212F36',
+    backgroundColor: '#F5F0E8',
     alignItems: 'center',
     justifyContent: 'center',
   },
   memberAvatarInitial: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#B8C5B0',
+    color: '#5A7A6B',
   },
   memberAvatarMore: {
-    backgroundColor: '#212F36',
+    backgroundColor: '#F5F0E8',
     alignItems: 'center',
     justifyContent: 'center',
   },
   memberMoreText: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#B8C5B0',
+    color: '#5A7A6B',
   },
   startRoundButton: {
     flexDirection: 'row',
@@ -1347,7 +1347,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#F9FCF2',
+    color: '#212F36',
     paddingHorizontal: 16,
     marginTop: 24,
     marginBottom: 12,
@@ -1357,11 +1357,11 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   roundCard: {
-    backgroundColor: '#4A6070',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#5A7080',
+    borderColor: '#E0D8CC',
     overflow: 'hidden',
   },
   roundContent: {
@@ -1382,7 +1382,7 @@ const styles = StyleSheet.create({
   roundNumberText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#B8C5B0',
+    color: '#5A7A6B',
   },
   roundInfo: {
     flex: 1,
@@ -1391,7 +1391,7 @@ const styles = StyleSheet.create({
   roundTheme: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   statusBadge: {
     flexDirection: 'row',
@@ -1417,7 +1417,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#5A7080',
+    borderTopColor: '#E0D8CC',
     gap: 16,
   },
   roundStat: {
@@ -1427,7 +1427,7 @@ const styles = StyleSheet.create({
   },
   roundStatText: {
     fontSize: 13,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
   },
   advanceButton: {
     flexDirection: 'row',
@@ -1436,13 +1436,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: 'rgba(99, 102, 241, 0.15)',
     borderTopWidth: 1,
-    borderTopColor: '#5A7080',
+    borderTopColor: '#E0D8CC',
     gap: 6,
   },
   advanceButtonText: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#B8C5B0',
+    color: '#5A7A6B',
   },
   emptyState: {
     flex: 1,
@@ -1453,12 +1453,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#F9FCF2',
+    color: '#212F36',
     marginTop: 16,
   },
   emptyText: {
     fontSize: 14,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
     textAlign: 'center',
     marginTop: 8,
   },
@@ -1468,7 +1468,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 16,
     marginBottom: 8,
-    backgroundColor: '#4A6070',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 4,
   },
@@ -1482,15 +1482,15 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   tabActive: {
-    backgroundColor: '#212F36',
+    backgroundColor: '#F5F0E8',
   },
   tabText: {
     fontSize: 14,
     fontWeight: '500',
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
   },
   tabTextActive: {
-    color: '#B8C5B0',
+    color: '#5A7A6B',
   },
   // Standings styles
   standingsContainer: {
@@ -1501,22 +1501,22 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#5A7080',
+    borderBottomColor: '#E0D8CC',
   },
   standingsTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   roundsCompleted: {
     fontSize: 13,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
     marginTop: 4,
   },
   standingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#4A6070',
+    backgroundColor: '#FFFFFF',
     padding: 16,
     borderRadius: 12,
     marginBottom: 8,
@@ -1540,7 +1540,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#212F36',
+    backgroundColor: '#F5F0E8',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -1548,7 +1548,7 @@ const styles = StyleSheet.create({
   rankNumber: {
     fontSize: 16,
     fontWeight: '600',
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
   },
   playerInfo: {
     flex: 1,
@@ -1556,11 +1556,11 @@ const styles = StyleSheet.create({
   playerName: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   playerStats: {
     fontSize: 12,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
     marginTop: 2,
   },
   pointsContainer: {
@@ -1569,11 +1569,11 @@ const styles = StyleSheet.create({
   pointsValue: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#B8C5B0',
+    color: '#5A7A6B',
   },
   pointsLabel: {
     fontSize: 11,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
   },
   modalOverlay: {
     flex: 1,
@@ -1581,7 +1581,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#4A6070',
+    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '80%',
@@ -1593,12 +1593,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#5A7080',
+    borderBottomColor: '#E0D8CC',
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   modalForm: {
     padding: 20,
@@ -1606,18 +1606,18 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 14,
     fontWeight: '500',
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
     marginBottom: 8,
   },
   modalInput: {
-    backgroundColor: '#212F36',
+    backgroundColor: '#F5F0E8',
     borderRadius: 12,
     paddingHorizontal: 16,
     height: 52,
-    color: '#F9FCF2',
+    color: '#212F36',
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#5A7080',
+    borderColor: '#E0D8CC',
     marginBottom: 16,
   },
   timeOptionsContainer: {
@@ -1630,27 +1630,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#212F36',
+    backgroundColor: '#F5F0E8',
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#5A7080',
+    borderColor: '#E0D8CC',
     marginBottom: 8,
   },
   dropdownButtonText: {
     flex: 1,
     fontSize: 16,
     fontWeight: '500',
-    color: '#F9FCF2',
+    color: '#212F36',
     marginLeft: 12,
   },
   dropdownList: {
-    backgroundColor: '#2A3A42',
+    backgroundColor: '#F0EBE3',
     borderRadius: 12,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#5A7080',
+    borderColor: '#E0D8CC',
     overflow: 'hidden',
   },
   dropdownScroll: {
@@ -1666,14 +1666,14 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(74, 96, 112, 0.3)',
   },
   dropdownItemSelected: {
-    backgroundColor: 'rgba(184, 197, 176, 0.15)',
+    backgroundColor: 'rgba(90, 122, 107, 0.1)',
   },
   dropdownItemText: {
     fontSize: 16,
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   dropdownItemTextSelected: {
-    color: '#B8C5B0',
+    color: '#5A7A6B',
     fontWeight: '600',
   },
   timezoneContainer: {
@@ -1686,9 +1686,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
-    backgroundColor: '#212F36',
+    backgroundColor: '#F5F0E8',
     borderWidth: 1,
-    borderColor: '#5A7080',
+    borderColor: '#E0D8CC',
     alignItems: 'center',
   },
   timezoneOptionSelected: {
@@ -1713,7 +1713,7 @@ const styles = StyleSheet.create({
   },
   inputHint: {
     fontSize: 12,
-    color: 'rgba(141, 161, 155, 0.6)',
+    color: '#8B9A94',
     marginBottom: 12,
     marginTop: -4,
   },
@@ -1727,21 +1727,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#212F36',
+    backgroundColor: '#F5F0E8',
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#5A7080',
+    borderColor: '#E0D8CC',
     gap: 8,
   },
   dateTimeText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   pickerContainer: {
-    backgroundColor: '#2A3A42',
+    backgroundColor: '#F0EBE3',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
@@ -1763,9 +1763,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 8,
-    backgroundColor: '#212F36',
+    backgroundColor: '#F5F0E8',
     borderWidth: 1,
-    borderColor: '#5A7080',
+    borderColor: '#E0D8CC',
   },
   timeOptionSelected: {
     backgroundColor: '#F9FCF2',
@@ -1773,13 +1773,14 @@ const styles = StyleSheet.create({
   },
   timeOptionText: {
     fontSize: 14,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
     fontWeight: '500',
   },
   timeOptionTextSelected: {
     color: '#212F36',
   },
   submitButton: {
+    backgroundColor: '#212F36',
     backgroundColor: '#F9FCF2',
     borderRadius: 12,
     paddingVertical: 16,
@@ -1803,7 +1804,7 @@ const styles = StyleSheet.create({
   },
   chatModalContainer: {
     flex: 1,
-    backgroundColor: '#212F36',
+    backgroundColor: '#F5F0E8',
   },
   chatModalContent: {
     flex: 1,
@@ -1814,13 +1815,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#5A7080',
-    backgroundColor: '#4A6070',
+    borderBottomColor: '#E0D8CC',
+    backgroundColor: '#FFFFFF',
   },
   chatModalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   chatLoadingContainer: {
     flex: 1,
@@ -1836,12 +1837,12 @@ const styles = StyleSheet.create({
   chatEmptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#F9FCF2',
+    color: '#212F36',
     marginTop: 16,
   },
   chatEmptyText: {
     fontSize: 14,
-    color: 'rgba(141, 161, 155, 0.8)',
+    color: '#6B7A82',
     marginTop: 8,
   },
   chatListContent: {
@@ -1865,18 +1866,18 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 4,
   },
   otherMessageBubble: {
-    backgroundColor: '#4A6070',
+    backgroundColor: '#FFFFFF',
     borderBottomLeftRadius: 4,
   },
   messageUsername: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#B8C5B0',
+    color: '#5A7A6B',
     marginBottom: 4,
   },
   messageText: {
     fontSize: 15,
-    color: '#F9FCF2',
+    color: '#212F36',
     lineHeight: 20,
   },
   ownMessageText: {
@@ -1884,7 +1885,7 @@ const styles = StyleSheet.create({
   },
   messageTime: {
     fontSize: 11,
-    color: 'rgba(141, 161, 155, 0.6)',
+    color: '#8B9A94',
     marginTop: 6,
   },
   ownMessageTime: {
@@ -1895,22 +1896,22 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     padding: 12,
     paddingBottom: Platform.OS === 'ios' ? 24 : 12,
-    backgroundColor: '#4A6070',
+    backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: '#5A7080',
+    borderTopColor: '#E0D8CC',
     gap: 12,
   },
   chatInput: {
     flex: 1,
-    backgroundColor: '#212F36',
+    backgroundColor: '#F5F0E8',
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    color: '#F9FCF2',
+    color: '#212F36',
     fontSize: 15,
     maxHeight: 100,
     borderWidth: 1,
-    borderColor: '#5A7080',
+    borderColor: '#E0D8CC',
   },
   sendButton: {
     width: 44,
@@ -1951,7 +1952,7 @@ const styles = StyleSheet.create({
   shareModalContent: {
     width: '100%',
     maxWidth: 380,
-    backgroundColor: '#4A6070',
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     overflow: 'hidden',
   },
@@ -1961,12 +1962,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#5A7080',
+    borderBottomColor: '#E0D8CC',
   },
   shareModalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   shareCard: {
     width: '100%',
@@ -1989,7 +1990,7 @@ const styles = StyleSheet.create({
   shareCardTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#F9FCF2',
+    color: '#212F36',
     textAlign: 'center',
     marginBottom: 4,
   },
@@ -2027,7 +2028,7 @@ const styles = StyleSheet.create({
   shareCardUsername: {
     flex: 1,
     fontSize: 18,
-    color: '#F9FCF2',
+    color: '#212F36',
     fontWeight: '500',
   },
   shareCardWinnerText: {
@@ -2046,7 +2047,7 @@ const styles = StyleSheet.create({
   shareCardBranding: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#F9FCF2',
+    color: '#212F36',
     marginBottom: 8,
   },
   shareCardCTA: {
@@ -2077,7 +2078,7 @@ const styles = StyleSheet.create({
   membersModalContent: {
     width: '85%',
     maxHeight: '70%',
-    backgroundColor: '#2A3A42',
+    backgroundColor: '#F0EBE3',
     borderRadius: 16,
     overflow: 'hidden',
   },
@@ -2092,7 +2093,7 @@ const styles = StyleSheet.create({
   membersModalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   membersList: {
     padding: 16,
@@ -2108,7 +2109,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: 'rgba(184, 197, 176, 0.2)',
+    backgroundColor: 'rgba(90, 122, 107, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -2116,7 +2117,7 @@ const styles = StyleSheet.create({
   memberNumberText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#B8C5B0',
+    color: '#5A7A6B',
   },
   memberAvatar: {
     width: 40,
@@ -2132,14 +2133,14 @@ const styles = StyleSheet.create({
   memberAvatarPlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#212F36',
+    backgroundColor: '#F5F0E8',
     alignItems: 'center',
     justifyContent: 'center',
   },
   memberInitial: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#B8C5B0',
+    color: '#5A7A6B',
   },
   memberDetails: {
     flex: 1,
@@ -2147,7 +2148,7 @@ const styles = StyleSheet.create({
   memberName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#F9FCF2',
+    color: '#212F36',
   },
   memberUsername: {
     fontSize: 12,
