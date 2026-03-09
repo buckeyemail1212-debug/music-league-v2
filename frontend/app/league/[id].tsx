@@ -105,6 +105,32 @@ export default function LeagueDetailScreen() {
     return option ? option.label : '1 day';
   };
 
+  // Calculate remaining time from UTC deadline
+  const getTimeRemaining = (deadlineStr: string): string => {
+    if (!deadlineStr) return '';
+    
+    // Parse UTC date
+    let deadline: Date;
+    if (deadlineStr.endsWith('Z') || deadlineStr.includes('+')) {
+      deadline = new Date(deadlineStr);
+    } else {
+      deadline = new Date(deadlineStr + 'Z');
+    }
+    
+    const now = new Date();
+    const diff = deadline.getTime() - now.getTime();
+    
+    if (diff <= 0) return 'Expired';
+    
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (days > 0) return `${days}d ${hours}h left`;
+    if (hours > 0) return `${hours}h ${minutes}m left`;
+    return `${minutes}m left`;
+  };
+
   // Check if league is complete
   const isLeagueComplete = league && standings && 
     league.total_rounds > 0 && 
@@ -467,6 +493,14 @@ export default function LeagueDetailScreen() {
             <Ionicons name="musical-note" size={14} color="#B8C5B0" />
             <Text style={styles.roundStatText}>{item.submissions_count} songs</Text>
           </View>
+          {item.status !== 'completed' && (
+            <View style={styles.roundStat}>
+              <Ionicons name="time" size={14} color="#f59e0b" />
+              <Text style={[styles.roundStatText, { color: '#f59e0b' }]}>
+                {getTimeRemaining(item.status === 'submission' ? item.submission_deadline : item.voting_deadline)}
+              </Text>
+            </View>
+          )}
           {item.status === 'submission' && (
             <View style={styles.roundStat}>
               <Ionicons
