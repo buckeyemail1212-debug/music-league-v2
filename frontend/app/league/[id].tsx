@@ -67,6 +67,7 @@ export default function LeagueDetailScreen() {
   const [votingHours, setVotingHours] = useState('24');
   const [showSubmissionPicker, setShowSubmissionPicker] = useState(false);
   const [showVotingPicker, setShowVotingPicker] = useState(false);
+  const [selectedTimezone, setSelectedTimezone] = useState<'EST' | 'PST'>('EST');
 
   // Chat state
   const [showChatModal, setShowChatModal] = useState(false);
@@ -344,11 +345,13 @@ export default function LeagueDetailScreen() {
         theme: roundTheme.trim(),
         submission_hours: parseInt(submissionHours) || 24,
         voting_hours: parseInt(votingHours) || 24,
+        timezone: selectedTimezone,
       });
       setShowStartRoundModal(false);
       setRoundTheme('');
       setSubmissionHours('24');
       setVotingHours('24');
+      setSelectedTimezone('EST');
       await fetchData();
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.detail || 'Failed to start round');
@@ -973,6 +976,45 @@ export default function LeagueDetailScreen() {
                     </ScrollView>
                   </View>
                 )}
+
+                <Text style={styles.inputLabel}>Your Timezone</Text>
+                <Text style={styles.inputHint}>
+                  Deadlines will end at the same clock time in your timezone
+                </Text>
+                <View style={styles.timezoneContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.timezoneOption,
+                      selectedTimezone === 'EST' && styles.timezoneOptionSelected
+                    ]}
+                    onPress={() => setSelectedTimezone('EST')}
+                  >
+                    <Text style={[
+                      styles.timezoneText,
+                      selectedTimezone === 'EST' && styles.timezoneTextSelected
+                    ]}>EST / EDT</Text>
+                    <Text style={[
+                      styles.timezoneSubtext,
+                      selectedTimezone === 'EST' && styles.timezoneSubtextSelected
+                    ]}>Eastern</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.timezoneOption,
+                      selectedTimezone === 'PST' && styles.timezoneOptionSelected
+                    ]}
+                    onPress={() => setSelectedTimezone('PST')}
+                  >
+                    <Text style={[
+                      styles.timezoneText,
+                      selectedTimezone === 'PST' && styles.timezoneTextSelected
+                    ]}>PST / PDT</Text>
+                    <Text style={[
+                      styles.timezoneSubtext,
+                      selectedTimezone === 'PST' && styles.timezoneSubtextSelected
+                    ]}>Pacific</Text>
+                  </TouchableOpacity>
+                </View>
 
                 <TouchableOpacity
                   style={[styles.submitButton, creatingRound && styles.buttonDisabled]}
@@ -1646,6 +1688,20 @@ const styles = StyleSheet.create({
   },
   timezoneTextSelected: {
     color: '#212F36',
+  },
+  timezoneSubtext: {
+    fontSize: 12,
+    color: '#6B7A82',
+    marginTop: 2,
+  },
+  timezoneSubtextSelected: {
+    color: 'rgba(33, 47, 54, 0.7)',
+  },
+  inputHint: {
+    fontSize: 12,
+    color: 'rgba(141, 161, 155, 0.6)',
+    marginBottom: 12,
+    marginTop: -4,
   },
   dateTimeRow: {
     flexDirection: 'row',

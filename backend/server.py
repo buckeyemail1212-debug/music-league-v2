@@ -12,6 +12,8 @@ from pydantic import BaseModel, Field, EmailStr
 from typing import List, Optional
 import uuid
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
+from dateutil.relativedelta import relativedelta
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 import httpx
@@ -117,6 +119,7 @@ class StartRoundRequest(BaseModel):
     theme: str = ""  # Theme/prompt for this round
     submission_hours: int = 24  # Hours for submission phase
     voting_hours: int = 24  # Hours for voting phase
+    timezone: str = "EST"  # User's timezone for "same time tomorrow" calculations
 
 class SongData(BaseModel):
     deezer_id: int
@@ -211,6 +214,41 @@ class ChatStatusResponse(BaseModel):
     last_message_at: Optional[datetime] = None
 
 # ==================== HELPER FUNCTIONS ====================
+
+# Timezone mapping for "same clock time" calculations
+TIMEZONE_MAP = {
+    'EST': 'America/New_York',
+    'EDT': 'America/New_York',
+    'CST': 'America/Chicago',
+    'CDT': 'America/Chicago',
+    'MST': 'America/Denver',
+    'MDT': 'America/Denver',
+    'PST': 'America/Los_Angeles',
+    'PDT': 'America/Los_Angeles',
+}
+
+def calculate_deadline(hours: int, user_timezone: str = "EST") -> datetime:
+    """
+    Calculate deadline that respects "same clock time" across DST transitions.
+    For day-based durations (24h+), uses calendar days instead of exact hours.
+    """
+    tz_name = TIMEZONE_MAP.get(user_timezone, 'America/New_York')
+    user_tz = ZoneInfo(tz_name)
+    
+    # Get current time in user's local timezone
+    now_local = datetime.now(user_tz)
+    
+    if hours < 24:
+        # For short durations (1-6 hours), use exact hours
+        deadline_local = now_local + timedelta(hours=hours)
+    else:
+        # For day-based durations, use relativedelta for "same time tomorrow"
+        days = hours // 24
+        deadline_local = now_local + relativedelta(days=days)
+    
+    # Convert to UTC for storage
+    deadline_utc = deadline_local.astimezone(timezone.utc)
+    return deadline_utc
 
 def generate_league_code() -> str:
     """Generate a unique 6-character league code"""
@@ -744,6 +782,12 @@ async def create_round(league_id: str, round_data: StartRoundRequest = None, cur
     submission_hours = round_data.submission_hours
     voting_hours = round_data.voting_hours
     theme = round_data.theme
+    user_timezone = round_data.timezone
+    
+    # Calculate deadlines using timezone-aware function for "same clock time"
+    submission_deadline = calculate_deadline(submission_hours, user_timezone)
+    # For voting deadline, calculate from the submission deadline end time
+    voting_deadline = submission_deadline + relativedelta(days=voting_hours // 24) if voting_hours >= 24 else submission_deadline + timedelta(hours=voting_hours)
     
     round_doc = {
         "id": round_id,
@@ -753,8 +797,8 @@ async def create_round(league_id: str, round_data: StartRoundRequest = None, cur
         "status": "submission",
         "submission_hours": submission_hours,
         "voting_hours": voting_hours,
-        "submission_deadline": now + timedelta(hours=submission_hours),
-        "voting_deadline": now + timedelta(hours=submission_hours + voting_hours),
+        "submission_deadline": submission_deadline,
+        "voting_deadline": voting_deadline,
         "created_at": now
     }
     await db.rounds.insert_one(round_doc)

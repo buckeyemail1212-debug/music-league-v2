@@ -172,6 +172,7 @@ export const createRound = (leagueId: string, data: {
   theme: string;
   submission_hours: number;
   voting_hours: number;
+  timezone?: string;
 }) => api.post<Round>(`/leagues/${leagueId}/rounds`, data);
 
 export const getRounds = (leagueId: string) => 
