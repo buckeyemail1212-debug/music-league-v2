@@ -65,7 +65,11 @@ A "fantasy sports for music" app where users join leagues, submit songs to round
 1. **DST-Aware Deadlines** - Implemented "same clock time tomorrow" logic using `relativedelta(days=N)` instead of `timedelta(hours=24*N)`. This ensures a "1 day" deadline ends at the same local clock time, correctly handling Daylight Saving Time transitions.
 2. **Timezone Selector UI** - Added EST/PST toggle in the "Start Round" modal so users can specify their timezone when creating rounds.
 3. **Auto-detect Timezone** - The app now auto-detects the user's device timezone and pre-selects EST or PST accordingly when creating rounds.
-4. **Custom League Images** - League creators can now upload a custom image for their league that displays on the home page instead of the default trophy icon.
+4. **Custom League Images** - League creators can now upload a custom image (camera or gallery) for their league that displays on the home page instead of the default trophy icon.
+5. **Display Name** - Added display name field to registration. "Welcome back" now shows the user's display name instead of username.
+6. **Join League UI** - Fixed "Enter League Code" text size, removed checkmark icon from button.
+7. **Active Leagues Text** - Properly capitalized and handles singular/plural ("Active League" vs "Active Leagues").
+8. **Reopen Submission Feature** - League creators can grant a 2-hour extension window to specific users who missed the submission deadline (during voting phase). Once they submit, the extension is removed and voting deadline stays the same.
 
 ## Previous Updates (February 2025)
 1. **Phone Number on Signup** - Added phone field for account recovery

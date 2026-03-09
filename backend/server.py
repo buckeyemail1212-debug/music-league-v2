@@ -59,6 +59,7 @@ class UserCreate(BaseModel):
     username: str
     password: str
     phone_number: str = ""
+    display_name: str = ""
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -84,11 +85,13 @@ class UserResponse(BaseModel):
     id: str
     email: str
     username: str
+    display_name: Optional[str] = None
     profile_photo: Optional[str] = None
     created_at: datetime
 
 class UserUpdate(BaseModel):
     username: Optional[str] = None
+    display_name: Optional[str] = None
     profile_photo: Optional[str] = None
 
 class TokenResponse(BaseModel):
@@ -156,6 +159,9 @@ class VoteResponse(BaseModel):
     rankings: List[str]
     locked: bool
     created_at: datetime
+
+class ReopenSubmissionRequest(BaseModel):
+    user_id: str  # User ID to grant extended submission window
 
 class RoundResponse(BaseModel):
     id: str
@@ -316,6 +322,7 @@ async def register(user_data: UserCreate):
         "id": user_id,
         "email": user_data.email,
         "username": user_data.username,
+        "display_name": user_data.display_name or user_data.username,
         "password_hash": hash_password(user_data.password),
         "phone_number": user_data.phone_number,
         "created_at": datetime.utcnow()
@@ -331,6 +338,7 @@ async def register(user_data: UserCreate):
             id=user_id,
             email=user_data.email,
             username=user_data.username,
+            display_name=user["display_name"],
             created_at=user["created_at"]
         )
     )
@@ -349,6 +357,7 @@ async def login(credentials: UserLogin):
             id=user["id"],
             email=user["email"],
             username=user["username"],
+            display_name=user.get("display_name", user["username"]),
             profile_photo=user.get("profile_photo"),
             created_at=user["created_at"]
         )
@@ -360,6 +369,7 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         id=current_user["id"],
         email=current_user["email"],
         username=current_user["username"],
+        display_name=current_user.get("display_name", current_user["username"]),
         profile_photo=current_user.get("profile_photo"),
         created_at=current_user["created_at"]
     )
@@ -815,6 +825,7 @@ async def create_round(league_id: str, round_data: StartRoundRequest = None, cur
     # Calculate deadlines using timezone-aware function for "same clock time"
     submission_deadline = calculate_deadline(submission_hours, user_timezone)
     # For voting deadline, calculate from the submission deadline end time
+    # We need to add voting hours to the submission deadline
     voting_deadline = submission_deadline + relativedelta(days=voting_hours // 24) if voting_hours >= 24 else submission_deadline + timedelta(hours=voting_hours)
     
     round_doc = {
@@ -1051,6 +1062,61 @@ async def advance_round(round_id: str, current_user: dict = Depends(get_current_
     else:
         return {"message": "Round is already completed"}
 
+@api_router.post("/rounds/{round_id}/reopen-submission")
+async def reopen_submission(round_id: str, request: ReopenSubmissionRequest, current_user: dict = Depends(get_current_user)):
+    """Allow league creator to reopen submission for a specific user who missed the deadline.
+    Grants a 2-hour window. When they submit, they go straight to voting but voting deadline stays the same."""
+    round_doc = await db.rounds.find_one({"id": round_id})
+    if not round_doc:
+        raise HTTPException(status_code=404, detail="Round not found")
+    
+    league = await db.leagues.find_one({"id": round_doc["league_id"]})
+    if league["creator_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Only league creator can reopen submissions")
+    
+    # Can only reopen during voting phase (when submission has closed)
+    if round_doc["status"] != "voting":
+        raise HTTPException(status_code=400, detail="Can only reopen submissions during voting phase")
+    
+    # Check if user is a member of the league
+    user_is_member = any(m["id"] == request.user_id for m in league["members"])
+    if not user_is_member:
+        raise HTTPException(status_code=400, detail="User is not a member of this league")
+    
+    # Check if user has already submitted
+    existing_submission = await db.submissions.find_one({"round_id": round_id, "user_id": request.user_id})
+    if existing_submission:
+        raise HTTPException(status_code=400, detail="User has already submitted")
+    
+    # Get user details for notification
+    target_user = await db.users.find_one({"id": request.user_id}, {"_id": 0, "username": 1})
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Calculate 2-hour extension deadline from now
+    extension_deadline = datetime.now(timezone.utc) + timedelta(hours=2)
+    
+    # Store the extension in the round's "extended_submissions" list
+    extension_record = {
+        "user_id": request.user_id,
+        "username": target_user["username"],
+        "deadline": extension_deadline,
+        "granted_at": datetime.now(timezone.utc),
+        "granted_by": current_user["id"]
+    }
+    
+    # Add to extended_submissions array (create if doesn't exist)
+    await db.rounds.update_one(
+        {"id": round_id},
+        {"$push": {"extended_submissions": extension_record}}
+    )
+    
+    return {
+        "message": f"Submission reopened for {target_user['username']}",
+        "user_id": request.user_id,
+        "deadline": extension_deadline.isoformat()
+    }
+
 # ==================== SUBMISSION ENDPOINTS ====================
 
 @api_router.post("/rounds/{round_id}/submit", response_model=SubmissionResponse)
@@ -1059,7 +1125,19 @@ async def submit_song(round_id: str, request: SubmitSongRequest, current_user: d
     if not round_doc:
         raise HTTPException(status_code=404, detail="Round not found")
     
-    if round_doc["status"] != "submission":
+    # Check if user has an extended submission window (during voting phase)
+    has_extension = False
+    if round_doc["status"] == "voting":
+        extended_submissions = round_doc.get("extended_submissions", [])
+        user_extension = next((ext for ext in extended_submissions if ext["user_id"] == current_user["id"]), None)
+        if user_extension:
+            # Check if extension is still valid
+            if datetime.now(timezone.utc) < user_extension["deadline"]:
+                has_extension = True
+            else:
+                raise HTTPException(status_code=400, detail="Your extended submission window has expired")
+    
+    if round_doc["status"] != "submission" and not has_extension:
         raise HTTPException(status_code=400, detail="Submissions are closed for this round")
     
     # Check if user already submitted
@@ -1097,6 +1175,13 @@ async def submit_song(round_id: str, request: SubmitSongRequest, current_user: d
         "submitted_at": datetime.now(timezone.utc)
     }
     await db.submissions.insert_one(submission)
+    
+    # If this was an extended submission, remove the extension record
+    if has_extension:
+        await db.rounds.update_one(
+            {"id": round_id},
+            {"$pull": {"extended_submissions": {"user_id": current_user["id"]}}}
+        )
     
     return SubmissionResponse(**submission)
 

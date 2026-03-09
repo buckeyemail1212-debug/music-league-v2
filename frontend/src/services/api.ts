@@ -190,6 +190,9 @@ export const getRound = (roundId: string) =>
 export const advanceRound = (roundId: string) => 
   api.post(`/rounds/${roundId}/advance`);
 
+export const reopenSubmission = (roundId: string, userId: string) =>
+  api.post(`/rounds/${roundId}/reopen-submission`, { user_id: userId });
+
 // Submission APIs
 export const submitSong = (roundId: string, song: Song, locked: boolean = false) => 
   api.post<Submission>(`/rounds/${roundId}/submit`, { song, locked });

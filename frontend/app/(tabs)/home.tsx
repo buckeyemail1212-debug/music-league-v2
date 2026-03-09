@@ -128,18 +128,50 @@ export default function HomeScreen() {
   };
 
   const pickLeagueImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.5,
-      base64: true,
-    });
-
-    if (!result.canceled && result.assets[0].base64) {
-      const base64Image = `data:image/jpeg;base64,${result.assets[0].base64}`;
-      setLeagueImage(base64Image);
-    }
+    // Show options: Camera or Gallery
+    Alert.alert(
+      'Choose Image Source',
+      'Select where to get your league image from',
+      [
+        {
+          text: 'Camera',
+          onPress: async () => {
+            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== 'granted') {
+              Alert.alert('Permission needed', 'Camera access is required to take photos');
+              return;
+            }
+            const result = await ImagePicker.launchCameraAsync({
+              allowsEditing: true,
+              aspect: [1, 1],
+              quality: 0.5,
+              base64: true,
+            });
+            if (!result.canceled && result.assets[0].base64) {
+              const base64Image = `data:image/jpeg;base64,${result.assets[0].base64}`;
+              setLeagueImage(base64Image);
+            }
+          }
+        },
+        {
+          text: 'Photo Library',
+          onPress: async () => {
+            const result = await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              allowsEditing: true,
+              aspect: [1, 1],
+              quality: 0.5,
+              base64: true,
+            });
+            if (!result.canceled && result.assets[0].base64) {
+              const base64Image = `data:image/jpeg;base64,${result.assets[0].base64}`;
+              setLeagueImage(base64Image);
+            }
+          }
+        },
+        { text: 'Cancel', style: 'cancel' }
+      ]
+    );
   };
 
   const handleCreateLeague = async () => {
@@ -276,9 +308,9 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>Welcome back,</Text>
-          <Text style={styles.username}>{user?.username}</Text>
+          <Text style={styles.username}>{user?.display_name || user?.username}</Text>
           <Text style={styles.activeRoundsSubtitle}>
-            {leagues.length} active league{leagues.length !== 1 ? 's' : ''}
+            {leagues.length} Active League{leagues.length !== 1 ? 's' : ''}
           </Text>
         </View>
         <View style={styles.headerRight}>
@@ -366,6 +398,33 @@ export default function HomeScreen() {
                   spellCheck={false}
                 />
 
+                <Text style={styles.inputLabel}>League Image (Optional)</Text>
+                <TouchableOpacity 
+                  style={styles.imagePickerButton}
+                  onPress={pickLeagueImage}
+                >
+                  {leagueImage ? (
+                    <Image 
+                      source={{ uri: leagueImage }} 
+                      style={styles.leagueImagePreview}
+                    />
+                  ) : (
+                    <View style={styles.imagePickerPlaceholder}>
+                      <Ionicons name="camera-outline" size={32} color="#B8C5B0" />
+                      <Text style={styles.imagePickerText}>Tap to add image</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+                {leagueImage && (
+                  <TouchableOpacity 
+                    style={styles.removeImageButton}
+                    onPress={() => setLeagueImage(null)}
+                  >
+                    <Ionicons name="trash-outline" size={16} color="#F9FCF2" />
+                    <Text style={styles.removeImageText}>Remove Image</Text>
+                  </TouchableOpacity>
+                )}
+
                 <Text style={styles.inputLabel}>Number of Rounds</Text>
                 <View style={styles.timeOptionsContainer}>
                   {roundsOptions.map((option) => (
@@ -384,33 +443,6 @@ export default function HomeScreen() {
                     </TouchableOpacity>
                   ))}
                 </View>
-
-                <Text style={styles.inputLabel}>League Image (Optional)</Text>
-                <TouchableOpacity 
-                  style={styles.imagePickerButton}
-                  onPress={pickLeagueImage}
-                >
-                  {leagueImage ? (
-                    <Image 
-                      source={{ uri: leagueImage }} 
-                      style={styles.leagueImagePreview}
-                    />
-                  ) : (
-                    <View style={styles.imagePickerPlaceholder}>
-                      <Ionicons name="image-outline" size={32} color="#B8C5B0" />
-                      <Text style={styles.imagePickerText}>Tap to add image</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-                {leagueImage && (
-                  <TouchableOpacity 
-                    style={styles.removeImageButton}
-                    onPress={() => setLeagueImage(null)}
-                  >
-                    <Ionicons name="trash-outline" size={16} color="#F9FCF2" />
-                    <Text style={styles.removeImageText}>Remove Image</Text>
-                  </TouchableOpacity>
-                )}
 
                 <TouchableOpacity
                   style={[styles.submitButton, creating && styles.buttonDisabled]}

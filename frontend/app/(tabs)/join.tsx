@@ -76,10 +76,7 @@ export default function JoinScreen() {
             {joining ? (
               <ActivityIndicator color="#212F36" />
             ) : (
-              <>
-                <Ionicons name="checkmark-circle" size={24} color="#212F36" />
-                <Text style={styles.joinButtonText}>Join League</Text>
-              </>
+              <Text style={styles.joinButtonText}>Join League</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -130,7 +127,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(74, 96, 112, 0.5)',
     borderRadius: 12,
     padding: 16,
-    fontSize: 24,
+    fontSize: 16,
     fontWeight: '600',
     color: '#F9FCF2',
     textAlign: 'center',

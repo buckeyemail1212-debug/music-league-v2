@@ -8,6 +8,7 @@ interface User {
   id: string;
   email: string;
   username: string;
+  display_name?: string;
   profile_photo?: string;
   created_at: string;
 }
@@ -17,7 +18,7 @@ interface AuthContextType {
   token: string | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, username: string, password: string, phone_number?: string) => Promise<void>;
+  register: (email: string, username: string, password: string, phone_number?: string, display_name?: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (data: Partial<User>) => Promise<void>;
 }
@@ -77,12 +78,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(userData);
   };
 
-  const register = async (email: string, username: string, password: string, phone_number: string = '') => {
+  const register = async (email: string, username: string, password: string, phone_number: string = '', display_name: string = '') => {
     const response = await axios.post(`${API_URL}/api/auth/register`, {
       email,
       username,
       password,
-      phone_number
+      phone_number,
+      display_name: display_name || username,
     });
     
     const { access_token, user: userData } = response.data;
