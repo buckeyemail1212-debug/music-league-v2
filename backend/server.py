@@ -1117,6 +1117,50 @@ async def reopen_submission(round_id: str, request: ReopenSubmissionRequest, cur
         "deadline": extension_deadline.isoformat()
     }
 
+@api_router.get("/rounds/{round_id}/missing-submissions")
+async def get_missing_submissions(round_id: str, current_user: dict = Depends(get_current_user)):
+    """Get list of users who haven't submitted a song for this round (only for league creator)"""
+    round_doc = await db.rounds.find_one({"id": round_id})
+    if not round_doc:
+        raise HTTPException(status_code=404, detail="Round not found")
+    
+    league = await db.leagues.find_one({"id": round_doc["league_id"]})
+    if league["creator_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Only league creator can view missing submissions")
+    
+    # Get all submissions for this round
+    submissions = await db.submissions.find({"round_id": round_id}).to_list(100)
+    submitted_user_ids = {sub["user_id"] for sub in submissions}
+    
+    # Get extended submissions
+    extended_submissions = round_doc.get("extended_submissions", [])
+    extended_user_ids = {ext["user_id"] for ext in extended_submissions}
+    
+    # Find members who haven't submitted
+    missing_users = []
+    for member in league["members"]:
+        if member["id"] not in submitted_user_ids:
+            # Check if they have an active extension
+            has_extension = member["id"] in extended_user_ids
+            extension_deadline = None
+            if has_extension:
+                ext = next((e for e in extended_submissions if e["user_id"] == member["id"]), None)
+                if ext:
+                    extension_deadline = ext["deadline"].isoformat() if isinstance(ext["deadline"], datetime) else ext["deadline"]
+            
+            missing_users.append({
+                "user_id": member["id"],
+                "username": member["username"],
+                "has_extension": has_extension,
+                "extension_deadline": extension_deadline
+            })
+    
+    return {
+        "round_id": round_id,
+        "round_status": round_doc["status"],
+        "missing_users": missing_users
+    }
+
 # ==================== SUBMISSION ENDPOINTS ====================
 
 @api_router.post("/rounds/{round_id}/submit", response_model=SubmissionResponse)
@@ -1216,17 +1260,27 @@ async def submit_vote(round_id: str, request: VoteRequest, current_user: dict = 
     if round_doc["status"] != "voting":
         raise HTTPException(status_code=400, detail="Voting is not open for this round")
     
+    # Check if user submitted a song - only submitters can vote
+    user_submission = await db.submissions.find_one({
+        "round_id": round_id,
+        "user_id": current_user["id"]
+    })
+    if not user_submission:
+        raise HTTPException(status_code=403, detail="You must submit a song before you can vote")
+    
     # Check if user already voted
     existing = await db.votes.find_one({
         "round_id": round_id,
         "voter_id": current_user["id"]
     })
     
-    # Validate all submission IDs exist
+    # Validate all submission IDs exist and user isn't voting for themselves
     for sub_id in request.rankings:
         sub = await db.submissions.find_one({"id": sub_id, "round_id": round_id})
         if not sub:
             raise HTTPException(status_code=400, detail=f"Invalid submission ID: {sub_id}")
+        if sub["user_id"] == current_user["id"]:
+            raise HTTPException(status_code=400, detail="You cannot vote for your own submission")
     
     if existing:
         # Check if vote is already locked
@@ -1389,6 +1443,10 @@ async def get_results(round_id: str, current_user: dict = Depends(get_current_us
     if round_doc["status"] != "completed":
         raise HTTPException(status_code=400, detail="Results are not available until voting is complete")
     
+    # Get league for member count
+    league = await db.leagues.find_one({"id": round_doc["league_id"]})
+    league_size = len(league["members"]) if league else 0
+    
     # Get all submissions and votes
     submissions = await db.submissions.find({"round_id": round_id}).to_list(100)
     votes = await db.votes.find({"round_id": round_id}).to_list(100)
@@ -1403,61 +1461,74 @@ async def get_results(round_id: str, current_user: dict = Depends(get_current_us
             total_voters=0
         )
     
-    # Calculate points using Dynamic Point Pool with Linear Decay
-    # Each voter has 100 points to distribute
-    # Points = (N - r + 1) / sum(1 to N) * 100 where N = songs being voted on, r = rank
+    # NEW POINT SYSTEM: N points for 1st, N-1 for 2nd, etc. where N = number of songs being ranked
+    # For a 4-person league (3 songs to rank): 1st=3, 2nd=2, 3rd=1
+    num_submissions = len(submissions)
+    num_songs_to_rank = num_submissions - 1  # Each voter doesn't vote for their own
     
-    submission_scores = {sub["id"]: [] for sub in submissions}  # Store all scores for each submission
+    submission_scores = {sub["id"]: 0 for sub in submissions}
+    submitter_ids = {sub["id"]: sub["user_id"] for sub in submissions}
     
+    # Calculate points from actual votes
+    voters_who_voted = set()
     for vote in votes:
         voter_id = vote.get("voter_id")
+        voters_who_voted.add(voter_id)
         rankings = vote["rankings"]
-        N = len(rankings)  # Number of songs this voter is ranking (excludes their own)
-        
-        if N == 0:
-            continue
-            
-        # Calculate sum of 1 to N for normalization
-        sum_n = sum(range(1, N + 1))
         
         for rank_index, sub_id in enumerate(rankings):
-            r = rank_index + 1  # Rank (1-indexed)
-            # Points = (N - r + 1) / sum(1 to N) * 100
-            points = ((N - r + 1) / sum_n) * 100
-            submission_scores[sub_id].append(points)
+            # Points = N - rank_index where N = number of songs being ranked
+            points = num_songs_to_rank - rank_index
+            submission_scores[sub_id] += points
     
-    # Calculate Mean (Average) Score for each submission
-    final_scores = {}
-    std_devs = {}
-    for sub_id, scores in submission_scores.items():
-        if scores:
-            mean_score = sum(scores) / len(scores)
-            final_scores[sub_id] = mean_score
-            # Calculate standard deviation for tie-breaker
-            if len(scores) > 1:
-                variance = sum((s - mean_score) ** 2 for s in scores) / len(scores)
-                std_devs[sub_id] = variance ** 0.5
-            else:
-                std_devs[sub_id] = 0
-        else:
-            final_scores[sub_id] = 0
-            std_devs[sub_id] = 0
+    # Auto-distribute missing votes
+    # Find users who submitted but didn't vote
+    submitter_user_ids = set(submitter_ids.values())
+    non_voters = submitter_user_ids - voters_who_voted
     
-    # Sort by mean score (descending), then by standard deviation (ascending) for tie-breaker
-    sorted_subs = sorted(submissions, key=lambda s: (-final_scores[s["id"]], std_devs[s["id"]]))
+    if non_voters and len(submissions) > 1:
+        # Calculate total points that would be given by a non-voter
+        # They would rank all submissions except their own
+        total_points_per_voter = sum(range(1, num_songs_to_rank + 1))  # 1+2+3+...+N
+        
+        for non_voter_id in non_voters:
+            # Find this non-voter's submission ID
+            non_voter_sub_id = None
+            for sub in submissions:
+                if sub["user_id"] == non_voter_id:
+                    non_voter_sub_id = sub["id"]
+                    break
+            
+            # Get submissions they would have ranked (all except their own)
+            other_subs = [sub["id"] for sub in submissions if sub["id"] != non_voter_sub_id]
+            num_other = len(other_subs)
+            
+            if num_other > 0:
+                # Distribute points evenly as whole numbers
+                points_per_song = total_points_per_voter // num_other
+                remainder = total_points_per_voter % num_other
+                
+                # Distribute base points to all
+                for sub_id in other_subs:
+                    submission_scores[sub_id] += points_per_song
+                
+                # Distribute remainder points one by one (give to first N songs)
+                for i in range(remainder):
+                    submission_scores[other_subs[i]] += 1
+    
+    # Sort by total points (descending)
+    sorted_subs = sorted(submissions, key=lambda s: -submission_scores[s["id"]])
     
     # Assign ranks with tie handling
     rankings = []
     current_rank = 1
     prev_score = None
-    prev_std = None
     
     for i, sub in enumerate(sorted_subs):
-        sub_score = final_scores[sub["id"]]
-        sub_std = std_devs[sub["id"]]
+        sub_score = submission_scores[sub["id"]]
         
-        # Check if this is a tie (same score AND same std dev)
-        if prev_score is not None and abs(sub_score - prev_score) < 0.001 and abs(sub_std - prev_std) < 0.001:
+        # Check if this is a tie (same score)
+        if prev_score is not None and sub_score == prev_score:
             # Same rank as previous
             pass
         else:
@@ -1468,12 +1539,11 @@ async def get_results(round_id: str, current_user: dict = Depends(get_current_us
             "song": sub["song"],
             "user_id": sub["user_id"],
             "username": sub["username"],
-            "points": round(sub_score, 2),
+            "points": sub_score,
             "rank": current_rank
         })
         
         prev_score = sub_score
-        prev_std = sub_std
     
     # Determine winners (rank 1)
     winners = [r for r in rankings if r["rank"] == 1]

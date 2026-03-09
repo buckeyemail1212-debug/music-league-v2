@@ -26,6 +26,8 @@ import {
   submitVote,
   getResults,
   searchSongs,
+  getMissingSubmissions,
+  reopenSubmission,
   Round,
   Submission,
   RoundResult,
@@ -57,8 +59,20 @@ export default function RoundScreen() {
 
   // Voting
   const [rankings, setRankings] = useState<string[]>([]);
+  const [rankingSelections, setRankingSelections] = useState<{[submissionId: string]: number | null}>({});
   const [votingSubmitting, setVotingSubmitting] = useState(false);
   const [voteSaved, setVoteSaved] = useState(false);  // Vote has been saved but not locked
+
+  // Missing submissions (for league creator)
+  const [missingUsers, setMissingUsers] = useState<Array<{
+    user_id: string;
+    username: string;
+    has_extension: boolean;
+    extension_deadline: string | null;
+  }>>([]);
+  const [showMissingModal, setShowMissingModal] = useState(false);
+  const [reopeningFor, setReopeningFor] = useState<string | null>(null);
+  const [isLeagueCreator, setIsLeagueCreator] = useState(false);
 
   // Timer
   const [timeRemaining, setTimeRemaining] = useState<string>('');
@@ -181,6 +195,13 @@ export default function RoundScreen() {
           // Filter out only our own submission (not the 'hidden' ones which are other users' songs)
           const otherSubmissions = subsRes.data.filter(s => s.user_id !== user?.id);
           
+          // Initialize ranking selections for dropdown voting
+          const initialSelections: {[key: string]: number | null} = {};
+          otherSubmissions.forEach(s => {
+            initialSelections[s.id] = null;
+          });
+          setRankingSelections(initialSelections);
+          
           if (roundRes.data.has_user_voted) {
             // User has voted - check if locked
             setVoteSaved(true);
@@ -189,6 +210,12 @@ export default function RoundScreen() {
               const { getMyVote } = await import('../../src/services/api');
               const voteRes = await getMyVote(id);
               setRankings(voteRes.data.rankings);
+              // Update selections based on existing vote
+              const updatedSelections: {[key: string]: number | null} = {};
+              voteRes.data.rankings.forEach((subId, idx) => {
+                updatedSelections[subId] = idx + 1;
+              });
+              setRankingSelections(updatedSelections);
             } catch {
               // If can't get vote, use current order
               setRankings(otherSubmissions.map(s => s.id));
@@ -197,6 +224,17 @@ export default function RoundScreen() {
             // User hasn't voted yet
             setVoteSaved(false);
             setRankings(otherSubmissions.map(s => s.id));
+          }
+          
+          // Fetch missing submissions for league creator
+          try {
+            const missingRes = await getMissingSubmissions(id);
+            setMissingUsers(missingRes.data.missing_users);
+            // Check if user is league creator (implied by successfully getting this data)
+            setIsLeagueCreator(true);
+          } catch {
+            // Not league creator or no missing users
+            setIsLeagueCreator(false);
           }
         }
       } else {
@@ -323,17 +361,77 @@ export default function RoundScreen() {
     );
   };
 
-  const moveRanking = (index: number, direction: 'up' | 'down') => {
-    const newIndex = direction === 'up' ? index - 1 : index + 1;
-    if (newIndex < 0 || newIndex >= rankings.length) return;
+  const handleRankSelection = (submissionId: string, rank: number) => {
+    const otherSubmissions = submissions.filter(s => s.user_id !== user?.id);
+    const numSongs = otherSubmissions.length;
+    
+    // Get current rank of this submission
+    const currentRank = rankingSelections[submissionId];
+    
+    // If another song already has this rank, swap them
+    const songWithThisRank = Object.entries(rankingSelections).find(
+      ([id, r]) => r === rank && id !== submissionId
+    );
+    
+    const newSelections = { ...rankingSelections };
+    
+    if (songWithThisRank) {
+      // Swap ranks
+      newSelections[songWithThisRank[0]] = currentRank;
+    }
+    
+    newSelections[submissionId] = rank;
+    setRankingSelections(newSelections);
+    
+    // Update rankings array based on selections
+    const sortedEntries = Object.entries(newSelections)
+      .filter(([_, r]) => r !== null)
+      .sort((a, b) => (a[1] as number) - (b[1] as number));
+    
+    setRankings(sortedEntries.map(([id]) => id));
+  };
 
-    const newRankings = [...rankings];
-    [newRankings[index], newRankings[newIndex]] = [newRankings[newIndex], newRankings[index]];
-    setRankings(newRankings);
+  // Check if all ranks are selected
+  const allRanksSelected = () => {
+    const otherSubmissions = submissions.filter(s => s.user_id !== user?.id);
+    const selectedCount = Object.values(rankingSelections).filter(r => r !== null).length;
+    return selectedCount === otherSubmissions.length;
+  };
+
+  // Handle reopen submission for a user
+  const handleReopenSubmission = async (userId: string, username: string) => {
+    Alert.alert(
+      'Reopen Submission',
+      `Grant ${username} a 2-hour window to submit their song?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Grant Extension',
+          onPress: async () => {
+            setReopeningFor(userId);
+            try {
+              await reopenSubmission(id!, userId);
+              Alert.alert('Success', `${username} has been granted a 2-hour submission window.`);
+              // Refresh missing users
+              const missingRes = await getMissingSubmissions(id!);
+              setMissingUsers(missingRes.data.missing_users);
+            } catch (error: any) {
+              Alert.alert('Error', error.response?.data?.detail || 'Failed to reopen submission');
+            } finally {
+              setReopeningFor(null);
+            }
+          },
+        },
+      ]
+    );
   };
 
   // Save vote (not locked - can be changed)
   const handleSaveVote = async () => {
+    if (!allRanksSelected()) {
+      Alert.alert('Incomplete', 'Please rank all songs before saving your vote.');
+      return;
+    }
     setVotingSubmitting(true);
     try {
       await submitVote(id!, rankings, false);  // locked = false
@@ -454,17 +552,20 @@ export default function RoundScreen() {
   );
   };
 
-  const renderVotingItem = ({ item, index }: { item: string; index: number }) => {
-    const submission = submissions.find(s => s.id === item);
-    if (!submission) {
-      return <View style={styles.votingCard}><Text style={styles.emptyText}>Loading...</Text></View>;
-    }
+  const renderVotingItem = ({ item, index }: { item: Submission }) => {
+    const submission = item;
+    const numSongs = submissions.filter(s => s.user_id !== user?.id).length;
+    const currentRank = rankingSelections[submission.id];
+    
+    // Generate rank options (1st, 2nd, 3rd, etc.)
+    const getRankLabel = (n: number) => {
+      const suffix = n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th';
+      const points = numSongs - n + 1; // Points for this position
+      return `${n}${suffix} (${points} pts)`;
+    };
 
     return (
       <View style={styles.votingCard}>
-        <View style={styles.rankBadge}>
-          <Text style={styles.rankNumber}>{index + 1}</Text>
-        </View>
         <Image source={{ uri: submission.song.cover_url }} style={styles.albumCoverSmall} />
         <View style={styles.votingSongInfo}>
           <Text style={styles.songTitle} numberOfLines={1}>{submission.song.title}</Text>
@@ -481,43 +582,33 @@ export default function RoundScreen() {
               color="#fff"
             />
           </TouchableOpacity>
-          <View style={styles.serviceButtonsSmall}>
-            <TouchableOpacity
-              style={[styles.serviceButtonSmall, { backgroundColor: '#1DB954' }]}
-              onPress={() => openInService(submission.song, 'spotify')}
-            >
-              <FontAwesome name="spotify" size={12} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.serviceButtonSmall, { backgroundColor: '#FA243C' }]}
-              onPress={() => openInService(submission.song, 'apple')}
-            >
-              <Ionicons name="logo-apple" size={12} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.serviceButtonSmall, { backgroundColor: '#FF0000' }]}
-              onPress={() => openInService(submission.song, 'youtube')}
-            >
-              <Ionicons name="logo-youtube" size={12} color="#fff" />
-            </TouchableOpacity>
-          </View>
         </View>
         {!round?.has_user_voted && (
-          <View style={styles.moveButtons}>
-            <TouchableOpacity
-              style={[styles.moveButton, index === 0 && styles.moveButtonDisabled]}
-              onPress={() => moveRanking(index, 'up')}
-              disabled={index === 0}
-            >
-              <Ionicons name="chevron-up" size={20} color={index === 0 ? '#444' : '#fff'} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.moveButton, index === rankings.length - 1 && styles.moveButtonDisabled]}
-              onPress={() => moveRanking(index, 'down')}
-              disabled={index === rankings.length - 1}
-            >
-              <Ionicons name="chevron-down" size={20} color={index === rankings.length - 1 ? '#444' : '#fff'} />
-            </TouchableOpacity>
+          <View style={styles.rankDropdownContainer}>
+            <View style={styles.rankDropdown}>
+              {Array.from({ length: numSongs }, (_, i) => i + 1).map((rank) => (
+                <TouchableOpacity
+                  key={rank}
+                  style={[
+                    styles.rankOption,
+                    currentRank === rank && styles.rankOptionSelected
+                  ]}
+                  onPress={() => handleRankSelection(submission.id, rank)}
+                >
+                  <Text style={[
+                    styles.rankOptionText,
+                    currentRank === rank && styles.rankOptionTextSelected
+                  ]}>
+                    {rank}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+        {round?.has_user_voted && currentRank && (
+          <View style={styles.rankBadge}>
+            <Text style={styles.rankNumber}>{currentRank}</Text>
           </View>
         )}
       </View>
@@ -773,7 +864,16 @@ export default function RoundScreen() {
       {/* VOTING PHASE */}
       {round.status === 'voting' && (
         <>
-          {round.user_vote_locked ? (
+          {/* Check if user hasn't submitted - they can't vote */}
+          {!round.has_user_submitted ? (
+            <View style={styles.noSubmissionContainer}>
+              <Ionicons name="musical-note-outline" size={48} color="#5A7080" />
+              <Text style={styles.noSubmissionTitle}>You Didn't Submit</Text>
+              <Text style={styles.noSubmissionText}>
+                You must submit a song to be able to vote in this round.
+              </Text>
+            </View>
+          ) : round.user_vote_locked ? (
             // Vote is locked
             <View style={styles.lockedBanner}>
               <Ionicons name="lock-closed" size={24} color="#fff" />
@@ -814,23 +914,22 @@ export default function RoundScreen() {
             // Still ranking - show instructions
             <>
               <View style={styles.votingInstructions}>
-                <Ionicons name="swap-vertical" size={20} color="#B8C5B0" />
-                <Text style={styles.votingInstructionsText}>Rank songs from best to worst</Text>
+                <Ionicons name="list-outline" size={20} color="#B8C5B0" />
+                <Text style={styles.votingInstructionsText}>Tap numbers to rank songs (1 = best)</Text>
               </View>
-              {round.has_user_submitted && (
-                <View style={styles.ownSongNote}>
-                  <Ionicons name="information-circle" size={16} color="#888" />
-                  <Text style={styles.ownSongNoteText}>Your song is not shown - you cannot vote for yourself</Text>
-                </View>
-              )}
+              <View style={styles.pointsExplanation}>
+                <Text style={styles.pointsExplanationText}>
+                  1st place gets {submissions.filter(s => s.user_id !== user?.id).length} pts, 2nd gets {submissions.filter(s => s.user_id !== user?.id).length - 1} pts, etc.
+                </Text>
+              </View>
             </>
           )}
 
-          {/* Show rankings list if not locked */}
-          {!round.user_vote_locked && (
+          {/* Show voting list if user has submitted and not locked */}
+          {round.has_user_submitted && !round.user_vote_locked && (
             <FlatList
-              data={rankings}
-              keyExtractor={(item) => item}
+              data={submissions.filter(s => s.user_id !== user?.id)}
+              keyExtractor={(item) => item.id}
               renderItem={renderVotingItem}
               contentContainerStyle={styles.listContent}
               refreshControl={
@@ -844,8 +943,8 @@ export default function RoundScreen() {
             <View style={styles.lockedRankingsContainer}>
               <Text style={styles.sectionTitle}>Your Rankings</Text>
               <FlatList
-                data={rankings}
-                keyExtractor={(item) => item}
+                data={submissions.filter(s => s.user_id !== user?.id)}
+                keyExtractor={(item) => item.id}
                 renderItem={renderVotingItem}
                 contentContainerStyle={styles.listContent}
                 scrollEnabled={false}
@@ -853,21 +952,36 @@ export default function RoundScreen() {
             </View>
           )}
 
-          {/* Save vote button - only show when actively ranking */}
-          {!voteSaved && !round.user_vote_locked && (
+          {/* Save vote button - only show when actively ranking and user has submitted */}
+          {round.has_user_submitted && !voteSaved && !round.user_vote_locked && (
             <View style={styles.submitVoteContainer}>
               <TouchableOpacity
-                style={[styles.submitVoteButton, votingSubmitting && styles.buttonDisabled]}
+                style={[styles.submitVoteButton, (!allRanksSelected() || votingSubmitting) && styles.buttonDisabled]}
                 onPress={handleSaveVote}
-                disabled={votingSubmitting}
+                disabled={!allRanksSelected() || votingSubmitting}
               >
                 {votingSubmitting ? (
                   <ActivityIndicator color="#212F36" />
                 ) : (
-                  <Text style={styles.submitVoteText}>Save Vote</Text>
+                  <Text style={styles.submitVoteText}>
+                    {allRanksSelected() ? 'Save Vote' : 'Rank All Songs'}
+                  </Text>
                 )}
               </TouchableOpacity>
             </View>
+          )}
+
+          {/* League Creator: Reopen Submission Button */}
+          {isLeagueCreator && missingUsers.length > 0 && (
+            <TouchableOpacity
+              style={styles.reopenButton}
+              onPress={() => setShowMissingModal(true)}
+            >
+              <Ionicons name="person-add-outline" size={20} color="#F9FCF2" />
+              <Text style={styles.reopenButtonText}>
+                Reopen Submissions ({missingUsers.length} missing)
+              </Text>
+            </TouchableOpacity>
           )}
         </>
       )}
@@ -1020,6 +1134,66 @@ export default function RoundScreen() {
             />
           )}
         </SafeAreaView>
+      </Modal>
+
+      {/* Missing Submissions Modal (for League Creator) */}
+      <Modal
+        visible={showMissingModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowMissingModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.missingModalContent}>
+            <View style={styles.missingModalHeader}>
+              <Text style={styles.missingModalTitle}>Members Who Missed Submission</Text>
+              <TouchableOpacity onPress={() => setShowMissingModal(false)}>
+                <Ionicons name="close" size={24} color="#F9FCF2" />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.missingModalSubtitle}>
+              Grant a 2-hour extension window for members who missed the submission deadline.
+            </Text>
+            <ScrollView style={styles.missingUsersList}>
+              {missingUsers.map((missingUser) => (
+                <View key={missingUser.user_id} style={styles.missingUserItem}>
+                  <View style={styles.missingUserInfo}>
+                    <Text style={styles.missingUserName}>{missingUser.username}</Text>
+                    {missingUser.has_extension && (
+                      <Text style={styles.extensionBadge}>Extension Granted</Text>
+                    )}
+                  </View>
+                  {missingUser.has_extension ? (
+                    <View style={styles.extensionInfo}>
+                      <Ionicons name="time-outline" size={16} color="#B8C5B0" />
+                      <Text style={styles.extensionText}>
+                        Expires: {new Date(missingUser.extension_deadline!).toLocaleTimeString()}
+                      </Text>
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.grantExtensionButton}
+                      onPress={() => handleReopenSubmission(missingUser.user_id, missingUser.username)}
+                      disabled={reopeningFor === missingUser.user_id}
+                    >
+                      {reopeningFor === missingUser.user_id ? (
+                        <ActivityIndicator size="small" color="#212F36" />
+                      ) : (
+                        <Text style={styles.grantExtensionText}>Grant 2hr Extension</Text>
+                      )}
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ))}
+              {missingUsers.length === 0 && (
+                <View style={styles.noMissingUsers}>
+                  <Ionicons name="checkmark-circle" size={32} color="#B8C5B0" />
+                  <Text style={styles.noMissingText}>All members have submitted!</Text>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -1703,5 +1877,163 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: 'rgba(141, 161, 155, 0.8)',
     marginTop: 2,
+  },
+  // New voting UI styles
+  rankDropdownContainer: {
+    marginLeft: 'auto',
+  },
+  rankDropdown: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  rankOption: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(74, 96, 112, 0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  rankOptionSelected: {
+    backgroundColor: '#B8C5B0',
+    borderColor: '#B8C5B0',
+  },
+  rankOptionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#8DA19B',
+  },
+  rankOptionTextSelected: {
+    color: '#212F36',
+  },
+  pointsExplanation: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  pointsExplanationText: {
+    fontSize: 12,
+    color: 'rgba(141, 161, 155, 0.6)',
+    textAlign: 'center',
+  },
+  noSubmissionContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+    gap: 12,
+  },
+  noSubmissionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#F9FCF2',
+  },
+  noSubmissionText: {
+    fontSize: 14,
+    color: 'rgba(141, 161, 155, 0.8)',
+    textAlign: 'center',
+  },
+  reopenButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(90, 112, 128, 0.5)',
+    marginHorizontal: 16,
+    marginVertical: 12,
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#5A7080',
+  },
+  reopenButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#F9FCF2',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'flex-end',
+  },
+  missingModalContent: {
+    backgroundColor: '#2A3B44',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 20,
+    paddingBottom: 40,
+    maxHeight: '70%',
+  },
+  missingModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    marginBottom: 8,
+  },
+  missingModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#F9FCF2',
+  },
+  missingModalSubtitle: {
+    fontSize: 13,
+    color: 'rgba(141, 161, 155, 0.8)',
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  missingUsersList: {
+    paddingHorizontal: 20,
+  },
+  missingUserItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(90, 112, 128, 0.3)',
+  },
+  missingUserInfo: {
+    flex: 1,
+  },
+  missingUserName: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#F9FCF2',
+  },
+  extensionBadge: {
+    fontSize: 11,
+    color: '#B8C5B0',
+    marginTop: 2,
+  },
+  extensionInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  extensionText: {
+    fontSize: 12,
+    color: '#B8C5B0',
+  },
+  grantExtensionButton: {
+    backgroundColor: '#B8C5B0',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  grantExtensionText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#212F36',
+  },
+  noMissingUsers: {
+    alignItems: 'center',
+    paddingVertical: 32,
+    gap: 12,
+  },
+  noMissingText: {
+    fontSize: 14,
+    color: 'rgba(141, 161, 155, 0.8)',
   },
 });

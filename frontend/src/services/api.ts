@@ -193,6 +193,18 @@ export const advanceRound = (roundId: string) =>
 export const reopenSubmission = (roundId: string, userId: string) =>
   api.post(`/rounds/${roundId}/reopen-submission`, { user_id: userId });
 
+export const getMissingSubmissions = (roundId: string) =>
+  api.get<{
+    round_id: string;
+    round_status: string;
+    missing_users: Array<{
+      user_id: string;
+      username: string;
+      has_extension: boolean;
+      extension_deadline: string | null;
+    }>;
+  }>(`/rounds/${roundId}/missing-submissions`);
+
 // Submission APIs
 export const submitSong = (roundId: string, song: Song, locked: boolean = false) => 
   api.post<Submission>(`/rounds/${roundId}/submit`, { song, locked });

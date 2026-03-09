@@ -70,6 +70,12 @@ A "fantasy sports for music" app where users join leagues, submit songs to round
 6. **Join League UI** - Fixed "Enter League Code" text size, removed checkmark icon from button.
 7. **Active Leagues Text** - Properly capitalized and handles singular/plural ("Active League" vs "Active Leagues").
 8. **Reopen Submission Feature** - League creators can grant a 2-hour extension window to specific users who missed the submission deadline (during voting phase). Once they submit, the extension is removed and voting deadline stays the same.
+9. **New Voting System** - Changed from drag-and-drop to dropdown number selection:
+   - 1st place gets N points (where N = number of songs being ranked)
+   - 2nd place gets N-1 points, 3rd gets N-2, etc.
+   - Example: 4-person league with 3 songs to rank: 1st=3pts, 2nd=2pts, 3rd=1pt
+10. **Auto-Distribute Missing Votes** - When someone misses voting, their points are evenly distributed among all other submissions.
+11. **No Submission = No Voting** - Users who don't submit a song cannot vote and get 0 points for the round.
 
 ## Previous Updates (February 2025)
 1. **Phone Number on Signup** - Added phone field for account recovery
