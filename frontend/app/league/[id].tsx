@@ -21,7 +21,6 @@ import {
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import * as Linking from 'expo-linking';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -64,12 +63,10 @@ export default function LeagueDetailScreen() {
   // Start round modal state
   const [showStartRoundModal, setShowStartRoundModal] = useState(false);
   const [roundTheme, setRoundTheme] = useState('');
-  const [submissionDeadline, setSubmissionDeadline] = useState(new Date(Date.now() + 24 * 60 * 60 * 1000));
-  const [votingDeadline, setVotingDeadline] = useState(new Date(Date.now() + 48 * 60 * 60 * 1000));
-  const [timezone, setTimezone] = useState('EST');
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
-  const [activePickerField, setActivePickerField] = useState<'submission' | 'voting'>('submission');
+  const [submissionHours, setSubmissionHours] = useState('24');
+  const [votingHours, setVotingHours] = useState('24');
+  const [showSubmissionPicker, setShowSubmissionPicker] = useState(false);
+  const [showVotingPicker, setShowVotingPicker] = useState(false);
 
   // Chat state
   const [showChatModal, setShowChatModal] = useState(false);
@@ -88,13 +85,25 @@ export default function LeagueDetailScreen() {
   const [isSharing, setIsSharing] = useState(false);
   const shareCardRef = useRef<ViewShot>(null);
 
-  // Timezone options
-  const timezones = [
-    { label: 'EST', value: 'EST', offset: -5 },
-    { label: 'CST', value: 'CST', offset: -6 },
-    { label: 'MST', value: 'MST', offset: -7 },
-    { label: 'PST', value: 'PST', offset: -8 },
+  // Time options for scrollable dropdown
+  const timeOptions = [
+    { label: '1 hour', value: '1' },
+    { label: '3 hours', value: '3' },
+    { label: '6 hours', value: '6' },
+    { label: '1 day', value: '24' },
+    { label: '2 days', value: '48' },
+    { label: '3 days', value: '72' },
+    { label: '4 days', value: '96' },
+    { label: '5 days', value: '120' },
+    { label: '6 days', value: '144' },
+    { label: '7 days', value: '168' },
   ];
+
+  // Get display label for selected hours
+  const getTimeLabel = (hours: string) => {
+    const option = timeOptions.find(o => o.value === hours);
+    return option ? option.label : '1 day';
+  };
 
   // Check if league is complete
   const isLeagueComplete = league && standings && 
@@ -305,24 +314,15 @@ export default function LeagueDetailScreen() {
     
     setCreatingRound(true);
     try {
-      // Calculate hours from deadlines for backward compatibility
-      const now = new Date();
-      const submissionHrs = Math.max(1, Math.round((submissionDeadline.getTime() - now.getTime()) / (1000 * 60 * 60)));
-      const votingHrs = Math.max(1, Math.round((votingDeadline.getTime() - submissionDeadline.getTime()) / (1000 * 60 * 60)));
-      
       await createRound(league.id, {
         theme: roundTheme.trim(),
-        submission_hours: submissionHrs,
-        voting_hours: votingHrs,
-        submission_deadline: submissionDeadline.toISOString(),
-        voting_deadline: votingDeadline.toISOString(),
-        timezone: timezone,
+        submission_hours: parseInt(submissionHours) || 24,
+        voting_hours: parseInt(votingHours) || 24,
       });
       setShowStartRoundModal(false);
       setRoundTheme('');
-      // Reset deadlines for next round
-      setSubmissionDeadline(new Date(Date.now() + 24 * 60 * 60 * 1000));
-      setVotingDeadline(new Date(Date.now() + 48 * 60 * 60 * 1000));
+      setSubmissionHours('24');
+      setVotingHours('24');
       await fetchData();
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.detail || 'Failed to start round');
@@ -866,114 +866,77 @@ export default function LeagueDetailScreen() {
                   spellCheck={false}
                 />
 
-                <Text style={styles.inputLabel}>Timezone</Text>
-                <View style={styles.timezoneContainer}>
-                  {timezones.map((tz) => (
-                    <TouchableOpacity
-                      key={tz.value}
-                      style={[
-                        styles.timezoneOption,
-                        timezone === tz.value && styles.timezoneOptionSelected
-                      ]}
-                      onPress={() => setTimezone(tz.value)}
-                    >
-                      <Text style={[
-                        styles.timezoneText,
-                        timezone === tz.value && styles.timezoneTextSelected
-                      ]}>{tz.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                <Text style={styles.inputLabel}>Submission Time</Text>
+                <TouchableOpacity 
+                  style={styles.dropdownButton}
+                  onPress={() => setShowSubmissionPicker(!showSubmissionPicker)}
+                >
+                  <Ionicons name="time" size={20} color="#B8C5B0" />
+                  <Text style={styles.dropdownButtonText}>{getTimeLabel(submissionHours)}</Text>
+                  <Ionicons name={showSubmissionPicker ? "chevron-up" : "chevron-down"} size={20} color="#B8C5B0" />
+                </TouchableOpacity>
+                {showSubmissionPicker && (
+                  <View style={styles.dropdownList}>
+                    <ScrollView style={styles.dropdownScroll} nestedScrollEnabled={true}>
+                      {timeOptions.map((option) => (
+                        <TouchableOpacity
+                          key={`sub-${option.value}`}
+                          style={[
+                            styles.dropdownItem,
+                            submissionHours === option.value && styles.dropdownItemSelected
+                          ]}
+                          onPress={() => {
+                            setSubmissionHours(option.value);
+                            setShowSubmissionPicker(false);
+                          }}
+                        >
+                          <Text style={[
+                            styles.dropdownItemText,
+                            submissionHours === option.value && styles.dropdownItemTextSelected
+                          ]}>{option.label}</Text>
+                          {submissionHours === option.value && (
+                            <Ionicons name="checkmark" size={18} color="#B8C5B0" />
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
 
-                <Text style={styles.inputLabel}>Submission Deadline</Text>
-                <View style={styles.dateTimeRow}>
-                  <TouchableOpacity 
-                    style={styles.dateTimeButton}
-                    onPress={() => {
-                      setActivePickerField('submission');
-                      setShowDatePicker(true);
-                    }}
-                  >
-                    <Ionicons name="calendar" size={18} color="#B8C5B0" />
-                    <Text style={styles.dateTimeText}>
-                      {submissionDeadline.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.dateTimeButton}
-                    onPress={() => {
-                      setActivePickerField('submission');
-                      setShowTimePicker(true);
-                    }}
-                  >
-                    <Ionicons name="time" size={18} color="#B8C5B0" />
-                    <Text style={styles.dateTimeText}>
-                      {submissionDeadline.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                <Text style={styles.inputLabel}>Voting Deadline</Text>
-                <View style={styles.dateTimeRow}>
-                  <TouchableOpacity 
-                    style={styles.dateTimeButton}
-                    onPress={() => {
-                      setActivePickerField('voting');
-                      setShowDatePicker(true);
-                    }}
-                  >
-                    <Ionicons name="calendar" size={18} color="#B8C5B0" />
-                    <Text style={styles.dateTimeText}>
-                      {votingDeadline.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.dateTimeButton}
-                    onPress={() => {
-                      setActivePickerField('voting');
-                      setShowTimePicker(true);
-                    }}
-                  >
-                    <Ionicons name="time" size={18} color="#B8C5B0" />
-                    <Text style={styles.dateTimeText}>
-                      {votingDeadline.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                {(showDatePicker || showTimePicker) && (
-                  <View style={styles.pickerContainer}>
-                    <DateTimePicker
-                      value={activePickerField === 'submission' ? submissionDeadline : votingDeadline}
-                      mode={showDatePicker ? 'date' : 'time'}
-                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                      minimumDate={new Date()}
-                      onChange={(event, selectedDate) => {
-                        if (Platform.OS === 'android') {
-                          setShowDatePicker(false);
-                          setShowTimePicker(false);
-                        }
-                        if (selectedDate) {
-                          if (activePickerField === 'submission') {
-                            setSubmissionDeadline(selectedDate);
-                          } else {
-                            setVotingDeadline(selectedDate);
-                          }
-                        }
-                      }}
-                      textColor="#F9FCF2"
-                    />
-                    {Platform.OS === 'ios' && (
-                      <TouchableOpacity 
-                        style={styles.pickerDoneButton}
-                        onPress={() => {
-                          setShowDatePicker(false);
-                          setShowTimePicker(false);
-                        }}
-                      >
-                        <Text style={styles.pickerDoneText}>Done</Text>
-                      </TouchableOpacity>
-                    )}
+                <Text style={styles.inputLabel}>Voting Time</Text>
+                <TouchableOpacity 
+                  style={styles.dropdownButton}
+                  onPress={() => setShowVotingPicker(!showVotingPicker)}
+                >
+                  <Ionicons name="time" size={20} color="#B8C5B0" />
+                  <Text style={styles.dropdownButtonText}>{getTimeLabel(votingHours)}</Text>
+                  <Ionicons name={showVotingPicker ? "chevron-up" : "chevron-down"} size={20} color="#B8C5B0" />
+                </TouchableOpacity>
+                {showVotingPicker && (
+                  <View style={styles.dropdownList}>
+                    <ScrollView style={styles.dropdownScroll} nestedScrollEnabled={true}>
+                      {timeOptions.map((option) => (
+                        <TouchableOpacity
+                          key={`vote-${option.value}`}
+                          style={[
+                            styles.dropdownItem,
+                            votingHours === option.value && styles.dropdownItemSelected
+                          ]}
+                          onPress={() => {
+                            setVotingHours(option.value);
+                            setShowVotingPicker(false);
+                          }}
+                        >
+                          <Text style={[
+                            styles.dropdownItemText,
+                            votingHours === option.value && styles.dropdownItemTextSelected
+                          ]}>{option.label}</Text>
+                          {votingHours === option.value && (
+                            <Ionicons name="checkmark" size={18} color="#B8C5B0" />
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
                   </View>
                 )}
 
@@ -1572,6 +1535,56 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
     marginBottom: 16,
+  },
+  dropdownButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#212F36',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#5A7080',
+    marginBottom: 8,
+  },
+  dropdownButtonText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#F9FCF2',
+    marginLeft: 12,
+  },
+  dropdownList: {
+    backgroundColor: '#2A3A42',
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#5A7080',
+    overflow: 'hidden',
+  },
+  dropdownScroll: {
+    maxHeight: 200,
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(74, 96, 112, 0.3)',
+  },
+  dropdownItemSelected: {
+    backgroundColor: 'rgba(184, 197, 176, 0.15)',
+  },
+  dropdownItemText: {
+    fontSize: 16,
+    color: '#F9FCF2',
+  },
+  dropdownItemTextSelected: {
+    color: '#B8C5B0',
+    fontWeight: '600',
   },
   timezoneContainer: {
     flexDirection: 'row',
