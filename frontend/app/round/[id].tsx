@@ -1832,11 +1832,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 8,
     paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#E0D8CC',
-    minHeight: 56,
+    minHeight: 48,
   },
   modalCloseButton: {
     width: 44,

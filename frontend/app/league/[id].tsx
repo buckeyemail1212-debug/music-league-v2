@@ -979,7 +979,7 @@ export default function LeagueDetailScreen() {
       <Modal
         visible={showChatModal}
         animationType="slide"
-        presentationStyle="pageSheet"
+        presentationStyle="fullScreen"
         onRequestClose={() => setShowChatModal(false)}
       >
         <SafeAreaView style={styles.chatModalContainer}>
@@ -1214,8 +1214,8 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 12,
     gap: 8,
-    borderWidth: 1,
-    borderColor: '#E0D8CC',
+    borderWidth: 1.5,
+    borderColor: '#212F36',
   },
   buttonDisabled: {
     opacity: 0.7,

@@ -653,6 +653,9 @@ async def create_league(league_data: LeagueCreate, current_user: dict = Depends(
     while await db.leagues.find_one({"league_code": league_code}):
         league_code = generate_league_code()
     
+    has_image = league_data.league_image is not None and len(league_data.league_image or "") > 0
+    print(f"[CREATE LEAGUE] name={league_data.name}, has_image={has_image}, image_len={len(league_data.league_image or '')}")
+    
     league = {
         "id": league_id,
         "name": league_data.name,
@@ -660,7 +663,7 @@ async def create_league(league_data: LeagueCreate, current_user: dict = Depends(
         "creator_id": current_user["id"],
         "creator_username": current_user["username"],
         "total_rounds": league_data.total_rounds,
-        "league_image": league_data.league_image,
+        "league_image": league_data.league_image if has_image else None,
         "members": [{"id": current_user["id"], "username": current_user["username"]}],
         "current_round": 0,
         "status": "active",

@@ -66,11 +66,14 @@ export default function TabLayout() {
     if (!leagueName.trim()) return;
     setCreating(true);
     try {
-      const response = await createLeague({
+      const payload: any = {
         name: leagueName.trim(),
         total_rounds: totalRounds,
-        league_image: leagueImage,
-      });
+      };
+      if (leagueImage) {
+        payload.league_image = leagueImage;
+      }
+      const response = await createLeague(payload);
       resetAndClose();
       Alert.alert('League Created!', `Code: ${response.data.league_code}`);
     } catch (error: any) {
@@ -87,14 +90,14 @@ export default function TabLayout() {
         onPress: async () => {
           const { status } = await ImagePicker.requestCameraPermissionsAsync();
           if (status !== 'granted') { Alert.alert('Permission needed'); return; }
-          const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.5, base64: true });
+          const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.15, base64: true });
           if (!result.canceled && result.assets[0].base64) setLeagueImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
         },
       },
       {
         text: 'Choose from Library',
         onPress: async () => {
-          const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [1, 1], quality: 0.5, base64: true });
+          const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [1, 1], quality: 0.15, base64: true });
           if (!result.canceled && result.assets[0].base64) setLeagueImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
         },
       },
@@ -267,13 +270,13 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#5A7A6B',
+    backgroundColor: '#212F36',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
     elevation: 8,
   },
 });
