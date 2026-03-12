@@ -318,7 +318,6 @@ export default function HomeScreen() {
             style={styles.createLeagueButton}
             onPress={() => setShowCreateModal(true)}
           >
-            <Ionicons name="add-circle" size={22} color="#5A7A6B" />
             <Text style={styles.createLeagueText}>Create League</Text>
           </TouchableOpacity>
           <TouchableOpacity 
