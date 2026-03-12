@@ -7,22 +7,14 @@ import {
   FlatList,
   RefreshControl,
   Modal,
-  TextInput,
-  Alert,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  TouchableWithoutFeedback,
-  Keyboard,
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../src/context/AuthContext';
-import { getLeagues, createLeague, getRounds, League, Round } from '../../src/services/api';
+import { getLeagues, getRounds, League, Round } from '../../src/services/api';
 
 export default function HomeScreen() {
   const { user } = useAuth();
@@ -31,18 +23,8 @@ export default function HomeScreen() {
   const [activeRounds, setActiveRounds] = useState<{ [leagueId: string]: Round | null }>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [creating, setCreating] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showProfileZoom, setShowProfileZoom] = useState(false);
-
-  // Create league form - simplified
-  const [leagueName, setLeagueName] = useState('');
-  const [totalRounds, setTotalRounds] = useState('3');
-  const [leagueImage, setLeagueImage] = useState<string | null>(null);
-
-  // Rounds options (1-10)
-  const roundsOptions = Array.from({ length: 10 }, (_, i) => ({
     label: `${i + 1} Round${i > 0 ? 's' : ''}`,
     value: String(i + 1)
   }));
@@ -125,82 +107,6 @@ export default function HomeScreen() {
     setRefreshing(true);
     await fetchLeagues();
     setRefreshing(false);
-  };
-
-  const pickLeagueImage = async () => {
-    // Show options: Camera or Gallery
-    Alert.alert(
-      'Choose Image Source',
-      'Select where to get your league image from',
-      [
-        {
-          text: 'Camera',
-          onPress: async () => {
-            const { status } = await ImagePicker.requestCameraPermissionsAsync();
-            if (status !== 'granted') {
-              Alert.alert('Permission needed', 'Camera access is required to take photos');
-              return;
-            }
-            const result = await ImagePicker.launchCameraAsync({
-              allowsEditing: true,
-              aspect: [1, 1],
-              quality: 0.5,
-              base64: true,
-            });
-            if (!result.canceled && result.assets[0].base64) {
-              const base64Image = `data:image/jpeg;base64,${result.assets[0].base64}`;
-              setLeagueImage(base64Image);
-            }
-          }
-        },
-        {
-          text: 'Photo Library',
-          onPress: async () => {
-            const result = await ImagePicker.launchImageLibraryAsync({
-              mediaTypes: ImagePicker.MediaTypeOptions.Images,
-              allowsEditing: true,
-              aspect: [1, 1],
-              quality: 0.5,
-              base64: true,
-            });
-            if (!result.canceled && result.assets[0].base64) {
-              const base64Image = `data:image/jpeg;base64,${result.assets[0].base64}`;
-              setLeagueImage(base64Image);
-            }
-          }
-        },
-        { text: 'Cancel', style: 'cancel' }
-      ]
-    );
-  };
-
-  const handleCreateLeague = async () => {
-    if (!leagueName.trim()) {
-      Alert.alert('Error', 'Please enter a league name');
-      return;
-    }
-
-    setCreating(true);
-    try {
-      await createLeague({
-        name: leagueName.trim(),
-        total_rounds: parseInt(totalRounds) || 3,
-        league_image: leagueImage,
-      });
-      setShowCreateModal(false);
-      resetCreateForm();
-      await fetchLeagues();
-    } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.detail || 'Failed to create league');
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const resetCreateForm = () => {
-    setLeagueName('');
-    setTotalRounds('3');
-    setLeagueImage(null);
   };
 
   const renderLeagueItem = ({ item }: { item: League }) => {
@@ -324,12 +230,6 @@ export default function HomeScreen() {
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity 
-            style={styles.createLeagueButton}
-            onPress={() => setShowCreateModal(true)}
-          >
-            <Text style={styles.createLeagueText}>Create League</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
             style={styles.profileImageContainer}
             onPress={() => router.push('/(tabs)/profile')}
             onLongPress={() => user?.profile_photo && setShowProfileZoom(true)}
@@ -371,103 +271,6 @@ export default function HomeScreen() {
           }
         />
       )}
-
-      {/* Create League Modal */}
-      <Modal
-        visible={showCreateModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowCreateModal(false)}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalOverlay}
-        >
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Create League</Text>
-              <TouchableOpacity onPress={() => setShowCreateModal(false)}>
-                <Ionicons name="close" size={24} color="rgba(141, 161, 155, 0.8)" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <View style={styles.modalForm}>
-                <Text style={styles.inputLabel}>League Name</Text>
-                <TextInput
-                  style={styles.modalInput}
-                  placeholder="e.g., Friday Night Jams"
-                  placeholderTextColor="rgba(141, 161, 155, 0.6)"
-                  value={leagueName}
-                  onChangeText={setLeagueName}
-                  autoComplete="off"
-                  autoCorrect={false}
-                  textContentType="none"
-                  importantForAutofill="no"
-                  spellCheck={false}
-                />
-
-                <Text style={styles.inputLabel}>League Image (Optional)</Text>
-                <TouchableOpacity 
-                  style={styles.imagePickerButton}
-                  onPress={pickLeagueImage}
-                >
-                  {leagueImage ? (
-                    <Image 
-                      source={{ uri: leagueImage }} 
-                      style={styles.leagueImagePreview}
-                    />
-                  ) : (
-                    <View style={styles.imagePickerPlaceholder}>
-                      <Ionicons name="camera-outline" size={32} color="#5A7A6B" />
-                      <Text style={styles.imagePickerText}>Tap to add image</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-                {leagueImage && (
-                  <TouchableOpacity 
-                    style={styles.removeImageButton}
-                    onPress={() => setLeagueImage(null)}
-                  >
-                    <Ionicons name="trash-outline" size={16} color="#E57373" />
-                    <Text style={styles.removeImageText}>Remove Image</Text>
-                  </TouchableOpacity>
-                )}
-
-                <Text style={styles.inputLabel}>Number of Rounds</Text>
-                <View style={styles.timeOptionsContainer}>
-                  {roundsOptions.map((option) => (
-                    <TouchableOpacity
-                      key={`rounds-${option.value}`}
-                      style={[
-                        styles.timeOption,
-                        totalRounds === option.value && styles.timeOptionSelected
-                      ]}
-                      onPress={() => setTotalRounds(option.value)}
-                    >
-                      <Text style={[
-                        styles.timeOptionText,
-                        totalRounds === option.value && styles.timeOptionTextSelected
-                      ]}>{option.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                <TouchableOpacity
-                  style={[styles.submitButton, creating && styles.buttonDisabled]}
-                  onPress={handleCreateLeague}
-                  disabled={creating}
-                >
-                  {creating ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Text style={styles.submitButtonText}>Create League</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
 
       {/* Profile Photo Zoom Modal */}
       <Modal

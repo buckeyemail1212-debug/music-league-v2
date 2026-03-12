@@ -1,19 +1,15 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Platform } from 'react-native';
+import { Platform, View, StyleSheet } from 'react-native';
 
 // Color Palette - Light Theme
 const COLORS = {
-  background: '#F5F0E8',       // Beige/Cream main background
-  navBar: '#212F36',           // Deep Navy for navigation bar
-  card: '#FFFFFF',             // White cards
-  cardBorder: '#E0D8CC',       // Soft border for cards
-  primary: '#212F36',          // Deep Navy for primary elements
-  accent: '#5A7A6B',           // Muted green accent
-  textPrimary: '#212F36',      // Deep Navy text
-  textSecondary: '#6B7A82',    // Muted grey text
-  cream: '#F5F0E8',            // Cream color for nav icons
+  background: '#F5F0E8',
+  navBar: '#212F36',
+  primary: '#212F36',
+  accent: '#5A7A6B',
+  cream: '#F5F0E8',
 };
 
 export default function TabLayout() {
@@ -32,7 +28,7 @@ export default function TabLayout() {
         tabBarActiveTintColor: COLORS.cream,
         tabBarInactiveTintColor: 'rgba(245, 240, 232, 0.5)',
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: '500',
         },
       }}
@@ -47,20 +43,34 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="join"
+        name="discovery"
         options={{
-          title: 'Join',
+          title: 'Discover',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="enter" size={size} color={color} />
+            <Ionicons name="musical-notes" size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="discovery"
+        name="add"
         options={{
-          title: 'Music',
+          title: '',
+          tabBarIcon: ({ focused }) => (
+            <View style={styles.addButtonContainer}>
+              <View style={[styles.addButton, focused && styles.addButtonFocused]}>
+                <Ionicons name="add" size={28} color="#FFFFFF" />
+              </View>
+            </View>
+          ),
+          tabBarLabel: () => null,
+        }}
+      />
+      <Tabs.Screen
+        name="inbox"
+        options={{
+          title: 'Inbox',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="musical-notes" size={size} color={color} />
+            <Ionicons name="chatbubble" size={size} color={color} />
           ),
         }}
       />
@@ -73,6 +83,38 @@ export default function TabLayout() {
           ),
         }}
       />
+      {/* Hide the old join tab */}
+      <Tabs.Screen
+        name="join"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  addButtonContainer: {
+    position: 'absolute',
+    top: -18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addButton: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#5A7A6B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  addButtonFocused: {
+    backgroundColor: '#4A6A5B',
+  },
+});

@@ -16,53 +16,48 @@ Build a "Music League" mobile app - "fantasy sports for music" game using Expo (
 - **Backend**: FastAPI, Python, MongoDB (motor async driver)
 - **API**: Deezer for song search
 
+## 5-Tab Navigation Layout
+1. **Home** - Your leagues, active rounds, profile photo
+2. **Discover** - Deezer song search with 30s previews
+3. **Add** (raised center button) - Create League or Join League
+4. **Inbox** - All league chats in one place
+5. **Profile** - User settings, stats, account management
+
 ## What's Been Implemented
 
 ### Session 1 (Previous)
-- Full auth system (register, login, delete account, forgot password flow)
-- League CRUD (create, join, leave, delete, update image)
-- Round management (create, advance, auto-advance on deadline)
-- Song submission and voting
-- Timezone-aware deadlines with python-dateutil
-- Custom league images with camera + gallery picker
-- Display name feature
-- Reopen submission feature (2hr extensions)
-- Complete UI overhaul to light/cream theme
-- Chat system with unread indicators
+- Full auth system, League CRUD, Round management
+- Song submission and voting, Timezone-aware deadlines
+- Custom league images, Display name, Reopen submission
+- Complete UI overhaul to light/cream theme, Chat system
 
-### Session 2 (Feb 2026)
-- **Voting Logic Overhaul** - N-1 point system, accumulated standings, auto-distribution, tie handling
-- **Results Page** - Confetti cannon, removed yellow highlight, removed points text
-- **Apple Music Logo** - Updated to `logo-apple` in all contexts (results, submission, voting, search)
-- **Consistent Service Link Colors** - Spotify (#1DB954), Apple (#FA243C), YouTube (#FF0000) everywhere
-- **Song Search Modal** - Added service links under each search result, added close-circle X button
-- **Timer Fixes** - League timer black not orange, home timer box white bg + blue border
-- **Messages Navigation** - Chat icon on home league cards navigates directly to chat via openChat param
-- **Submission Info Box** - White background + blue border, proper width matching submission card
-- **Chat Keyboard** - SafeAreaView wrapping, KeyboardAvoidingView with proper offset
-- **Discovery Audio** - Stops when leaving tab, no longer plays in background
-- **Tab UI** - Removed flag/trophy icons from Rounds/Standings tabs
-- **Advance Buttons** - Removed arrows from "Advance to..." buttons
-- **Start New Round** - White background with border
-- **Modal Fixes** - All close button icons dark (#212F36) for visibility on light bg
-- **Rank Options** - Fixed colors for light theme readability
-- **0-Point Users** - Non-submitters correctly appear in standings with 0 points
+### Session 2 (Current - Feb 2026)
+- **Voting Logic Overhaul**: N-1 point system, accumulated standings, auto-distribution, ties
+- **5-Tab Navigation**: Home, Discover, raised Add button, Inbox, Profile
+- **Inbox Tab**: New screen showing all league chats, tap to go directly to chat
+- **Add Tab**: Create League (with camera + gallery image picker) or Join League
+- **Results Page**: Confetti, removed yellow highlight, removed points text
+- **Apple Music Logo**: Updated to logo-apple everywhere
+- **Consistent Service Link Colors**: Spotify (#1DB954), Apple (#FA243C), YouTube (#FF0000)
+- **Song Search Modal**: Service links under each result, close-circle X button
+- **Timer Fixes**: Black in league, white bg + blue border on home
+- **Chat Navigation**: Direct from inbox + home page chat icon
+- **Submission Info Box**: White bg + blue border
+- **Chat Keyboard**: SafeAreaView + KeyboardAvoidingView
+- **Discovery Audio**: Stops when leaving tab
+- **UI Cleanup**: Removed flag/trophy, arrows, fixed colors/fonts
 
 ### Testing
-- **20/20 backend tests passed** (iteration_2.json)
-- Covers: Auth, League, Round, Voting (N-1, ties, non-voter), Standings, Chat, Zero-point users
+- 20/20 backend tests passed (iteration_2.json)
 
-## Backlog / Future Tasks
-- P1: Tab switching scroll to top (partially addressed)
-- P2: Real password reset (email/SMS) instead of "Delete & Start Fresh"
-- P2: Refactor monolithic files (server.py, league/[id].tsx, round/[id].tsx)
-- P2: Expo EAS republish needed after this session's changes
+## Backlog
+- P1: Tab switching scroll-to-top
+- P2: Real password reset (email/SMS)
+- P2: Refactor monolithic files
+- P2: Expo EAS republish
 
 ## Key Files
 - Backend: `/app/backend/server.py`, `/app/backend/main.py`
-- Frontend: `/app/frontend/app/round/[id].tsx`, `/app/frontend/app/league/[id].tsx`, `/app/frontend/app/(tabs)/home.tsx`, `/app/frontend/app/(tabs)/discovery.tsx`
-- Tests: `/app/backend/tests/test_music_league.py`
-
-## Test Reports
-- `/app/test_reports/iteration_1.json` - 14/14 backend tests passed
-- `/app/test_reports/iteration_2.json` - 20/20 backend tests passed (regression + new)
+- Frontend Tabs: `/app/frontend/app/(tabs)/_layout.tsx`, `home.tsx`, `discovery.tsx`, `add.tsx`, `inbox.tsx`, `profile.tsx`
+- Screens: `/app/frontend/app/round/[id].tsx`, `/app/frontend/app/league/[id].tsx`
+- API: `/app/frontend/src/services/api.ts`
