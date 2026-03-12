@@ -25,9 +25,6 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showProfileZoom, setShowProfileZoom] = useState(false);
-    label: `${i + 1} Round${i > 0 ? 's' : ''}`,
-    value: String(i + 1)
-  }));
 
   // Timer update effect
   useEffect(() => {
