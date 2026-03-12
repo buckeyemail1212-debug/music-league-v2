@@ -1687,6 +1687,7 @@ const styles = StyleSheet.create({
   chatModalContainer: {
     flex: 1,
     backgroundColor: '#F5F0E8',
+    paddingTop: Platform.OS === 'ios' ? 55 : 0,
   },
   chatModalContent: {
     flex: 1,

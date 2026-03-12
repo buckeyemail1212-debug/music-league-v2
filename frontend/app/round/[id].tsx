@@ -16,6 +16,7 @@ import {
   ScrollView,
   Dimensions,
   Keyboard,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
@@ -1826,6 +1827,7 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     backgroundColor: '#F5F0E8',
+    paddingTop: Platform.OS === 'ios' ? 55 : 0,
   },
   modalHeader: {
     flexDirection: 'row',
