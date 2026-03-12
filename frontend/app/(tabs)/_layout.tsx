@@ -19,6 +19,7 @@ import {
 import { useRouter } from 'expo-router';
 import { joinLeague, createLeague } from '../../src/services/api';
 import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const COLORS = {
   navBar: '#212F36',
@@ -74,6 +75,12 @@ export default function TabLayout() {
         payload.league_image = leagueImage;
       }
       const response = await createLeague(payload);
+      // Cache the image locally so it shows immediately on home page
+      if (leagueImage && response.data?.id) {
+        try {
+          await AsyncStorage.setItem(`league_image_${response.data.id}`, leagueImage);
+        } catch {}
+      }
       resetAndClose();
       Alert.alert('League Created!', `Code: ${response.data.league_code}`);
     } catch (error: any) {

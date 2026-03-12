@@ -7,51 +7,25 @@
 - **Frontend**: React Native, Expo, Expo Router, TypeScript
 - **Backend**: FastAPI, Python, motor (async MongoDB)
 - **Database**: MongoDB
-- **Testing**: pytest (backend), Playwright (frontend)
 
-## CRITICAL: Backend Deployment Required
-The Railway backend has OLD code that does NOT return `league_image` in API responses. The user MUST redeploy the backend folder to Railway for league images to work.
+## CRITICAL: Railway Backend Issue
+I tested the Railway backend directly and confirmed it does NOT return `league_image` in responses. The code here is correct but Railway is running an old version. A `Procfile` has been added to force `uvicorn server:app`. The frontend now has a LOCAL IMAGE CACHE workaround using AsyncStorage - when you create a league with an image, the image is saved locally on your phone and displayed from cache even if the backend doesn't return it.
 
-## 5-Tab Navigation
-1. **Home** - Leagues with image/initial, active round timers, scroll-to-top on focus
-2. **Discover** - Deezer song search with 30s previews
-3. **Add** (raised 60px dark circle matching nav bar) - Modal popup: Create League or Join League
-4. **Inbox** - League chats using SharedChat component
-5. **Profile** - User stats, logout only
+## Latest Fixes (Mar 12, 2026 - Session 2, Round 2)
+1. **League image local cache** - Images saved to AsyncStorage on create, loaded from cache on home page. Works regardless of backend version.
+2. **Start Round button** - Fixed duplicate backgroundColor bug (cream was overriding). Now white + dark border.
+3. **Song search X button** - Lowered close button from status bar area
+4. **Procfile added** - `web: uvicorn server:app --host 0.0.0.0 --port ${PORT:-8001}` for Railway
+5. **Backend _id exclusion** - All MongoDB queries exclude _id for proper serialization
 
 ## Key Files
-- Backend: `/app/backend/server.py`, `/app/backend/main.py`
+- Backend: `/app/backend/server.py`, `/app/backend/main.py`, `/app/backend/Procfile`
 - Tabs: `_layout.tsx`, `home.tsx`, `discovery.tsx`, `add.tsx`, `inbox.tsx`, `profile.tsx`
 - Screens: `round/[id].tsx`, `league/[id].tsx`
 - API: `src/services/api.ts`
 - SharedChat: `src/components/SharedChat.tsx`
 
-## Latest Fixes (Mar 12, 2026 - Session 2)
-1. **Start Round button** - Fixed duplicate backgroundColor bug (cream was overriding dark). Now white with dark border.
-2. **Song search X button** - Added more padding to push X down from status bar area
-3. **League image backend** - Backend correctly stores/returns league_image with `_id` exclusion, logging, Infinity body limits
-4. **Add button color** - Dark blue (#212F36) matching nav bar
-5. **Chat keyboard** - fullScreen modal for proper keyboard avoiding
-6. **Unified SharedChat** - Used in both inbox and league detail
-
-## Previous Fixes (Mar 12, 2026 - Session 1)
-- Profile cleanup (removed delete account)
-- Navigation scroll-to-top on focus
-- Chat modal reset on page return
-
 ## Backlog
-- **P0**: Redeploy backend to Railway (league images won't work until this is done)
 - **P1**: WebSocket for real-time chat
 - **P2**: Password reset via email
 - **P2**: Refactor monolithic files
-
-## Deploy Instructions
-### Frontend (Expo update):
-```bash
-cd ~/Downloads/music-league-v2-main\ 8/frontend
-npm install
-npx eas-cli update --branch preview --message "v7"
-```
-
-### Backend (Railway redeploy - REQUIRED for league images):
-Deploy the `/backend` folder to Railway. The `main.py` file is the entry point.

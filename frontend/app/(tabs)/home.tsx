@@ -15,6 +15,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
 import { getLeagues, getRounds, League, Round } from '../../src/services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function HomeScreen() {
   const { user } = useAuth();
@@ -26,6 +27,7 @@ export default function HomeScreen() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showProfileZoom, setShowProfileZoom] = useState(false);
   const flatListRef = useRef<FlatList>(null);
+  const [cachedImages, setCachedImages] = useState<{ [leagueId: string]: string }>({});
 
   // Timer update effect
   useEffect(() => {
@@ -38,14 +40,26 @@ export default function HomeScreen() {
   const fetchLeagues = async () => {
     try {
       const response = await getLeagues();
-      setLeagues(response.data);
+      const leagueList = response.data;
+      setLeagues(leagueList);
+      
+      // Load cached images for leagues that don't have one from the API
+      const imgCache: { [id: string]: string } = {};
+      await Promise.all(leagueList.map(async (league: League) => {
+        if (!league.league_image) {
+          try {
+            const cached = await AsyncStorage.getItem(`league_image_${league.id}`);
+            if (cached) imgCache[league.id] = cached;
+          } catch {}
+        }
+      }));
+      setCachedImages(imgCache);
       
       // Fetch active rounds for each league
       const roundsData: { [leagueId: string]: Round | null } = {};
-      for (const league of response.data) {
+      for (const league of leagueList) {
         try {
           const roundsRes = await getRounds(league.id);
-          // Find active round (submission or voting status)
           const activeRound = roundsRes.data.find(
             (r: Round) => r.status === 'submission' || r.status === 'voting'
           );
@@ -110,6 +124,7 @@ export default function HomeScreen() {
 
   const renderLeagueItem = ({ item }: { item: League }) => {
     const activeRound = activeRounds[item.id];
+    const displayImage = item.league_image || cachedImages[item.id];
     
     return (
       <TouchableOpacity
@@ -118,10 +133,11 @@ export default function HomeScreen() {
       >
         <View style={styles.leagueHeader}>
           <View style={styles.leagueIcon}>
-            {item.league_image ? (
+            {displayImage ? (
               <Image 
-                source={{ uri: item.league_image }} 
+                source={{ uri: displayImage }} 
                 style={styles.leagueIconImage}
+                resizeMode="cover"
               />
             ) : (
               <Text style={styles.leagueIconInitial}>{item.name.charAt(0).toUpperCase()}</Text>
