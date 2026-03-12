@@ -6,6 +6,7 @@ import { Platform, View, StyleSheet } from 'react-native';
 const COLORS = {
   navBar: '#212F36',
   cream: '#F5F0E8',
+  inactive: 'rgba(245, 240, 232, 0.45)',
 };
 
 export default function TabLayout() {
@@ -15,17 +16,19 @@ export default function TabLayout() {
         headerShown: false,
         tabBarStyle: {
           backgroundColor: COLORS.navBar,
-          borderTopColor: '#1A252B',
-          borderTopWidth: 1,
-          height: Platform.OS === 'ios' ? 85 : 60,
-          paddingBottom: Platform.OS === 'ios' ? 25 : 8,
-          paddingTop: 8,
+          borderTopWidth: 0,
+          height: Platform.OS === 'ios' ? 88 : 64,
+          paddingBottom: Platform.OS === 'ios' ? 28 : 10,
+          paddingTop: 10,
+          elevation: 0,
+          shadowOpacity: 0,
         },
         tabBarActiveTintColor: COLORS.cream,
-        tabBarInactiveTintColor: 'rgba(245, 240, 232, 0.5)',
+        tabBarInactiveTintColor: COLORS.inactive,
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '500',
+          marginTop: 2,
         },
       }}
     >
@@ -34,7 +37,7 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" size={size} color={color} />
+            <Ionicons name="home-outline" size={24} color={color} />
           ),
         }}
       />
@@ -43,7 +46,7 @@ export default function TabLayout() {
         options={{
           title: 'Discover',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="musical-notes" size={size} color={color} />
+            <Ionicons name="search-outline" size={24} color={color} />
           ),
         }}
       />
@@ -52,9 +55,12 @@ export default function TabLayout() {
         options={{
           title: '',
           tabBarIcon: ({ focused }) => (
-            <View style={styles.addButtonContainer}>
-              <View style={[styles.addButton, focused && styles.addButtonFocused]}>
-                <Ionicons name="add" size={28} color="#FFFFFF" />
+            <View style={styles.addButtonWrapper}>
+              {/* Background notch that blends with nav bar */}
+              <View style={styles.addButtonNotch} />
+              {/* The oval button */}
+              <View style={styles.addButton}>
+                <Ionicons name="add" size={30} color="#FFFFFF" />
               </View>
             </View>
           ),
@@ -66,7 +72,7 @@ export default function TabLayout() {
         options={{
           title: 'Inbox',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="chatbubble" size={size} color={color} />
+            <Ionicons name="chatbubble-outline" size={24} color={color} />
           ),
         }}
       />
@@ -75,7 +81,7 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person" size={size} color={color} />
+            <Ionicons name="person-outline" size={24} color={color} />
           ),
         }}
       />
@@ -90,26 +96,36 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
-  addButtonContainer: {
+  addButtonWrapper: {
     position: 'absolute',
-    top: -24,
+    top: -32,
     alignItems: 'center',
     justifyContent: 'center',
+    width: 70,
+    height: 80,
+  },
+  addButtonNotch: {
+    position: 'absolute',
+    bottom: -10,
+    width: 70,
+    height: 50,
+    backgroundColor: '#212F36',
+    borderTopLeftRadius: 35,
+    borderTopRightRadius: 35,
   },
   addButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#212F36',
+    width: 52,
+    height: 70,
+    borderRadius: 26,
+    backgroundColor: '#2D3E47',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 8,
-  },
-  addButtonFocused: {
-    backgroundColor: '#1A252B',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
 });
