@@ -1076,11 +1076,15 @@ export default function RoundScreen() {
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setShowSongModal(false)}>
+            <TouchableOpacity 
+              onPress={() => setShowSongModal(false)}
+              hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+              style={styles.modalCloseButton}
+            >
               <Ionicons name="close" size={28} color="#212F36" />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Select a Song</Text>
-            <View style={{ width: 24 }} />
+            <View style={{ width: 44 }} />
           </View>
 
           <View style={styles.searchContainer}>
@@ -1833,6 +1837,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E0D8CC',
     minHeight: 56,
+  },
+  modalCloseButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   modalTitle: {
     fontSize: 18,

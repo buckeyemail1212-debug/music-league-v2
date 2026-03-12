@@ -44,15 +44,19 @@ export default function DiscoveryScreen() {
   useFocusEffect(
     useCallback(() => {
       return () => {
-        if (soundRef.current) {
-          soundRef.current.stopAsync();
-          soundRef.current.unloadAsync();
-          soundRef.current = null;
-        }
-        setPlayingSongId(null);
+        stopAudio();
       };
     }, [])
   );
+
+  const stopAudio = async () => {
+    if (soundRef.current) {
+      await soundRef.current.stopAsync();
+      await soundRef.current.unloadAsync();
+      soundRef.current = null;
+    }
+    setPlayingSongId(null);
+  };
 
   const handleSearch = async (text: string) => {
     setQuery(text);
@@ -63,6 +67,7 @@ export default function DiscoveryScreen() {
 
     if (text.length < 2) {
       setSongs([]);
+      stopAudio();
       return;
     }
 
