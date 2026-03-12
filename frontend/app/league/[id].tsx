@@ -1661,12 +1661,13 @@ const styles = StyleSheet.create({
     color: '#212F36',
   },
   submitButton: {
-    backgroundColor: '#212F36',
-    backgroundColor: '#F9FCF2',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 8,
+    borderWidth: 1.5,
+    borderColor: '#212F36',
   },
   submitButtonText: {
     fontSize: 16,

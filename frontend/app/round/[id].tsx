@@ -1832,7 +1832,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingTop: 4,
     paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#E0D8CC',
@@ -1843,6 +1843,7 @@ const styles = StyleSheet.create({
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 4,
   },
   modalTitle: {
     fontSize: 18,
