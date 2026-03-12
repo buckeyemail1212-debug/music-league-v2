@@ -48,7 +48,7 @@ import {
 import { format } from 'date-fns';
 
 export default function LeagueDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, openChat: openChatParam } = useLocalSearchParams<{ id: string; openChat?: string }>();
   const { user } = useAuth();
   const router = useRouter();
   const [league, setLeague] = useState<League | null>(null);
@@ -272,6 +272,13 @@ export default function LeagueDetailScreen() {
       if (intervalId) clearInterval(intervalId);
     };
   }, [id, showChatModal]);
+
+  // Auto-open chat if navigated with openChat param
+  useEffect(() => {
+    if (openChatParam === 'true' && !loading) {
+      openChat();
+    }
+  }, [openChatParam, loading]);
 
   useFocusEffect(
     useCallback(() => {
@@ -512,8 +519,8 @@ export default function LeagueDetailScreen() {
           </View>
           {item.status !== 'completed' && (
             <View style={styles.roundStat}>
-              <Ionicons name="time" size={14} color="#f59e0b" />
-              <Text style={[styles.roundStatText, { color: '#f59e0b' }]}>
+              <Ionicons name="time" size={14} color="#212F36" />
+              <Text style={[styles.roundStatText, { color: '#212F36', fontWeight: '600' }]}>
                 {getTimeRemaining(item.status === 'submission' ? item.submission_deadline : item.voting_deadline)}
               </Text>
             </View>
@@ -890,7 +897,7 @@ export default function LeagueDetailScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Start New Round</Text>
               <TouchableOpacity onPress={() => setShowStartRoundModal(false)}>
-                <Ionicons name="close" size={24} color="#888" />
+                <Ionicons name="close" size={24} color="#212F36" />
               </TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
@@ -1049,13 +1056,13 @@ export default function LeagueDetailScreen() {
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.chatModalContainer}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 20}
         >
-          <View style={styles.chatModalContent}>
+          <SafeAreaView style={styles.chatModalContent}>
               <View style={styles.chatModalHeader}>
                 <Text style={styles.chatModalTitle}>League Chat</Text>
                 <TouchableOpacity onPress={() => { Keyboard.dismiss(); setShowChatModal(false); }}>
-                  <Ionicons name="close" size={24} color="#888" />
+                  <Ionicons name="close" size={24} color="#212F36" />
                 </TouchableOpacity>
               </View>
 
@@ -1141,7 +1148,7 @@ export default function LeagueDetailScreen() {
                 )}
               </TouchableOpacity>
             </View>
-          </View>
+          </SafeAreaView>
         </KeyboardAvoidingView>
       </Modal>
 

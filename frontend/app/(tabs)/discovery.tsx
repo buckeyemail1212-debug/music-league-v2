@@ -40,7 +40,7 @@ export default function DiscoveryScreen() {
     };
   }, []);
 
-  // Stop audio and clear search when leaving the tab
+  // Stop audio when leaving the tab
   useFocusEffect(
     useCallback(() => {
       return () => {
@@ -50,8 +50,6 @@ export default function DiscoveryScreen() {
           soundRef.current = null;
         }
         setPlayingSongId(null);
-        setQuery('');
-        setSongs([]);
       };
     }, [])
   );

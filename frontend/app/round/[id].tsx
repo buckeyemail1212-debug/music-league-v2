@@ -796,19 +796,19 @@ export default function RoundScreen() {
                     <Text style={styles.songArtist} numberOfLines={1}>{sub.song.artist}</Text>
                     <View style={styles.musicLinks}>
                       <TouchableOpacity
-                        style={styles.musicLinkButton}
+                        style={[styles.musicLinkButton, { backgroundColor: '#1DB954' }]}
                         onPress={() => openInService(sub.song, 'spotify')}
                       >
                         <FontAwesome name="spotify" size={12} color="#fff" />
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={styles.musicLinkButton}
+                        style={[styles.musicLinkButton, { backgroundColor: '#FA243C' }]}
                         onPress={() => openInService(sub.song, 'apple')}
                       >
-                        <Ionicons name="musical-note" size={12} color="#fff" />
+                        <Ionicons name="logo-apple" size={12} color="#fff" />
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={styles.musicLinkButton}
+                        style={[styles.musicLinkButton, { backgroundColor: '#FF0000' }]}
                         onPress={() => openInService(sub.song, 'youtube')}
                       >
                         <Ionicons name="logo-youtube" size={12} color="#fff" />
@@ -1081,11 +1081,11 @@ export default function RoundScreen() {
           </View>
 
           <View style={styles.searchContainer}>
-            <Ionicons name="search" size={20} color="#888" />
+            <Ionicons name="search" size={20} color="#6B7A82" />
             <TextInput
               style={styles.searchInput}
               placeholder="Search songs..."
-              placeholderTextColor="#666"
+              placeholderTextColor="#8B9A94"
               value={searchQuery}
               onChangeText={handleSearchSongs}
               autoFocus
@@ -1095,6 +1095,14 @@ export default function RoundScreen() {
               importantForAutofill="no"
               spellCheck={false}
             />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity 
+                onPress={() => { setSearchQuery(''); setSearchResults([]); }}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <Ionicons name="close-circle" size={22} color="#6B7A82" />
+              </TouchableOpacity>
+            )}
           </View>
 
           {searching ? (
@@ -1117,20 +1125,42 @@ export default function RoundScreen() {
                     <Text style={styles.artistName} numberOfLines={1}>{item.artist}</Text>
                     <Text style={styles.duration}>{formatDuration(item.duration)}</Text>
                   </View>
-                  <TouchableOpacity
-                    style={[styles.playButtonSmall, playingSongId === item.deezer_id && styles.playingButton]}
-                    onPress={() => playPreview(item)}
-                  >
-                    <Ionicons
-                      name={playingSongId === item.deezer_id ? 'pause' : 'play'}
-                      size={16}
-                      color={playingSongId === item.deezer_id ? '#fff' : '#212F36'}
-                    />
-                  </TouchableOpacity>
-                  <Ionicons name="chevron-forward" size={20} color="#666" />
+                  <View style={styles.searchResultActions}>
+                    <TouchableOpacity
+                      style={[styles.playButtonSmall, playingSongId === item.deezer_id && styles.playingButton]}
+                      onPress={() => playPreview(item)}
+                    >
+                      <Ionicons
+                        name={playingSongId === item.deezer_id ? 'pause' : 'play'}
+                        size={16}
+                        color={playingSongId === item.deezer_id ? '#fff' : '#212F36'}
+                      />
+                    </TouchableOpacity>
+                    <View style={styles.serviceButtonsSmall}>
+                      <TouchableOpacity
+                        style={[styles.serviceButtonSmall, { backgroundColor: '#1DB954' }]}
+                        onPress={() => openInService(item, 'spotify')}
+                      >
+                        <FontAwesome name="spotify" size={10} color="#fff" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.serviceButtonSmall, { backgroundColor: '#FA243C' }]}
+                        onPress={() => openInService(item, 'apple')}
+                      >
+                        <Ionicons name="logo-apple" size={10} color="#fff" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.serviceButtonSmall, { backgroundColor: '#FF0000' }]}
+                        onPress={() => openInService(item, 'youtube')}
+                      >
+                        <Ionicons name="logo-youtube" size={10} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
                 </TouchableOpacity>
               )}
               contentContainerStyle={styles.searchResultsList}
+              keyboardShouldPersistTaps="handled"
               ListEmptyComponent={
                 searchQuery.length >= 2 ? (
                   <View style={styles.emptyState}>
@@ -1441,7 +1471,6 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: 'rgba(184, 197, 176, 0.3)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1454,7 +1483,17 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: 'rgba(184, 197, 176, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  serviceButtonsSmall: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  serviceButtonSmall: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1827,6 +1866,10 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 12,
   },
+  searchResultActions: {
+    alignItems: 'center',
+    gap: 4,
+  },
   userSubmissionCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1881,14 +1924,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginHorizontal: 16,
-    padding: 16,
-    backgroundColor: 'rgba(90, 122, 107, 0.1)',
+    padding: 14,
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     gap: 8,
+    borderWidth: 1,
+    borderColor: '#5A7A6B',
   },
   otherSubmissionsText: {
     fontSize: 14,
-    color: '#6B7A82',
+    color: '#212F36',
   },
   songArtist: {
     fontSize: 13,

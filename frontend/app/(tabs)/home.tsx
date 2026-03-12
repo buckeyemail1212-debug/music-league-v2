@@ -250,9 +250,9 @@ export default function HomeScreen() {
             </Text>
           </View>
         ) : (
-          <View style={[styles.timerRow, { backgroundColor: 'rgba(90, 112, 128, 0.3)' }]}>
-            <Ionicons name="time-outline" size={16} color="#212F36" />
-            <Text style={[styles.timerLabel, { color: '#F9FCF2' }]}>No active round</Text>
+          <View style={[styles.timerRow, { backgroundColor: '#F5F0E8' }]}>
+            <Ionicons name="time-outline" size={16} color="#6B7A82" />
+            <Text style={[styles.timerLabel, { color: '#6B7A82' }]}>No active round</Text>
           </View>
         )}
 
@@ -288,6 +288,15 @@ export default function HomeScreen() {
             <Text style={styles.codeLabel}>Code:</Text>
             <Text style={styles.codeText}>{item.league_code}</Text>
           </View>
+          <TouchableOpacity
+            style={styles.chatIconButton}
+            onPress={(e) => {
+              e.stopPropagation();
+              router.push(`/league/${item.id}?openChat=true`);
+            }}
+          >
+            <Ionicons name="chatbubble-outline" size={18} color="#5A7A6B" />
+          </TouchableOpacity>
         </View>
       </TouchableOpacity>
     );
@@ -664,7 +673,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 12,
     gap: 6,
-    backgroundColor: 'rgba(90, 122, 107, 0.1)',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#5A7A6B',
   },
   timerLabel: {
     fontSize: 13,
@@ -745,6 +756,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#5A7A6B',
+  },
+  chatIconButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#F5F0E8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
   },
   emptyState: {
     flex: 1,
