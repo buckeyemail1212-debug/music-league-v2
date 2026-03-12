@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
 import { getLeagues, getRounds, League, Round } from '../../src/services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { leagueEvents } from '../../src/utils/leagueEvents';
 
 export default function HomeScreen() {
   const { user } = useAuth();
@@ -115,6 +116,10 @@ export default function HomeScreen() {
       flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
     }, [])
   );
+
+  useEffect(() => {
+    return leagueEvents.subscribe(() => fetchLeagues());
+  }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);

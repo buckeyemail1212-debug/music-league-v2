@@ -15,6 +15,7 @@ import { useFocusEffect } from 'expo-router';
 import { useAuth } from '../../src/context/AuthContext';
 import { getLeagues, getLeagueMessages } from '../../src/services/api';
 import { SharedChat } from '../../src/components/SharedChat';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface League {
   id: string;
@@ -40,11 +41,27 @@ export default function InboxScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [latestMessages, setLatestMessages] = useState<{ [leagueId: string]: ChatMessage | null }>({});
   const [activeLeague, setActiveLeague] = useState<League | null>(null);
+  const [cachedImages, setCachedImages] = useState<{ [leagueId: string]: string }>({});
 
   const fetchLeagues = async () => {
     try {
       const response = await getLeagues();
       const leagueList = response.data;
+      
+      // Load cached images for leagues without one from API
+      const imgCache: { [id: string]: string } = {};
+      await Promise.all(leagueList.map(async (league: League) => {
+        if (!league.league_image) {
+          try {
+            const cached = await AsyncStorage.getItem(`league_image_${league.id}`);
+            if (cached) {
+              imgCache[league.id] = cached;
+              league.league_image = cached;
+            }
+          } catch {}
+        }
+      }));
+      setCachedImages(imgCache);
       setLeagues(leagueList);
       
       const msgMap: { [id: string]: ChatMessage | null } = {};

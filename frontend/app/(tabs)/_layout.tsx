@@ -20,6 +20,7 @@ import { useRouter } from 'expo-router';
 import { joinLeague, createLeague } from '../../src/services/api';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { leagueEvents } from '../../src/utils/leagueEvents';
 
 const COLORS = {
   navBar: '#212F36',
@@ -55,6 +56,7 @@ export default function TabLayout() {
     try {
       const response = await joinLeague(leagueCode.trim().toUpperCase());
       resetAndClose();
+      leagueEvents.emit();
       Alert.alert('League Joined!', `You joined ${response.data.name}`);
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.detail || 'Failed to join');
@@ -82,6 +84,7 @@ export default function TabLayout() {
         } catch {}
       }
       resetAndClose();
+      leagueEvents.emit();
       Alert.alert('League Created!', `Code: ${response.data.league_code}`);
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.detail || 'Failed to create');
