@@ -667,6 +667,7 @@ async def create_league(league_data: LeagueCreate, current_user: dict = Depends(
         "created_at": datetime.now(timezone.utc)
     }
     await db.leagues.insert_one(league)
+    league.pop("_id", None)
     
     return LeagueResponse(**league)
 
@@ -683,7 +684,7 @@ def add_league_defaults(league: dict) -> dict:
 
 @api_router.get("/leagues", response_model=List[LeagueResponse])
 async def get_user_leagues(current_user: dict = Depends(get_current_user)):
-    leagues = await db.leagues.find({"members.id": current_user["id"]}).to_list(100)
+    leagues = await db.leagues.find({"members.id": current_user["id"]}, {"_id": 0}).to_list(100)
     
     # Fetch profile photos for all members
     for league in leagues:
@@ -700,7 +701,7 @@ async def get_user_leagues(current_user: dict = Depends(get_current_user)):
 
 @api_router.get("/leagues/{league_id}", response_model=LeagueResponse)
 async def get_league(league_id: str, current_user: dict = Depends(get_current_user)):
-    league = await db.leagues.find_one({"id": league_id})
+    league = await db.leagues.find_one({"id": league_id}, {"_id": 0})
     if not league:
         raise HTTPException(status_code=404, detail="League not found")
     
@@ -744,7 +745,7 @@ async def join_league(request: JoinLeagueRequest, current_user: dict = Depends(g
     )
     
     # Fetch updated league
-    league = await db.leagues.find_one({"id": league["id"]})
+    league = await db.leagues.find_one({"id": league["id"]}, {"_id": 0})
     return LeagueResponse(**league)
 
 @api_router.delete("/leagues/{league_id}")

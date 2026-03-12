@@ -29,6 +29,7 @@ import ViewShot from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
 import { useAuth } from '../../src/context/AuthContext';
+import { SharedChat } from '../../src/components/SharedChat';
 import {
   getLeague,
   getRounds,
@@ -38,12 +39,10 @@ import {
   leaveLeague,
   getLeagueStandings,
   getLeagueMessages,
-  sendLeagueMessage,
   getChatStatus,
   League,
   Round,
   LeagueStandings,
-  Message,
 } from '../../src/services/api';
 import { format } from 'date-fns';
 
@@ -85,13 +84,8 @@ export default function LeagueDetailScreen() {
 
   // Chat state
   const [showChatModal, setShowChatModal] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [sendingMessage, setSendingMessage] = useState(false);
-  const [loadingMessages, setLoadingMessages] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
   const [latestMessage, setLatestMessage] = useState<any>(null);
-  const chatListRef = useRef<FlatList>(null);
 
   // Members modal state
   const [showMembersModal, setShowMembersModal] = useState(false);
@@ -179,74 +173,16 @@ export default function LeagueDetailScreen() {
   };
 
   // Fetch chat messages (silent refresh doesn't show loading)
-  const fetchMessages = async (silent = false) => {
+  const fetchLatestMessage = async () => {
     if (!id) return;
-    if (!silent) setLoadingMessages(true);
     try {
-      const response = await getLeagueMessages(id);
-      const newMessages = response.data;
-      
-      // Only scroll to bottom if there are new messages
-      const hasNewMessages = newMessages.length > messages.length;
-      setMessages(newMessages);
-      setHasUnread(false);
-      
-      if (hasNewMessages || !silent) {
-        setTimeout(() => {
-          chatListRef.current?.scrollToEnd({ animated: silent });
-        }, 100);
+      const messagesRes = await getLeagueMessages(id);
+      if (messagesRes.data && messagesRes.data.length > 0) {
+        setLatestMessage(messagesRes.data[messagesRes.data.length - 1]);
       }
-    } catch (error) {
-      console.error('Failed to fetch messages:', error);
-    } finally {
-      if (!silent) setLoadingMessages(false);
+    } catch {
+      // silent
     }
-  };
-
-  // Auto-refresh messages while chat is open
-  useEffect(() => {
-    let intervalId: NodeJS.Timeout;
-    
-    if (showChatModal && id) {
-      // Refresh messages every 3 seconds
-      intervalId = setInterval(() => {
-        fetchMessages(true); // silent refresh
-      }, 3000);
-    }
-    
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [showChatModal, id]);
-
-  // Send a message
-  const handleSendMessage = async () => {
-    if (!id || !newMessage.trim() || sendingMessage) return;
-    
-    const messageContent = newMessage.trim();
-    setNewMessage(''); // Clear input immediately for better UX
-    setSendingMessage(true);
-    
-    try {
-      const response = await sendLeagueMessage(id, messageContent);
-      setMessages(prev => [...prev, response.data]);
-      // Scroll to bottom
-      setTimeout(() => {
-        chatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-    } catch (error) {
-      console.error('Failed to send message:', error);
-      setNewMessage(messageContent); // Restore message on error
-      Alert.alert('Error', 'Failed to send message');
-    } finally {
-      setSendingMessage(false);
-    }
-  };
-
-  // Open chat modal
-  const openChat = () => {
-    setShowChatModal(true);
-    fetchMessages();
   };
 
   // Check for unread messages (silent background check)
@@ -255,12 +191,8 @@ export default function LeagueDetailScreen() {
     try {
       const chatStatusRes = await getChatStatus(id);
       setHasUnread(chatStatusRes.data.has_unread);
-      // Also fetch latest message for preview
-      const messagesRes = await getLeagueMessages(id);
-      if (messagesRes.data && messagesRes.data.length > 0) {
-        setLatestMessage(messagesRes.data[messagesRes.data.length - 1]);
-      }
-    } catch (e) {
+      await fetchLatestMessage();
+    } catch {
       // Ignore errors
     }
   };
@@ -282,13 +214,15 @@ export default function LeagueDetailScreen() {
   // Auto-open chat if navigated with openChat param
   useEffect(() => {
     if (openChatParam === 'true' && !loading) {
-      openChat();
+      setShowChatModal(true);
     }
   }, [openChatParam, loading]);
 
   useFocusEffect(
     useCallback(() => {
+      setShowChatModal(false);
       fetchData();
+      fetchLatestMessage();
     }, [id])
   );
 
@@ -617,7 +551,7 @@ export default function LeagueDetailScreen() {
           <TouchableOpacity style={styles.headerButton} onPress={() => setShowMembersModal(true)}>
             <Ionicons name="people" size={22} color="#5A7A6B" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerButton} onPress={openChat}>
+          <TouchableOpacity style={styles.headerButton} onPress={() => setShowChatModal(true)}>
             <Ionicons name="chatbubble-outline" size={22} color="#5A7A6B" />
             {hasUnread && <View style={styles.unreadBadge} />}
           </TouchableOpacity>
@@ -634,7 +568,7 @@ export default function LeagueDetailScreen() {
         </View>
       </View>
 
-      <TouchableOpacity style={styles.chatPreviewBar} onPress={openChat} activeOpacity={0.7}>
+      <TouchableOpacity style={styles.chatPreviewBar} onPress={() => setShowChatModal(true)} activeOpacity={0.7}>
         <Ionicons name="chatbubble-outline" size={18} color="#5A7A6B" />
         <Text style={styles.chatPreviewText} numberOfLines={1}>
           {latestMessage 
@@ -1048,103 +982,16 @@ export default function LeagueDetailScreen() {
         presentationStyle="pageSheet"
         onRequestClose={() => setShowChatModal(false)}
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.chatModalContainer}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 20}
-        >
-          <SafeAreaView style={styles.chatModalContent}>
-              <View style={styles.chatModalHeader}>
-                <Text style={styles.chatModalTitle}>League Chat</Text>
-                <TouchableOpacity onPress={() => { Keyboard.dismiss(); setShowChatModal(false); }}>
-                  <Ionicons name="close" size={24} color="#212F36" />
-                </TouchableOpacity>
-              </View>
-
-              {loadingMessages ? (
-                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                  <View style={styles.chatLoadingContainer}>
-                    <ActivityIndicator size="large" color="#5A7A6B" />
-                  </View>
-                </TouchableWithoutFeedback>
-              ) : messages.length === 0 ? (
-                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                  <View style={styles.chatEmptyState}>
-                    <Ionicons name="chatbubbles-outline" size={60} color="#333" />
-                    <Text style={styles.chatEmptyTitle}>No messages yet</Text>
-                    <Text style={styles.chatEmptyText}>Start the conversation!</Text>
-                  </View>
-                </TouchableWithoutFeedback>
-              ) : (
-                <FlatList
-                  ref={chatListRef}
-                  data={messages}
-                  keyExtractor={(item) => item.id}
-                  contentContainerStyle={styles.chatListContent}
-                  keyboardShouldPersistTaps="handled"
-                  onScrollBeginDrag={Keyboard.dismiss}
-                  renderItem={({ item }) => {
-                    const isOwnMessage = item.user_id === user?.id;
-                    return (
-                      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                        <View style={[
-                          styles.messageContainer,
-                          isOwnMessage && styles.ownMessageContainer
-                        ]}>
-                          <View style={[
-                            styles.messageBubble,
-                            isOwnMessage ? styles.ownMessageBubble : styles.otherMessageBubble
-                          ]}>
-                            {!isOwnMessage && (
-                              <Text style={styles.messageUsername}>{item.username}</Text>
-                            )}
-                            <Text style={[
-                              styles.messageText,
-                              isOwnMessage && styles.ownMessageText
-                            ]}>{item.content}</Text>
-                            <Text style={[
-                              styles.messageTime,
-                              isOwnMessage && styles.ownMessageTime
-                            ]}>
-                              {format(new Date(item.created_at), 'MMM d, h:mm a')}
-                            </Text>
-                          </View>
-                        </View>
-                      </TouchableWithoutFeedback>
-                    );
-                  }}
-                />
-              )}
-
-              <View style={styles.chatInputContainer}>
-                <TextInput
-                  style={styles.chatInput}
-                  placeholder="Type a message..."
-                  placeholderTextColor="#666"
-                  value={newMessage}
-                onChangeText={setNewMessage}
-                multiline
-                maxLength={500}
-                autoComplete="off"
-                autoCorrect={false}
-                textContentType="none"
-                importantForAutofill="no"
-                spellCheck={false}
-              />
-              <TouchableOpacity
-                style={[styles.sendButton, (!newMessage.trim() || sendingMessage) && styles.sendButtonDisabled]}
-                onPress={handleSendMessage}
-                disabled={!newMessage.trim() || sendingMessage}
-              >
-                {sendingMessage ? (
-                  <ActivityIndicator size="small" color="#212F36" />
-                ) : (
-                  <Ionicons name="send" size={20} color="#FFFFFF" />
-                )}
-              </TouchableOpacity>
-            </View>
-          </SafeAreaView>
-        </KeyboardAvoidingView>
+        <SafeAreaView style={styles.chatModalContainer}>
+          <SharedChat
+            leagueId={id!}
+            leagueName={league?.name || 'League Chat'}
+            onClose={() => {
+              setShowChatModal(false);
+              fetchLatestMessage();
+            }}
+          />
+        </SafeAreaView>
       </Modal>
 
       {/* Members Modal */}

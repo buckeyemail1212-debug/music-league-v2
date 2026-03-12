@@ -16,7 +16,6 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../src/context/AuthContext';
-import { deleteAccount } from '../../src/services/api';
 import { format } from 'date-fns';
 
 export default function ProfileScreen() {
@@ -36,29 +35,6 @@ export default function ProfileScreen() {
           onPress: async () => {
             await logout();
             router.replace('/(auth)/login');
-          },
-        },
-      ]
-    );
-  };
-
-  const handleDeleteAccount = () => {
-    Alert.alert(
-      'Delete Account',
-      'Are you sure you want to delete your account? This action cannot be undone. All your data will be permanently removed.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteAccount();
-              await logout();
-              router.replace('/(auth)/login');
-            } catch (error: any) {
-              Alert.alert('Error', error.response?.data?.detail || 'Failed to delete account');
-            }
           },
         },
       ]

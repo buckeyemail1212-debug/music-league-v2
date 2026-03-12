@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -25,6 +25,7 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showProfileZoom, setShowProfileZoom] = useState(false);
+  const flatListRef = useRef<FlatList>(null);
 
   // Timer update effect
   useEffect(() => {
@@ -97,6 +98,7 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchLeagues();
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
     }, [])
   );
 
@@ -245,6 +247,7 @@ export default function HomeScreen() {
         </View>
       ) : (
         <FlatList
+          ref={flatListRef}
           data={leagues}
           keyExtractor={(item) => item.id}
           renderItem={renderLeagueItem}
