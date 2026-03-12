@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
+import { useFocusEffect } from 'expo-router';
 import { searchSongs, Song } from '../../src/services/api';
 
 export default function DiscoveryScreen() {
@@ -24,19 +25,36 @@ export default function DiscoveryScreen() {
   const searchTimeout = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // Configure audio mode for playback - allow background playback
     Audio.setAudioModeAsync({
       allowsRecordingIOS: false,
       playsInSilentModeIOS: true,
-      staysActiveInBackground: true,
+      staysActiveInBackground: false,
       shouldDuckAndroid: true,
     });
 
-    // Don't cleanup on unmount - let audio continue playing
     return () => {
-      // Only cleanup if explicitly stopped, not on page change
+      if (soundRef.current) {
+        soundRef.current.stopAsync();
+        soundRef.current.unloadAsync();
+      }
     };
   }, []);
+
+  // Stop audio and clear search when leaving the tab
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        if (soundRef.current) {
+          soundRef.current.stopAsync();
+          soundRef.current.unloadAsync();
+          soundRef.current = null;
+        }
+        setPlayingSongId(null);
+        setQuery('');
+        setSongs([]);
+      };
+    }, [])
+  );
 
   const handleSearch = async (text: string) => {
     setQuery(text);

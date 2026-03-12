@@ -13,11 +13,13 @@ import {
   Image,
   Linking,
   ScrollView,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
+import ConfettiCannon from 'react-native-confetti-cannon';
 import { useAuth } from '../../src/context/AuthContext';
 import {
   getRound,
@@ -616,26 +618,24 @@ export default function RoundScreen() {
   };
 
   const renderResultItem = ({ item, index }: { item: RoundResult['rankings'][0]; index: number }) => {
-    // All users with the same rank get the same award
     const isFirst = item.rank === 1;
     const isSecond = item.rank === 2;
     const isThird = item.rank === 3;
     
-    // Determine badge icon and color based on rank
     const getBadgeContent = () => {
       if (isFirst) {
-        return <Ionicons name="trophy" size={16} color="#fbbf24" />; // Gold
+        return <Ionicons name="trophy" size={16} color="#fbbf24" />;
       } else if (isSecond) {
-        return <Ionicons name="medal" size={16} color="#94a3b8" />; // Silver
+        return <Ionicons name="medal" size={16} color="#94a3b8" />;
       } else if (isThird) {
-        return <Ionicons name="medal" size={16} color="#cd7f32" />; // Bronze
+        return <Ionicons name="medal" size={16} color="#cd7f32" />;
       } else {
-        return <Text style={styles.rankNumber}>{item.rank}</Text>;
+        return <Text style={styles.rankNumberText}>{item.rank}</Text>;
       }
     };
     
     return (
-      <View style={[styles.resultCard, isFirst && styles.winnerCard]}>
+      <View style={styles.resultCard}>
         <View style={[styles.rankBadge, isFirst && styles.winnerBadge, isSecond && styles.secondBadge, isThird && styles.thirdBadge]}>
           {getBadgeContent()}
         </View>
@@ -645,13 +645,13 @@ export default function RoundScreen() {
           <Text style={styles.artistName} numberOfLines={1}>{item.song.artist}</Text>
           <Text style={styles.submittedBy}>by {item.username}</Text>
           <View style={styles.musicLinksSmall}>
-            <TouchableOpacity style={styles.musicLinkButtonSmall} onPress={() => openInService(item.song, 'spotify')}>
+            <TouchableOpacity style={[styles.musicLinkButtonSmall, { backgroundColor: '#1DB954' }]} onPress={() => openInService(item.song, 'spotify')}>
               <FontAwesome name="spotify" size={10} color="#fff" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.musicLinkButtonSmall} onPress={() => openInService(item.song, 'apple')}>
-              <Ionicons name="musical-note" size={10} color="#fff" />
+            <TouchableOpacity style={[styles.musicLinkButtonSmall, { backgroundColor: '#FA243C' }]} onPress={() => openInService(item.song, 'apple')}>
+              <Ionicons name="logo-apple" size={10} color="#fff" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.musicLinkButtonSmall} onPress={() => openInService(item.song, 'youtube')}>
+            <TouchableOpacity style={[styles.musicLinkButtonSmall, { backgroundColor: '#FF0000' }]} onPress={() => openInService(item.song, 'youtube')}>
               <Ionicons name="logo-youtube" size={10} color="#fff" />
             </TouchableOpacity>
           </View>
@@ -712,7 +712,7 @@ export default function RoundScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
+          <Ionicons name="arrow-back" size={24} color="#212F36" />
         </TouchableOpacity>
         <View style={styles.headerInfo}>
           <Text style={styles.roundTitle}>Round {round.round_number}</Text>
@@ -728,7 +728,7 @@ export default function RoundScreen() {
       {/* Timer */}
       {round.status !== 'completed' && timeRemaining && (
         <View style={styles.timerContainer}>
-          <Ionicons name="time-outline" size={18} color="#fff" />
+          <Ionicons name="time-outline" size={18} color="#212F36" />
           <Text style={styles.timerLabel}>
             {round.status === 'submission' ? 'Submission ends in:' : 'Voting ends in:'}
           </Text>
@@ -926,11 +926,6 @@ export default function RoundScreen() {
                 <Ionicons name="list-outline" size={20} color="#5A7A6B" />
                 <Text style={styles.votingInstructionsText}>Tap numbers to rank songs (1 = best)</Text>
               </View>
-              <View style={styles.pointsExplanation}>
-                <Text style={styles.pointsExplanationText}>
-                  1st place gets {submissions.filter(s => s.user_id !== user?.id).length} pts, 2nd gets {submissions.filter(s => s.user_id !== user?.id).length - 1} pts, etc.
-                </Text>
-              </View>
             </>
           )}
 
@@ -998,6 +993,14 @@ export default function RoundScreen() {
       {/* COMPLETED - RESULTS */}
       {round.status === 'completed' && results && (
         <>
+          <ConfettiCannon
+            count={120}
+            origin={{ x: Dimensions.get('window').width / 2, y: -10 }}
+            autoStart={true}
+            fadeOut={true}
+            fallSpeed={2500}
+            colors={['#fbbf24', '#5A7A6B', '#B8C5B0', '#ef4444', '#3b82f6']}
+          />
           {results.winners && results.winners.length > 0 && (
             <View style={[styles.winnerBanner, results.is_tie && styles.tieBanner]}>
               <Ionicons name={results.is_tie ? "ribbon" : "trophy"} size={32} color="#fbbf24" />
@@ -1006,7 +1009,7 @@ export default function RoundScreen() {
                   {results.is_tie ? `It's a Tie! (${results.winners.length} Winners)` : 'Winner'}
                 </Text>
                 {results.is_tie ? (
-                  results.winners.map((winner, index) => (
+                  results.winners.map((winner) => (
                     <View key={winner.submission_id} style={styles.tieWinnerItem}>
                       <View style={styles.tieWinnerRow}>
                         <View style={styles.tieWinnerText}>
@@ -1071,7 +1074,7 @@ export default function RoundScreen() {
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setShowSongModal(false)}>
-              <Ionicons name="close" size={24} color="#fff" />
+              <Ionicons name="close" size={28} color="#212F36" />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Select a Song</Text>
             <View style={{ width: 24 }} />
@@ -1538,6 +1541,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#212F36',
   },
+  rankNumberText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+  },
   votingSongInfo: {
     flex: 1,
     marginLeft: 10,
@@ -1741,9 +1749,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E0D8CC',
   },
-  winnerCard: {
-    borderColor: '#fbbf24',
-  },
   winnerBadge: {
     backgroundColor: 'rgba(251, 191, 36, 0.2)',
   },
@@ -1780,7 +1785,7 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#1a1a1a',
+    borderBottomColor: '#E0D8CC',
     minHeight: 56,
   },
   modalTitle: {
@@ -1875,14 +1880,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    marginHorizontal: 16,
     padding: 16,
-    backgroundColor: 'rgba(74, 96, 112, 0.5)',
+    backgroundColor: 'rgba(90, 122, 107, 0.1)',
     borderRadius: 12,
     gap: 8,
   },
   otherSubmissionsText: {
     fontSize: 14,
-    color: '#8DA19B',
+    color: '#6B7A82',
   },
   songArtist: {
     fontSize: 13,
@@ -1901,7 +1907,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(74, 96, 112, 0.5)',
+    backgroundColor: '#E0D8CC',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -1914,7 +1920,7 @@ const styles = StyleSheet.create({
   rankOptionText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#8DA19B',
+    color: '#6B7A82',
   },
   rankOptionTextSelected: {
     color: '#212F36',
@@ -1965,7 +1971,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(90, 112, 128, 0.5)',
+    backgroundColor: '#FFFFFF',
     marginHorizontal: 16,
     marginVertical: 12,
     paddingVertical: 14,

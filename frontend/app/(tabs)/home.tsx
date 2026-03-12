@@ -237,7 +237,7 @@ export default function HomeScreen() {
             <Ionicons 
               name="time-outline" 
               size={16} 
-              color="#F9FCF2" 
+              color="#212F36" 
             />
             <Text style={styles.timerLabel}>
               {activeRound.status === 'submission' ? 'Submission:' : 'Voting:'}

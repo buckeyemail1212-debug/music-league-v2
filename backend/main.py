@@ -548,7 +548,7 @@ async def get_user_stats(current_user: dict = Depends(get_current_user)):
     for vote in all_votes:
         votes_by_round.setdefault(vote["round_id"], []).append(vote)
     
-    # Calculate wins
+    # Calculate wins using N-1 point system (consistent with results endpoint)
     total_wins = 0
     for submission in submissions:
         if submission["round_id"] not in completed_round_ids:
@@ -557,26 +557,45 @@ async def get_user_stats(current_user: dict = Depends(get_current_user)):
         round_submissions = submissions_by_round.get(submission["round_id"], [])
         votes = votes_by_round.get(submission["round_id"], [])
         
-        if votes and round_submissions:
+        if round_submissions:
+            num_submissions = len(round_submissions)
+            num_songs_to_rank = num_submissions - 1
+            
             # Calculate points
             points = {}
+            sub_owners = {}
             for sub in round_submissions:
                 points[sub["id"]] = 0
+                sub_owners[sub["id"]] = sub["user_id"]
             
-            num_submissions = len(round_submissions)
+            # Points from actual votes
+            voters_who_voted = set()
             for vote in votes:
-                for rank, sub_id in enumerate(vote["rankings"]):
-                    points[sub_id] = points.get(sub_id, 0) + (num_submissions - rank)
+                voter_id = vote.get("voter_id")
+                voters_who_voted.add(voter_id)
+                for rank_index, sub_id in enumerate(vote["rankings"]):
+                    pts = num_songs_to_rank - rank_index
+                    points[sub_id] = points.get(sub_id, 0) + pts
+            
+            # Auto-distribute for non-voters
+            submitter_user_ids = set(sub_owners.values())
+            non_voters = submitter_user_ids - voters_who_voted
+            if non_voters and num_submissions > 1:
+                total_pts_per_voter = sum(range(1, num_songs_to_rank + 1))
+                for nv_id in non_voters:
+                    nv_sub_id = next((s["id"] for s in round_submissions if s["user_id"] == nv_id), None)
+                    other_subs = [s["id"] for s in round_submissions if s["id"] != nv_sub_id]
+                    if other_subs:
+                        base = total_pts_per_voter // len(other_subs)
+                        rem = total_pts_per_voter % len(other_subs)
+                        for sid in other_subs:
+                            points[sid] += base
+                        for i in range(rem):
+                            points[other_subs[i]] += 1
             
             # Find winner
             max_points = max(points.values()) if points else 0
-            winner_id = None
-            for sub_id, pts in points.items():
-                if pts == max_points:
-                    winner_id = sub_id
-                    break
-            
-            if winner_id == submission["id"]:
+            if max_points > 0 and points.get(submission["id"], 0) == max_points:
                 total_wins += 1
     
     win_rate = round((total_wins / rounds_played * 100)) if rounds_played > 0 else 0
@@ -1386,7 +1405,7 @@ async def get_league_standings(league_id: str, current_user: dict = Depends(get_
     }, {"_id": 0, "id": 1, "round_id": 1, "user_id": 1}).to_list(1000)
     all_votes = await db.votes.find({
         "round_id": {"$in": round_ids}
-    }, {"_id": 0, "round_id": 1, "rankings": 1}).to_list(1000)
+    }, {"_id": 0, "round_id": 1, "voter_id": 1, "rankings": 1}).to_list(1000)
     
     # Group by round_id
     submissions_by_round = {}
@@ -1403,26 +1422,57 @@ async def get_league_standings(league_id: str, current_user: dict = Depends(get_
         if not submissions:
             continue
         
-        # Calculate points for this round
+        num_submissions = len(submissions)
+        num_songs_to_rank = num_submissions - 1  # Can't vote for yourself
+        
+        # Calculate points for this round using N-1 system
         points = {}
+        submitter_ids = {}
         for sub in submissions:
             points[sub["id"]] = 0
+            submitter_ids[sub["id"]] = sub["user_id"]
         
-        num_submissions = len(submissions)
+        # Points from actual votes
+        voters_who_voted = set()
         for vote in votes:
-            for rank, sub_id in enumerate(vote["rankings"]):
-                points[sub_id] = points.get(sub_id, 0) + (num_submissions - rank)
+            voter_id = vote.get("voter_id")
+            voters_who_voted.add(voter_id)
+            for rank_index, sub_id in enumerate(vote["rankings"]):
+                pts = num_songs_to_rank - rank_index
+                points[sub_id] = points.get(sub_id, 0) + pts
+        
+        # Auto-distribute points for non-voters who submitted
+        submitter_user_ids = set(submitter_ids.values())
+        non_voters = submitter_user_ids - voters_who_voted
+        
+        if non_voters and num_submissions > 1:
+            total_points_per_voter = sum(range(1, num_songs_to_rank + 1))
+            for non_voter_id in non_voters:
+                non_voter_sub_id = None
+                for sub in submissions:
+                    if sub["user_id"] == non_voter_id:
+                        non_voter_sub_id = sub["id"]
+                        break
+                other_subs = [sub["id"] for sub in submissions if sub["id"] != non_voter_sub_id]
+                num_other = len(other_subs)
+                if num_other > 0:
+                    pts_per_song = total_points_per_voter // num_other
+                    remainder = total_points_per_voter % num_other
+                    for sub_id in other_subs:
+                        points[sub_id] += pts_per_song
+                    for i in range(remainder):
+                        points[other_subs[i]] += 1
         
         # Find winner(s) and update stats
         max_points = max(points.values()) if points else 0
         for sub in submissions:
-            user_id = sub["user_id"]
-            if user_id in user_stats:
+            uid = sub["user_id"]
+            if uid in user_stats:
                 sub_points = points.get(sub["id"], 0)
-                user_stats[user_id]["total_points"] += sub_points
-                user_stats[user_id]["rounds_played"] += 1
+                user_stats[uid]["total_points"] += sub_points
+                user_stats[uid]["rounds_played"] += 1
                 if sub_points == max_points and max_points > 0:
-                    user_stats[user_id]["wins"] += 1
+                    user_stats[uid]["wins"] += 1
     
     # Sort by total points descending
     standings = sorted(user_stats.values(), key=lambda x: (-x["total_points"], -x["wins"]))

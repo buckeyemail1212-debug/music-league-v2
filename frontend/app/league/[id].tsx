@@ -555,12 +555,9 @@ export default function LeagueDetailScreen() {
           {advancing === item.id ? (
             <ActivityIndicator size="small" color="#212F36" />
           ) : (
-            <>
-              <Ionicons name="arrow-forward" size={16} color="#212F36" />
-              <Text style={styles.advanceButtonText}>
-                Advance to {item.status === 'submission' ? 'Voting' : 'Results'}
-              </Text>
-            </>
+            <Text style={styles.advanceButtonText}>
+              Advance to {item.status === 'submission' ? 'Voting' : 'Results'}
+            </Text>
           )}
         </TouchableOpacity>
       )}
@@ -669,14 +666,12 @@ export default function LeagueDetailScreen() {
           style={[styles.tab, activeTab === 'rounds' && styles.tabActive]}
           onPress={() => setActiveTab('rounds')}
         >
-          <Ionicons name="flag" size={18} color={activeTab === 'rounds' ? '#F9FCF2' : '#8DA19B'} />
           <Text style={[styles.tabText, activeTab === 'rounds' && styles.tabTextActive]}>Rounds</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'standings' && styles.tabActive]}
           onPress={() => setActiveTab('standings')}
         >
-          <Ionicons name="trophy" size={18} color={activeTab === 'standings' ? '#F9FCF2' : '#8DA19B'} />
           <Text style={[styles.tabText, activeTab === 'standings' && styles.tabTextActive]}>Standings</Text>
         </TouchableOpacity>
       </View>
@@ -700,7 +695,7 @@ export default function LeagueDetailScreen() {
             />
           ) : (
             <View style={styles.emptyState}>
-              <Ionicons name="flag" size={60} color="#333" />
+              <Ionicons name="musical-notes" size={60} color="#B8C5B0" />
               <Text style={styles.emptyTitle}>No Rounds Yet</Text>
               <Text style={styles.emptyText}>
                 {isCreator
@@ -1270,7 +1265,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   codeValue: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#5A7A6B',
     letterSpacing: 2,
@@ -1326,12 +1321,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F9FCF2',
+    backgroundColor: '#FFFFFF',
     marginHorizontal: 16,
     marginTop: 16,
     paddingVertical: 16,
     borderRadius: 12,
     gap: 8,
+    borderWidth: 1,
+    borderColor: '#E0D8CC',
   },
   buttonDisabled: {
     opacity: 0.7,
