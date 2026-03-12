@@ -92,14 +92,14 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   addButtonContainer: {
     position: 'absolute',
-    top: -18,
+    top: -24,
     alignItems: 'center',
     justifyContent: 'center',
   },
   addButton: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: '#212F36',
     alignItems: 'center',
     justifyContent: 'center',

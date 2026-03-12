@@ -19,7 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { useAuth } from '../../src/context/AuthContext';
-import { getLeagues, getMessages, sendLeagueMessage } from '../../src/services/api';
+import { getLeagues, getLeagueMessages, sendLeagueMessage } from '../../src/services/api';
 
 interface League {
   id: string;
@@ -64,7 +64,7 @@ export default function InboxScreen() {
       const msgMap: { [id: string]: ChatMessage | null } = {};
       await Promise.all(leagueList.map(async (league: League) => {
         try {
-          const msgRes = await getMessages(league.id);
+          const msgRes = await getLeagueMessages(league.id);
           if (msgRes.data && msgRes.data.length > 0) {
             msgMap[league.id] = msgRes.data[msgRes.data.length - 1];
           } else {
@@ -101,7 +101,7 @@ export default function InboxScreen() {
     setActiveLeague(league);
     setLoadingMessages(true);
     try {
-      const res = await getMessages(league.id);
+      const res = await getLeagueMessages(league.id);
       setMessages(res.data || []);
       setTimeout(() => chatListRef.current?.scrollToEnd({ animated: false }), 100);
     } catch {
@@ -112,7 +112,7 @@ export default function InboxScreen() {
     // Poll for new messages
     pollRef.current = setInterval(async () => {
       try {
-        const res = await getMessages(league.id);
+        const res = await getLeagueMessages(league.id);
         setMessages(res.data || []);
       } catch {}
     }, 3000);
@@ -132,7 +132,7 @@ export default function InboxScreen() {
     try {
       await sendLeagueMessage(activeLeague.id, newMessage.trim());
       setNewMessage('');
-      const res = await getMessages(activeLeague.id);
+      const res = await getLeagueMessages(activeLeague.id);
       setMessages(res.data || []);
       setTimeout(() => chatListRef.current?.scrollToEnd({ animated: true }), 100);
     } catch {

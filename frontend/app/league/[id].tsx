@@ -256,7 +256,7 @@ export default function LeagueDetailScreen() {
       const chatStatusRes = await getChatStatus(id);
       setHasUnread(chatStatusRes.data.has_unread);
       // Also fetch latest message for preview
-      const messagesRes = await getMessages(id);
+      const messagesRes = await getLeagueMessages(id);
       if (messagesRes.data && messagesRes.data.length > 0) {
         setLatestMessage(messagesRes.data[messagesRes.data.length - 1]);
       }

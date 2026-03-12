@@ -218,14 +218,6 @@ export default function ProfileScreen() {
               </View>
               <Ionicons name="chevron-forward" size={20} color="#8DA19B" />
             </TouchableOpacity>
-            <View style={styles.actionDivider} />
-            <TouchableOpacity style={styles.actionRow} onPress={handleDeleteAccount}>
-              <View style={styles.actionLeft}>
-                <Ionicons name="trash-outline" size={22} color="#ef4444" />
-                <Text style={styles.actionText}>Delete Account</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#8DA19B" />
-            </TouchableOpacity>
           </View>
         </View>
 
