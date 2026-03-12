@@ -90,6 +90,7 @@ export default function LeagueDetailScreen() {
   const [sendingMessage, setSendingMessage] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
+  const [latestMessage, setLatestMessage] = useState<any>(null);
   const chatListRef = useRef<FlatList>(null);
 
   // Members modal state
@@ -250,10 +251,15 @@ export default function LeagueDetailScreen() {
 
   // Check for unread messages (silent background check)
   const checkUnreadMessages = async () => {
-    if (!id || showChatModal) return; // Don't check if chat is open
+    if (!id || showChatModal) return;
     try {
       const chatStatusRes = await getChatStatus(id);
       setHasUnread(chatStatusRes.data.has_unread);
+      // Also fetch latest message for preview
+      const messagesRes = await getMessages(id);
+      if (messagesRes.data && messagesRes.data.length > 0) {
+        setLatestMessage(messagesRes.data[messagesRes.data.length - 1]);
+      }
     } catch (e) {
       // Ignore errors
     }
@@ -599,7 +605,13 @@ export default function LeagueDetailScreen() {
         </TouchableOpacity>
         <View style={styles.headerInfo}>
           <Text style={styles.leagueName}>{league.name}</Text>
-          <Text style={styles.leagueTheme}>Round {league.current_round} of {league.total_rounds > 0 ? league.total_rounds : 'Unlimited'}</Text>
+          <View style={styles.headerSubRow}>
+            <Text style={styles.leagueTheme}>Round {league.current_round} of {league.total_rounds > 0 ? league.total_rounds : 'Unlimited'}</Text>
+            <TouchableOpacity onPress={handleCopyCode} style={styles.headerCode}>
+              <Text style={styles.headerCodeText}>{league.league_code}</Text>
+              <Ionicons name="copy-outline" size={12} color="#5A7A6B" />
+            </TouchableOpacity>
+          </View>
         </View>
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.headerButton} onPress={() => setShowMembersModal(true)}>
@@ -622,32 +634,15 @@ export default function LeagueDetailScreen() {
         </View>
       </View>
 
-      <TouchableOpacity style={styles.codeBar} onPress={handleCopyCode} activeOpacity={0.7}>
-        <View style={styles.codeInfo}>
-          <Text style={styles.codeLabel}>Tap to copy code</Text>
-          <View style={styles.codeRow}>
-            <Text style={styles.codeValue}>{league.league_code}</Text>
-            <Ionicons name="copy-outline" size={16} color="#5A7A6B" style={{ marginLeft: 6 }} />
-          </View>
-        </View>
-        <View style={styles.memberAvatarsRow}>
-          {league.members.slice(0, 4).map((member, index) => (
-            <View key={member.id} style={[styles.memberAvatarSmall, { marginLeft: index > 0 ? -8 : 0, zIndex: 4 - index }]}>
-              {member.profile_photo ? (
-                <Image source={{ uri: member.profile_photo }} style={styles.memberAvatarImage} />
-              ) : (
-                <View style={styles.memberAvatarPlaceholder}>
-                  <Text style={styles.memberAvatarInitial}>{member.username?.charAt(0).toUpperCase()}</Text>
-                </View>
-              )}
-            </View>
-          ))}
-          {league.members.length > 4 && (
-            <View style={[styles.memberAvatarSmall, styles.memberAvatarMore, { marginLeft: -8 }]}>
-              <Text style={styles.memberMoreText}>+{league.members.length - 4}</Text>
-            </View>
-          )}
-        </View>
+      <TouchableOpacity style={styles.chatPreviewBar} onPress={openChat} activeOpacity={0.7}>
+        <Ionicons name="chatbubble-outline" size={18} color="#5A7A6B" />
+        <Text style={styles.chatPreviewText} numberOfLines={1}>
+          {latestMessage 
+            ? `${latestMessage.display_name || latestMessage.username}: ${latestMessage.content}`
+            : 'Send a chat to your league mates!'
+          }
+        </Text>
+        <Ionicons name="chevron-forward" size={16} color="#B8C5B0" />
       </TouchableOpacity>
 
       {isCreator && !activeRound && (league.total_rounds === 0 || league.current_round < league.total_rounds) && (
@@ -1144,7 +1139,7 @@ export default function LeagueDetailScreen() {
                 {sendingMessage ? (
                   <ActivityIndicator size="small" color="#212F36" />
                 ) : (
-                  <Ionicons name="send" size={20} color="#212F36" />
+                  <Ionicons name="send" size={20} color="#FFFFFF" />
                 )}
               </TouchableOpacity>
             </View>
@@ -1240,6 +1235,44 @@ const styles = StyleSheet.create({
   },
   leagueTheme: {
     fontSize: 14,
+    color: '#6B7A82',
+  },
+  headerSubRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerCode: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(90, 122, 107, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    gap: 4,
+  },
+  headerCodeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#5A7A6B',
+    letterSpacing: 1,
+  },
+  chatPreviewBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginTop: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E0D8CC',
+    gap: 10,
+  },
+  chatPreviewText: {
+    flex: 1,
+    fontSize: 13,
     color: '#6B7A82',
   },
   headerActions: {
@@ -1918,12 +1951,12 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#F9FCF2',
+    backgroundColor: '#5A7A6B',
     justifyContent: 'center',
     alignItems: 'center',
   },
   sendButtonDisabled: {
-    backgroundColor: '#333',
+    backgroundColor: '#B8C5B0',
   },
   // Share Results styles
   shareResultsButton: {

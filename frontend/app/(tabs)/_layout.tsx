@@ -3,12 +3,8 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Platform, View, StyleSheet } from 'react-native';
 
-// Color Palette - Light Theme
 const COLORS = {
-  background: '#F5F0E8',
   navBar: '#212F36',
-  primary: '#212F36',
-  accent: '#5A7A6B',
   cream: '#F5F0E8',
 };
 
@@ -83,7 +79,6 @@ export default function TabLayout() {
           ),
         }}
       />
-      {/* Hide the old join tab */}
       <Tabs.Screen
         name="join"
         options={{
@@ -105,7 +100,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#5A7A6B',
+    backgroundColor: '#212F36',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -115,6 +110,6 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   addButtonFocused: {
-    backgroundColor: '#4A6A5B',
+    backgroundColor: '#1A252B',
   },
 });

@@ -122,7 +122,7 @@ export default function HomeScreen() {
                 style={styles.leagueIconImage}
               />
             ) : (
-              <Ionicons name="trophy" size={24} color="#5A7A6B" />
+              <Text style={styles.leagueIconInitial}>{item.name.charAt(0).toUpperCase()}</Text>
             )}
           </View>
           <View style={styles.leagueInfo}>
@@ -191,15 +191,6 @@ export default function HomeScreen() {
             <Text style={styles.codeLabel}>Code:</Text>
             <Text style={styles.codeText}>{item.league_code}</Text>
           </View>
-          <TouchableOpacity
-            style={styles.chatIconButton}
-            onPress={(e) => {
-              e.stopPropagation();
-              router.push(`/league/${item.id}?openChat=true`);
-            }}
-          >
-            <Ionicons name="chatbubble-outline" size={18} color="#5A7A6B" />
-          </TouchableOpacity>
         </View>
       </TouchableOpacity>
     );
@@ -434,6 +425,11 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 12,
+  },
+  leagueIconInitial: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#5A7A6B',
   },
   leagueInfo: {
     flex: 1,

@@ -3,61 +3,45 @@
 ## Original Problem Statement
 Build a "Music League" mobile app - "fantasy sports for music" game using Expo (React Native) and FastAPI.
 
-## Core Features
-- **Authentication**: JWT-based auth with name + phone number at sign-up, "Delete & Start Fresh" flow
-- **Leagues & Rounds**: Create/join leagues with themed rounds cycling through Submission -> Voting -> Results phases
-- **Voting System**: N-1 point system (1st gets N-1 pts, 2nd gets N-2, etc.), tie handling, auto-distribution for missed votes
-- **Song Search**: Deezer API for 30-second previews, links to Spotify/YouTube/Apple Music
-- **Chat**: League chat with unread indicators
-- **UI/UX**: Light/cream theme (#F5F0E8 bg, #212F36 text, #5A7A6B accent)
-
-## Architecture
-- **Frontend**: Expo (React Native), TypeScript, Expo Router
-- **Backend**: FastAPI, Python, MongoDB (motor async driver)
-- **API**: Deezer for song search
-
 ## 5-Tab Navigation Layout
-1. **Home** - Your leagues, active rounds, profile photo
+1. **Home** - Your leagues with image/initial, active round timers
 2. **Discover** - Deezer song search with 30s previews
-3. **Add** (raised center button) - Create League or Join League
-4. **Inbox** - All league chats in one place
+3. **Add** (raised center button) - Popup with Create League or Join League
+4. **Inbox** - All league chats with latest message preview, full inline chat
 5. **Profile** - User settings, stats, account management
 
 ## What's Been Implemented
 
-### Session 1 (Previous)
-- Full auth system, League CRUD, Round management
-- Song submission and voting, Timezone-aware deadlines
-- Custom league images, Display name, Reopen submission
-- Complete UI overhaul to light/cream theme, Chat system
+### Core Features
+- JWT auth with display name + phone number
+- League CRUD with custom images (camera + gallery)
+- Round management with timezone-aware deadlines
+- N-1 voting point system with tie handling, auto-distribution
+- Deezer song search with Spotify/Apple Music/YouTube links
+- League chat with real-time polling
+- Confetti on results page
 
-### Session 2 (Current - Feb 2026)
-- **Voting Logic Overhaul**: N-1 point system, accumulated standings, auto-distribution, ties
-- **5-Tab Navigation**: Home, Discover, raised Add button, Inbox, Profile
-- **Inbox Tab**: New screen showing all league chats, tap to go directly to chat
-- **Add Tab**: Create League (with camera + gallery image picker) or Join League
-- **Results Page**: Confetti, removed yellow highlight, removed points text
-- **Apple Music Logo**: Updated to logo-apple everywhere
-- **Consistent Service Link Colors**: Spotify (#1DB954), Apple (#FA243C), YouTube (#FF0000)
-- **Song Search Modal**: Service links under each result, close-circle X button
-- **Timer Fixes**: Black in league, white bg + blue border on home
-- **Chat Navigation**: Direct from inbox + home page chat icon
-- **Submission Info Box**: White bg + blue border
-- **Chat Keyboard**: SafeAreaView + KeyboardAvoidingView
-- **Discovery Audio**: Stops when leaving tab
-- **UI Cleanup**: Removed flag/trophy, arrows, fixed colors/fonts
+### Latest Session Changes (Feb 2026)
+- **Add button → popup** (not its own page), Create League with round circles (1-10, 5 per row), Join League with code input
+- **Plus button color** → dark navy matching nav bar
+- **Removed chat icon** from home page league cards
+- **League page**: moved code to header (still copiable), replaced code bar with chat preview showing latest message
+- **Inbox**: shows latest message per league, full inline chat on tap (no league redirect)
+- **Delete account** fixed (now cleans up chat messages and league data)
+- **Spacing fixes**: banners have proper marginTop from X/X text
+- **Send button** visible (green with white icon)
+- **Keyboard dismiss** on tap, proper KeyboardAvoidingView on chat
+- **League icon** shows image or initial (not trophy)
+- **All user data cleared** per user request
 
 ### Testing
-- 20/20 backend tests passed (iteration_2.json)
-
-## Backlog
-- P1: Tab switching scroll-to-top
-- P2: Real password reset (email/SMS)
-- P2: Refactor monolithic files
-- P2: Expo EAS republish
+- 20/20 backend tests passed
+- Delete account verified working
 
 ## Key Files
 - Backend: `/app/backend/server.py`, `/app/backend/main.py`
-- Frontend Tabs: `/app/frontend/app/(tabs)/_layout.tsx`, `home.tsx`, `discovery.tsx`, `add.tsx`, `inbox.tsx`, `profile.tsx`
-- Screens: `/app/frontend/app/round/[id].tsx`, `/app/frontend/app/league/[id].tsx`
-- API: `/app/frontend/src/services/api.ts`
+- Tabs: `_layout.tsx`, `home.tsx`, `discovery.tsx`, `add.tsx`, `inbox.tsx`, `profile.tsx`
+- Screens: `round/[id].tsx`, `league/[id].tsx`
+
+## Backlog
+- P2: Real password reset, refactor monolithic files, Expo EAS republish

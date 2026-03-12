@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   FlatList,
   RefreshControl,
   Alert,
@@ -14,6 +15,7 @@ import {
   Linking,
   ScrollView,
   Dimensions,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
@@ -1071,6 +1073,7 @@ export default function RoundScreen() {
         transparent={false}
         onRequestClose={() => setShowSongModal(false)}
       >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setShowSongModal(false)}>
@@ -1176,6 +1179,7 @@ export default function RoundScreen() {
             />
           )}
         </SafeAreaView>
+        </TouchableWithoutFeedback>
       </Modal>
 
       {/* Missing Submissions Modal (for League Creator) */}
@@ -1535,6 +1539,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(99, 102, 241, 0.15)',
     marginHorizontal: 16,
+    marginTop: 12,
     paddingVertical: 12,
     borderRadius: 12,
     gap: 8,
@@ -1643,6 +1648,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#5A7A6B',
     marginHorizontal: 16,
+    marginTop: 12,
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 12,
@@ -1655,6 +1661,7 @@ const styles = StyleSheet.create({
   },
   voteSavedContainer: {
     marginHorizontal: 16,
+    marginTop: 12,
     gap: 12,
   },
   voteSavedBanner: {

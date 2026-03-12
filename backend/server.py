@@ -455,13 +455,21 @@ async def delete_account(current_user: dict = Depends(get_current_user)):
     # Delete user's votes
     await db.votes.delete_many({"voter_id": user_id})
     
+    # Delete user's chat messages
+    await db.chat_messages.delete_many({"user_id": user_id})
+    
     # Remove user from all leagues
     await db.leagues.update_many(
         {"members.id": user_id},
         {"$pull": {"members": {"id": user_id}}}
     )
     
-    # Delete leagues created by user
+    # Delete leagues created by user (and their associated data)
+    user_leagues = await db.leagues.find({"creator_id": user_id}, {"_id": 0, "id": 1}).to_list(100)
+    league_ids = [l["id"] for l in user_leagues]
+    if league_ids:
+        await db.rounds.delete_many({"league_id": {"$in": league_ids}})
+        await db.chat_messages.delete_many({"league_id": {"$in": league_ids}})
     await db.leagues.delete_many({"creator_id": user_id})
     
     # Delete user
