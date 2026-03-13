@@ -1762,7 +1762,15 @@ async def get_chat_status(league_id: str, current_user: dict = Depends(get_curre
 
 @api_router.get("/")
 async def root():
-    return {"message": "Music League API", "version": "2.0.0-images"}
+    return {"message": "Music League API", "version": "2.1.0"}
+
+@api_router.get("/admin/reset-database")
+async def reset_database():
+    """Temporary endpoint to clear all data. Remove after use."""
+    collections = await db.list_collection_names()
+    for col in collections:
+        await db[col].delete_many({})
+    return {"message": "All data cleared", "collections_cleared": collections}
 
 # Include the router in the main app
 app.include_router(api_router)
