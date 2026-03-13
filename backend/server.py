@@ -1762,7 +1762,7 @@ async def get_chat_status(league_id: str, current_user: dict = Depends(get_curre
 
 @api_router.get("/")
 async def root():
-    return {"message": "Music League API", "version": "1.0.0"}
+    return {"message": "Music League API", "version": "2.0.0-images"}
 
 # Include the router in the main app
 app.include_router(api_router)
