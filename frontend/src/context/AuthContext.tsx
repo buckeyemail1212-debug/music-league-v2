@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'https://music-league-v2-production.up.railway.app';
+import { API_URL } from '../services/api';
 
 interface User {
   id: string;

@@ -1,7 +1,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'https://music-league-v2-production.up.railway.app';
+export const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'https://music-league-v2-production.up.railway.app';
 
 const api = axios.create({
   baseURL: `${API_URL}/api`,
