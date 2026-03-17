@@ -106,11 +106,14 @@ export default function RoundScreen() {
     useCallback(() => {
       return () => {
         // Cleanup when screen loses focus
-        if (soundRef.current) {
-          soundRef.current.stopAsync();
-          soundRef.current.unloadAsync();
+        try {
+          if (soundRef.current) {
+            soundRef.current.stopAsync().catch(() => {});
+            soundRef.current.unloadAsync().catch(() => {});
+            soundRef.current = null;
+          }
           setPlayingSongId(null);
-        }
+        } catch {}
       };
     }, [])
   );
@@ -557,10 +560,13 @@ export default function RoundScreen() {
   );
   };
 
+  const [rankDropdownOpen, setRankDropdownOpen] = useState<string | null>(null);
+
   const renderVotingItem = ({ item, index }: { item: Submission }) => {
     const submission = item;
     const numSongs = submissions.filter(s => s.user_id !== user?.id).length;
     const currentRank = rankingSelections[submission.id];
+    const isDropdownOpen = rankDropdownOpen === submission.id;
     
     // Generate rank options (1st, 2nd, 3rd, etc.)
     const getRankLabel = (n: number) => {
@@ -601,25 +607,44 @@ export default function RoundScreen() {
         </View>
         {!round?.has_user_voted && (
           <View style={styles.rankDropdownContainer}>
-            <View style={styles.rankDropdown}>
-              {Array.from({ length: numSongs }, (_, i) => i + 1).map((rank) => (
-                <TouchableOpacity
-                  key={rank}
-                  style={[
-                    styles.rankOption,
-                    currentRank === rank && styles.rankOptionSelected
-                  ]}
-                  onPress={() => handleRankSelection(submission.id, rank)}
-                >
-                  <Text style={[
-                    styles.rankOptionText,
-                    currentRank === rank && styles.rankOptionTextSelected
-                  ]}>
-                    {rank}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <TouchableOpacity
+              style={styles.rankDropdownButton}
+              onPress={() => setRankDropdownOpen(isDropdownOpen ? null : submission.id)}
+            >
+              <Text style={styles.rankDropdownButtonText}>
+                {currentRank ? `${currentRank}` : '#'}
+              </Text>
+              <Ionicons name={isDropdownOpen ? "chevron-up" : "chevron-down"} size={14} color="#5A7A6B" />
+            </TouchableOpacity>
+            {isDropdownOpen && (
+              <View style={styles.rankDropdownList}>
+                <ScrollView style={styles.rankDropdownScroll} nestedScrollEnabled={true}>
+                  {Array.from({ length: numSongs }, (_, i) => i + 1).map((rank) => (
+                    <TouchableOpacity
+                      key={rank}
+                      style={[
+                        styles.rankDropdownItem,
+                        currentRank === rank && styles.rankDropdownItemSelected
+                      ]}
+                      onPress={() => {
+                        handleRankSelection(submission.id, rank);
+                        setRankDropdownOpen(null);
+                      }}
+                    >
+                      <Text style={[
+                        styles.rankDropdownItemText,
+                        currentRank === rank && styles.rankDropdownItemTextSelected
+                      ]}>
+                        {getRankLabel(rank)}
+                      </Text>
+                      {currentRank === rank && (
+                        <Ionicons name="checkmark" size={16} color="#5A7A6B" />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
           </View>
         )}
         {round?.has_user_voted && currentRank && (
@@ -1975,33 +2000,65 @@ const styles = StyleSheet.create({
   },
   // New voting UI styles
   rankDropdownContainer: {
-    marginLeft: 'auto',
+    marginLeft: 8,
+    zIndex: 10,
   },
-  rankDropdown: {
+  rankDropdownButton: {
     flexDirection: 'row',
-    gap: 6,
-  },
-  rankOption: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#E0D8CC',
     alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: '#F5F0E8',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'transparent',
+    borderColor: '#E0D8CC',
+    gap: 4,
+    minWidth: 48,
+    justifyContent: 'center',
   },
-  rankOptionSelected: {
-    backgroundColor: '#B8C5B0',
-    borderColor: '#B8C5B0',
-  },
-  rankOptionText: {
-    fontSize: 14,
+  rankDropdownButtonText: {
+    fontSize: 15,
     fontWeight: '600',
-    color: '#6B7A82',
+    color: '#5A7A6B',
   },
-  rankOptionTextSelected: {
+  rankDropdownList: {
+    position: 'absolute',
+    top: 42,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E0D8CC',
+    overflow: 'hidden',
+    minWidth: 140,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  rankDropdownScroll: {
+    maxHeight: 180,
+  },
+  rankDropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0D8CC',
+  },
+  rankDropdownItemSelected: {
+    backgroundColor: 'rgba(90, 122, 107, 0.1)',
+  },
+  rankDropdownItemText: {
+    fontSize: 15,
     color: '#212F36',
+  },
+  rankDropdownItemTextSelected: {
+    color: '#5A7A6B',
+    fontWeight: '600',
   },
   pointsExplanation: {
     paddingHorizontal: 16,

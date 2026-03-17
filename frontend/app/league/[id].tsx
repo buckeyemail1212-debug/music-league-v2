@@ -835,7 +835,7 @@ export default function LeagueDetailScreen() {
                 <TextInput
                   style={styles.modalInput}
                   placeholder="e.g., Songs that make you dance"
-                  placeholderTextColor="#666"
+                  placeholderTextColor="#8B9A94"
                   value={roundTheme}
                   onChangeText={setRoundTheme}
                   autoComplete="off"

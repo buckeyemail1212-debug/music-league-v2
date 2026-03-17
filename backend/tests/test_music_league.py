@@ -10,7 +10,7 @@ import os
 import uuid
 from datetime import datetime
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://league-modal-build.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://fantasy-music-game.preview.emergentagent.com').rstrip('/')
 
 # Test data prefix for cleanup
 TEST_PREFIX = f"TEST_{uuid.uuid4().hex[:8]}"

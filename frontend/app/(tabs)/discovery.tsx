@@ -34,8 +34,9 @@ export default function DiscoveryScreen() {
 
     return () => {
       if (soundRef.current) {
-        soundRef.current.stopAsync();
-        soundRef.current.unloadAsync();
+        soundRef.current.stopAsync().catch(() => {});
+        soundRef.current.unloadAsync().catch(() => {});
+        soundRef.current = null;
       }
     };
   }, []);
@@ -44,7 +45,14 @@ export default function DiscoveryScreen() {
   useFocusEffect(
     useCallback(() => {
       return () => {
-        stopAudio();
+        try {
+          if (soundRef.current) {
+            soundRef.current.stopAsync().catch(() => {});
+            soundRef.current.unloadAsync().catch(() => {});
+            soundRef.current = null;
+          }
+          setPlayingSongId(null);
+        } catch {}
       };
     }, [])
   );

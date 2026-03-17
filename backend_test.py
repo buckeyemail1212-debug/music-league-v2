@@ -11,7 +11,7 @@ import uuid
 from datetime import datetime
 
 # Backend URL from frontend/.env
-BACKEND_URL = "https://league-modal-build.preview.emergentagent.com/api"
+BACKEND_URL = "https://fantasy-music-game.preview.emergentagent.com/api"
 
 class MusicLeagueAPITester:
     def __init__(self):
