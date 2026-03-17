@@ -7,25 +7,46 @@
 - **Frontend**: React Native, Expo, Expo Router, TypeScript
 - **Backend**: FastAPI, Python, motor (async MongoDB)
 - **Database**: MongoDB
+- **Deployment**: Railway (backend), Expo/EAS (frontend)
 
-## CRITICAL: Railway Backend Issue
-I tested the Railway backend directly and confirmed it does NOT return `league_image` in responses. The code here is correct but Railway is running an old version. A `Procfile` has been added to force `uvicorn server:app`. The frontend now has a LOCAL IMAGE CACHE workaround using AsyncStorage - when you create a league with an image, the image is saved locally on your phone and displayed from cache even if the backend doesn't return it.
+## Core Requirements
+- JWT-based auth
+- Leagues with custom images, join codes
+- Rounds cycle: Submission -> Voting -> Results (with timers)
+- Voting: dropdown to rank songs, N-1 point system (1st = N-1 pts)
+- Song search via Deezer API with 30-second previews
+- Links to Spotify, Apple Music, YouTube
+- 5-tab bottom nav: Home, Discovery, Add (modal), Inbox, Profile
+- Light/cream color theme
 
-## Latest Fixes (Mar 12, 2026 - Session 2, Round 2)
-1. **League image local cache** - Images saved to AsyncStorage on create, loaded from cache on home page. Works regardless of backend version.
-2. **Start Round button** - Fixed duplicate backgroundColor bug (cream was overriding). Now white + dark border.
-3. **Song search X button** - Lowered close button from status bar area
-4. **Procfile added** - `web: uvicorn server:app --host 0.0.0.0 --port ${PORT:-8001}` for Railway
-5. **Backend _id exclusion** - All MongoDB queries exclude _id for proper serialization
+## Voting System (Verified Mar 17, 2026)
+- Dropdown shows 1 to (N-1) options where N = total submissions
+- Each voter ranks all songs except their own
+- Points: 1st = N-1, 2nd = N-2, ..., last = 1
+- Example: 10 players = 9 dropdown options (1-9), 1st gets 9 pts
+- Backend and frontend logic confirmed consistent (31/31 tests pass)
 
 ## Key Files
-- Backend: `/app/backend/server.py`, `/app/backend/main.py`, `/app/backend/Procfile`
+- Backend: `/app/backend/server.py`, `/app/backend/main.py`
 - Tabs: `_layout.tsx`, `home.tsx`, `discovery.tsx`, `add.tsx`, `inbox.tsx`, `profile.tsx`
 - Screens: `round/[id].tsx`, `league/[id].tsx`
 - API: `src/services/api.ts`
 - SharedChat: `src/components/SharedChat.tsx`
+- Event Emitter: `src/utils/event-emitter.ts`
+
+## Completed Features
+- Auth (register, login, profile)
+- Leagues (create, join, leave, delete, images)
+- Rounds (create, submit, vote, results)
+- Voting dropdown with dynamic N-1 ranking
+- Chat (polling-based)
+- Discovery page with song search
+- Audio playback with stop-on-navigate
+- Winner banners, confetti, standings
+- League creator can grant submission extensions
+- Home screen auto-refresh after create/join
 
 ## Backlog
-- **P1**: WebSocket for real-time chat
+- **P1**: WebSocket for real-time chat (replace polling)
 - **P2**: Password reset via email
-- **P2**: Refactor monolithic files
+- **P2**: Refactor monolithic files (league/[id].tsx, round/[id].tsx, server.py)
