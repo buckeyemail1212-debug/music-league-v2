@@ -751,7 +751,7 @@ export default function LeagueDetailScreen() {
             <ViewShot ref={shareCardRef} options={{ format: 'png', quality: 1 }}>
               <View style={styles.shareCard}>
                 <LinearGradient
-                  colors={['#1a1a2e', '#16213e', '#0f3460']}
+                  colors={['#F5F0E8', '#E8E0D0', '#F5F0E8']}
                   style={styles.shareCardGradient}
                 >
                   {/* Header */}
@@ -1879,25 +1879,27 @@ const styles = StyleSheet.create({
   },
   shareCardSubtitle: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: '#6B7A82',
     textTransform: 'uppercase',
     letterSpacing: 2,
   },
   shareCardStandings: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 16,
     marginVertical: 20,
+    borderWidth: 1,
+    borderColor: '#E0D8CC',
   },
   shareCardRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    borderBottomColor: '#E0D8CC',
   },
   shareCardWinnerRow: {
-    backgroundColor: 'rgba(251, 191, 36, 0.15)',
+    backgroundColor: 'rgba(90, 122, 107, 0.1)',
     borderRadius: 8,
     marginHorizontal: -8,
     paddingHorizontal: 8,
@@ -1916,11 +1918,11 @@ const styles = StyleSheet.create({
   },
   shareCardWinnerText: {
     fontWeight: 'bold',
-    color: '#fbbf24',
+    color: '#5A7A6B',
   },
   shareCardPoints: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#6B7A82',
     fontWeight: '600',
   },
   shareCardFooter: {
@@ -1935,7 +1937,7 @@ const styles = StyleSheet.create({
   },
   shareCardCTA: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: '#6B7A82',
   },
   shareButton: {
     flexDirection: 'row',

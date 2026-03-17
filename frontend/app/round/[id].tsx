@@ -575,6 +575,17 @@ export default function RoundScreen() {
         <View style={styles.votingSongInfo}>
           <Text style={styles.songTitle} numberOfLines={1}>{submission.song.title}</Text>
           <Text style={styles.artistName} numberOfLines={1}>{submission.song.artist}</Text>
+          <View style={styles.musicLinksSmall}>
+            <TouchableOpacity style={[styles.musicLinkButtonSmall, { backgroundColor: '#1DB954' }]} onPress={() => openInService(submission.song, 'spotify')}>
+              <FontAwesome name="spotify" size={10} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.musicLinkButtonSmall, { backgroundColor: '#FA243C' }]} onPress={() => openInService(submission.song, 'apple')}>
+              <Ionicons name="logo-apple" size={10} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.musicLinkButtonSmall, { backgroundColor: '#FF0000' }]} onPress={() => openInService(submission.song, 'youtube')}>
+              <Ionicons name="logo-youtube" size={10} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
         <View style={styles.votingActions}>
           <TouchableOpacity
@@ -927,7 +938,7 @@ export default function RoundScreen() {
             <>
               <View style={styles.votingInstructions}>
                 <Ionicons name="list-outline" size={20} color="#5A7A6B" />
-                <Text style={styles.votingInstructionsText}>Tap numbers to rank songs (1 = best)</Text>
+                <Text style={styles.votingInstructionsText}>Select a number next to each song to rank (1 = best)</Text>
               </View>
             </>
           )}
@@ -1542,9 +1553,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    backgroundColor: 'rgba(90, 122, 107, 0.15)',
     marginHorizontal: 16,
     marginTop: 12,
+    marginBottom: 12,
     paddingVertical: 12,
     borderRadius: 12,
     gap: 8,
@@ -1629,6 +1641,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 16,
+    paddingBottom: 34,
     backgroundColor: '#F5F0E8',
     borderTopWidth: 1,
     borderTopColor: '#E0D8CC',
@@ -1727,20 +1740,20 @@ const styles = StyleSheet.create({
   winnerBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(251, 191, 36, 0.15)',
+    backgroundColor: '#FFFFFF',
     marginHorizontal: 16,
     padding: 16,
     borderRadius: 16,
     gap: 16,
     borderWidth: 1,
-    borderColor: '#fbbf24',
+    borderColor: '#E0D8CC',
   },
   winnerInfo: {
     flex: 1,
   },
   winnerLabel: {
     fontSize: 12,
-    color: '#fbbf24',
+    color: '#5A7A6B',
     fontWeight: '600',
     textTransform: 'uppercase',
   },
@@ -1752,7 +1765,7 @@ const styles = StyleSheet.create({
   },
   winnerUser: {
     fontSize: 14,
-    color: '#fbbf24',
+    color: '#5A7A6B',
     marginTop: 2,
   },
   tieBanner: {
@@ -1762,7 +1775,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(251, 191, 36, 0.3)',
+    borderTopColor: 'rgba(90, 122, 107, 0.3)',
   },
   tieWinnerRow: {
     flexDirection: 'row',
