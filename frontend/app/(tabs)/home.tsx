@@ -27,6 +27,7 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showProfileZoom, setShowProfileZoom] = useState(false);
+  const [zoomLeagueImage, setZoomLeagueImage] = useState<string | null>(null);
   const flatListRef = useRef<FlatList>(null);
   const [cachedImages, setCachedImages] = useState<{ [leagueId: string]: string }>({});
 
@@ -137,7 +138,12 @@ export default function HomeScreen() {
         onPress={() => router.push(`/league/${item.id}`)}
       >
         <View style={styles.leagueHeader}>
-          <View style={styles.leagueIcon}>
+          <TouchableOpacity 
+            style={styles.leagueIcon}
+            onPress={() => router.push(`/league/${item.id}`)}
+            onLongPress={() => displayImage && setZoomLeagueImage(displayImage)}
+            delayLongPress={300}
+          >
             {displayImage ? (
               <Image 
                 source={{ uri: displayImage }} 
@@ -147,7 +153,7 @@ export default function HomeScreen() {
             ) : (
               <Text style={styles.leagueIconInitial}>{item.name.charAt(0).toUpperCase()}</Text>
             )}
-          </View>
+          </TouchableOpacity>
           <View style={styles.leagueInfo}>
             <Text style={styles.leagueName}>{item.name}</Text>
             <Text style={styles.leagueTheme}>
@@ -300,6 +306,30 @@ export default function HomeScreen() {
             {user?.profile_photo && (
               <Image 
                 source={{ uri: user.profile_photo }} 
+                style={styles.profileZoomImage}
+                resizeMode="contain"
+              />
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* League Image Zoom Modal */}
+      <Modal
+        visible={!!zoomLeagueImage}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setZoomLeagueImage(null)}
+      >
+        <TouchableOpacity 
+          style={styles.profileZoomOverlay}
+          activeOpacity={1}
+          onPress={() => setZoomLeagueImage(null)}
+        >
+          <View style={styles.profileZoomContainer}>
+            {zoomLeagueImage && (
+              <Image 
+                source={{ uri: zoomLeagueImage }} 
                 style={styles.profileZoomImage}
                 resizeMode="contain"
               />
