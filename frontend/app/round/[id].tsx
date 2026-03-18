@@ -1001,7 +1001,11 @@ export default function RoundScreen() {
             <View style={styles.lockedRankingsContainer}>
               <Text style={styles.sectionTitle}>Your Rankings</Text>
               <FlatList
-                data={submissions.filter(s => s.user_id !== user?.id)}
+                data={submissions.filter(s => s.user_id !== user?.id).sort((a, b) => {
+                  const rankA = rankingSelections[a.id] ?? 999;
+                  const rankB = rankingSelections[b.id] ?? 999;
+                  return rankA - rankB;
+                })}
                 keyExtractor={(item) => item.id}
                 renderItem={renderVotingItem}
                 contentContainerStyle={styles.listContent}
