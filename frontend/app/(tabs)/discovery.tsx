@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Image,
   Linking,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
@@ -116,6 +117,13 @@ export default function DiscoveryScreen() {
       playingIdRef.current = null;
       setPlayingSongId(null);
 
+      // Re-initialize audio mode every time to prevent iOS audio session loss
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+      });
+
       // Always create a completely fresh sound instance
       const { sound: newSound } = await Audio.Sound.createAsync(
         { uri: song.preview_url },
@@ -178,35 +186,36 @@ export default function DiscoveryScreen() {
         <Text style={styles.duration}>{formatDuration(item.duration)}</Text>
       </View>
       <View style={styles.songActions}>
-        <TouchableOpacity
+        <Pressable
           style={[styles.playButton, playingSongId === item.deezer_id && styles.playingButton]}
           onPress={() => playPreview(item)}
+          hitSlop={12}
         >
           <Ionicons
             name={playingSongId === item.deezer_id ? 'pause' : 'play'}
             size={24}
             color="#fff"
           />
-        </TouchableOpacity>
+        </Pressable>
         <View style={styles.serviceButtons}>
-          <TouchableOpacity
+          <Pressable
             style={[styles.serviceButton, { backgroundColor: '#1DB954' }]}
             onPress={() => openInService(item, 'spotify')}
           >
             <FontAwesome name="spotify" size={16} color="#fff" />
-          </TouchableOpacity>
-          <TouchableOpacity
+          </Pressable>
+          <Pressable
             style={[styles.serviceButton, { backgroundColor: '#FA243C' }]}
             onPress={() => openInService(item, 'apple')}
           >
             <Ionicons name="logo-apple" size={16} color="#fff" />
-          </TouchableOpacity>
-          <TouchableOpacity
+          </Pressable>
+          <Pressable
             style={[styles.serviceButton, { backgroundColor: '#FF0000' }]}
             onPress={() => openInService(item, 'youtube')}
           >
             <Ionicons name="logo-youtube" size={16} color="#fff" />
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
     </View>

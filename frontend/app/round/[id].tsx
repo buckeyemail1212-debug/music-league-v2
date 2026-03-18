@@ -17,6 +17,7 @@ import {
   Dimensions,
   Keyboard,
   Platform,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
@@ -317,6 +318,13 @@ export default function RoundScreen() {
       playingIdRef.current = null;
       setPlayingSongId(null);
 
+      // Re-initialize audio mode every time to prevent iOS audio session loss
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+      });
+
       // Always create a completely fresh sound instance
       const { sound: newSound } = await Audio.Sound.createAsync(
         { uri: song.preview_url },
@@ -543,35 +551,36 @@ export default function RoundScreen() {
           )}
         </View>
         <View style={styles.submissionActions}>
-          <TouchableOpacity
+          <Pressable
             style={[styles.playButton, playingSongId === item.song.deezer_id && styles.playingButton]}
             onPress={() => playPreview(item.song)}
+            hitSlop={12}
           >
             <Ionicons
               name={playingSongId === item.song.deezer_id ? 'pause' : 'play'}
               size={20}
               color={playingSongId === item.song.deezer_id ? '#fff' : '#212F36'}
             />
-          </TouchableOpacity>
+          </Pressable>
           <View style={styles.serviceButtonsSmall}>
-            <TouchableOpacity
+            <Pressable
               style={[styles.serviceButtonSmall, { backgroundColor: '#1DB954' }]}
               onPress={() => openInService(item.song, 'spotify')}
             >
               <FontAwesome name="spotify" size={12} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[styles.serviceButtonSmall, { backgroundColor: '#FA243C' }]}
               onPress={() => openInService(item.song, 'apple')}
             >
               <Ionicons name="logo-apple" size={12} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[styles.serviceButtonSmall, { backgroundColor: '#FF0000' }]}
               onPress={() => openInService(item.song, 'youtube')}
             >
               <Ionicons name="logo-youtube" size={12} color="#fff" />
-            </TouchableOpacity>
+            </Pressable>
           </View>
       </View>
     </View>
@@ -582,6 +591,45 @@ export default function RoundScreen() {
 
   const getRankSuffix = (n: number) => {
     return n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th';
+  };
+
+  // Separate render for locked rankings - uses Pressable for reliable touch on iOS
+  const renderLockedRankItem = (submission: Submission, rank: number) => {
+    const isPlaying = playingSongId === submission.song.deezer_id;
+    return (
+      <View key={submission.id} style={styles.votingCard}>
+        <Image source={{ uri: submission.song.cover_url }} style={styles.albumCoverSmall} />
+        <View style={styles.votingSongInfo}>
+          <Text style={styles.songTitle} numberOfLines={1}>{submission.song.title}</Text>
+          <Text style={styles.artistName} numberOfLines={1}>{submission.song.artist}</Text>
+          <View style={styles.musicLinksSmall}>
+            <Pressable style={[styles.musicLinkButtonSmall, { backgroundColor: '#1DB954' }]} onPress={() => openInService(submission.song, 'spotify')}>
+              <FontAwesome name="spotify" size={10} color="#fff" />
+            </Pressable>
+            <Pressable style={[styles.musicLinkButtonSmall, { backgroundColor: '#FA243C' }]} onPress={() => openInService(submission.song, 'apple')}>
+              <Ionicons name="logo-apple" size={10} color="#fff" />
+            </Pressable>
+            <Pressable style={[styles.musicLinkButtonSmall, { backgroundColor: '#FF0000' }]} onPress={() => openInService(submission.song, 'youtube')}>
+              <Ionicons name="logo-youtube" size={10} color="#fff" />
+            </Pressable>
+          </View>
+        </View>
+        <Pressable
+          style={[styles.playButtonSmall, isPlaying && styles.playingButton]}
+          onPress={() => playPreview(submission.song)}
+          hitSlop={12}
+        >
+          <Ionicons
+            name={isPlaying ? 'pause' : 'play'}
+            size={16}
+            color="#fff"
+          />
+        </Pressable>
+        <View style={styles.rankBadgeVoted}>
+          <Text style={styles.rankNumberVoted}>{rank}{getRankSuffix(rank)}</Text>
+        </View>
+      </View>
+    );
   };
 
   const renderVotingItem = ({ item, index }: { item: Submission }) => {
@@ -598,28 +646,29 @@ export default function RoundScreen() {
           <Text style={styles.songTitle} numberOfLines={1}>{submission.song.title}</Text>
           <Text style={styles.artistName} numberOfLines={1}>{submission.song.artist}</Text>
           <View style={styles.musicLinksSmall}>
-            <TouchableOpacity style={[styles.musicLinkButtonSmall, { backgroundColor: '#1DB954' }]} onPress={() => openInService(submission.song, 'spotify')}>
+            <Pressable style={[styles.musicLinkButtonSmall, { backgroundColor: '#1DB954' }]} onPress={() => openInService(submission.song, 'spotify')}>
               <FontAwesome name="spotify" size={10} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.musicLinkButtonSmall, { backgroundColor: '#FA243C' }]} onPress={() => openInService(submission.song, 'apple')}>
+            </Pressable>
+            <Pressable style={[styles.musicLinkButtonSmall, { backgroundColor: '#FA243C' }]} onPress={() => openInService(submission.song, 'apple')}>
               <Ionicons name="logo-apple" size={10} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.musicLinkButtonSmall, { backgroundColor: '#FF0000' }]} onPress={() => openInService(submission.song, 'youtube')}>
+            </Pressable>
+            <Pressable style={[styles.musicLinkButtonSmall, { backgroundColor: '#FF0000' }]} onPress={() => openInService(submission.song, 'youtube')}>
               <Ionicons name="logo-youtube" size={10} color="#fff" />
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
         <View style={styles.votingActions}>
-          <TouchableOpacity
+          <Pressable
             style={[styles.playButtonSmall, playingSongId === submission.song.deezer_id && styles.playingButton]}
             onPress={() => playPreview(submission.song)}
+            hitSlop={12}
           >
             <Ionicons
               name={playingSongId === submission.song.deezer_id ? 'pause' : 'play'}
               size={16}
               color="#fff"
             />
-          </TouchableOpacity>
+          </Pressable>
         </View>
         {!round?.has_user_voted && (
           <View style={styles.rankDropdownContainer}>
@@ -700,27 +749,28 @@ export default function RoundScreen() {
           <Text style={styles.artistName} numberOfLines={1}>{item.song.artist}</Text>
           <Text style={styles.submittedBy}>by {item.username}</Text>
           <View style={styles.musicLinksSmall}>
-            <TouchableOpacity style={[styles.musicLinkButtonSmall, { backgroundColor: '#1DB954' }]} onPress={() => openInService(item.song, 'spotify')}>
+            <Pressable style={[styles.musicLinkButtonSmall, { backgroundColor: '#1DB954' }]} onPress={() => openInService(item.song, 'spotify')}>
               <FontAwesome name="spotify" size={10} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.musicLinkButtonSmall, { backgroundColor: '#FA243C' }]} onPress={() => openInService(item.song, 'apple')}>
+            </Pressable>
+            <Pressable style={[styles.musicLinkButtonSmall, { backgroundColor: '#FA243C' }]} onPress={() => openInService(item.song, 'apple')}>
               <Ionicons name="logo-apple" size={10} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.musicLinkButtonSmall, { backgroundColor: '#FF0000' }]} onPress={() => openInService(item.song, 'youtube')}>
+            </Pressable>
+            <Pressable style={[styles.musicLinkButtonSmall, { backgroundColor: '#FF0000' }]} onPress={() => openInService(item.song, 'youtube')}>
               <Ionicons name="logo-youtube" size={10} color="#fff" />
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
-        <TouchableOpacity
+        <Pressable
           style={[styles.playButtonSmall, playingSongId === item.song.deezer_id && styles.playingButton]}
           onPress={() => playPreview(item.song)}
+          hitSlop={12}
         >
           <Ionicons
             name={playingSongId === item.song.deezer_id ? 'pause' : 'play'}
             size={16}
             color={playingSongId === item.song.deezer_id ? '#fff' : '#212F36'}
           />
-        </TouchableOpacity>
+        </Pressable>
         <View style={styles.pointsBadge}>
           <Text style={styles.pointsText}>{item.points} pts</Text>
         </View>
@@ -850,36 +900,37 @@ export default function RoundScreen() {
                     <Text style={styles.songTitle} numberOfLines={1}>{sub.song.title}</Text>
                     <Text style={styles.songArtist} numberOfLines={1}>{sub.song.artist}</Text>
                     <View style={styles.musicLinks}>
-                      <TouchableOpacity
+                      <Pressable
                         style={[styles.musicLinkButton, { backgroundColor: '#1DB954' }]}
                         onPress={() => openInService(sub.song, 'spotify')}
                       >
                         <FontAwesome name="spotify" size={12} color="#fff" />
-                      </TouchableOpacity>
-                      <TouchableOpacity
+                      </Pressable>
+                      <Pressable
                         style={[styles.musicLinkButton, { backgroundColor: '#FA243C' }]}
                         onPress={() => openInService(sub.song, 'apple')}
                       >
                         <Ionicons name="logo-apple" size={12} color="#fff" />
-                      </TouchableOpacity>
-                      <TouchableOpacity
+                      </Pressable>
+                      <Pressable
                         style={[styles.musicLinkButton, { backgroundColor: '#FF0000' }]}
                         onPress={() => openInService(sub.song, 'youtube')}
                       >
                         <Ionicons name="logo-youtube" size={12} color="#fff" />
-                      </TouchableOpacity>
+                      </Pressable>
                     </View>
                   </View>
-                  <TouchableOpacity
+                  <Pressable
                     style={[styles.playButton, playingSongId === sub.song.deezer_id && styles.playingButton]}
                     onPress={() => playPreview(sub.song)}
+                    hitSlop={12}
                   >
                     <Ionicons 
                       name={playingSongId === sub.song.deezer_id ? 'pause' : 'play'} 
                       size={20} 
                       color={playingSongId === sub.song.deezer_id ? '#fff' : '#212F36'}
                     />
-                  </TouchableOpacity>
+                  </Pressable>
                 </View>
               ))}
 
@@ -1005,11 +1056,9 @@ export default function RoundScreen() {
                   const rankA = rankingSelections[a.id] ?? 999;
                   const rankB = rankingSelections[b.id] ?? 999;
                   return rankA - rankB;
-                }).map((item, index) => (
-                  <React.Fragment key={item.id}>
-                    {renderVotingItem({ item, index })}
-                  </React.Fragment>
-                ))}
+                }).map((item, index) => 
+                  renderLockedRankItem(item, rankingSelections[item.id] ?? (index + 1))
+                )}
               </View>
             </View>
           )}
@@ -1074,16 +1123,17 @@ export default function RoundScreen() {
                           <Text style={styles.winnerSong}>{winner.song.title}</Text>
                           <Text style={styles.winnerUser}>by {winner.username}</Text>
                         </View>
-                        <TouchableOpacity
+                        <Pressable
                           style={[styles.playButtonWinner, playingSongId === winner.song.deezer_id && styles.playingButton]}
                           onPress={() => playPreview(winner.song)}
+                          hitSlop={12}
                         >
                           <Ionicons
                             name={playingSongId === winner.song.deezer_id ? 'pause' : 'play'}
                             size={14}
                             color={playingSongId === winner.song.deezer_id ? '#fff' : '#212F36'}
                           />
-                        </TouchableOpacity>
+                        </Pressable>
                       </View>
                     </View>
                   ))
@@ -1093,16 +1143,17 @@ export default function RoundScreen() {
                       <Text style={styles.winnerSong}>{results.winners[0].song.title}</Text>
                       <Text style={styles.winnerUser}>by {results.winners[0].username}</Text>
                     </View>
-                    <TouchableOpacity
+                    <Pressable
                       style={[styles.playButtonWinner, playingSongId === results.winners[0].song.deezer_id && styles.playingButton]}
                       onPress={() => playPreview(results.winners[0].song)}
+                      hitSlop={12}
                     >
                       <Ionicons
                         name={playingSongId === results.winners[0].song.deezer_id ? 'pause' : 'play'}
                         size={14}
                         color={playingSongId === results.winners[0].song.deezer_id ? '#fff' : '#212F36'}
                       />
-                    </TouchableOpacity>
+                    </Pressable>
                   </View>
                 )}
               </View>
@@ -1189,35 +1240,36 @@ export default function RoundScreen() {
                     <Text style={styles.duration}>{formatDuration(item.duration)}</Text>
                   </View>
                   <View style={styles.searchResultActions}>
-                    <TouchableOpacity
+                    <Pressable
                       style={[styles.playButtonSmall, playingSongId === item.deezer_id && styles.playingButton]}
                       onPress={() => playPreview(item)}
+                      hitSlop={12}
                     >
                       <Ionicons
                         name={playingSongId === item.deezer_id ? 'pause' : 'play'}
                         size={16}
                         color={playingSongId === item.deezer_id ? '#fff' : '#212F36'}
                       />
-                    </TouchableOpacity>
+                    </Pressable>
                     <View style={styles.serviceButtonsSmall}>
-                      <TouchableOpacity
+                      <Pressable
                         style={[styles.serviceButtonSmall, { backgroundColor: '#1DB954' }]}
                         onPress={() => openInService(item, 'spotify')}
                       >
                         <FontAwesome name="spotify" size={10} color="#fff" />
-                      </TouchableOpacity>
-                      <TouchableOpacity
+                      </Pressable>
+                      <Pressable
                         style={[styles.serviceButtonSmall, { backgroundColor: '#FA243C' }]}
                         onPress={() => openInService(item, 'apple')}
                       >
                         <Ionicons name="logo-apple" size={10} color="#fff" />
-                      </TouchableOpacity>
-                      <TouchableOpacity
+                      </Pressable>
+                      <Pressable
                         style={[styles.serviceButtonSmall, { backgroundColor: '#FF0000' }]}
                         onPress={() => openInService(item, 'youtube')}
                       >
                         <Ionicons name="logo-youtube" size={10} color="#fff" />
-                      </TouchableOpacity>
+                      </Pressable>
                     </View>
                   </View>
                 </TouchableOpacity>
