@@ -976,8 +976,7 @@ export default function RoundScreen() {
             // Still ranking - show instructions
             <>
               <View style={styles.votingInstructions}>
-                <Ionicons name="list-outline" size={20} color="#5A7A6B" />
-                <Text style={styles.votingInstructionsText}>Select a number next to each song to rank (1 = best)</Text>
+                <Text style={styles.votingInstructionsText}>Rank Songs Below</Text>
               </View>
             </>
           )}
