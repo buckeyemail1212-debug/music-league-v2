@@ -296,34 +296,50 @@ export default function RoundScreen() {
 
   const playPreview = async (song: Song) => {
     try {
-      // Stop and unload current sound
+      // Always stop and fully unload any existing sound first
       if (soundRef.current) {
-        await soundRef.current.stopAsync();
-        await soundRef.current.unloadAsync();
+        try {
+          await soundRef.current.stopAsync();
+        } catch {}
+        try {
+          await soundRef.current.unloadAsync();
+        } catch {}
         soundRef.current = null;
       }
 
+      // If tapping the same song that's playing, just stop it
       if (playingSongId === song.deezer_id) {
         setPlayingSongId(null);
         return;
       }
 
-      // Create and play new sound
+      // Reset state before creating new sound
+      setPlayingSongId(null);
+
+      // Always create a fresh sound instance for every play
       const { sound } = await Audio.Sound.createAsync(
         { uri: song.preview_url },
-        { shouldPlay: true }
+        { shouldPlay: true, positionMillis: 0 }
       );
       soundRef.current = sound;
       setPlayingSongId(song.deezer_id);
 
       sound.setOnPlaybackStatusUpdate((status) => {
         if (status.isLoaded && status.didJustFinish) {
+          // When finished, unload so next press creates fresh instance
           setPlayingSongId(null);
+          try {
+            sound.unloadAsync();
+          } catch {}
+          if (soundRef.current === sound) {
+            soundRef.current = null;
+          }
         }
       });
     } catch (error) {
       console.error('Failed to play preview:', error);
       setPlayingSongId(null);
+      soundRef.current = null;
     }
   };
 
@@ -562,21 +578,19 @@ export default function RoundScreen() {
 
   const [rankDropdownOpen, setRankDropdownOpen] = useState<string | null>(null);
 
+  const getRankSuffix = (n: number) => {
+    return n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th';
+  };
+
   const renderVotingItem = ({ item, index }: { item: Submission }) => {
     const submission = item;
-    const numSongs = submissions.filter(s => s.user_id !== user?.id).length;
+    const otherSubs = submissions.filter(s => s.user_id !== user?.id);
+    const numSongs = otherSubs.length;
     const currentRank = rankingSelections[submission.id];
     const isDropdownOpen = rankDropdownOpen === submission.id;
-    
-    // Generate rank options (1st, 2nd, 3rd, etc.)
-    const getRankLabel = (n: number) => {
-      const suffix = n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th';
-      const points = numSongs - n + 1; // Points for this position
-      return `${n}${suffix} (${points} pts)`;
-    };
 
     return (
-      <View style={styles.votingCard}>
+      <View style={[styles.votingCard, { zIndex: isDropdownOpen ? 999 : 1 }]}>
         <Image source={{ uri: submission.song.cover_url }} style={styles.albumCoverSmall} />
         <View style={styles.votingSongInfo}>
           <Text style={styles.songTitle} numberOfLines={1}>{submission.song.title}</Text>
@@ -608,11 +622,11 @@ export default function RoundScreen() {
         {!round?.has_user_voted && (
           <View style={styles.rankDropdownContainer}>
             <TouchableOpacity
-              style={styles.rankDropdownButton}
+              style={[styles.rankDropdownButton, currentRank ? styles.rankDropdownButtonSelected : null]}
               onPress={() => setRankDropdownOpen(isDropdownOpen ? null : submission.id)}
             >
-              <Text style={styles.rankDropdownButtonText}>
-                {currentRank ? `${currentRank}` : '#'}
+              <Text style={[styles.rankDropdownButtonText, currentRank ? styles.rankDropdownButtonTextSelected : null]}>
+                {currentRank ? `${currentRank}${getRankSuffix(currentRank)}` : 'Rank'}
               </Text>
               <Ionicons name={isDropdownOpen ? "chevron-up" : "chevron-down"} size={14} color="#5A7A6B" />
             </TouchableOpacity>
@@ -635,7 +649,7 @@ export default function RoundScreen() {
                         styles.rankDropdownItemText,
                         currentRank === rank && styles.rankDropdownItemTextSelected
                       ]}>
-                        {getRankLabel(rank)}
+                        {`${rank}${getRankSuffix(rank)}`}
                       </Text>
                       {currentRank === rank && (
                         <Ionicons name="checkmark" size={16} color="#5A7A6B" />
@@ -648,8 +662,8 @@ export default function RoundScreen() {
           </View>
         )}
         {round?.has_user_voted && currentRank && (
-          <View style={styles.rankBadge}>
-            <Text style={styles.rankNumber}>{currentRank}</Text>
+          <View style={styles.rankBadgeVoted}>
+            <Text style={styles.rankNumberVoted}>{currentRank}{getRankSuffix(currentRank)}</Text>
           </View>
         )}
       </View>
@@ -974,7 +988,7 @@ export default function RoundScreen() {
               data={submissions.filter(s => s.user_id !== user?.id)}
               keyExtractor={(item) => item.id}
               renderItem={renderVotingItem}
-              contentContainerStyle={styles.listContent}
+              contentContainerStyle={styles.votingListContent}
               refreshControl={
                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#B8C5B0" />
               }
@@ -1612,6 +1626,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderWidth: 1,
     borderColor: '#E0D8CC',
+    overflow: 'visible',
   },
   rankBadge: {
     width: 32,
@@ -1705,6 +1720,7 @@ const styles = StyleSheet.create({
   voteSavedContainer: {
     marginHorizontal: 16,
     marginTop: 12,
+    marginBottom: 16,
     gap: 12,
   },
   voteSavedBanner: {
@@ -2001,24 +2017,32 @@ const styles = StyleSheet.create({
   // New voting UI styles
   rankDropdownContainer: {
     marginLeft: 8,
-    zIndex: 10,
+    zIndex: 100,
+    position: 'relative',
   },
   rankDropdownButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F5F0E8',
+    backgroundColor: '#FFFFFF',
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E0D8CC',
+    borderWidth: 1.5,
+    borderColor: '#5A7A6B',
     gap: 4,
-    minWidth: 48,
+    minWidth: 64,
     justifyContent: 'center',
   },
+  rankDropdownButtonSelected: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#5A7A6B',
+  },
   rankDropdownButtonText: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '600',
+    color: '#8DA19B',
+  },
+  rankDropdownButtonTextSelected: {
     color: '#5A7A6B',
   },
   rankDropdownList: {
@@ -2027,38 +2051,61 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E0D8CC',
+    borderWidth: 1.5,
+    borderColor: '#5A7A6B',
     overflow: 'hidden',
-    minWidth: 140,
+    minWidth: 100,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 10,
+    zIndex: 9999,
   },
   rankDropdownScroll: {
-    maxHeight: 180,
+    maxHeight: 220,
   },
   rankDropdownItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0D8CC',
+    borderBottomColor: '#E8E2D8',
   },
   rankDropdownItemSelected: {
-    backgroundColor: 'rgba(90, 122, 107, 0.1)',
+    backgroundColor: 'rgba(90, 122, 107, 0.12)',
   },
   rankDropdownItemText: {
     fontSize: 15,
-    color: '#212F36',
+    color: '#5A7A6B',
+    fontWeight: '500',
   },
   rankDropdownItemTextSelected: {
     color: '#5A7A6B',
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  rankBadgeVoted: {
+    marginLeft: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#5A7A6B',
+    borderRadius: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rankNumberVoted: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#5A7A6B',
+  },
+  votingListContent: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 100,
   },
   pointsExplanation: {
     paddingHorizontal: 16,

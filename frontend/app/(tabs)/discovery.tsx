@@ -94,36 +94,50 @@ export default function DiscoveryScreen() {
 
   const playPreview = async (song: Song) => {
     try {
-      // Stop and unload current sound if playing
+      // Always stop and fully unload any existing sound first
       if (soundRef.current) {
-        await soundRef.current.stopAsync();
-        await soundRef.current.unloadAsync();
+        try {
+          await soundRef.current.stopAsync();
+        } catch {}
+        try {
+          await soundRef.current.unloadAsync();
+        } catch {}
         soundRef.current = null;
       }
 
-      // If same song was playing, just stop
+      // If tapping the same song that's playing, just stop it
       if (playingSongId === song.deezer_id) {
         setPlayingSongId(null);
         return;
       }
 
-      // Create and play new sound
+      // Reset state before creating new sound
+      setPlayingSongId(null);
+
+      // Always create a fresh sound instance for every play
       const { sound } = await Audio.Sound.createAsync(
         { uri: song.preview_url },
-        { shouldPlay: true }
+        { shouldPlay: true, positionMillis: 0 }
       );
       soundRef.current = sound;
       setPlayingSongId(song.deezer_id);
 
-      // Handle playback finish
+      // Handle playback finish - unload so next press creates fresh instance
       sound.setOnPlaybackStatusUpdate((status) => {
         if (status.isLoaded && status.didJustFinish) {
           setPlayingSongId(null);
+          try {
+            sound.unloadAsync();
+          } catch {}
+          if (soundRef.current === sound) {
+            soundRef.current = null;
+          }
         }
       });
     } catch (error) {
       console.error('Failed to play preview:', error);
       setPlayingSongId(null);
+      soundRef.current = null;
     }
   };
 
