@@ -61,6 +61,7 @@ export default function RoundScreen() {
   // Audio playback
   const [playingSongId, setPlayingSongId] = useState<number | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
+  const playingIdRef = useRef<number | null>(null);
 
   // Voting
   const [rankings, setRankings] = useState<string[]>([]);
@@ -112,6 +113,7 @@ export default function RoundScreen() {
             soundRef.current.unloadAsync().catch(() => {});
             soundRef.current = null;
           }
+          playingIdRef.current = null;
           setPlayingSongId(null);
         } catch {}
       };
@@ -298,46 +300,46 @@ export default function RoundScreen() {
     try {
       // Always stop and fully unload any existing sound first
       if (soundRef.current) {
-        try {
-          await soundRef.current.stopAsync();
-        } catch {}
-        try {
-          await soundRef.current.unloadAsync();
-        } catch {}
+        try { await soundRef.current.stopAsync(); } catch {}
+        try { await soundRef.current.unloadAsync(); } catch {}
         soundRef.current = null;
       }
 
-      // If tapping the same song that's playing, just stop it
-      if (playingSongId === song.deezer_id) {
+      // Use ref for toggle check (avoids stale closure issue with state)
+      if (playingIdRef.current === song.deezer_id) {
+        // Same song tapped while playing - just stop
+        playingIdRef.current = null;
         setPlayingSongId(null);
         return;
       }
 
-      // Reset state before creating new sound
+      // Clear state
+      playingIdRef.current = null;
       setPlayingSongId(null);
 
-      // Always create a fresh sound instance for every play
-      const { sound } = await Audio.Sound.createAsync(
+      // Always create a completely fresh sound instance
+      const { sound: newSound } = await Audio.Sound.createAsync(
         { uri: song.preview_url },
         { shouldPlay: true, positionMillis: 0 }
       );
-      soundRef.current = sound;
+      soundRef.current = newSound;
+      playingIdRef.current = song.deezer_id;
       setPlayingSongId(song.deezer_id);
 
-      sound.setOnPlaybackStatusUpdate((status) => {
+      newSound.setOnPlaybackStatusUpdate((status) => {
         if (status.isLoaded && status.didJustFinish) {
-          // When finished, unload so next press creates fresh instance
+          // Song finished - clean up so next press works
+          playingIdRef.current = null;
           setPlayingSongId(null);
-          try {
-            sound.unloadAsync();
-          } catch {}
-          if (soundRef.current === sound) {
+          try { newSound.unloadAsync(); } catch {}
+          if (soundRef.current === newSound) {
             soundRef.current = null;
           }
         }
       });
     } catch (error) {
       console.error('Failed to play preview:', error);
+      playingIdRef.current = null;
       setPlayingSongId(null);
       soundRef.current = null;
     }
