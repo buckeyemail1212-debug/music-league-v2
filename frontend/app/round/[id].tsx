@@ -25,6 +25,7 @@ import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import { useAuth } from '../../src/context/AuthContext';
+import { PreviewPlayButton, stopAllPreviews } from '../../src/components/PreviewPlayButton';
 import {
   getRound,
   getSubmissions,
@@ -59,10 +60,7 @@ export default function RoundScreen() {
   const [submitting, setSubmitting] = useState(false);
   const searchTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  // Audio playback
-  const [playingSongId, setPlayingSongId] = useState<number | null>(null);
-  const soundRef = useRef<Audio.Sound | null>(null);
-  const playingIdRef = useRef<number | null>(null);
+  // Audio playback - handled by PreviewPlayButton component
 
   // Voting
   const [rankings, setRankings] = useState<string[]>([]);
@@ -88,18 +86,8 @@ export default function RoundScreen() {
   const userSubmission = submissions.find(s => s.user_id === user?.id) || null;
 
   useEffect(() => {
-    // Configure audio mode
-    Audio.setAudioModeAsync({
-      allowsRecordingIOS: false,
-      playsInSilentModeIOS: true,
-      staysActiveInBackground: false,
-      shouldDuckAndroid: true,
-    });
-
     return () => {
-      if (soundRef.current) {
-        soundRef.current.unloadAsync();
-      }
+      stopAllPreviews();
     };
   }, []);
 
@@ -107,16 +95,7 @@ export default function RoundScreen() {
   useFocusEffect(
     useCallback(() => {
       return () => {
-        // Cleanup when screen loses focus
-        try {
-          if (soundRef.current) {
-            soundRef.current.stopAsync().catch(() => {});
-            soundRef.current.unloadAsync().catch(() => {});
-            soundRef.current = null;
-          }
-          playingIdRef.current = null;
-          setPlayingSongId(null);
-        } catch {}
+        stopAllPreviews();
       };
     }, [])
   );
@@ -295,62 +274,6 @@ export default function RoundScreen() {
         setSearching(false);
       }
     }, 500);
-  };
-
-  const playPreview = async (song: Song) => {
-    try {
-      // Always stop and fully unload any existing sound first
-      if (soundRef.current) {
-        try { await soundRef.current.stopAsync(); } catch {}
-        try { await soundRef.current.unloadAsync(); } catch {}
-        soundRef.current = null;
-      }
-
-      // Use ref for toggle check (avoids stale closure issue with state)
-      if (playingIdRef.current === song.deezer_id) {
-        // Same song tapped while playing - just stop
-        playingIdRef.current = null;
-        setPlayingSongId(null);
-        return;
-      }
-
-      // Clear state
-      playingIdRef.current = null;
-      setPlayingSongId(null);
-
-      // Re-initialize audio mode every time to prevent iOS audio session loss
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: false,
-      });
-
-      // Always create a completely fresh sound instance
-      const { sound: newSound } = await Audio.Sound.createAsync(
-        { uri: song.preview_url },
-        { shouldPlay: true, positionMillis: 0 }
-      );
-      soundRef.current = newSound;
-      playingIdRef.current = song.deezer_id;
-      setPlayingSongId(song.deezer_id);
-
-      newSound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded && status.didJustFinish) {
-          // Song finished - clean up so next press works
-          playingIdRef.current = null;
-          setPlayingSongId(null);
-          try { newSound.unloadAsync(); } catch {}
-          if (soundRef.current === newSound) {
-            soundRef.current = null;
-          }
-        }
-      });
-    } catch (error) {
-      console.error('Failed to play preview:', error);
-      playingIdRef.current = null;
-      setPlayingSongId(null);
-      soundRef.current = null;
-    }
   };
 
   const handleSubmitSong = async (song: Song, locked: boolean = false) => {
@@ -551,17 +474,11 @@ export default function RoundScreen() {
           )}
         </View>
         <View style={styles.submissionActions}>
-          <Pressable
-            style={[styles.playButton, playingSongId === item.song.deezer_id && styles.playingButton]}
-            onPress={() => playPreview(item.song)}
-            hitSlop={12}
-          >
-            <Ionicons
-              name={playingSongId === item.song.deezer_id ? 'pause' : 'play'}
-              size={20}
-              color={playingSongId === item.song.deezer_id ? '#fff' : '#212F36'}
-            />
-          </Pressable>
+          <PreviewPlayButton
+            previewUrl={item.song.preview_url}
+            songId={`sub-${item.song.deezer_id}`}
+            size={20}
+          />
           <View style={styles.serviceButtonsSmall}>
             <Pressable
               style={[styles.serviceButtonSmall, { backgroundColor: '#1DB954' }]}
@@ -593,9 +510,8 @@ export default function RoundScreen() {
     return n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th';
   };
 
-  // Separate render for locked rankings - uses Pressable for reliable touch on iOS
+  // Separate render for locked rankings - uses PreviewPlayButton component
   const renderLockedRankItem = (submission: Submission, rank: number) => {
-    const isPlaying = playingSongId === submission.song.deezer_id;
     return (
       <View key={submission.id} style={styles.votingCard}>
         <Image source={{ uri: submission.song.cover_url }} style={styles.albumCoverSmall} />
@@ -614,17 +530,10 @@ export default function RoundScreen() {
             </Pressable>
           </View>
         </View>
-        <Pressable
-          style={[styles.playButtonSmall, isPlaying && styles.playingButton]}
-          onPress={() => playPreview(submission.song)}
-          hitSlop={12}
-        >
-          <Ionicons
-            name={isPlaying ? 'pause' : 'play'}
-            size={16}
-            color="#fff"
-          />
-        </Pressable>
+        <PreviewPlayButton
+          previewUrl={submission.song.preview_url}
+          songId={`locked-${submission.song.deezer_id}`}
+        />
         <View style={styles.rankBadgeVoted}>
           <Text style={styles.rankNumberVoted}>{rank}{getRankSuffix(rank)}</Text>
         </View>
@@ -658,17 +567,10 @@ export default function RoundScreen() {
           </View>
         </View>
         <View style={styles.votingActions}>
-          <Pressable
-            style={[styles.playButtonSmall, playingSongId === submission.song.deezer_id && styles.playingButton]}
-            onPress={() => playPreview(submission.song)}
-            hitSlop={12}
-          >
-            <Ionicons
-              name={playingSongId === submission.song.deezer_id ? 'pause' : 'play'}
-              size={16}
-              color="#fff"
-            />
-          </Pressable>
+          <PreviewPlayButton
+            previewUrl={submission.song.preview_url}
+            songId={`vote-${submission.song.deezer_id}`}
+          />
         </View>
         {!round?.has_user_voted && (
           <View style={styles.rankDropdownContainer}>
@@ -760,17 +662,10 @@ export default function RoundScreen() {
             </Pressable>
           </View>
         </View>
-        <Pressable
-          style={[styles.playButtonSmall, playingSongId === item.song.deezer_id && styles.playingButton]}
-          onPress={() => playPreview(item.song)}
-          hitSlop={12}
-        >
-          <Ionicons
-            name={playingSongId === item.song.deezer_id ? 'pause' : 'play'}
-            size={16}
-            color={playingSongId === item.song.deezer_id ? '#fff' : '#212F36'}
-          />
-        </Pressable>
+        <PreviewPlayButton
+          previewUrl={item.song.preview_url}
+          songId={`result-${item.song.deezer_id}`}
+        />
         <View style={styles.pointsBadge}>
           <Text style={styles.pointsText}>{item.points} pts</Text>
         </View>
@@ -920,17 +815,11 @@ export default function RoundScreen() {
                       </Pressable>
                     </View>
                   </View>
-                  <Pressable
-                    style={[styles.playButton, playingSongId === sub.song.deezer_id && styles.playingButton]}
-                    onPress={() => playPreview(sub.song)}
-                    hitSlop={12}
-                  >
-                    <Ionicons 
-                      name={playingSongId === sub.song.deezer_id ? 'pause' : 'play'} 
-                      size={20} 
-                      color={playingSongId === sub.song.deezer_id ? '#fff' : '#212F36'}
-                    />
-                  </Pressable>
+                  <PreviewPlayButton
+                    previewUrl={sub.song.preview_url}
+                    songId={`mysub-${sub.song.deezer_id}`}
+                    size={20}
+                  />
                 </View>
               ))}
 
@@ -1123,17 +1012,12 @@ export default function RoundScreen() {
                           <Text style={styles.winnerSong}>{winner.song.title}</Text>
                           <Text style={styles.winnerUser}>by {winner.username}</Text>
                         </View>
-                        <Pressable
-                          style={[styles.playButtonWinner, playingSongId === winner.song.deezer_id && styles.playingButton]}
-                          onPress={() => playPreview(winner.song)}
-                          hitSlop={12}
-                        >
-                          <Ionicons
-                            name={playingSongId === winner.song.deezer_id ? 'pause' : 'play'}
-                            size={14}
-                            color={playingSongId === winner.song.deezer_id ? '#fff' : '#212F36'}
-                          />
-                        </Pressable>
+                        <PreviewPlayButton
+                          previewUrl={winner.song.preview_url}
+                          songId={`winner-${winner.song.deezer_id}`}
+                          size={14}
+                          style={styles.playButtonWinner}
+                        />
                       </View>
                     </View>
                   ))
@@ -1143,17 +1027,12 @@ export default function RoundScreen() {
                       <Text style={styles.winnerSong}>{results.winners[0].song.title}</Text>
                       <Text style={styles.winnerUser}>by {results.winners[0].username}</Text>
                     </View>
-                    <Pressable
-                      style={[styles.playButtonWinner, playingSongId === results.winners[0].song.deezer_id && styles.playingButton]}
-                      onPress={() => playPreview(results.winners[0].song)}
-                      hitSlop={12}
-                    >
-                      <Ionicons
-                        name={playingSongId === results.winners[0].song.deezer_id ? 'pause' : 'play'}
-                        size={14}
-                        color={playingSongId === results.winners[0].song.deezer_id ? '#fff' : '#212F36'}
-                      />
-                    </Pressable>
+                    <PreviewPlayButton
+                      previewUrl={results.winners[0].song.preview_url}
+                      songId={`winner-single-${results.winners[0].song.deezer_id}`}
+                      size={14}
+                      style={styles.playButtonWinner}
+                    />
                   </View>
                 )}
               </View>
@@ -1240,17 +1119,10 @@ export default function RoundScreen() {
                     <Text style={styles.duration}>{formatDuration(item.duration)}</Text>
                   </View>
                   <View style={styles.searchResultActions}>
-                    <Pressable
-                      style={[styles.playButtonSmall, playingSongId === item.deezer_id && styles.playingButton]}
-                      onPress={() => playPreview(item)}
-                      hitSlop={12}
-                    >
-                      <Ionicons
-                        name={playingSongId === item.deezer_id ? 'pause' : 'play'}
-                        size={16}
-                        color={playingSongId === item.deezer_id ? '#fff' : '#212F36'}
-                      />
-                    </Pressable>
+                    <PreviewPlayButton
+                      previewUrl={item.preview_url}
+                      songId={`search-${item.deezer_id}`}
+                    />
                     <View style={styles.serviceButtonsSmall}>
                       <Pressable
                         style={[styles.serviceButtonSmall, { backgroundColor: '#1DB954' }]}

@@ -15,32 +15,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import { useFocusEffect } from 'expo-router';
+import { PreviewPlayButton, stopAllPreviews } from '../../src/components/PreviewPlayButton';
 import { searchSongs, Song } from '../../src/services/api';
 
 export default function DiscoveryScreen() {
   const [query, setQuery] = useState('');
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(false);
-  const [playingSongId, setPlayingSongId] = useState<number | null>(null);
-  const soundRef = useRef<Audio.Sound | null>(null);
-  const playingIdRef = useRef<number | null>(null);
   const searchTimeout = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    Audio.setAudioModeAsync({
-      allowsRecordingIOS: false,
-      playsInSilentModeIOS: true,
-      staysActiveInBackground: false,
-      shouldDuckAndroid: true,
-    });
-
     return () => {
-      if (soundRef.current) {
-        soundRef.current.stopAsync().catch(() => {});
-        soundRef.current.unloadAsync().catch(() => {});
-        soundRef.current = null;
-      }
-      playingIdRef.current = null;
+      stopAllPreviews();
     };
   }, []);
 
@@ -48,28 +34,10 @@ export default function DiscoveryScreen() {
   useFocusEffect(
     useCallback(() => {
       return () => {
-        try {
-          if (soundRef.current) {
-            soundRef.current.stopAsync().catch(() => {});
-            soundRef.current.unloadAsync().catch(() => {});
-            soundRef.current = null;
-          }
-          playingIdRef.current = null;
-          setPlayingSongId(null);
-        } catch {}
+        stopAllPreviews();
       };
     }, [])
   );
-
-  const stopAudio = async () => {
-    if (soundRef.current) {
-      await soundRef.current.stopAsync();
-      await soundRef.current.unloadAsync();
-      soundRef.current = null;
-    }
-    playingIdRef.current = null;
-    setPlayingSongId(null);
-  };
 
   const handleSearch = async (text: string) => {
     setQuery(text);
@@ -80,7 +48,7 @@ export default function DiscoveryScreen() {
 
     if (text.length < 2) {
       setSongs([]);
-      stopAudio();
+      stopAllPreviews();
       return;
     }
 
@@ -95,60 +63,6 @@ export default function DiscoveryScreen() {
         setLoading(false);
       }
     }, 500);
-  };
-
-  const playPreview = async (song: Song) => {
-    try {
-      // Always stop and fully unload any existing sound first
-      if (soundRef.current) {
-        try { await soundRef.current.stopAsync(); } catch {}
-        try { await soundRef.current.unloadAsync(); } catch {}
-        soundRef.current = null;
-      }
-
-      // Use ref for toggle check (avoids stale closure issue)
-      if (playingIdRef.current === song.deezer_id) {
-        playingIdRef.current = null;
-        setPlayingSongId(null);
-        return;
-      }
-
-      // Clear state
-      playingIdRef.current = null;
-      setPlayingSongId(null);
-
-      // Re-initialize audio mode every time to prevent iOS audio session loss
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: false,
-      });
-
-      // Always create a completely fresh sound instance
-      const { sound: newSound } = await Audio.Sound.createAsync(
-        { uri: song.preview_url },
-        { shouldPlay: true, positionMillis: 0 }
-      );
-      soundRef.current = newSound;
-      playingIdRef.current = song.deezer_id;
-      setPlayingSongId(song.deezer_id);
-
-      newSound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded && status.didJustFinish) {
-          playingIdRef.current = null;
-          setPlayingSongId(null);
-          try { newSound.unloadAsync(); } catch {}
-          if (soundRef.current === newSound) {
-            soundRef.current = null;
-          }
-        }
-      });
-    } catch (error) {
-      console.error('Failed to play preview:', error);
-      playingIdRef.current = null;
-      setPlayingSongId(null);
-      soundRef.current = null;
-    }
   };
 
   const openInService = (song: Song, service: 'spotify' | 'apple' | 'youtube') => {
@@ -186,17 +100,11 @@ export default function DiscoveryScreen() {
         <Text style={styles.duration}>{formatDuration(item.duration)}</Text>
       </View>
       <View style={styles.songActions}>
-        <Pressable
-          style={[styles.playButton, playingSongId === item.deezer_id && styles.playingButton]}
-          onPress={() => playPreview(item)}
-          hitSlop={12}
-        >
-          <Ionicons
-            name={playingSongId === item.deezer_id ? 'pause' : 'play'}
-            size={24}
-            color="#fff"
-          />
-        </Pressable>
+        <PreviewPlayButton
+          previewUrl={item.preview_url}
+          songId={`disc-${item.deezer_id}`}
+          size={24}
+        />
         <View style={styles.serviceButtons}>
           <Pressable
             style={[styles.serviceButton, { backgroundColor: '#1DB954' }]}
