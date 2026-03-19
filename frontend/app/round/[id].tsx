@@ -476,6 +476,7 @@ export default function RoundScreen() {
         <View style={styles.submissionActions}>
           <PreviewPlayButton
             previewUrl={item.song.preview_url}
+            deezerId={item.song.deezer_id}
             songId={`sub-${item.song.deezer_id}`}
             size={20}
           />
@@ -532,6 +533,7 @@ export default function RoundScreen() {
         </View>
         <PreviewPlayButton
           previewUrl={submission.song.preview_url}
+          deezerId={submission.song.deezer_id}
           songId={`locked-${submission.song.deezer_id}`}
         />
         <View style={styles.rankBadgeVoted}>
@@ -569,6 +571,7 @@ export default function RoundScreen() {
         <View style={styles.votingActions}>
           <PreviewPlayButton
             previewUrl={submission.song.preview_url}
+            deezerId={submission.song.deezer_id}
             songId={`vote-${submission.song.deezer_id}`}
           />
         </View>
@@ -664,6 +667,7 @@ export default function RoundScreen() {
         </View>
         <PreviewPlayButton
           previewUrl={item.song.preview_url}
+          deezerId={item.song.deezer_id}
           songId={`result-${item.song.deezer_id}`}
         />
         <View style={styles.pointsBadge}>
@@ -817,6 +821,7 @@ export default function RoundScreen() {
                   </View>
                   <PreviewPlayButton
                     previewUrl={sub.song.preview_url}
+                    deezerId={sub.song.deezer_id}
                     songId={`mysub-${sub.song.deezer_id}`}
                     size={20}
                   />
@@ -1014,6 +1019,7 @@ export default function RoundScreen() {
                         </View>
                         <PreviewPlayButton
                           previewUrl={winner.song.preview_url}
+                          deezerId={winner.song.deezer_id}
                           songId={`winner-${winner.song.deezer_id}`}
                           size={14}
                           style={styles.playButtonWinner}
@@ -1029,6 +1035,7 @@ export default function RoundScreen() {
                     </View>
                     <PreviewPlayButton
                       previewUrl={results.winners[0].song.preview_url}
+                      deezerId={results.winners[0].song.deezer_id}
                       songId={`winner-single-${results.winners[0].song.deezer_id}`}
                       size={14}
                       style={styles.playButtonWinner}
@@ -1121,6 +1128,7 @@ export default function RoundScreen() {
                   <View style={styles.searchResultActions}>
                     <PreviewPlayButton
                       previewUrl={item.preview_url}
+                      deezerId={item.deezer_id}
                       songId={`search-${item.deezer_id}`}
                     />
                     <View style={styles.serviceButtonsSmall}>

@@ -102,6 +102,7 @@ export default function DiscoveryScreen() {
       <View style={styles.songActions}>
         <PreviewPlayButton
           previewUrl={item.preview_url}
+          deezerId={item.deezer_id}
           songId={`disc-${item.deezer_id}`}
           size={24}
         />
