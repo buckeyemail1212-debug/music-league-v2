@@ -3,7 +3,71 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
+from motor.motor_asyncio import AsyncIO
+
+# ==================== FRIENDS ENDPOINTS ====================
+
+@api_router.post("/users/friend-request/{user_id}")
+async def send_friend_request(user_id: str, current_user: dict = Depends(get_current_user)):
+    from datetime import datetime
+    if user_id == current_user["id"]:
+        raise HTTPException(status_code=400, detail="Cannot add yourself")
+    existing = await db.friend_requests.find_one({"from_user_id": current_user["id"], "to_user_id": user_id, "status": "pending"})
+    if existing:
+        return {"message": "Request already sent"}
+    reverse = await db.friend_requests.find_one({"from_user_id": user_id, "to_user_id": current_user["id"], "status": "pending"})
+    if reverse:
+        await db.friend_requests.update_one({"_id": reverse["_id"]}, {"$set": {"status": "accepted"}})
+        return {"message": "Auto-accepted"}
+    await db.friend_requests.insert_one({"id": str(__import__("uuid").uuid4()), "from_user_id": current_user["id"], "to_user_id": user_id, "status": "pending", "created_at": datetime.utcnow().isoformat()})
+    return {"message": "Friend request sent"}
+
+@api_router.post("/users/friend-request/{request_id}/accept")
+async def accept_friend_request(request_id: str, current_user: dict = Depends(get_current_user)):
+    req = await db.friend_requests.find_one({"id": request_id, "to_user_id": current_user["id"]})
+    if not req:
+        raise HTTPException(status_code=404, detail="Not found")
+    await db.friend_requests.update_one({"id": request_id}, {"$set": {"status": "accepted"}})
+    return {"message": "Accepted"}
+
+@api_router.post("/users/friend-request/{request_id}/decline")
+async def decline_friend_request(request_id: str, current_user: dict = Depends(get_current_user)):
+    req = await db.friend_requests.find_one({"id": request_id, "to_user_id": current_user["id"]})
+    if not req:
+        raise HTTPException(status_code=404, detail="Not found")
+    await db.friend_requests.update_one({"id": request_id}, {"$set": {"status": "declined"}})
+    return {"message": "Declined"}
+
+@api_router.get("/users/me/friends")
+async def get_friends(current_user: dict = Depends(get_current_user)):
+    reqs = await db.friend_requests.find({"status": "accepted", "$or": [{"from_user_id": current_user["id"]}, {"to_user_id": current_user["id"]}]}).to_list(None)
+    friend_ids = [r["to_user_id"] if r["from_user_id"] == current_user["id"] else r["from_user_id"] for r in reqs]
+    friends = []
+    for fid in friend_ids:
+        user = await db.users.find_one({"id": fid}, {"password": 0})
+        if user:
+            user["_id"] = str(user["_id"])
+            friends.append(user)
+    return {"friends": friends, "count": len(friends)}
+
+@api_router.get("/users/me/friend-requests")
+async def get_friend_requests(current_user: dict = Depends(get_current_user)):
+    reqs = await db.friend_requests.find({"to_user_id": current_user["id"], "status": "pending"}).to_list(None)
+    result = []
+    for r in reqs:
+        r["_id"] = str(r["_id"])
+        user = await db.users.find_one({"id": r["from_user_id"]}, {"password": 0})
+        if user:
+            user["_id"] = str(user["_id"])
+            r["from_user"] = user
+        result.append(r)
+    return {"requests": result, "count": len(result)}
+
+@api_router.get("/users/me/friend-requests/sent")
+async def get_sent_requests(current_user: dict = Depends(get_current_user)):
+    reqs = await db.friend_requests.find({"from_user_id": current_user["id"], "status": "pending"}).to_list(None)
+    return {"sent_to_user_ids": [r["to_user_id"] for r in reqs]}
+MotorClient
 import os
 import logging
 import json
