@@ -1842,7 +1842,7 @@ def _fetch_billboard_chart_sync(chart_name: str, limit: int = 30) -> list:
 async def get_chart_top():
     """Hot 100 — billboard chart: hot-100"""
     try:
-        songs = await asyncio.to_thread(_fetch_billboard_chart_sync, "hot-100")
+        songs = await get_chart_from_db("hot-100")
         return {"data": songs}
     except Exception as e:
         logger.error(f"Billboard hot-100 error: {type(e).__name__}: {e}")
@@ -1853,7 +1853,7 @@ async def get_chart_top():
 async def get_chart_pop():
     """Pop songs — billboard chart: pop-songs"""
     try:
-        songs = await asyncio.to_thread(_fetch_billboard_chart_sync, "pop-songs")
+        songs = await get_chart_from_db("pop-songs")
         return {"data": songs}
     except Exception as e:
         logger.error(f"Billboard pop-songs error: {type(e).__name__}: {e}")
@@ -1864,7 +1864,7 @@ async def get_chart_pop():
 async def get_chart_hiphop():
     """Rap songs — billboard chart: rap-song"""
     try:
-        songs = await asyncio.to_thread(_fetch_billboard_chart_sync, "rap-song")
+        songs = await get_chart_from_db("rap-song")
         return {"data": songs}
     except Exception as e:
         logger.error(f"Billboard rap-song error: {type(e).__name__}: {e}")
@@ -1875,7 +1875,7 @@ async def get_chart_hiphop():
 async def get_chart_rnb():
     """R&B/Hip-Hop songs — billboard chart: r-b-hip-hop-songs"""
     try:
-        songs = await asyncio.to_thread(_fetch_billboard_chart_sync, "r-b-hip-hop-songs")
+        songs = await get_chart_from_db("r-b-hip-hop-songs")
         return {"data": songs}
     except Exception as e:
         logger.error(f"Billboard r-b-hip-hop-songs error: {type(e).__name__}: {e}")
@@ -1886,7 +1886,7 @@ async def get_chart_rnb():
 async def get_chart_country():
     """Country songs — billboard chart: country-songs"""
     try:
-        songs = await asyncio.to_thread(_fetch_billboard_chart_sync, "country-songs")
+        songs = await get_chart_from_db("country-songs")
         return {"data": songs}
     except Exception as e:
         logger.error(f"Billboard country-songs error: {type(e).__name__}: {e}")
@@ -1897,7 +1897,7 @@ async def get_chart_country():
 async def get_chart_rock():
     """Rock songs — billboard chart: rock-songs"""
     try:
-        songs = await asyncio.to_thread(_fetch_billboard_chart_sync, "rock-songs")
+        songs = await get_chart_from_db("rock-songs")
         return {"data": songs}
     except Exception as e:
         logger.error(f"Billboard rock-songs error: {type(e).__name__}: {e}")
@@ -1908,7 +1908,7 @@ async def get_chart_rock():
 async def get_chart_electronic():
     """Dance/Electronic songs — billboard chart: dance-electronic-songs"""
     try:
-        songs = await asyncio.to_thread(_fetch_billboard_chart_sync, "dance-electronic-songs")
+        songs = await get_chart_from_db("dance-electronic-songs")
         return {"data": songs}
     except Exception as e:
         logger.error(f"Billboard dance-electronic-songs error: {type(e).__name__}: {e}")
@@ -1919,7 +1919,7 @@ async def get_chart_electronic():
 async def get_chart_indie():
     """Alternative songs — billboard chart: alternative-songs"""
     try:
-        songs = await asyncio.to_thread(_fetch_billboard_chart_sync, "alternative-songs")
+        songs = await get_chart_from_db("alternative-songs")
         return {"data": songs}
     except Exception as e:
         logger.error(f"Billboard alternative-songs error: {type(e).__name__}: {e}")
@@ -2065,3 +2065,55 @@ async def warm_chart_cache():
             except Exception as e:
                 logger.warning(f"Chart cache warm failed for {chart}: {e}")
     asyncio.create_task(warm())
+
+
+# ── Chart database cache (MongoDB-backed, background refresh) ─────────────────
+
+CHART_NAMES = [
+    "hot-100",
+    "pop-songs", 
+    "rap-song",
+    "r-b-hip-hop-songs",
+    "country-songs",
+    "rock-songs",
+    "dance-electronic-songs",
+    "adult-alternative-songs",
+]
+
+async def refresh_charts_to_db():
+    """Fetch all Billboard charts and store in MongoDB."""
+    for chart_name in CHART_NAMES:
+        try:
+            songs = await asyncio.to_thread(_fetch_billboard_chart_sync, chart_name)
+            await db.chart_cache.update_one(
+                {"chart_name": chart_name},
+                {"$set": {"chart_name": chart_name, "songs": songs, "updated_at": time.time()}},
+                upsert=True,
+            )
+            logger.info(f"Chart saved to DB: {chart_name} ({len(songs)} songs)")
+        except Exception as e:
+            logger.warning(f"Chart DB refresh failed for {chart_name}: {e}")
+
+async def chart_refresh_loop():
+    """Background loop: refresh charts every 6 hours."""
+    while True:
+        await refresh_charts_to_db()
+        await asyncio.sleep(6 * 60 * 60)
+
+@app.on_event("startup")
+async def start_chart_refresh_loop():
+    asyncio.create_task(chart_refresh_loop())
+
+async def get_chart_from_db(chart_name: str) -> list:
+    """Read chart from MongoDB. Falls back to live fetch if not yet cached."""
+    doc = await db.chart_cache.find_one({"chart_name": chart_name})
+    if doc and doc.get("songs"):
+        return doc["songs"]
+    # Not in DB yet — fetch live and store
+    songs = await asyncio.to_thread(_fetch_billboard_chart_sync, chart_name)
+    await db.chart_cache.update_one(
+        {"chart_name": chart_name},
+        {"$set": {"chart_name": chart_name, "songs": songs, "updated_at": time.time()}},
+        upsert=True,
+    )
+    return songs
