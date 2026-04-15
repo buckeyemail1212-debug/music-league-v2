@@ -2051,3 +2051,17 @@ app.add_middleware(
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+
+
+@app.on_event("startup")
+async def warm_chart_cache():
+    """Pre-warm all Billboard chart caches on server startup so users never hit a cold cache."""
+    charts = ["hot-100", "pop-songs", "rap-song", "r-b-hip-hop-songs", "country-songs", "rock-songs", "dance-electronic-songs", "adult-alternative-songs"]
+    async def warm():
+        for chart in charts:
+            try:
+                await asyncio.to_thread(_fetch_billboard_chart_sync, chart)
+                logger.info(f"Chart cache warmed: {chart}")
+            except Exception as e:
+                logger.warning(f"Chart cache warm failed for {chart}: {e}")
+    asyncio.create_task(warm())
