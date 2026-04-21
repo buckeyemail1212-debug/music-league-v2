@@ -61,6 +61,184 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# ==================== LIFETIME STATS + TASTE CATEGORIZATION ====================
+#
+# Running counters live on the user document and never decrease when a league
+# is deleted. A durable ``user_submissions`` collection mirrors every song a
+# user has ever submitted together with its resolved genre category so the
+# profile "Your Taste" breakdown is based on lifetime history independent of
+# active/deleted leagues.
+
+TASTE_CATEGORIES = ["Pop", "Hip-Hop", "R&B", "Country", "Rock", "Electronic", "Indie", "Other"]
+
+# Map Deezer genre ids (https://api.deezer.com/genre) to our 8 categories.
+_DEEZER_GENRE_TO_CATEGORY: dict[int, str] = {
+    132: "Pop",
+    116: "Hip-Hop",
+    152: "Rock",
+    464: "Rock",
+    165: "R&B",
+    169: "R&B",
+    197: "R&B",
+    113: "Electronic",
+    106: "Electronic",
+    84:  "Country",
+    85:  "Indie",
+    153: "Other",  # Blues
+    129: "Other",  # Jazz
+    144: "Other",  # Reggae
+    173: "Other",  # Films/Games
+    219: "Other",  # Asian Music
+    466: "Other",  # Latin
+    753: "Other",  # Folk
+}
+
+_genre_cache: dict[int, str] = {}  # deezer_id -> category
+
+
+def _categorize_by_genre_id(genre_id: int) -> str:
+    if genre_id is None:
+        return "Other"
+    return _DEEZER_GENRE_TO_CATEGORY.get(int(genre_id), "Other")
+
+
+def _fetch_song_category(deezer_id) -> str:
+    """Best-effort lookup of a song's category from Deezer. Falls back to
+    "Other" when the call fails. Runs synchronously — callers should wrap in
+    ``asyncio.to_thread``.
+    """
+    if not deezer_id:
+        return "Other"
+    try:
+        did = int(deezer_id)
+    except (TypeError, ValueError):
+        return "Other"
+    if did in _genre_cache:
+        return _genre_cache[did]
+    try:
+        r = _requests.get(f"https://api.deezer.com/track/{did}", timeout=6)
+        data = r.json() or {}
+        genre_id = (data.get("album") or {}).get("genre_id")
+        if genre_id is None or int(genre_id) <= 0:
+            cat = "Other"
+        else:
+            cat = _categorize_by_genre_id(genre_id)
+    except Exception as e:
+        logger.debug(f"Deezer genre lookup failed for {did}: {e}")
+        cat = "Other"
+    _genre_cache[did] = cat
+    return cat
+
+
+async def _record_user_submission(current_user: dict, round_doc: dict, submission: dict, league_doc: dict | None = None):
+    """Insert or update the permanent user_submissions record for a submission.
+
+    This collection is never purged when leagues are soft-deleted, so the
+    profile "Your Taste" breakdown reflects true lifetime history.
+    """
+    song = submission.get("song") or {}
+    category = await asyncio.to_thread(_fetch_song_category, song.get("deezer_id"))
+    if league_doc is None:
+        league_doc = await db.leagues.find_one({"id": round_doc["league_id"]})
+
+    record = {
+        "submission_id": submission["id"],
+        "user_id": current_user["id"],
+        "username": current_user.get("username", ""),
+        "song": song,
+        "genre": category,
+        "league_id": round_doc.get("league_id"),
+        "league_name": (league_doc or {}).get("name", ""),
+        "round_id": round_doc["id"],
+        "round_number": round_doc.get("round_number"),
+        "round_theme": round_doc.get("theme"),
+        "points": None,
+        "submitted_at": submission.get("submitted_at") or datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc),
+    }
+    await db.user_submissions.update_one(
+        {"submission_id": submission["id"]},
+        {"$set": record,
+         "$setOnInsert": {"finalized": False, "created_at": datetime.now(timezone.utc)}},
+        upsert=True,
+    )
+
+
+async def _finalize_round_lifetime(round_id: str):
+    """Update lifetime counters on every submitter's user doc once a round is
+    marked completed. Idempotent via a round-level ``stats_finalized`` flag so
+    repeat advance_round calls or auto-complete sweeps don't double-count.
+    """
+    round_doc = await db.rounds.find_one({"id": round_id})
+    if not round_doc or round_doc.get("status") != "completed":
+        return
+    if round_doc.get("stats_finalized"):
+        return
+
+    submissions = await db.submissions.find({"round_id": round_id}).to_list(200)
+    if not submissions:
+        await db.rounds.update_one({"id": round_id}, {"$set": {"stats_finalized": True}})
+        return
+    votes = await db.votes.find({"round_id": round_id}).to_list(500)
+
+    num_submissions = len(submissions)
+    num_to_rank = max(0, num_submissions - 1)
+    points: dict[str, int] = {s["id"]: 0 for s in submissions}
+    sub_owners = {s["id"]: s["user_id"] for s in submissions}
+
+    voters_who_voted = set()
+    for v in votes:
+        voters_who_voted.add(v.get("voter_id"))
+        for idx, sid in enumerate(v.get("rankings", [])):
+            if sid in points:
+                points[sid] += (num_to_rank - idx)
+
+    submitter_ids = set(sub_owners.values())
+    non_voters = submitter_ids - voters_who_voted
+    if non_voters and num_submissions > 1:
+        total_per_voter = sum(range(1, num_to_rank + 1))
+        for nv_id in non_voters:
+            nv_sub_id = next((s["id"] for s in submissions if s["user_id"] == nv_id), None)
+            other_subs = [s["id"] for s in submissions if s["id"] != nv_sub_id]
+            if other_subs:
+                base = total_per_voter // len(other_subs)
+                rem = total_per_voter % len(other_subs)
+                for sid in other_subs:
+                    points[sid] += base
+                for i in range(rem):
+                    points[other_subs[i]] += 1
+
+    max_points = max(points.values()) if points else 0
+    league_doc = await db.leagues.find_one({"id": round_doc["league_id"]})
+    for sub in submissions:
+        uid = sub["user_id"]
+        pts = points.get(sub["id"], 0)
+        won = (max_points > 0 and pts == max_points)
+
+        inc = {"all_time_points": int(pts)}
+        if won:
+            inc["total_wins"] = 1
+        await db.users.update_one({"id": uid}, {"$inc": inc})
+
+        # Backfill user_submissions row if it's missing (legacy data) then
+        # stamp final points so the taste/stats aggregations stay coherent.
+        existing = await db.user_submissions.find_one({"submission_id": sub["id"]})
+        if not existing:
+            user_doc = await db.users.find_one({"id": uid})
+            await _record_user_submission(
+                {"id": uid, "username": (user_doc or {}).get("username", sub.get("username", ""))},
+                round_doc,
+                sub,
+                league_doc,
+            )
+        await db.user_submissions.update_one(
+            {"submission_id": sub["id"]},
+            {"$set": {"points": int(pts), "finalized": True, "updated_at": datetime.now(timezone.utc)}},
+        )
+
+    await db.rounds.update_one({"id": round_id}, {"$set": {"stats_finalized": True}})
+
+
 # ==================== MODELS ====================
 
 class UserCreate(BaseModel):
@@ -585,7 +763,10 @@ async def get_user_stats(current_user: dict = Depends(get_current_user)):
     user_id = current_user["id"]
     
     # Get leagues count
-    leagues_count = await db.leagues.count_documents({"members.id": user_id})
+    leagues_count = await db.leagues.count_documents({
+        "members.id": user_id,
+        "$or": [{"deleted_at": {"$exists": False}}, {"deleted_at": None}],
+    })
     
     # Get all submissions by user
     submissions = await db.submissions.find({"user_id": user_id}).to_list(1000)
@@ -683,6 +864,119 @@ async def get_user_stats(current_user: dict = Depends(get_current_user)):
         "win_rate": win_rate,
         "leagues_count": leagues_count
     }
+
+@api_router.get("/auth/lifetime-stats")
+async def get_lifetime_stats(current_user: dict = Depends(get_current_user)):
+    """Return lifetime running counters for the current user.
+
+    These are never decremented when a league is deleted — the user doc keeps
+    the historical totals. As a safety net, this endpoint also back-fills any
+    completed rounds whose stats haven't been finalized yet (legacy data).
+    """
+    user_id = current_user["id"]
+
+    # Back-fill: finalize any completed rounds the user submitted in that
+    # still need lifetime accounting.
+    my_subs = await db.submissions.find({"user_id": user_id}, {"_id": 0, "round_id": 1}).to_list(1000)
+    round_ids = list({s["round_id"] for s in my_subs})
+    if round_ids:
+        pending = await db.rounds.find(
+            {
+                "id": {"$in": round_ids},
+                "status": "completed",
+                "$or": [{"stats_finalized": {"$exists": False}}, {"stats_finalized": False}],
+            },
+            {"_id": 0, "id": 1},
+        ).to_list(1000)
+        for r in pending:
+            try:
+                await _finalize_round_lifetime(r["id"])
+            except Exception as e:
+                logger.warning(f"back-fill finalize failed for round {r['id']}: {e}")
+
+    # Ensure total_submissions matches actual count at minimum (max-only).
+    actual_subs = await db.user_submissions.count_documents({"user_id": user_id})
+    user_doc = await db.users.find_one({"id": user_id}) or {}
+    all_time_points = int(user_doc.get("all_time_points", 0))
+    total_wins = int(user_doc.get("total_wins", 0))
+    total_submissions = max(int(user_doc.get("total_submissions", 0)), actual_subs)
+    if total_submissions != user_doc.get("total_submissions"):
+        await db.users.update_one(
+            {"id": user_id},
+            {"$set": {"total_submissions": total_submissions}},
+        )
+
+    return {
+        "all_time_points": all_time_points,
+        "total_wins": total_wins,
+        "total_submissions": total_submissions,
+    }
+
+
+@api_router.get("/auth/weekly-points")
+async def get_weekly_points(current_user: dict = Depends(get_current_user)):
+    """Return points the user has earned from rounds finalized in the last 7
+    days. This is sourced from ``user_submissions`` (not live leagues), so
+    deleting a league does not hide recent earnings.
+    """
+    user_id = current_user["id"]
+    cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+    rows = await db.user_submissions.find(
+        {
+            "user_id": user_id,
+            "finalized": True,
+            "updated_at": {"$gte": cutoff},
+        },
+        {"_id": 0, "points": 1},
+    ).to_list(2000)
+    total = sum(int(r.get("points") or 0) for r in rows)
+    return {"weekly_points": total}
+
+
+@api_router.get("/auth/taste")
+async def get_user_taste(current_user: dict = Depends(get_current_user)):
+    """Return the current user's all-time genre breakdown as percentages.
+
+    Top 5 genres are returned individually; anything beyond the top 5 (plus
+    existing "Other" entries) are rolled up into a single "Other" bucket.
+    """
+    user_id = current_user["id"]
+    rows = await db.user_submissions.find(
+        {"user_id": user_id},
+        {"_id": 0, "genre": 1, "song": 1},
+    ).to_list(5000)
+
+    counts: dict[str, int] = {c: 0 for c in TASTE_CATEGORIES}
+    for r in rows:
+        cat = r.get("genre")
+        if cat not in counts:
+            cat = "Other"
+        counts[cat] += 1
+
+    total = sum(counts.values())
+    if total == 0:
+        return {"total": 0, "breakdown": []}
+
+    # Split "Other" aside, rank the real genres by count, take the top 5,
+    # everything else (plus the existing "Other" bucket) becomes the Other row.
+    other_count = counts.pop("Other", 0)
+    ranked = sorted(
+        [(g, c) for g, c in counts.items() if c > 0],
+        key=lambda x: -x[1],
+    )
+    top = ranked[:5]
+    tail = ranked[5:]
+    other_total = other_count + sum(c for _, c in tail)
+
+    breakdown = [{"genre": g, "count": c, "pct": round(c * 100 / total)} for g, c in top]
+    if other_total > 0:
+        breakdown.append({
+            "genre": "Other",
+            "count": other_total,
+            "pct": round(other_total * 100 / total),
+        })
+    return {"total": total, "breakdown": breakdown}
+
 
 @api_router.get("/auth/submissions")
 async def get_my_submissions(current_user: dict = Depends(get_current_user)):
@@ -849,7 +1143,13 @@ def add_league_defaults(league: dict) -> dict:
 
 @api_router.get("/leagues", response_model=List[LeagueResponse])
 async def get_user_leagues(current_user: dict = Depends(get_current_user)):
-    leagues = await db.leagues.find({"members.id": current_user["id"]}, {"_id": 0}).to_list(100)
+    leagues = await db.leagues.find(
+        {
+            "members.id": current_user["id"],
+            "$or": [{"deleted_at": {"$exists": False}}, {"deleted_at": None}],
+        },
+        {"_id": 0},
+    ).to_list(100)
     
     # Fetch profile photos for all members
     for league in leagues:
@@ -918,16 +1218,95 @@ async def delete_league(league_id: str, current_user: dict = Depends(get_current
     league = await db.leagues.find_one({"id": league_id})
     if not league:
         raise HTTPException(status_code=404, detail="League not found")
-    
+
     # Only creator can delete
     if league["creator_id"] != current_user["id"]:
         raise HTTPException(status_code=403, detail="Only the league creator can delete the league")
-    
-    # Mark league as deleted but preserve submissions/rounds/votes for stats
-    # We just delete the league document, keeping historical data
-    await db.leagues.delete_one({"id": league_id})
-    
+
+    # Soft-delete: the creator gets a 7-day grace window to restore the
+    # league with all its rounds/submissions/votes intact. A background
+    # purge elsewhere can permanently remove docs whose deleted_at is older
+    # than 7 days.
+    now = datetime.now(timezone.utc)
+    await db.leagues.update_one(
+        {"id": league_id},
+        {"$set": {"deleted_at": now}},
+    )
+
     return {"message": "League deleted successfully"}
+
+
+@api_router.get("/leagues/deleted")
+async def list_recently_deleted_leagues(current_user: dict = Depends(get_current_user)):
+    """Return leagues the current user created that were deleted within the last 7 days."""
+    cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+    leagues = await db.leagues.find(
+        {
+            "creator_id": current_user["id"],
+            "deleted_at": {"$gte": cutoff},
+        },
+        {"_id": 0},
+    ).to_list(100)
+
+    result = []
+    for l in leagues:
+        deleted_at = l.get("deleted_at")
+        expires_at = deleted_at + timedelta(days=7) if deleted_at else None
+        result.append({
+            "id": l["id"],
+            "name": l["name"],
+            "league_code": l.get("league_code"),
+            "league_image": l.get("league_image"),
+            "total_rounds": l.get("total_rounds", 0),
+            "members_count": len(l.get("members", [])),
+            "deleted_at": deleted_at.isoformat() if deleted_at else None,
+            "expires_at": expires_at.isoformat() if expires_at else None,
+        })
+    # Newest deletions first
+    result.sort(key=lambda x: x["deleted_at"] or "", reverse=True)
+    return {"leagues": result}
+
+
+@api_router.post("/leagues/{league_id}/restore", response_model=LeagueResponse)
+async def restore_deleted_league(league_id: str, current_user: dict = Depends(get_current_user)):
+    """Restore a soft-deleted league within the 7-day window. Only the creator can restore."""
+    league = await db.leagues.find_one({"id": league_id})
+    if not league:
+        raise HTTPException(status_code=404, detail="League not found")
+    if league.get("creator_id") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Only the league creator can restore the league")
+    if not league.get("deleted_at"):
+        raise HTTPException(status_code=400, detail="League is not deleted")
+
+    deleted_at = league["deleted_at"]
+    if isinstance(deleted_at, str):
+        deleted_at_dt = datetime.fromisoformat(deleted_at.replace("Z", "+00:00"))
+    else:
+        deleted_at_dt = deleted_at
+    # Ensure timezone-aware
+    if deleted_at_dt.tzinfo is None:
+        deleted_at_dt = deleted_at_dt.replace(tzinfo=timezone.utc)
+
+    if datetime.now(timezone.utc) - deleted_at_dt > timedelta(days=7):
+        raise HTTPException(status_code=410, detail="Restore window expired")
+
+    await db.leagues.update_one(
+        {"id": league_id},
+        {"$unset": {"deleted_at": ""}},
+    )
+
+    restored = await db.leagues.find_one({"id": league_id}, {"_id": 0})
+    # Enrich member profile photos like GET /leagues
+    member_ids = [m["id"] for m in restored.get("members", [])]
+    users = await db.users.find(
+        {"id": {"$in": member_ids}},
+        {"_id": 0, "id": 1, "username": 1, "profile_photo": 1},
+    ).to_list(100)
+    user_map = {u["id"]: u for u in users}
+    for member in restored.get("members", []):
+        member["profile_photo"] = user_map.get(member["id"], {}).get("profile_photo")
+
+    return LeagueResponse(**add_league_defaults(restored))
 
 class LeagueUpdate(BaseModel):
     league_image: Optional[str] = None
@@ -1134,6 +1513,10 @@ async def get_rounds(league_id: str, current_user: dict = Depends(get_current_us
             )
             status = "completed"
             round_doc["status"] = status
+            try:
+                await _finalize_round_lifetime(round_id)
+            except Exception as e:
+                logger.warning(f"_finalize_round_lifetime failed: {e}")
         
         result.append(RoundResponse(
             **round_doc,
@@ -1192,6 +1575,10 @@ async def get_round(round_id: str, current_user: dict = Depends(get_current_user
             {"$set": {"status": "completed"}}
         )
         status = "completed"
+        try:
+            await _finalize_round_lifetime(round_id)
+        except Exception as e:
+            logger.warning(f"_finalize_round_lifetime failed: {e}")
         round_doc["status"] = status
     
     submissions_count = await db.submissions.count_documents({"round_id": round_id})
@@ -1251,6 +1638,10 @@ async def advance_round(round_id: str, current_user: dict = Depends(get_current_
             {"$set": {"locked": True}}
         )
         await db.rounds.update_one({"id": round_id}, {"$set": {"status": "completed"}})
+        try:
+            await _finalize_round_lifetime(round_id)
+        except Exception as e:
+            logger.warning(f"_finalize_round_lifetime failed: {e}")
         return {"message": "Round completed"}
     else:
         return {"message": "Round is already completed"}
@@ -1387,7 +1778,7 @@ async def submit_song(round_id: str, request: SubmitSongRequest, current_user: d
         # If existing submission is locked, cannot change
         if existing.get("locked", False):
             raise HTTPException(status_code=400, detail="Your submission is locked and cannot be changed")
-        
+
         # Update existing submission
         await db.submissions.update_one(
             {"id": existing["id"]},
@@ -1398,8 +1789,13 @@ async def submit_song(round_id: str, request: SubmitSongRequest, current_user: d
             }}
         )
         updated = await db.submissions.find_one({"id": existing["id"]})
+        # Mirror into the permanent per-user submissions history (idempotent).
+        try:
+            await _record_user_submission(current_user, round_doc, updated)
+        except Exception as e:
+            logger.warning(f"user_submissions sync failed: {e}")
         return SubmissionResponse(**updated)
-    
+
     # Create new submission
     submission_id = str(uuid.uuid4())
     submission = {
@@ -1412,14 +1808,24 @@ async def submit_song(round_id: str, request: SubmitSongRequest, current_user: d
         "submitted_at": datetime.now(timezone.utc)
     }
     await db.submissions.insert_one(submission)
-    
+
+    # Permanent lifetime record + bump submission counter on the user doc.
+    try:
+        await _record_user_submission(current_user, round_doc, submission)
+        await db.users.update_one(
+            {"id": current_user["id"]},
+            {"$inc": {"total_submissions": 1}},
+        )
+    except Exception as e:
+        logger.warning(f"user_submissions insert failed: {e}")
+
     # If this was an extended submission, remove the extension record
     if has_extension:
         await db.rounds.update_one(
             {"id": round_id},
             {"$pull": {"extended_submissions": {"user_id": current_user["id"]}}}
         )
-    
+
     return SubmissionResponse(**submission)
 
 @api_router.get("/rounds/{round_id}/submissions", response_model=List[SubmissionResponse])
