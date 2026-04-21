@@ -23,6 +23,7 @@ import requests as _requests
 import billboard
 import random
 import string
+from twilio.rest import Client as TwilioClient
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -36,6 +37,11 @@ db = client[os.environ.get('DB_NAME', 'music_league')]
 SECRET_KEY = os.environ['JWT_SECRET']
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
+
+# Twilio SMS settings
+TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID', '')
+TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN', '')
+TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER', '')
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -70,14 +76,14 @@ class UserLogin(BaseModel):
     password: str
 
 class ForgotPasswordRequest(BaseModel):
-    email: EmailStr
+    phone_number: str
 
 class VerifyCodeRequest(BaseModel):
-    email: EmailStr
+    phone_number: str
     code: str
 
 class ResetPasswordRequest(BaseModel):
-    email: EmailStr
+    phone_number: str
     code: str
     new_password: str
 
@@ -198,6 +204,7 @@ class RoundResultResponse(BaseModel):
     winners: List[dict]  # List of winners (can be multiple in case of tie)
     is_tie: bool
     total_voters: int
+    votes: List[dict] = []  # [{voter_id, voter_username, voter_profile_photo, rankings}]
 
 class LeagueStandingsResponse(BaseModel):
     league_id: str
@@ -319,7 +326,15 @@ async def register(user_data: UserCreate):
     existing_username = await db.users.find_one({"username": user_data.username}, {"_id": 0, "id": 1})
     if existing_username:
         raise HTTPException(status_code=400, detail="Username already taken")
-    
+
+    # Check if phone number exists
+    if user_data.phone_number:
+        existing_phone = await db.users.find_one({"phone_number": user_data.phone_number}, {"_id": 0, "id": 1})
+        if existing_phone:
+            raise HTTPException(status_code=400, detail="Phone number already registered")
+    else:
+        raise HTTPException(status_code=400, detail="Phone number is required")
+
     # Create user
     user_id = str(uuid.uuid4())
     user = {
@@ -378,107 +393,158 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         created_at=current_user["created_at"]
     )
 
+def send_sms(to_phone: str, body: str):
+    """Send an SMS via Twilio"""
+    if not TWILIO_ACCOUNT_SID or not TWILIO_AUTH_TOKEN or not TWILIO_PHONE_NUMBER:
+        logger.warning("Twilio credentials not configured — SMS not sent")
+        return
+    try:
+        twilio_client = TwilioClient(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+        twilio_client.messages.create(
+            body=body,
+            from_=TWILIO_PHONE_NUMBER,
+            to=to_phone,
+        )
+        logger.info(f"SMS sent to {to_phone}")
+    except Exception as e:
+        logger.error(f"Failed to send SMS: {e}")
+
 @api_router.post("/auth/forgot-password")
 async def forgot_password(request: ForgotPasswordRequest):
-    """Send a 6-digit reset code to user's phone"""
-    user = await db.users.find_one({"email": request.email}, {"_id": 0, "id": 1, "phone_number": 1})
+    """Send a 6-digit reset code via SMS to the user's phone number"""
+    user = await db.users.find_one({"phone_number": request.phone_number}, {"_id": 0, "id": 1})
     if not user:
-        # Don't reveal if email exists or not
-        return {"message": "If an account exists with this email, a code has been sent"}
-    
-    if not user.get("phone_number"):
-        raise HTTPException(status_code=400, detail="No phone number associated with this account")
-    
+        # Don't reveal if account exists or not
+        return {"message": "If an account exists with this phone number, a code has been sent"}
+
     # Generate 6-digit code
     code = ''.join(random.choices(string.digits, k=6))
-    
+
     # Store code with expiry (15 minutes)
-    await db.reset_codes.delete_many({"email": request.email})  # Remove old codes
+    await db.reset_codes.delete_many({"phone_number": request.phone_number})
     await db.reset_codes.insert_one({
-        "email": request.email,
+        "phone_number": request.phone_number,
         "code": code,
         "created_at": datetime.now(timezone.utc),
         "expires_at": datetime.now(timezone.utc) + timedelta(minutes=15)
     })
-    
-    # In production, send SMS here via Twilio or similar
-    # For now, we'll just log it (the code will work for testing)
-    print(f"Reset code for {request.email}: {code}")
-    
-    return {"message": "If an account exists with this email, a code has been sent"}
+
+    # Send SMS in a background thread
+    sms_body = f"Your Fantasy Music League reset code is: {code}\n\nIt expires in 15 minutes."
+    await asyncio.to_thread(send_sms, request.phone_number, sms_body)
+
+    return {"message": "If an account exists with this phone number, a code has been sent"}
 
 @api_router.post("/auth/verify-reset-code")
 async def verify_reset_code(request: VerifyCodeRequest):
     """Verify the reset code"""
     reset_doc = await db.reset_codes.find_one({
-        "email": request.email,
+        "phone_number": request.phone_number,
         "code": request.code
     })
-    
+
     if not reset_doc:
         raise HTTPException(status_code=400, detail="Invalid code")
-    
+
     if datetime.now(timezone.utc) > reset_doc["expires_at"].replace(tzinfo=timezone.utc):
         raise HTTPException(status_code=400, detail="Code has expired")
-    
+
     return {"valid": True}
 
 @api_router.post("/auth/reset-password")
 async def reset_password(request: ResetPasswordRequest):
-    """Reset password after verifying code"""
+    """Reset password after verifying code, returns token so user is auto-logged in"""
     reset_doc = await db.reset_codes.find_one({
-        "email": request.email,
+        "phone_number": request.phone_number,
         "code": request.code
     })
-    
+
     if not reset_doc:
         raise HTTPException(status_code=400, detail="Invalid code")
-    
+
     if datetime.now(timezone.utc) > reset_doc["expires_at"].replace(tzinfo=timezone.utc):
         raise HTTPException(status_code=400, detail="Code has expired")
-    
-    # Update password
+
+    # Find user by phone number and update password
+    user = await db.users.find_one({"phone_number": request.phone_number})
+    if not user:
+        raise HTTPException(status_code=404, detail="Account not found")
+
     await db.users.update_one(
-        {"email": request.email},
+        {"id": user["id"]},
         {"$set": {"password_hash": hash_password(request.new_password)}}
     )
-    
+
     # Delete used code
-    await db.reset_codes.delete_many({"email": request.email})
-    
-    return {"message": "Password reset successfully"}
+    await db.reset_codes.delete_many({"phone_number": request.phone_number})
+
+    # Return token + user so client can auto-login
+    access_token = create_access_token({"sub": user["id"]})
+    return {
+        "message": "Password reset successfully",
+        "access_token": access_token,
+        "user": {
+            "id": user["id"],
+            "email": user["email"],
+            "username": user["username"],
+            "display_name": user.get("display_name", user["username"]),
+            "profile_photo": user.get("profile_photo"),
+            "created_at": user["created_at"].isoformat() if isinstance(user["created_at"], datetime) else user["created_at"],
+        }
+    }
 
 @api_router.delete("/auth/account")
 async def delete_account(current_user: dict = Depends(get_current_user)):
-    """Delete user account and all associated data"""
+    """Delete user account and all associated data, fully releasing email and username"""
     user_id = current_user["id"]
-    
+
     # Delete user's submissions
     await db.submissions.delete_many({"user_id": user_id})
-    
+
     # Delete user's votes
     await db.votes.delete_many({"voter_id": user_id})
-    
+
     # Delete user's chat messages
-    await db.chat_messages.delete_many({"user_id": user_id})
-    
+    await db.messages.delete_many({"user_id": user_id})
+
+    # Delete user's chat read receipts
+    await db.chat_reads.delete_many({"user_id": user_id})
+
+    # Delete any password reset codes
+    await db.reset_codes.delete_many({"phone_number": current_user.get("phone_number", "")})
+
+    # Remove user from extended_submissions in any rounds
+    await db.rounds.update_many(
+        {"extended_submissions.user_id": user_id},
+        {"$pull": {"extended_submissions": {"user_id": user_id}}}
+    )
+
     # Remove user from all leagues
     await db.leagues.update_many(
         {"members.id": user_id},
         {"$pull": {"members": {"id": user_id}}}
     )
-    
+
     # Delete leagues created by user (and their associated data)
     user_leagues = await db.leagues.find({"creator_id": user_id}, {"_id": 0, "id": 1}).to_list(100)
     league_ids = [l["id"] for l in user_leagues]
     if league_ids:
+        # Get all round IDs for these leagues to clean up submissions and votes
+        league_rounds = await db.rounds.find(
+            {"league_id": {"$in": league_ids}}, {"_id": 0, "id": 1}
+        ).to_list(1000)
+        round_ids = [r["id"] for r in league_rounds]
+        if round_ids:
+            await db.submissions.delete_many({"round_id": {"$in": round_ids}})
+            await db.votes.delete_many({"round_id": {"$in": round_ids}})
         await db.rounds.delete_many({"league_id": {"$in": league_ids}})
-        await db.chat_messages.delete_many({"league_id": {"$in": league_ids}})
+        await db.messages.delete_many({"league_id": {"$in": league_ids}})
+        await db.chat_reads.delete_many({"league_id": {"$in": league_ids}})
     await db.leagues.delete_many({"creator_id": user_id})
-    
-    # Delete user
+
+    # Delete user record (releases email and username for re-registration)
     await db.users.delete_one({"id": user_id})
-    
+
     return {"message": "Account deleted successfully"}
 
 @api_router.post("/auth/delete-by-credentials")
@@ -611,13 +677,106 @@ async def get_user_stats(current_user: dict = Depends(get_current_user)):
                 total_wins += 1
     
     win_rate = round((total_wins / rounds_played * 100)) if rounds_played > 0 else 0
-    
+
     return {
         "total_wins": total_wins,
         "rounds_played": rounds_played,
         "win_rate": win_rate,
         "leagues_count": leagues_count
     }
+
+@api_router.get("/auth/submissions")
+async def get_my_submissions(current_user: dict = Depends(get_current_user)):
+    """Return the current user's submissions across all leagues, newest first, with league/round info and points earned."""
+    user_id = current_user["id"]
+
+    submissions = await db.submissions.find({"user_id": user_id}).sort("submitted_at", -1).to_list(500)
+    if not submissions:
+        return {"submissions": []}
+
+    round_ids = list({s["round_id"] for s in submissions})
+    rounds = await db.rounds.find({"id": {"$in": round_ids}}).to_list(500)
+    rounds_by_id = {r["id"]: r for r in rounds}
+
+    league_ids = list({r["league_id"] for r in rounds})
+    leagues = await db.leagues.find({"id": {"$in": league_ids}}, {"_id": 0, "id": 1, "name": 1, "league_image": 1}).to_list(500)
+    leagues_by_id = {l["id"]: l for l in leagues}
+
+    completed_round_ids = [rid for rid, r in rounds_by_id.items() if r.get("status") == "completed"]
+    points_by_sub_id: dict[str, int] = {}
+    if completed_round_ids:
+        all_round_subs = await db.submissions.find(
+            {"round_id": {"$in": completed_round_ids}},
+            {"_id": 0, "id": 1, "round_id": 1, "user_id": 1},
+        ).to_list(2000)
+        all_votes = await db.votes.find(
+            {"round_id": {"$in": completed_round_ids}},
+            {"_id": 0, "round_id": 1, "voter_id": 1, "rankings": 1},
+        ).to_list(2000)
+
+        subs_by_round: dict[str, list] = {}
+        votes_by_round: dict[str, list] = {}
+        for sub in all_round_subs:
+            subs_by_round.setdefault(sub["round_id"], []).append(sub)
+        for v in all_votes:
+            votes_by_round.setdefault(v["round_id"], []).append(v)
+
+        for rid in completed_round_ids:
+            round_subs = subs_by_round.get(rid, [])
+            votes = votes_by_round.get(rid, [])
+            if not round_subs:
+                continue
+            num_subs = len(round_subs)
+            num_to_rank = num_subs - 1
+
+            pts: dict[str, int] = {s["id"]: 0 for s in round_subs}
+            sub_owners = {s["id"]: s["user_id"] for s in round_subs}
+
+            voters_who_voted = set()
+            for v in votes:
+                voters_who_voted.add(v.get("voter_id"))
+                for idx, sid in enumerate(v.get("rankings", [])):
+                    if sid in pts:
+                        pts[sid] += (num_to_rank - idx)
+
+            submitter_ids = set(sub_owners.values())
+            non_voters = submitter_ids - voters_who_voted
+            if non_voters and num_subs > 1:
+                total_per_voter = sum(range(1, num_to_rank + 1))
+                for nv_id in non_voters:
+                    nv_sub_id = next((s["id"] for s in round_subs if s["user_id"] == nv_id), None)
+                    other_subs = [s["id"] for s in round_subs if s["id"] != nv_sub_id]
+                    if other_subs:
+                        base = total_per_voter // len(other_subs)
+                        rem = total_per_voter % len(other_subs)
+                        for sid in other_subs:
+                            pts[sid] += base
+                        for i in range(rem):
+                            pts[other_subs[i]] += 1
+
+            for sid, p in pts.items():
+                points_by_sub_id[sid] = p
+
+    result = []
+    for s in submissions:
+        r = rounds_by_id.get(s["round_id"])
+        if not r:
+            continue
+        league = leagues_by_id.get(r["league_id"], {})
+        result.append({
+            "submission_id": s["id"],
+            "song": s.get("song"),
+            "submitted_at": s.get("submitted_at"),
+            "round_id": r["id"],
+            "round_number": r.get("round_number"),
+            "round_theme": r.get("theme"),
+            "round_status": r.get("status"),
+            "league_id": r["league_id"],
+            "league_name": league.get("name", ""),
+            "league_image": league.get("league_image"),
+            "points": points_by_sub_id.get(s["id"]) if r.get("status") == "completed" else None,
+        })
+    return {"submissions": result}
 
 @api_router.put("/auth/me", response_model=UserResponse)
 async def update_profile(update_data: UserUpdate, current_user: dict = Depends(get_current_user)):
@@ -1524,7 +1683,8 @@ async def get_results(round_id: str, current_user: dict = Depends(get_current_us
             rankings=[],
             winners=[],
             is_tie=False,
-            total_voters=0
+            total_voters=0,
+            votes=[]
         )
     
     # NEW POINT SYSTEM: N points for 1st, N-1 for 2nd, etc. where N = number of songs being ranked
@@ -1614,14 +1774,33 @@ async def get_results(round_id: str, current_user: dict = Depends(get_current_us
     # Determine winners (rank 1)
     winners = [r for r in rankings if r["rank"] == 1]
     is_tie = len(winners) > 1
-    
+
+    # Attach voter info (username + profile photo) for each vote
+    voter_ids = [v.get("voter_id") for v in votes if v.get("voter_id")]
+    voter_docs = await db.users.find(
+        {"id": {"$in": voter_ids}},
+        {"_id": 0, "id": 1, "username": 1, "profile_photo": 1}
+    ).to_list(100) if voter_ids else []
+    voter_map = {u["id"]: u for u in voter_docs}
+    votes_payload = []
+    for v in votes:
+        vid = v.get("voter_id")
+        user_info = voter_map.get(vid, {})
+        votes_payload.append({
+            "voter_id": vid,
+            "voter_username": user_info.get("username", ""),
+            "voter_profile_photo": user_info.get("profile_photo"),
+            "rankings": v.get("rankings", []),
+        })
+
     return RoundResultResponse(
         id=str(uuid.uuid4()),
         round_id=round_id,
         rankings=rankings,
         winners=winners,
         is_tie=is_tie,
-        total_voters=len(votes)
+        total_voters=len(votes),
+        votes=votes_payload
     )
 
 # ==================== SONG SEARCH (DEEZER PROXY) ====================
@@ -1792,17 +1971,21 @@ async def get_genre_songs(genre_id: int, artists: int = 5, tracks_per_artist: in
         raise HTTPException(status_code=500, detail=f"Failed to fetch genre songs: {type(e).__name__}")
 
 
-# ── Billboard chart cache (6-hour TTL) ───────────────────────────────────────
+# ── Billboard chart cache (1-hour TTL) ───────────────────────────────────────
 
 _CHART_CACHE: dict = {}          # chart_name → {"ts": float, "data": list}
-_CHART_CACHE_TTL = 6 * 60 * 60  # seconds
+_CHART_CACHE_TTL = 60 * 60       # seconds
 
 
 def _fetch_billboard_chart_sync(chart_name: str, limit: int = 30) -> list:
     """
     Synchronous: scrape Billboard then enrich each entry with a Deezer search
     to obtain a preview URL and cover art.  Runs inside asyncio.to_thread so
-    it never blocks the async event loop.  Results are cached for 6 hours.
+    it never blocks the async event loop.  Results are cached for 1 hour.
+
+    If Billboard scraping fails OR the scrape produces an empty song list,
+    this function raises — callers should keep the previously-cached data
+    rather than overwrite it with nothing.
     """
     now = time.time()
     cached = _CHART_CACHE.get(chart_name)
@@ -1833,6 +2016,10 @@ def _fetch_billboard_chart_sync(chart_name: str, limit: int = 30) -> list:
             })
         except Exception:
             continue
+
+    if not songs:
+        # Do NOT overwrite the in-memory cache with empty data.
+        raise RuntimeError(f"Billboard chart '{chart_name}' returned no usable songs")
 
     _CHART_CACHE[chart_name] = {"ts": now, "data": songs}
     return songs
@@ -2080,28 +2267,53 @@ CHART_NAMES = [
     "adult-alternative-songs",
 ]
 
-async def refresh_charts_to_db():
-    """Fetch all Billboard charts and store in MongoDB."""
+CHART_REFRESH_INTERVAL_SECONDS = 60 * 60  # 1 hour
+
+async def refresh_charts_to_db() -> dict:
+    """Fetch all Billboard charts and store in MongoDB.
+
+    If a particular chart fetch fails or returns empty, the existing cached
+    document is left untouched so users keep seeing the last-known-good data.
+    Returns a per-chart status map useful for the manual refresh endpoint.
+    """
+    results: dict = {}
     for chart_name in CHART_NAMES:
         try:
             songs = await asyncio.to_thread(_fetch_billboard_chart_sync, chart_name)
+            if not songs:
+                logger.warning(
+                    f"Chart DB refresh skipped for {chart_name}: fetch returned no songs, keeping last good data"
+                )
+                results[chart_name] = {"status": "skipped_empty"}
+                continue
             await db.chart_cache.update_one(
                 {"chart_name": chart_name},
                 {"$set": {"chart_name": chart_name, "songs": songs, "updated_at": time.time()}},
                 upsert=True,
             )
             logger.info(f"Chart saved to DB: {chart_name} ({len(songs)} songs)")
+            results[chart_name] = {"status": "refreshed", "count": len(songs)}
         except Exception as e:
-            logger.warning(f"Chart DB refresh failed for {chart_name}: {e}")
+            logger.exception(f"Chart DB refresh failed for {chart_name}: {type(e).__name__}: {e}")
+            results[chart_name] = {"status": "error", "error": f"{type(e).__name__}: {e}"}
+    return results
 
 async def chart_refresh_loop():
-    """Background loop: refresh charts every 6 hours."""
+    """Background loop: refresh charts every hour. Never dies silently."""
+    logger.info("chart_refresh_loop: started")
     while True:
-        await refresh_charts_to_db()
-        await asyncio.sleep(6 * 60 * 60)
+        try:
+            await refresh_charts_to_db()
+        except Exception as e:
+            # Safety net — refresh_charts_to_db already catches per-chart
+            # errors, but if it itself blows up we log and continue rather
+            # than let the background task die.
+            logger.exception(f"chart_refresh_loop iteration failed: {type(e).__name__}: {e}")
+        await asyncio.sleep(CHART_REFRESH_INTERVAL_SECONDS)
 
 @app.on_event("startup")
 async def start_chart_refresh_loop():
+    logger.info("chart_refresh_loop: scheduling background task")
     asyncio.create_task(chart_refresh_loop())
 
 async def get_chart_from_db(chart_name: str) -> list:
@@ -2109,11 +2321,34 @@ async def get_chart_from_db(chart_name: str) -> list:
     doc = await db.chart_cache.find_one({"chart_name": chart_name})
     if doc and doc.get("songs"):
         return doc["songs"]
-    # Not in DB yet — fetch live and store
+    # Not in DB yet — fetch live and store. If the live fetch fails, let the
+    # caller's handler decide (they return 500). Do NOT upsert an empty list.
     songs = await asyncio.to_thread(_fetch_billboard_chart_sync, chart_name)
+    if not songs:
+        return []
     await db.chart_cache.update_one(
         {"chart_name": chart_name},
         {"$set": {"chart_name": chart_name, "songs": songs, "updated_at": time.time()}},
         upsert=True,
     )
     return songs
+
+
+@api_router.get("/songs/chart/refresh")
+async def manual_refresh_charts():
+    """Manually force an immediate refresh of all Billboard charts.
+
+    Each chart is attempted; charts that fail or return empty keep their
+    previously-cached data. Returns a per-chart status map.
+    """
+    logger.info("Manual chart refresh requested")
+    # Invalidate the in-memory TTL cache so we actually re-scrape Billboard
+    # instead of returning the last fetched copy.
+    _CHART_CACHE.clear()
+    results = await refresh_charts_to_db()
+    refreshed = sum(1 for r in results.values() if r.get("status") == "refreshed")
+    return {
+        "refreshed": refreshed,
+        "total": len(CHART_NAMES),
+        "charts": results,
+    }
