@@ -23,7 +23,6 @@ import requests as _requests
 import billboard
 import random
 import string
-from twilio.rest import Client as TwilioClient
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
