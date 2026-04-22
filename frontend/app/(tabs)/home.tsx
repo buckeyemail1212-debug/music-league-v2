@@ -30,6 +30,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { leagueEvents } from '../../src/utils/leagueEvents';
 import { tabEvents } from '../../src/utils/tabEvents';
+import { pluralize, pluralWord } from '../../src/utils/pluralize';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -402,16 +403,22 @@ export default function HomeScreen() {
     let pillColor = '#B3B3B3';
     if (activeRound) {
       if (activeRound.status === 'voting') {
-        pillText = 'VOTING OPEN';
-        pillColor = '#10B981';
+        // Once the user has voted we reflect that instead of the deadline.
+        pillText = activeRound.has_user_voted ? 'VOTED' : 'VOTING OPEN';
+        pillColor = activeRound.has_user_voted ? '#10B981' : '#10B981';
       } else if (activeRound.status === 'submission') {
-        pillText = `SUBMIT BY ${shortDay(activeRound.submission_deadline)}`;
-        pillColor = '#F59E0B';
+        pillText = activeRound.has_user_submitted
+          ? 'SUBMITTED'
+          : `SUBMIT BY ${shortDay(activeRound.submission_deadline)}`;
+        pillColor = activeRound.has_user_submitted ? '#10B981' : '#F59E0B';
       }
     } else if (item.current_round > 0) {
       pillText = 'COMPLETED';
       pillColor = '#6A6A6A';
     }
+
+    // A league has no useful standings yet if nobody has earned points.
+    const hasAnyPoints = sorted.some(p => (p.total_points || 0) > 0);
 
     return (
       <TouchableOpacity
@@ -432,8 +439,8 @@ export default function HomeScreen() {
             <Text style={styles.leagueCardName} numberOfLines={1}>{item.name}</Text>
             <Text style={styles.leagueCardSubtext} numberOfLines={1}>
               {item.current_round > 0
-                ? `R${item.current_round}/${item.total_rounds} · ${item.members.length} players`
-                : `${item.members.length} players · Code ${item.league_code}`}
+                ? `R${item.current_round}/${item.total_rounds} · ${pluralize(item.members.length, 'player')}`
+                : `${pluralize(item.members.length, 'player')} · Code ${item.league_code}`}
             </Text>
           </View>
           {pillText && (
@@ -443,7 +450,7 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {standings && sorted.length > 0 && rank !== null && (
+        {hasAnyPoints && rank !== null ? (
           <View style={styles.leagueCardProgressRow}>
             <Text style={styles.leagueCardRank}>#{rank}</Text>
             <View style={styles.leagueCardMiddle}>
@@ -451,7 +458,7 @@ export default function HomeScreen() {
                 {isLeading
                   ? 'LEADING'
                   : leaderPoints > myPoints
-                    ? `${leaderPoints - myPoints} PTS BEHIND`
+                    ? `${pluralize(leaderPoints - myPoints, 'PT', 'PTS')} BEHIND`
                     : 'TIED FOR 1ST'}
               </Text>
               <View style={styles.progressBarTrack}>
@@ -467,6 +474,42 @@ export default function HomeScreen() {
               </View>
             </View>
             <Text style={styles.leagueCardTotal}>{myPoints}</Text>
+          </View>
+        ) : (
+          <View style={styles.leagueCardProgressRow}>
+            <View style={styles.memberAvatarsInline}>
+              {item.members.slice(0, 4).map((m, i) => (
+                <View
+                  key={m.id}
+                  style={[
+                    styles.memberAvatarInline,
+                    { marginLeft: i > 0 ? -8 : 0, zIndex: 4 - i },
+                  ]}
+                >
+                  {m.profile_photo
+                    ? <Image source={{ uri: m.profile_photo }} style={styles.memberAvatarInlineImage} />
+                    : <Text style={styles.memberAvatarInlineText}>{m.username.charAt(0).toUpperCase()}</Text>}
+                </View>
+              ))}
+              {item.members.length > 4 && (
+                <View
+                  style={[
+                    styles.memberAvatarInline,
+                    styles.memberAvatarInlineMore,
+                    { marginLeft: -8, zIndex: 0 },
+                  ]}
+                >
+                  <Text style={styles.memberAvatarInlineMoreText}>
+                    +{item.members.length - 4}
+                  </Text>
+                </View>
+              )}
+            </View>
+            <View style={styles.leagueCardMiddle}>
+              <Text style={styles.leagueCardGap}>NOT STARTED</Text>
+              <View style={styles.progressBarTrack} />
+            </View>
+            <Text style={styles.leagueCardTotal}>0</Text>
           </View>
         )}
       </TouchableOpacity>
@@ -494,7 +537,9 @@ export default function HomeScreen() {
             </View>
           </View>
           {weeklyPoints > 0 && (
-            <Text style={styles.statsCardDelta}>+{weeklyPoints} this week</Text>
+            <Text style={styles.statsCardDelta}>
+              +{pluralize(weeklyPoints, 'point')} this week
+            </Text>
           )}
         </View>
         <View style={styles.statsCardDivider} />
@@ -552,7 +597,9 @@ export default function HomeScreen() {
       {leagues.length > 0 && (
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionHeaderTitle}>YOUR LEAGUES</Text>
-          <Text style={styles.sectionHeaderCount}>{activeLeaguesCount} ACTIVE</Text>
+          <Text style={styles.sectionHeaderCount}>
+            {activeLeaguesCount} ACTIVE
+          </Text>
         </View>
       )}
     </View>
@@ -583,7 +630,7 @@ export default function HomeScreen() {
               <Ionicons name="musical-notes" size={64} color="#7C3AED" />
               <Text style={styles.emptyTitle}>No Leagues Yet</Text>
               <Text style={styles.emptyText}>
-                Tap the New button below to create a league or join an existing one.
+                Tap the Add button below to create a league or join an existing one.
               </Text>
             </View>
           }
@@ -894,6 +941,26 @@ const styles = StyleSheet.create({
     minWidth: 40,
     textAlign: 'right',
   },
+  memberAvatarsInline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: 44,
+  },
+  memberAvatarInline: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#282828',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#181818',
+    overflow: 'hidden',
+  },
+  memberAvatarInlineImage: { width: 22, height: 22, borderRadius: 11 },
+  memberAvatarInlineText: { fontSize: 9, fontWeight: '600', color: '#FFFFFF' },
+  memberAvatarInlineMore: { backgroundColor: '#3A3A3A' },
+  memberAvatarInlineMoreText: { fontSize: 9, fontWeight: '600', color: '#B3B3B3' },
 
   // ── Empty / zoom ─────────────────────────────────────────────────────────
   emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 80, paddingHorizontal: 40 },

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -25,11 +25,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../src/context/AuthContext';
 import {
   deleteAccount,
+  clearAllData,
   getLeagues,
   getUserStats,
   getLeagueStandings,
   getMySubmissions,
-  updateProfile,
   getDeletedLeagues,
   restoreLeague,
   getLifetimeStats,
@@ -41,6 +41,7 @@ import {
   TasteBreakdown,
 } from '../../src/services/api';
 import { leagueEvents } from '../../src/utils/leagueEvents';
+import { pluralize } from '../../src/utils/pluralize';
 import AlbumArt from '../../src/components/AlbumArt';
 
 const HOW_TO_PLAY_STEPS = [
@@ -226,7 +227,9 @@ export default function ProfileScreen() {
 
   // Load liked songs
   const loadLikedSongs = useCallback(async () => {
-    if (!user?.id) { setLikedSongs([]); return; }
+    // Don't blow away the current state while auth is still booting — only
+    // clear when we've actually confirmed a logged-out user.
+    if (!user?.id) return;
     try {
       const raw = await AsyncStorage.getItem(getLikedKey(user.id));
       if (raw) {
@@ -244,6 +247,12 @@ export default function ProfileScreen() {
       setLikedSongs([]);
     }
   }, [user?.id]);
+
+  // Fire whenever the logged-in user id becomes available — this catches the
+  // case where the Profile tab is focused BEFORE auth bootstrap resolves.
+  useEffect(() => {
+    if (user?.id) loadLikedSongs();
+  }, [user?.id, loadLikedSongs]);
 
   // Reload liked songs + stats whenever the tab gains focus
   useFocusEffect(useCallback(() => {
@@ -279,6 +288,36 @@ export default function ProfileScreen() {
           },
         },
       ]
+    );
+  };
+
+  const handleClearAllData = () => {
+    Alert.alert(
+      'Clear All Data',
+      'This will permanently clear all your points, wins, submissions, leagues, and taste history. Your account will remain active. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await clearAllData();
+              // Reset local caches that mirror the cleared state so the
+              // profile doesn't briefly show stale lifetime numbers.
+              setMySubmissions([]);
+              setTaste({ total: 0, breakdown: [] });
+              setLifetimeStats({ all_time_points: 0, total_wins: 0, total_submissions: 0 });
+              setTotalPoints(0);
+              leagueEvents.emit();
+              await loadStats();
+              Alert.alert('Data Cleared', 'Your gameplay data has been reset.');
+            } catch (e: any) {
+              Alert.alert('Error', e.response?.data?.detail || 'Failed to clear data');
+            }
+          },
+        },
+      ],
     );
   };
 
@@ -353,11 +392,21 @@ export default function ProfileScreen() {
     if (!trimmed) { Alert.alert('Error', 'Name cannot be empty.'); return; }
     setSavingEdit(true);
     try {
-      await updateProfile({ username: trimmed });
+      // updateUser hits PUT /auth/me, persists the response to AsyncStorage,
+      // and updates the AuthContext — so the new username sticks across
+      // logout/login and appears everywhere the app reads `user.username`.
       await updateUser({ username: trimmed });
       setEditOpen(false);
     } catch (e: any) {
-      Alert.alert('Error', e.response?.data?.detail || 'Failed to update profile');
+      const detail: string = e?.response?.data?.detail || '';
+      if (e?.response?.status === 400 && /username/i.test(detail) && /taken/i.test(detail)) {
+        Alert.alert(
+          'Username Taken',
+          'That username is already taken. Please choose a different one.',
+        );
+      } else {
+        Alert.alert('Error', detail || 'Failed to update profile');
+      }
     } finally {
       setSavingEdit(false);
     }
@@ -456,11 +505,9 @@ export default function ProfileScreen() {
               {mySubmissions.slice(0, 5).map((sub, idx, arr) => {
                 const last = idx === arr.length - 1;
                 return (
-                  <TouchableOpacity
+                  <View
                     key={sub.submission_id}
                     style={[styles.submissionRow, last && styles.rowLast]}
-                    onPress={() => router.push(`/round/${sub.round_id}`)}
-                    activeOpacity={0.7}
                   >
                     <View style={[styles.submissionArt, { backgroundColor: pickColor(sub.song?.title || sub.submission_id) }]}>
                       {sub.song?.cover_url
@@ -478,14 +525,16 @@ export default function ProfileScreen() {
                     {sub.points !== null && sub.points !== undefined ? (
                       <View style={styles.submissionPoints}>
                         <Text style={styles.submissionPointsText}>{sub.points}</Text>
-                        <Text style={styles.submissionPointsLabel}>pts</Text>
+                        <Text style={styles.submissionPointsLabel}>
+                          {sub.points === 1 ? 'pt' : 'pts'}
+                        </Text>
                       </View>
                     ) : (
                       <Text style={styles.submissionPending}>
                         {sub.round_status === 'voting' ? 'VOTING' : 'OPEN'}
                       </Text>
                     )}
-                  </TouchableOpacity>
+                  </View>
                 );
               })}
             </View>
@@ -547,7 +596,7 @@ export default function ProfileScreen() {
               </View>
               <View>
                 <Text style={styles.rowLabel}>Liked Songs</Text>
-                <Text style={styles.likedSubtitle}>{likedSongs.length} songs</Text>
+                <Text style={styles.likedSubtitle}>{pluralize(likedSongs.length, 'song')}</Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={18} color="#B3B3B3" />
@@ -689,10 +738,17 @@ export default function ProfileScreen() {
             </View>
           </TouchableOpacity>
           <View style={styles.separator} />
-          <TouchableOpacity style={[styles.row, styles.rowLast]} onPress={handleDeleteAccount}>
+          <TouchableOpacity style={styles.row} onPress={handleDeleteAccount}>
             <View style={styles.rowLeft}>
               <Ionicons name="trash-outline" size={20} color="#7C3AED" />
               <Text style={styles.rowLabelDanger}>Delete Account</Text>
+            </View>
+          </TouchableOpacity>
+          <View style={styles.separator} />
+          <TouchableOpacity style={[styles.row, styles.rowLast]} onPress={handleClearAllData}>
+            <View style={styles.rowLeft}>
+              <Ionicons name="refresh-outline" size={20} color="#7C3AED" />
+              <Text style={styles.rowLabelDanger}>Clear All Data</Text>
             </View>
           </TouchableOpacity>
         </View>

@@ -307,6 +307,21 @@ export default function DiscoverScreen() {
   // Session-level seen IDs — cleared on every focus, never cleared on filter switch.
   // Prevents any song from repeating within a single Discover session.
   const seenSongIdsRef = useRef<Set<string>>(new Set());
+  const isFocusedRef = useRef<boolean>(false);
+  const autoplayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Every setTimeout that could end up starting audio registers here so the
+  // focus/blur cleanup can cancel them all at once. This is belt-and-braces
+  // protection against a tab switch racing with a queued play.
+  const pendingTimeoutsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+
+  const trackTimeout = (handle: ReturnType<typeof setTimeout>) => {
+    pendingTimeoutsRef.current.add(handle);
+    return handle;
+  };
+  const clearAllPendingTimeouts = () => {
+    for (const t of pendingTimeoutsRef.current) clearTimeout(t);
+    pendingTimeoutsRef.current.clear();
+  };
 
   // Track the deezer_id of the currently playing song to prevent audio overlap
   const currentlyPlayingRef = useRef<string | null>(null);
@@ -326,7 +341,9 @@ export default function DiscoverScreen() {
   // Reload from AsyncStorage on every focus so likes persist across logout/login
   // and reflect any edits made from the Profile screen.
   const loadLikedSongs = useCallback(async () => {
-    if (!user?.id) { setLikedSongs(new Map()); return; }
+    // Skip while auth is still bootstrapping — otherwise we'd briefly clear
+    // the state and it would stay empty until the next focus event.
+    if (!user?.id) return;
     try {
       const raw = await AsyncStorage.getItem(getLikedKey(user.id));
       if (!raw) { setLikedSongs(new Map()); return; }
@@ -338,7 +355,8 @@ export default function DiscoverScreen() {
       }
     } catch {}
   }, [user?.id]);
-  useEffect(() => { loadLikedSongs(); }, [loadLikedSongs]);
+  // Re-run the moment user?.id is available (covers post-login).
+  useEffect(() => { if (user?.id) loadLikedSongs(); }, [user?.id, loadLikedSongs]);
 
   // ── Audio helpers ─────────────────────────────────────────────────────────
   const stopSound = useCallback(async () => {
@@ -417,6 +435,7 @@ export default function DiscoverScreen() {
 
   // ── Focus: reset session state and fetch fresh Top Hits on every visit ────
   useFocusEffect(useCallback(() => {
+    isFocusedRef.current = true;
     seenSongIdsRef.current.clear();
     currentlyPlayingRef.current = null;
     setSelectedFilter(0);
@@ -425,21 +444,36 @@ export default function DiscoverScreen() {
     fetchSongsRef.current(true);
 
     return () => {
-      // Cancel any pending viewability-triggered autoplay so the previous song
-      // can't start after the user has left the screen.
-      if ((onViewableItemsChanged as any)._timer) {
-        clearTimeout((onViewableItemsChanged as any)._timer);
-        (onViewableItemsChanged as any)._timer = null;
-      }
+      // (1) Mark the screen as unfocused BEFORE anything else so any pending
+      //     timeout callback that fires between here and the stop commands
+      //     below will early-return.
+      isFocusedRef.current = false;
       currentlyPlayingRef.current = null;
+
+      // (2) Synchronously stop audio on BOTH the shared registry and this
+      //     screen's own sound — don't await, don't queue — before we go
+      //     through the cleanup steps that could race with a new play call.
       stopAllPreviews();
       stopSound();
+
+      // (3) Cancel every pending setTimeout we've registered. This covers
+      //     the autoplay-after-fetch, the viewability-triggered preview, and
+      //     the post-search preview — nothing can fire after blur.
+      clearAllPendingTimeouts();
+      if ((onViewableItemsChanged as any)._timer) {
+        (onViewableItemsChanged as any)._timer = null;
+      }
+      autoplayTimeoutRef.current = null;
     };
   }, [stopSound, loadLikedSongs]));
 
+
   useEffect(() => {
     return () => {
+      isFocusedRef.current = false;
+      currentlyPlayingRef.current = null;
       stopAllPreviews();
+      clearAllPendingTimeouts();
       if (timerRef.current) clearInterval(timerRef.current);
       if (soundRef.current) {
         soundRef.current.stopAsync().catch(() => {});
@@ -515,9 +549,18 @@ export default function DiscoverScreen() {
         currentIdxRef.current = 0;
         flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
         if (shuffled.length > 0) {
-          setTimeout(() => {
+          if (autoplayTimeoutRef.current) {
+            clearTimeout(autoplayTimeoutRef.current);
+            pendingTimeoutsRef.current.delete(autoplayTimeoutRef.current);
+          }
+          const h = setTimeout(() => {
+            pendingTimeoutsRef.current.delete(h);
+            autoplayTimeoutRef.current = null;
+            if (!isFocusedRef.current) return;
             if (id === fetchCounterRef.current) playPreviewFnRef.current(shuffled[0]);
           }, 400);
+          trackTimeout(h);
+          autoplayTimeoutRef.current = h;
         }
       }
     } catch (e) {
@@ -555,6 +598,19 @@ export default function DiscoverScreen() {
     return unsubscribe;
   }, [navigation]);
 
+  // Hard stop on tab blur — fires even when the FocusEffect's cleanup races
+  // with the next screen rendering. Anything pending is cancelled here.
+  useEffect(() => {
+    const unsubBlur = (navigation as any).addListener?.('blur', () => {
+      isFocusedRef.current = false;
+      currentlyPlayingRef.current = null;
+      stopAllPreviews();
+      stopSound();
+      clearAllPendingTimeouts();
+    });
+    return () => unsubBlur?.();
+  }, [navigation, stopSound]);
+
   const onRefresh = useCallback(() => {
     seenSongIdsRef.current.clear();
     fetchSongs(true, true);
@@ -580,11 +636,14 @@ export default function DiscoverScreen() {
       setSongs(saved);
       const idx = filterIdxRef.current;
       currentIdxRef.current = idx;
-      setTimeout(() => {
+      const closeH = setTimeout(() => {
+        pendingTimeoutsRef.current.delete(closeH);
+        if (!isFocusedRef.current) return;
         flatListRef.current?.scrollToOffset({ offset: idx * cardHeightRef.current, animated: false });
         const song = saved[idx];
         if (song) playPreviewFnRef.current(song);
       }, 80);
+      trackTimeout(closeH);
     });
   }, [searchFade]);
 
@@ -602,9 +661,12 @@ export default function DiscoverScreen() {
       currentIdxRef.current   = 0;
       flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
       if (results.length > 0) {
-        setTimeout(() => {
+        const searchH = setTimeout(() => {
+          pendingTimeoutsRef.current.delete(searchH);
+          if (!isFocusedRef.current) return;
           if (isSearchModeRef.current) playPreviewFnRef.current(results[0]);
         }, 400);
+        trackTimeout(searchH);
       }
     } catch {}
     setSearchLoading(false);
@@ -643,12 +705,17 @@ export default function DiscoverScreen() {
     if ((onViewableItemsChanged as any)._timer) {
       clearTimeout((onViewableItemsChanged as any)._timer);
     }
-    (onViewableItemsChanged as any)._timer = setTimeout(() => {
-      // Only play if this card is still the visible one
+    const viewH = setTimeout(() => {
+      pendingTimeoutsRef.current.delete(viewH);
+      // Only play if this card is still the visible one and we're still on
+      // the Discover tab.
+      if (!isFocusedRef.current) return;
       if (currentlyPlayingRef.current === songId) {
         playPreviewFnRef.current(song);
       }
     }, 300);
+    trackTimeout(viewH);
+    (onViewableItemsChanged as any)._timer = viewH;
   }).current;
 
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 80 });

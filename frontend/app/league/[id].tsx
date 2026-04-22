@@ -651,45 +651,125 @@ export default function LeagueDetailScreen() {
               const getPhoto = (uid: string) =>
                 league?.members?.find(m => m.id === uid)?.profile_photo;
 
-              const topThree = rankedPlayers.slice(0, 3);
-              const first = topThree[0];
-              const second = topThree[1];
-              const third = topThree[2];
+              // Group players by their assigned rank. Players who tie share
+              // one podium position and render as overlapping avatars.
+              const byRank: { [rank: number]: typeof rankedPlayers } = {};
+              for (const p of rankedPlayers) {
+                (byRank[p.rank] ||= []).push(p);
+              }
+              const firstGroup = byRank[1] ?? [];
+              // Pick the next two DISTINCT rank numbers for 2nd / 3rd slots.
+              const otherRanks = Object.keys(byRank)
+                .map(Number)
+                .filter(r => r !== 1)
+                .sort((a, b) => a - b);
+              const secondGroup = otherRanks[0] != null ? byRank[otherRanks[0]] : [];
+              const thirdGroup = otherRanks[1] != null ? byRank[otherRanks[1]] : [];
 
-              const PodiumPlayer = ({
-                player,
+              const PodiumSlot = ({
+                group,
                 size,
                 podiumHeight,
                 podiumStyle,
                 placeLabel,
               }: {
-                player: typeof rankedPlayers[number];
+                group: typeof rankedPlayers;
                 size: number;
                 podiumHeight: number;
                 podiumStyle: any;
                 placeLabel: string;
               }) => {
-                const photo = getPhoto(player.user_id);
-                const color = avatarColor(player.username);
-                const isMe = player.user_id === user?.id;
+                if (!group.length) return <View style={standingStyles.podiumCol} />;
+                const isTie = group.length > 1;
+                const sharedPoints = group[0].total_points;
+                const anyMe = !!user?.id && group.some(p => p.user_id === user.id);
+                const displayName = isTie
+                  ? `${group.length} tied`
+                  : group[0].username;
+                const shown = group.slice(0, 4);
+                const overflow = group.length - shown.length;
                 return (
                   <View style={standingStyles.podiumCol}>
-                    <View
-                      style={[
-                        standingStyles.podiumAvatar,
-                        { width: size, height: size, borderRadius: size / 2, backgroundColor: color },
-                        isMe && standingStyles.podiumAvatarMe,
-                      ]}
-                    >
-                      {photo
-                        ? <Image source={{ uri: photo }} style={{ width: size, height: size, borderRadius: size / 2 }} />
-                        : <Text style={[standingStyles.podiumAvatarInitial, { fontSize: size * 0.4 }]}>
-                            {player.username.charAt(0).toUpperCase()}
-                          </Text>
-                      }
-                    </View>
-                    <Text style={standingStyles.podiumName} numberOfLines={1}>{player.username}</Text>
-                    <Text style={standingStyles.podiumPoints}>{player.total_points}</Text>
+                    {isTie ? (
+                      <View style={[
+                        standingStyles.podiumAvatarStack,
+                        { height: size },
+                      ]}>
+                        {shown.map((p, i) => {
+                          const color = avatarColor(p.username);
+                          const photo = getPhoto(p.user_id);
+                          const aSize = Math.round(size * 0.78);
+                          const isMe = !!user?.id && p.user_id === user.id;
+                          return (
+                            <View
+                              key={p.user_id}
+                              style={[
+                                standingStyles.podiumAvatar,
+                                {
+                                  width: aSize,
+                                  height: aSize,
+                                  borderRadius: aSize / 2,
+                                  backgroundColor: color,
+                                  marginLeft: i === 0 ? 0 : -Math.round(aSize * 0.35),
+                                  zIndex: shown.length - i,
+                                  borderWidth: 2,
+                                  borderColor: '#181818',
+                                },
+                                isMe && standingStyles.podiumAvatarMe,
+                              ]}
+                            >
+                              {photo
+                                ? <Image source={{ uri: photo }} style={{ width: aSize, height: aSize, borderRadius: aSize / 2 }} />
+                                : <Text style={[standingStyles.podiumAvatarInitial, { fontSize: aSize * 0.4 }]}>
+                                    {p.username.charAt(0).toUpperCase()}
+                                  </Text>}
+                            </View>
+                          );
+                        })}
+                        {overflow > 0 && (
+                          <View
+                            style={[
+                              standingStyles.podiumAvatar,
+                              {
+                                width: Math.round(size * 0.78),
+                                height: Math.round(size * 0.78),
+                                borderRadius: Math.round(size * 0.78) / 2,
+                                backgroundColor: '#3A3A3A',
+                                marginLeft: -Math.round(size * 0.78 * 0.35),
+                                zIndex: 0,
+                                borderWidth: 2,
+                                borderColor: '#181818',
+                              },
+                            ]}
+                          >
+                            <Text style={[standingStyles.podiumAvatarInitial, { fontSize: size * 0.28 }]}>
+                              +{overflow}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    ) : (
+                      <View
+                        style={[
+                          standingStyles.podiumAvatar,
+                          {
+                            width: size,
+                            height: size,
+                            borderRadius: size / 2,
+                            backgroundColor: avatarColor(group[0].username),
+                          },
+                          anyMe && standingStyles.podiumAvatarMe,
+                        ]}
+                      >
+                        {getPhoto(group[0].user_id)
+                          ? <Image source={{ uri: getPhoto(group[0].user_id)! }} style={{ width: size, height: size, borderRadius: size / 2 }} />
+                          : <Text style={[standingStyles.podiumAvatarInitial, { fontSize: size * 0.4 }]}>
+                              {group[0].username.charAt(0).toUpperCase()}
+                            </Text>}
+                      </View>
+                    )}
+                    <Text style={standingStyles.podiumName} numberOfLines={1}>{displayName}</Text>
+                    <Text style={standingStyles.podiumPoints}>{sharedPoints}</Text>
                     <View style={[standingStyles.podiumBox, { height: podiumHeight }, podiumStyle]}>
                       <Text style={standingStyles.podiumPlace}>{placeLabel}</Text>
                     </View>
@@ -702,33 +782,27 @@ export default function LeagueDetailScreen() {
                   {/* Podium */}
                   <View style={standingStyles.podiumCard}>
                     <View style={standingStyles.podiumRow}>
-                      {second ? (
-                        <PodiumPlayer
-                          player={second}
-                          size={56}
-                          podiumHeight={64}
-                          podiumStyle={standingStyles.podiumBoxSecond}
-                          placeLabel="2nd"
-                        />
-                      ) : <View style={standingStyles.podiumCol} />}
-                      {first ? (
-                        <PodiumPlayer
-                          player={first}
-                          size={76}
-                          podiumHeight={88}
-                          podiumStyle={standingStyles.podiumBoxFirst}
-                          placeLabel="1st"
-                        />
-                      ) : <View style={standingStyles.podiumCol} />}
-                      {third ? (
-                        <PodiumPlayer
-                          player={third}
-                          size={56}
-                          podiumHeight={48}
-                          podiumStyle={standingStyles.podiumBoxThird}
-                          placeLabel="3rd"
-                        />
-                      ) : <View style={standingStyles.podiumCol} />}
+                      <PodiumSlot
+                        group={secondGroup}
+                        size={56}
+                        podiumHeight={64}
+                        podiumStyle={standingStyles.podiumBoxSecond}
+                        placeLabel="2nd"
+                      />
+                      <PodiumSlot
+                        group={firstGroup}
+                        size={76}
+                        podiumHeight={88}
+                        podiumStyle={standingStyles.podiumBoxFirst}
+                        placeLabel="1st"
+                      />
+                      <PodiumSlot
+                        group={thirdGroup}
+                        size={56}
+                        podiumHeight={48}
+                        podiumStyle={standingStyles.podiumBoxThird}
+                        placeLabel="3rd"
+                      />
                     </View>
                   </View>
 
@@ -2103,6 +2177,12 @@ const standingStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+    marginBottom: 8,
+  },
+  podiumAvatarStack: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 8,
   },
   podiumAvatarMe: {

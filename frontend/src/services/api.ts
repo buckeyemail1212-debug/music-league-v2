@@ -201,6 +201,15 @@ export const getLeagues = () => api.get<League[]>('/leagues');
 
 export const getLeague = (id: string) => api.get<League>(`/leagues/${id}`);
 
+export interface LeagueSnapshot {
+  league_id: string;
+  name: string;
+  league_image?: string | null;
+  updated_at?: string;
+}
+export const getLeagueSnapshot = (id: string) =>
+  api.get<LeagueSnapshot>(`/leagues/${id}/snapshot`);
+
 export const joinLeague = (code: string) => 
   api.post<League>('/leagues/join', { league_code: code });
 
@@ -310,5 +319,9 @@ export const resetPassword = (phone_number: string, code: string, new_password: 
 // Delete Account
 export const deleteAccount = () =>
   api.delete('/auth/account');
+
+// Wipe gameplay data (points, wins, submissions, leagues, taste) but keep the account.
+export const clearAllData = () =>
+  api.delete<{ message: string; leagues_deleted: number }>('/auth/data');
 
 export default api;

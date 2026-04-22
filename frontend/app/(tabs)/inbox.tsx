@@ -20,12 +20,14 @@ import {
   getLeagueMessages,
   getRounds,
   getMySubmissions,
+  getLeagueSnapshot,
   League as ApiLeague,
   Round,
   MySubmission,
 } from '../../src/services/api';
 import { SharedChat } from '../../src/components/SharedChat';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { pluralize } from '../../src/utils/pluralize';
 
 type NotifType = 'COMMENT' | 'RESULT' | 'REMINDER' | 'ACTIVITY' | 'SUBMIT';
 type FilterKey = 'ALL' | 'RESULTS' | 'REMINDER' | 'ACTIVITY' | 'SUBMIT';
@@ -210,7 +212,7 @@ export default function InboxScreen() {
                   leagueName: league.name,
                   leagueImage: league.league_image || undefined,
                   roundInfo: `Round ${r.round_number}`,
-                  message: `${r.status === 'submission' ? 'Submit' : 'Vote'} closes in ${hours}h — don\u2019t miss out`,
+                  message: `${r.status === 'submission' ? 'Submit' : 'Vote'} closes in ${pluralize(hours, 'hour')} — don\u2019t miss out`,
                   timestamp: Date.now() - 1000,
                   onTap: 'round',
                   roundId: r.id,
@@ -250,16 +252,16 @@ export default function InboxScreen() {
           leagueName: sub.league_name,
           leagueImage: sub.league_image || undefined,
           roundInfo: `Round ${sub.round_number}`,
-          message: `You earned ${sub.points} pts on \u201C${sub.song?.title ?? 'your song'}\u201D`,
+          message: `You earned ${pluralize(sub.points ?? 0, 'point')} on \u201C${sub.song?.title ?? 'your song'}\u201D`,
           timestamp: ts,
           onTap: 'round',
           roundId: sub.round_id,
         });
       }
 
-      // Merge with persisted cache so notifications from deleted leagues
-      // keep showing for up to 3 days. Also hydrate missing thumbnails from
-      // the durable photo cache.
+      // Merge with persisted cache. When a league is deleted by the creator
+      // we want its notifications gone immediately — drop any cached notif
+      // whose league no longer appears in the user's active league list.
       let cached: Notif[] = [];
       if (user?.id) {
         try {
@@ -268,25 +270,35 @@ export default function InboxScreen() {
         } catch {}
       }
 
+      const activeLeagueIds = new Set(leagueList.map(l => l.id));
       const byId = new Map<string, Notif>();
       // Fresh items take precedence (they have most recent data).
       for (const it of items) byId.set(it.id, it);
-      // Add cached items not present in fresh and still within 3-day window.
+      // Cached items stay only if they're still within 3 days AND the
+      // originating league hasn't been deleted.
       const cutoff = Date.now() - NOTIF_PERSIST_MS;
       for (const c of cached) {
-        if (!byId.has(c.id) && c.timestamp >= cutoff) {
+        if (!byId.has(c.id) && c.timestamp >= cutoff && activeLeagueIds.has(c.leagueId)) {
           byId.set(c.id, c);
         }
       }
 
-      // Hydrate thumbnails from durable photo cache for any notif missing one.
+      // Hydrate thumbnails: prefer cached local photo, then fall back to the
+      // server's durable league_snapshots record so deleted/never-seen
+      // leagues still show their actual image instead of a question mark.
       const merged = [...byId.values()];
       if (user?.id) {
         await Promise.all(merged.map(async (n) => {
-          if (!n.leagueImage) {
-            const p = await getCachedLeaguePhoto(user.id, n.leagueId);
-            if (p) n.leagueImage = p;
-          }
+          if (n.leagueImage) return;
+          const p = await getCachedLeaguePhoto(user.id, n.leagueId);
+          if (p) { n.leagueImage = p; return; }
+          try {
+            const snap = await getLeagueSnapshot(n.leagueId);
+            if (snap.data?.league_image) {
+              n.leagueImage = snap.data.league_image;
+              cacheLeaguePhoto(user.id, n.leagueId, snap.data.league_image);
+            }
+          } catch {}
         }));
       }
 
@@ -455,7 +467,7 @@ export default function InboxScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>INBOX</Text>
-          <Text style={styles.count}>{visibleNotifs.length} items</Text>
+          <Text style={styles.count}>{pluralize(visibleNotifs.length, 'item')}</Text>
         </View>
 
         {/* Filter tabs */}
