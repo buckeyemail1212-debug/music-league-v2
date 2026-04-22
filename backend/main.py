@@ -595,6 +595,13 @@ class LeagueCreate(BaseModel):
     name: str
     total_rounds: int = 1  # Number of rounds (1-10)
     league_image: Optional[str] = None  # Custom league image URL
+    # Preferred default hours for each phase of each round in this league.
+    submission_hours: Optional[int] = None
+    voting_hours: Optional[int] = None
+    # Optional per-round themes entered at league creation. Length should be
+    # total_rounds when provided; entries may be blank strings when the creator
+    # opted out of themes for a specific round.
+    themes: Optional[List[str]] = None
 
 class LeagueResponse(BaseModel):
     id: str
@@ -608,6 +615,9 @@ class LeagueResponse(BaseModel):
     current_round: int
     status: str
     created_at: datetime
+    submission_hours: Optional[int] = None
+    voting_hours: Optional[int] = None
+    themes: Optional[List[str]] = None
 
 class JoinLeagueRequest(BaseModel):
     league_code: str
@@ -1522,7 +1532,10 @@ async def create_league(league_data: LeagueCreate, current_user: dict = Depends(
         "members": [{"id": current_user["id"], "username": current_user["username"]}],
         "current_round": 0,
         "status": "active",
-        "created_at": datetime.now(timezone.utc)
+        "created_at": datetime.now(timezone.utc),
+        "submission_hours": league_data.submission_hours,
+        "voting_hours": league_data.voting_hours,
+        "themes": league_data.themes,
     }
     await db.leagues.insert_one(league)
     league.pop("_id", None)
@@ -1571,11 +1584,12 @@ def add_league_defaults(league: dict) -> dict:
     """Add default values for new fields to support existing leagues"""
     league.setdefault("total_rounds", 0)
     league.setdefault("league_image", None)
+    league.setdefault("submission_hours", None)
+    league.setdefault("voting_hours", None)
+    league.setdefault("themes", None)
     # Remove old fields if they exist (migration)
     league.pop("theme", None)
     league.pop("theme_mode", None)
-    league.pop("submission_hours", None)
-    league.pop("voting_hours", None)
     return league
 
 @api_router.get("/leagues", response_model=List[LeagueResponse])
@@ -1600,6 +1614,103 @@ async def get_user_leagues(current_user: dict = Depends(get_current_user)):
             member["profile_photo"] = user_data.get("profile_photo")
     
     return [LeagueResponse(**add_league_defaults(league)) for league in leagues]
+
+
+# ==================== PAST LEAGUES ====================
+# Past leagues live in their own `past_leagues` collection. A snapshot of
+# every league (standings, members, rounds, submissions, image) is written
+# to that collection when the league finishes — either because all rounds
+# completed, or because the creator deleted it. GET /leagues/past reads
+# straight from that collection so history stays intact even if the source
+# league / rounds / submissions are later cleaned up.
+#
+# These routes are declared before the generic /leagues/{league_id} path
+# parameter so that a GET/DELETE to /leagues/past isn't captured as a
+# league-by-id lookup with id="past".
+
+@api_router.get("/leagues/past")
+async def get_past_leagues(current_user: dict = Depends(get_current_user)):
+    user_id = current_user["id"]
+    cleared_at_raw = current_user.get("past_leagues_cleared_at")
+    cleared_at = ensure_utc(cleared_at_raw) if cleared_at_raw else None
+
+    # Back-fill snapshots for any league this user is/was a member of that
+    # qualifies as "past" but isn't in past_leagues yet. This is a one-shot
+    # migration for leagues that finished or got deleted before the
+    # snapshot system existed.
+    await _backfill_past_leagues_for_user(user_id)
+
+    docs = await db.past_leagues.find(
+        {"member_ids": user_id},
+        {"_id": 0},
+    ).to_list(500)
+
+    entries = []
+    for d in docs:
+        # Respect the per-user "clear history" cutoff.
+        if cleared_at and d.get("finished_at"):
+            finished_raw = d["finished_at"]
+            try:
+                finished_dt = (
+                    finished_raw if isinstance(finished_raw, datetime)
+                    else datetime.fromisoformat(str(finished_raw).replace("Z", "+00:00"))
+                )
+                if ensure_utc(finished_dt) <= cleared_at:
+                    continue
+            except Exception:
+                pass
+        entries.append(_view_past_league_for_user(d, user_id))
+
+    entries.sort(key=lambda e: e.get("finished_at") or "", reverse=True)
+    return {"leagues": entries}
+
+
+@api_router.delete("/leagues/past")
+async def delete_past_leagues(current_user: dict = Depends(get_current_user)):
+    """Permanently wipe past league history from the current user's view.
+
+    For each snapshot where the user is a member, we remove the user from
+    `member_ids`/`members`/`submissions_by_user`/`standings`. When the last
+    member is removed, the snapshot document is deleted. We also set a
+    `past_leagues_cleared_at` timestamp on the user so anything written
+    *before* the clear stays hidden even if we missed it.
+    """
+    user_id = current_user["id"]
+    now = datetime.now(timezone.utc)
+
+    docs = await db.past_leagues.find(
+        {"member_ids": user_id},
+        {"_id": 0, "id": 1, "member_ids": 1},
+    ).to_list(500)
+
+    for d in docs:
+        remaining = [mid for mid in d.get("member_ids", []) if mid != user_id]
+        if remaining:
+            await db.past_leagues.update_one(
+                {"id": d["id"]},
+                {
+                    "$pull": {
+                        "member_ids": user_id,
+                        "members": {"user_id": user_id},
+                        "standings": {"user_id": user_id},
+                    },
+                    "$unset": {f"submissions_by_user.{user_id}": ""},
+                },
+            )
+        else:
+            await db.past_leagues.delete_one({"id": d["id"]})
+
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {"past_leagues_cleared_at": now}},
+    )
+
+    return {
+        "message": "Past league history cleared",
+        "snapshots_cleared": len(docs),
+        "cleared_at": now.isoformat(),
+    }
+
 
 @api_router.get("/leagues/{league_id}", response_model=LeagueResponse)
 async def get_league(league_id: str, current_user: dict = Depends(get_current_user)):
@@ -1665,6 +1776,19 @@ async def delete_league(league_id: str, current_user: dict = Depends(get_current
     # purge elsewhere can permanently remove docs whose deleted_at is older
     # than 7 days.
     now = datetime.now(timezone.utc)
+
+    # Snapshot to past_leagues BEFORE we set deleted_at so any reads while
+    # the soft-delete window is open still have the source data. The snapshot
+    # is the durable home for this league from now on.
+    try:
+        await _save_past_league_snapshot(
+            league_id,
+            is_deleted=True,
+            deleted_at=now,
+        )
+    except Exception as e:
+        logger.warning(f"past_leagues snapshot failed for deleted {league_id}: {e}")
+
     await db.leagues.update_one(
         {"id": league_id},
         {"$set": {"deleted_at": now}},
@@ -1741,6 +1865,13 @@ async def restore_deleted_league(league_id: str, current_user: dict = Depends(ge
         {"$unset": {"deleted_at": ""}},
     )
 
+    # The league is active again — drop its past_leagues snapshot so it
+    # doesn't show up as both "active" and "past".
+    try:
+        await db.past_leagues.delete_one({"id": league_id})
+    except Exception as e:
+        logger.warning(f"past_leagues delete failed on restore {league_id}: {e}")
+
     restored = await db.leagues.find_one({"id": league_id}, {"_id": 0})
     # Enrich member profile photos like GET /leagues
     member_ids = [m["id"] for m in restored.get("members", [])]
@@ -1753,6 +1884,340 @@ async def restore_deleted_league(league_id: str, current_user: dict = Depends(ge
         member["profile_photo"] = user_map.get(member["id"], {}).get("profile_photo")
 
     return LeagueResponse(**add_league_defaults(restored))
+
+
+# ==================== PAST LEAGUES — SNAPSHOT BUILDERS ====================
+
+
+def _iso(dt) -> Optional[str]:
+    """Serialize a datetime-or-None to an ISO string safely."""
+    if not dt:
+        return None
+    if isinstance(dt, str):
+        return dt
+    return ensure_utc(dt).isoformat()
+
+
+async def _build_past_league_snapshot(
+    league: dict,
+    *,
+    is_deleted: bool,
+    deleted_at: Optional[datetime] = None,
+) -> dict:
+    """Build a full, viewer-agnostic snapshot of a past league.
+
+    Call this when a league finishes (all rounds complete) or when the
+    creator deletes it. The return value is meant to be upserted into the
+    `past_leagues` collection.
+    """
+    league_id = league["id"]
+    now = datetime.now(timezone.utc)
+
+    rounds = await db.rounds.find(
+        {"league_id": league_id},
+        {"_id": 0},
+    ).sort("round_number", 1).to_list(500)
+
+    completed_rounds = [r for r in rounds if r.get("status") == "completed"]
+    completed_round_ids = [r["id"] for r in completed_rounds]
+    all_round_ids = [r["id"] for r in rounds]
+
+    # Finish date = latest completed round deadline, or deleted_at.
+    finish_dt = None
+    if completed_rounds:
+        finish_dt = max(
+            (ensure_utc(r.get("voting_deadline") or r.get("created_at")) for r in completed_rounds),
+            default=None,
+        )
+    if is_deleted:
+        dd = ensure_utc(deleted_at) if deleted_at else now
+        if finish_dt is None or dd > finish_dt:
+            finish_dt = dd
+    if finish_dt is None:
+        finish_dt = ensure_utc(league.get("created_at")) or now
+
+    # Members + standings seed.
+    members_input = league.get("members", [])
+    user_stats: dict[str, dict] = {}
+    for m in members_input:
+        user_stats[m["id"]] = {
+            "user_id": m["id"],
+            "username": m["username"],
+            "total_points": 0,
+            "wins": 0,
+            "rounds_played": 0,
+        }
+
+    # N-1 point system across all completed rounds.
+    all_subs = []
+    all_votes = []
+    if completed_round_ids:
+        all_subs = await db.submissions.find(
+            {"round_id": {"$in": completed_round_ids}},
+            {"_id": 0, "id": 1, "round_id": 1, "user_id": 1},
+        ).to_list(5000)
+        all_votes = await db.votes.find(
+            {"round_id": {"$in": completed_round_ids}},
+            {"_id": 0, "round_id": 1, "voter_id": 1, "rankings": 1},
+        ).to_list(5000)
+
+    subs_by_round: dict[str, list] = {}
+    votes_by_round: dict[str, list] = {}
+    for s in all_subs:
+        subs_by_round.setdefault(s["round_id"], []).append(s)
+    for v in all_votes:
+        votes_by_round.setdefault(v["round_id"], []).append(v)
+
+    for r in completed_rounds:
+        subs = subs_by_round.get(r["id"], [])
+        votes = votes_by_round.get(r["id"], [])
+        if not subs:
+            continue
+        num_subs = len(subs)
+        num_to_rank = max(0, num_subs - 1)
+        points: dict[str, int] = {s["id"]: 0 for s in subs}
+        submitter_ids = {s["id"]: s["user_id"] for s in subs}
+        voters_who_voted: set[str] = set()
+        for v in votes:
+            voters_who_voted.add(v.get("voter_id"))
+            for idx, sid in enumerate(v.get("rankings", [])):
+                pts = num_to_rank - idx
+                if sid in points:
+                    points[sid] += pts
+        submitter_user_ids = set(submitter_ids.values())
+        non_voters = submitter_user_ids - voters_who_voted
+        if non_voters and num_subs > 1:
+            total_pts_per_voter = sum(range(1, num_to_rank + 1))
+            for nv_id in non_voters:
+                nv_sub_id = next((s["id"] for s in subs if s["user_id"] == nv_id), None)
+                others = [s["id"] for s in subs if s["id"] != nv_sub_id]
+                num_other = len(others)
+                if num_other > 0:
+                    per = total_pts_per_voter // num_other
+                    rem = total_pts_per_voter % num_other
+                    for sid in others:
+                        points[sid] += per
+                    for i in range(rem):
+                        points[others[i]] += 1
+        max_pts = max(points.values()) if points else 0
+        for s in subs:
+            uid = s["user_id"]
+            if uid in user_stats:
+                p = points.get(s["id"], 0)
+                user_stats[uid]["total_points"] += p
+                user_stats[uid]["rounds_played"] += 1
+                if p == max_pts and max_pts > 0:
+                    user_stats[uid]["wins"] += 1
+
+    standings = sorted(
+        user_stats.values(),
+        key=lambda x: (-x["total_points"], -x["wins"]),
+    )
+
+    # Enrich members/standings with profile photos.
+    member_ids = [m["id"] for m in members_input]
+    users = await db.users.find(
+        {"id": {"$in": member_ids}},
+        {"_id": 0, "id": 1, "username": 1, "profile_photo": 1},
+    ).to_list(500)
+    photo_by_id = {u["id"]: u.get("profile_photo") for u in users}
+    for s in standings:
+        s["profile_photo"] = photo_by_id.get(s["user_id"])
+
+    members = [
+        {
+            "user_id": m["id"],
+            "username": m["username"],
+            "profile_photo": photo_by_id.get(m["id"]),
+        }
+        for m in members_input
+    ]
+
+    winner = None
+    if standings and standings[0]["total_points"] > 0:
+        w = standings[0]
+        winner = {
+            "user_id": w["user_id"],
+            "username": w["username"],
+            "profile_photo": w.get("profile_photo"),
+            "total_points": w["total_points"],
+        }
+
+    # Per-user submissions (everyone's — we filter per-viewer on read).
+    round_by_id = {r["id"]: r for r in rounds}
+    submissions_by_user: dict[str, list[dict]] = {}
+    if all_round_ids:
+        full_subs = await db.submissions.find(
+            {"round_id": {"$in": all_round_ids}},
+            {"_id": 0},
+        ).to_list(5000)
+        for s in full_subs:
+            r = round_by_id.get(s.get("round_id")) or {}
+            submitted_at = s.get("submitted_at")
+            submissions_by_user.setdefault(s.get("user_id"), []).append(
+                {
+                    "submission_id": s.get("id"),
+                    "round_id": s.get("round_id"),
+                    "round_number": r.get("round_number"),
+                    "round_theme": r.get("theme"),
+                    "song": s.get("song"),
+                    "submitted_at": _iso(submitted_at),
+                }
+            )
+        for uid in list(submissions_by_user.keys()):
+            submissions_by_user[uid].sort(key=lambda x: x.get("round_number") or 0)
+
+    rounds_snapshot = [
+        {
+            "round_id": r["id"],
+            "round_number": r.get("round_number"),
+            "theme": r.get("theme"),
+            "status": r.get("status"),
+        }
+        for r in rounds
+    ]
+
+    total_rounds = league.get("total_rounds", 0) or 0
+    rounds_completed = len(completed_rounds)
+
+    return {
+        "id": league_id,
+        "name": league.get("name"),
+        "league_code": league.get("league_code"),
+        "league_image": league.get("league_image"),
+        "creator_id": league.get("creator_id"),
+        "creator_username": league.get("creator_username"),
+        "total_rounds": total_rounds,
+        "rounds_completed": rounds_completed,
+        "members_count": len(members_input),
+        "member_ids": member_ids,
+        "members": members,
+        "is_deleted": is_deleted,
+        "deleted_at": _iso(ensure_utc(deleted_at)) if is_deleted and deleted_at else None,
+        "completed_at": _iso(finish_dt) if not is_deleted else None,
+        "finished_at": _iso(finish_dt),
+        "standings": standings,
+        "winner": winner,
+        "rounds": rounds_snapshot,
+        "submissions_by_user": submissions_by_user,
+        "snapshot_at": _iso(now),
+    }
+
+
+async def _save_past_league_snapshot(
+    league_id: str,
+    *,
+    is_deleted: bool,
+    deleted_at: Optional[datetime] = None,
+) -> Optional[dict]:
+    """Build and upsert a snapshot for the given league. Safe to call
+    multiple times — re-snapshots update the existing document."""
+    league = await db.leagues.find_one({"id": league_id})
+    if not league:
+        return None
+    league.pop("_id", None)
+    snapshot = await _build_past_league_snapshot(
+        league, is_deleted=is_deleted, deleted_at=deleted_at,
+    )
+    await db.past_leagues.update_one(
+        {"id": league_id},
+        {"$set": snapshot},
+        upsert=True,
+    )
+    return snapshot
+
+
+async def _maybe_snapshot_completed_league(league_id: str) -> None:
+    """Snapshot to past_leagues if every planned round is completed."""
+    league = await db.leagues.find_one(
+        {"id": league_id, "$or": [{"deleted_at": {"$exists": False}}, {"deleted_at": None}]},
+    )
+    if not league:
+        return
+    total = league.get("total_rounds", 0) or 0
+    if total <= 0:
+        return
+    # All rounds must exist AND be status=completed.
+    all_rounds = await db.rounds.find(
+        {"league_id": league_id},
+        {"_id": 0, "status": 1, "round_number": 1},
+    ).to_list(200)
+    if len(all_rounds) < total:
+        return
+    if not all(r.get("status") == "completed" for r in all_rounds):
+        return
+    try:
+        await _save_past_league_snapshot(league_id, is_deleted=False)
+    except Exception as e:
+        logger.warning(f"past_leagues snapshot failed for {league_id}: {e}")
+
+
+async def _backfill_past_leagues_for_user(user_id: str) -> None:
+    """For legacy data: snapshot any league where the user is a member that
+    is already past (completed or soft-deleted) but isn't in past_leagues.
+    Safe, idempotent — runs a small amount of work per call and skips
+    leagues that already have a snapshot."""
+    candidates = await db.leagues.find(
+        {"members.id": user_id},
+        {"_id": 0, "id": 1, "deleted_at": 1, "total_rounds": 1, "current_round": 1},
+    ).to_list(500)
+    for l in candidates:
+        lid = l["id"]
+        existing = await db.past_leagues.find_one({"id": lid}, {"_id": 0, "id": 1})
+        if existing:
+            continue
+        deleted_at = l.get("deleted_at")
+        if deleted_at:
+            try:
+                await _save_past_league_snapshot(lid, is_deleted=True, deleted_at=ensure_utc(deleted_at))
+            except Exception as e:
+                logger.warning(f"backfill snapshot (deleted) failed for {lid}: {e}")
+            continue
+        total = l.get("total_rounds", 0) or 0
+        current = l.get("current_round", 0) or 0
+        if total <= 0 or current < total:
+            continue
+        rounds = await db.rounds.find(
+            {"league_id": lid},
+            {"_id": 0, "status": 1},
+        ).to_list(500)
+        if not rounds or len(rounds) < total:
+            continue
+        if not all(r.get("status") == "completed" for r in rounds):
+            continue
+        try:
+            await _save_past_league_snapshot(lid, is_deleted=False)
+        except Exception as e:
+            logger.warning(f"backfill snapshot (completed) failed for {lid}: {e}")
+
+
+def _view_past_league_for_user(doc: dict, user_id: str) -> dict:
+    """Project a past_leagues document into the API response for viewer."""
+    standings = doc.get("standings") or []
+    my_place = None
+    for i, s in enumerate(standings):
+        if s.get("user_id") == user_id:
+            my_place = i + 1
+            break
+    subs_by_user = doc.get("submissions_by_user") or {}
+    my_subs = subs_by_user.get(user_id, [])
+    return {
+        "id": doc.get("id"),
+        "name": doc.get("name"),
+        "league_code": doc.get("league_code"),
+        "league_image": doc.get("league_image"),
+        "total_rounds": doc.get("total_rounds", 0),
+        "rounds_completed": doc.get("rounds_completed", 0),
+        "members_count": doc.get("members_count", len(doc.get("members") or [])),
+        "is_deleted": doc.get("is_deleted", False),
+        "deleted_at": doc.get("deleted_at"),
+        "finished_at": doc.get("finished_at"),
+        "my_place": my_place,
+        "winner": doc.get("winner"),
+        "standings": standings,
+        "my_submissions": my_subs,
+    }
+
 
 class LeagueUpdate(BaseModel):
     league_image: Optional[str] = None
@@ -1965,7 +2430,11 @@ async def get_rounds(league_id: str, current_user: dict = Depends(get_current_us
                 await _finalize_round_lifetime(round_id)
             except Exception as e:
                 logger.warning(f"_finalize_round_lifetime failed: {e}")
-        
+            try:
+                await _maybe_snapshot_completed_league(round_doc["league_id"])
+            except Exception as e:
+                logger.warning(f"past snapshot (auto-advance batch) failed: {e}")
+
         result.append(RoundResponse(
             **round_doc,
             submissions_count=submissions_counts.get(round_id, 0),
@@ -2027,8 +2496,12 @@ async def get_round(round_id: str, current_user: dict = Depends(get_current_user
             await _finalize_round_lifetime(round_id)
         except Exception as e:
             logger.warning(f"_finalize_round_lifetime failed: {e}")
+        try:
+            await _maybe_snapshot_completed_league(round_doc["league_id"])
+        except Exception as e:
+            logger.warning(f"past snapshot (single-round auto-advance) failed: {e}")
         round_doc["status"] = status
-    
+
     submissions_count = await db.submissions.count_documents({"round_id": round_id})
     votes_count = await db.votes.count_documents({"round_id": round_id})
     
@@ -2090,6 +2563,10 @@ async def advance_round(round_id: str, current_user: dict = Depends(get_current_
             await _finalize_round_lifetime(round_id)
         except Exception as e:
             logger.warning(f"_finalize_round_lifetime failed: {e}")
+        try:
+            await _maybe_snapshot_completed_league(round_doc["league_id"])
+        except Exception as e:
+            logger.warning(f"past snapshot (manual advance) failed: {e}")
         return {"message": "Round completed"}
     else:
         return {"message": "Round is already completed"}
