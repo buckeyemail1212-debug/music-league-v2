@@ -21,8 +21,8 @@ import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../src/context/AuthContext';
 import {
-  deleteAccount,
-  clearPastLeagues,
+  clearAccountData,
+  deleteAccountFull,
 } from '../src/services/api';
 import { leagueEvents } from '../src/utils/leagueEvents';
 
@@ -44,6 +44,11 @@ export default function SettingsPage() {
   const [legalOpen, setLegalOpen] = useState<null | 'privacy' | 'terms'>(null);
   const [clearBusy, setClearBusy] = useState(false);
   const [clearSuccess, setClearSuccess] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  // Confirm modals for destructive account actions. Two separate flags
+  // so the two modals can differ in copy / CTA color.
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const pickFromGallery = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -157,55 +162,49 @@ export default function SettingsPage() {
     ]);
   };
 
-  const handleDeleteAccount = () => {
-    Alert.alert(
-      'Delete Account',
-      'Are you sure you want to delete your account? This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteAccount();
-              await AsyncStorage.clear();
-              await logout();
-              router.replace('/(auth)/login');
-            } catch (error: any) {
-              Alert.alert('Error', error.response?.data?.detail || 'Failed to delete account');
-            }
-          },
-        },
-      ],
-    );
+  // --- Destructive account actions ----------------------------------
+  // Both actions use a custom in-screen Modal (not Alert.alert) so the
+  // copy and CTA colors match the spec exactly: purple "Clear Data"
+  // button vs red "Delete Account" button.
+
+  const confirmClearData = async () => {
+    setClearConfirmOpen(false);
+    setClearBusy(true);
+    try {
+      await clearAccountData();
+      // Past leagues list + My Game stats both key off server state, so
+      // fan out a league-events tick to force the home/profile tabs to
+      // refetch when they focus next.
+      leagueEvents.emit();
+      setClearSuccess(true);
+    } catch (e: any) {
+      Alert.alert(
+        'Error',
+        e?.response?.data?.detail || 'Failed to clear account data',
+      );
+    } finally {
+      setClearBusy(false);
+    }
   };
 
-  const handleClearPast = () => {
-    Alert.alert(
-      'Clear past leagues?',
-      'This will permanently delete all past league data from your history — finished leagues, deleted leagues, and the songs you submitted in them. Active leagues are not affected. This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear history',
-          style: 'destructive',
-          onPress: async () => {
-            setClearBusy(true);
-            try {
-              await clearPastLeagues();
-              // Notify the home screen so the past-leagues list refreshes.
-              leagueEvents.emit();
-              setClearSuccess(true);
-            } catch (e: any) {
-              Alert.alert('Error', e?.response?.data?.detail || 'Failed to clear history');
-            } finally {
-              setClearBusy(false);
-            }
-          },
-        },
-      ],
-    );
+  const confirmDeleteAccount = async () => {
+    setDeleteConfirmOpen(false);
+    setDeleteBusy(true);
+    try {
+      await deleteAccountFull();
+      // Flush any locally cached state so the freshly-signed-up user
+      // doesn't inherit stale preferences from the previous account.
+      await AsyncStorage.clear();
+      await logout();
+      router.replace('/(auth)/login');
+    } catch (e: any) {
+      Alert.alert(
+        'Error',
+        e?.response?.data?.detail || 'Failed to delete account',
+      );
+    } finally {
+      setDeleteBusy(false);
+    }
   };
 
   return (
@@ -295,17 +294,18 @@ export default function SettingsPage() {
           <Separator />
           <Row
             icon="trash-bin-outline"
-            label={clearBusy ? 'Clearing...' : 'Clear past leagues'}
+            label={clearBusy ? 'Clearing...' : 'Clear account data'}
             danger
-            onPress={handleClearPast}
-            disabled={clearBusy}
+            onPress={() => setClearConfirmOpen(true)}
+            disabled={clearBusy || deleteBusy}
           />
           <Separator />
           <Row
             icon="close-circle-outline"
-            label="Delete account"
+            label={deleteBusy ? 'Deleting…' : 'Delete account'}
             danger
-            onPress={handleDeleteAccount}
+            onPress={() => setDeleteConfirmOpen(true)}
+            disabled={clearBusy || deleteBusy}
             last
           />
         </View>
@@ -386,7 +386,83 @@ export default function SettingsPage() {
         </View>
       </Modal>
 
-      {/* Clear past leagues success modal */}
+      {/* Clear account data — confirm modal */}
+      <Modal
+        visible={clearConfirmOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setClearConfirmOpen(false)}
+      >
+        <View style={styles.overlay}>
+          <View style={styles.popup}>
+            <Text style={styles.popupTitle}>Clear account data?</Text>
+            <Text style={styles.confirmBody}>
+              This permanently deletes your past leagues, Your Taste, recent
+              submissions, and My Game stats. Active leagues you're in will
+              not be affected. This cannot be undone.
+            </Text>
+            <View style={styles.confirmRow}>
+              <TouchableOpacity
+                style={styles.confirmCancel}
+                onPress={() => setClearConfirmOpen(false)}
+              >
+                <Text style={styles.confirmCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmCta, styles.confirmCtaPurple]}
+                onPress={confirmClearData}
+                disabled={clearBusy}
+              >
+                {clearBusy ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.confirmCtaText}>Clear Data</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Delete account — confirm modal */}
+      <Modal
+        visible={deleteConfirmOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDeleteConfirmOpen(false)}
+      >
+        <View style={styles.overlay}>
+          <View style={styles.popup}>
+            <Text style={styles.popupTitle}>Delete your account?</Text>
+            <Text style={styles.confirmBody}>
+              This permanently deletes your account and all your data. You'll
+              be removed from all active leagues. If you sign up with this
+              email again, you'll start fresh. This cannot be undone.
+            </Text>
+            <View style={styles.confirmRow}>
+              <TouchableOpacity
+                style={styles.confirmCancel}
+                onPress={() => setDeleteConfirmOpen(false)}
+              >
+                <Text style={styles.confirmCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmCta, styles.confirmCtaRed]}
+                onPress={confirmDeleteAccount}
+                disabled={deleteBusy}
+              >
+                {deleteBusy ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.confirmCtaText}>Delete Account</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Clear account data — success modal */}
       <Modal
         visible={clearSuccess}
         transparent
@@ -398,9 +474,10 @@ export default function SettingsPage() {
             <View style={styles.successIcon}>
               <Ionicons name="checkmark-circle" size={48} color="#10B981" />
             </View>
-            <Text style={styles.successTitle}>History cleared</Text>
+            <Text style={styles.successTitle}>Data cleared</Text>
             <Text style={styles.successBody}>
-              All past league data has been permanently deleted.
+              Your past leagues, Your Taste, recent submissions, and stats
+              have been permanently deleted.
             </Text>
             <TouchableOpacity
               style={styles.popupSave}
@@ -655,5 +732,49 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 20,
     lineHeight: 20,
+  },
+
+  // Destructive-action confirm modals.
+  confirmBody: {
+    fontSize: 14,
+    color: '#D9D9D9',
+    lineHeight: 20,
+    marginBottom: 18,
+  },
+  confirmRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  confirmCancel: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 999,
+    backgroundColor: '#3A3A3A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  confirmCancelText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  confirmCta: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  confirmCtaPurple: {
+    backgroundColor: '#7C3AED',
+  },
+  confirmCtaRed: {
+    backgroundColor: '#EF4444',
+  },
+  confirmCtaText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 14,
+    letterSpacing: 0.5,
   },
 });

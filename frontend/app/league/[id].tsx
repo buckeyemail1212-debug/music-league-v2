@@ -29,13 +29,13 @@ import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
 import { useAuth } from '../../src/context/AuthContext';
 import { SharedChat } from '../../src/components/SharedChat';
-import LeagueAvatar from '../../src/components/LeagueAvatar';
 import { leagueEvents } from '../../src/utils/leagueEvents';
 import {
   getLeague,
   getRounds,
   createRound,
   advanceRound,
+  startRound,
   deleteLeague,
   leaveLeague,
   getLeagueStandings,
@@ -66,6 +66,7 @@ export default function LeagueDetailScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [creatingRound, setCreatingRound] = useState(false);
   const [advancing, setAdvancing] = useState<string | null>(null);
+  const [starting, setStarting] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'rounds' | 'standings'>('rounds');
   
   // Start round modal state
@@ -123,7 +124,7 @@ export default function LeagueDetailScreen() {
   };
 
   // Calculate remaining time from UTC deadline
-  const getTimeRemaining = (deadlineStr: string): string => {
+  const getTimeRemaining = (deadlineStr: string | null): string => {
     if (!deadlineStr) return '';
     
     // Parse UTC date
@@ -412,21 +413,25 @@ export default function LeagueDetailScreen() {
 
   const renderRoundItem = ({ item }: { item: Round }) => {
     const isLocked = item.status === 'locked';
+    const isReady = item.status === 'ready';
     const isSkipped = item.status === 'skipped';
     const isCompleted = item.status === 'completed' || isSkipped;
-    const isActive = !isLocked && !isCompleted;
+    const isLive = item.status === 'submission' || item.status === 'voting';
 
-    const badgeColor = isLocked
-      ? '#3A3A3A'
-      : isCompleted
-        ? '#10B981'
-        : '#7C3AED';
+    // Badge color: locked → gray, everything else (ready, submission,
+    // voting, completed, skipped) → primary purple.
+    const badgeColor = isLocked ? '#3A3A3A' : '#7C3AED';
     const nameColor = isLocked ? '#6A6A6A' : '#FFFFFF';
     const displayName = item.theme?.trim() || `Round ${item.round_number}`;
+    const creatorUsername = league?.creator_username || 'the creator';
 
     let statusText = '';
     if (isLocked) {
       statusText = `Opens when R${item.round_number - 1} ends`;
+    } else if (isReady) {
+      statusText = isCreator
+        ? 'Ready to start'
+        : `Ready · Waiting for ${creatorUsername} to start the round`;
     } else if (isSkipped) {
       statusText = 'Skipped · No submissions';
     } else if (isCompleted) {
@@ -436,7 +441,7 @@ export default function LeagueDetailScreen() {
         item.status === 'submission'
           ? item.submission_deadline
           : item.voting_deadline;
-      const timeLeft = getTimeRemaining(deadline);
+      const timeLeft = deadline ? getTimeRemaining(deadline) : '';
       statusText = `${item.submissions_count} songs · ${timeLeft} left`;
     }
 
@@ -448,7 +453,28 @@ export default function LeagueDetailScreen() {
         );
         return;
       }
+      if (isReady) {
+        // Ready rounds have nothing to show yet — the round detail page
+        // expects real deadlines. Route to start-in-place via the button.
+        return;
+      }
       router.push(`/round/${item.id}`);
+    };
+
+    const onStart = async () => {
+      if (!league || starting === item.id) return;
+      setStarting(item.id);
+      try {
+        await startRound(league.id, item.round_number);
+        await fetchData();
+      } catch (e: any) {
+        Alert.alert(
+          'Error',
+          e?.response?.data?.detail || 'Failed to start round',
+        );
+      } finally {
+        setStarting(null);
+      }
     };
 
     return (
@@ -456,7 +482,7 @@ export default function LeagueDetailScreen() {
         <TouchableOpacity
           style={styles.roundContent}
           onPress={onPress}
-          activeOpacity={0.7}
+          activeOpacity={isReady ? 1 : 0.7}
         >
           <View style={styles.roundRow}>
             <View style={[styles.roundNumberBadge, { backgroundColor: badgeColor }]}>
@@ -469,19 +495,32 @@ export default function LeagueDetailScreen() {
               >
                 {displayName}
               </Text>
-              <Text style={styles.roundMetaText} numberOfLines={1}>
+              <Text style={styles.roundMetaText} numberOfLines={2}>
                 {statusText}
               </Text>
             </View>
             {isLocked ? (
               <Ionicons name="lock-closed" size={18} color="#6A6A6A" />
-            ) : (
+            ) : isReady && isCreator ? (
+              <TouchableOpacity
+                style={styles.startRoundInline}
+                onPress={onStart}
+                disabled={starting === item.id}
+                activeOpacity={0.8}
+              >
+                {starting === item.id ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.startRoundInlineText}>Start Round</Text>
+                )}
+              </TouchableOpacity>
+            ) : isReady ? null : (
               <Ionicons name="chevron-forward" size={20} color="#6A6A6A" />
             )}
           </View>
         </TouchableOpacity>
 
-        {isCreator && isActive && (
+        {isCreator && isLive && (
           <TouchableOpacity
             style={styles.advanceButton}
             onPress={() => handleAdvanceRound(item.id, item.status)}
@@ -528,20 +567,34 @@ export default function LeagueDetailScreen() {
           <Ionicons name="chevron-back" size={24} color="rgba(255,255,255,0.75)" />
         </TouchableOpacity>
         <View style={styles.headerInfo}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <LeagueAvatar
-              image={league.league_image}
-              name={league.name}
-              size={32}
-              imageBorderRadius={6}
-            />
-            <Text style={styles.leagueName}>{league.name}</Text>
+          <View style={styles.headerTitleRow}>
+            <Text style={styles.leagueName} numberOfLines={1}>{league.name}</Text>
             {loading && dataLoaded.current && (
               <ActivityIndicator size="small" color="rgba(255,255,255,0.4)" />
             )}
           </View>
           <View style={styles.headerSubRow}>
-            <Text style={styles.leagueTheme}>Round {league.current_round} of {league.total_rounds > 0 ? league.total_rounds : 'Unlimited'}</Text>
+            <Text style={styles.headerSubText} numberOfLines={1}>
+              {(() => {
+                // Derive a single-line round-state summary from the
+                // loaded rounds. "Not started" = no active round AND
+                // nothing completed yet. "Completed" = every planned
+                // round is done. Otherwise show current round + phase.
+                const total = league.total_rounds || 0;
+                const active = rounds.find(
+                  (r) => r.status === 'submission' || r.status === 'voting',
+                );
+                const completedCount = rounds.filter(
+                  (r) => r.status === 'completed' || r.status === 'skipped',
+                ).length;
+                if (total > 0 && completedCount >= total) return 'Completed';
+                if (active) {
+                  const base = `Round ${active.round_number} of ${total > 0 ? total : '?'}`;
+                  return active.status === 'voting' ? `${base} · voting` : base;
+                }
+                return 'Not started';
+              })()}
+            </Text>
             {league.current_round === 0 && (
               <TouchableOpacity onPress={handleCopyCode} style={styles.headerCode}>
                 <Text style={styles.headerCodeText}>{league.league_code}</Text>
@@ -1210,19 +1263,28 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 8,
   },
-  leagueName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
-  leagueTheme: {
-    fontSize: 13,
-    color: '#B3B3B3',
+  leagueName: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
+    flexShrink: 1,
   },
   headerSubRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    marginTop: 2,
+  },
+  headerSubText: {
+    fontSize: 12,
+    color: '#B3B3B3',
+    fontWeight: '500',
   },
   headerCode: {
     flexDirection: 'row',
@@ -1438,6 +1500,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  startRoundInline: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: '#7C3AED',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 92,
+  },
+  startRoundInlineText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   emptyState: {
     flex: 1,

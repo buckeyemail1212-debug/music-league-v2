@@ -18,6 +18,9 @@ interface DisplayProps extends BaseProps {
   // League name — required for the initials fallback. Accepts empty string
   // (will fall back to "?").
   name: string;
+  // Number of initial letters to show. Defaults to 1 (first letter of the
+  // league name), per design. Opt into more by passing 2+.
+  maxInitials?: number;
 }
 
 interface UploadProps extends BaseProps {
@@ -31,13 +34,16 @@ interface UploadProps extends BaseProps {
 type Props = DisplayProps | UploadProps;
 
 // Extract initials from a league name: first letter of each of the first
-// two whitespace-separated tokens. "Love" → "L", "Friday Night Vibes" →
-// "FN", "Songs About Fire In The Summer" → "SA", "" → "?".
-function leagueInitials(name: string): string {
+// `max` whitespace-separated tokens. "Love" → "L", "Friday Night Vibes" →
+// "FN" (max=2), "Friday Night Vibes" → "F" (max=1), "" → "?".
+function leagueInitials(name: string, max: number = 1): string {
   const tokens = (name || '').trim().split(/\s+/).filter(Boolean);
   if (tokens.length === 0) return '?';
-  if (tokens.length === 1) return tokens[0][0].toUpperCase();
-  return (tokens[0][0] + tokens[1][0]).toUpperCase();
+  const n = Math.max(1, Math.min(max, tokens.length));
+  return tokens
+    .slice(0, n)
+    .map((t) => t[0].toUpperCase())
+    .join('');
 }
 
 export default function LeagueAvatar(props: Props) {
@@ -79,7 +85,7 @@ export default function LeagueAvatar(props: Props) {
   }
 
   // Default ("display"): filled purple square with initials.
-  const initials = leagueInitials(props.name ?? '');
+  const initials = leagueInitials(props.name ?? '', props.maxInitials ?? 1);
   const fontSize = Math.max(11, Math.round(size * 0.42));
   return (
     <View

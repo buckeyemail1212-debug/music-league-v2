@@ -54,11 +54,12 @@ export interface Round {
   league_id: string;
   round_number: number;
   theme: string;
-  status: 'locked' | 'submission' | 'voting' | 'completed' | 'skipped';
+  status: 'locked' | 'ready' | 'submission' | 'voting' | 'completed' | 'skipped';
   submission_hours: number;
   voting_hours: number;
-  submission_deadline: string;
-  voting_deadline: string;
+  // Null for "locked" and "ready" rounds — no timer has been set.
+  submission_deadline: string | null;
+  voting_deadline: string | null;
   submissions_count: number;
   votes_count: number;
   total_members: number;
@@ -287,6 +288,22 @@ export const clearPastLeagues = () =>
     '/leagues/past',
   );
 
+// Clears personal gameplay data (past league snapshots, Your Taste,
+// recent submissions, lifetime stats). Active leagues are untouched.
+export const clearAccountData = () =>
+  api.post<{
+    message: string;
+    deleted: Record<string, number>;
+  }>('/users/me/clear-data');
+
+// Hard-deletes the account. After success the same email/username can
+// be used to register fresh.
+export const deleteAccountFull = () =>
+  api.delete<{
+    message: string;
+    deleted: Record<string, number>;
+  }>('/users/me');
+
 export const leaveLeague = (id: string) => 
   api.post(`/leagues/${id}/leave`);
 
@@ -311,8 +328,13 @@ export const getRounds = (leagueId: string) =>
 export const getRound = (roundId: string) => 
   api.get<Round>(`/rounds/${roundId}`);
 
-export const advanceRound = (roundId: string) => 
+export const advanceRound = (roundId: string) =>
   api.post(`/rounds/${roundId}/advance`);
+
+// Creator-only: transitions a "ready" round into "submission" phase and
+// starts its timer. Returns the updated round.
+export const startRound = (leagueId: string, roundNumber: number) =>
+  api.post<Round>(`/leagues/${leagueId}/rounds/${roundNumber}/start`);
 
 export const reopenSubmission = (roundId: string, userId: string) =>
   api.post(`/rounds/${roundId}/reopen-submission`, { user_id: userId });

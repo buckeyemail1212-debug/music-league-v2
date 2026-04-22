@@ -670,11 +670,16 @@ class RoundResponse(BaseModel):
     league_id: str
     round_number: int
     theme: str
-    status: str  # "locked", "submission", "voting", "completed", "skipped"
+    # "locked" (future, not unlocked), "ready" (unlocked, creator can
+    # start), "submission" (timer running), "voting", "completed",
+    # "skipped" (no submissions).
+    status: str
     submission_hours: int = 24
     voting_hours: int = 24
-    submission_deadline: datetime
-    voting_deadline: datetime
+    # Null for "locked" and "ready" rounds — no timer has been set.
+    # Populated once the round transitions to "submission".
+    submission_deadline: Optional[datetime] = None
+    voting_deadline: Optional[datetime] = None
     submissions_count: int
     votes_count: int = 0  # Number of users who have voted
     total_members: int = 0  # Total members in the league
@@ -1094,6 +1099,254 @@ async def delete_account(current_user: dict = Depends(get_current_user)):
     await db.users.delete_one({"id": user_id})
 
     return {"message": "Account deleted successfully"}
+
+
+# ==================== /users/me — CLEAR DATA + DELETE ACCOUNT ==========
+# Split behavior from the older /auth/data and /auth/account endpoints.
+# /users/me/clear-data wipes personal *gameplay* history (past leagues,
+# taste, recent subs, stats) without touching active leagues or the
+# account itself. DELETE /users/me hard-deletes the account entirely,
+# anonymizing the user's presence in any active league it was part of
+# so round integrity is preserved for the other members.
+
+DELETED_USER_DISPLAY = "[deleted user]"
+
+
+async def _clear_gameplay_data(user_id: str) -> dict:
+    """Shared helper for /users/me/clear-data and DELETE /users/me.
+    Returns a dict of per-collection deletion counts for logging."""
+    counts: dict[str, int] = {}
+
+    # 1. Past league snapshots where the user was a member. Mirrors the
+    #    semantics of the older DELETE /leagues/past: pull from member_ids/
+    #    members/standings, unset per-user submission map, and drop the
+    #    snapshot entirely once the user was the last remaining member.
+    past_docs = await db.past_leagues.find(
+        {"member_ids": user_id},
+        {"_id": 0, "id": 1, "member_ids": 1},
+    ).to_list(500)
+    past_cleared = 0
+    past_deleted = 0
+    for d in past_docs:
+        remaining = [mid for mid in d.get("member_ids", []) if mid != user_id]
+        if remaining:
+            await db.past_leagues.update_one(
+                {"id": d["id"]},
+                {
+                    "$pull": {
+                        "member_ids": user_id,
+                        "members": {"user_id": user_id},
+                        "standings": {"user_id": user_id},
+                    },
+                    "$unset": {f"submissions_by_user.{user_id}": ""},
+                },
+            )
+            past_cleared += 1
+        else:
+            await db.past_leagues.delete_one({"id": d["id"]})
+            past_deleted += 1
+    counts["past_league_snapshots_cleared"] = past_cleared
+    counts["past_league_snapshots_deleted"] = past_deleted
+
+    # 2. "Your Taste" + "Recent Submissions" history. The user_submissions
+    #    collection is the permanent per-user song archive the profile
+    #    taste pie chart reads from.
+    res = await db.user_submissions.delete_many({"user_id": user_id})
+    counts["taste_history_rows_deleted"] = res.deleted_count or 0
+
+    # 3. Reset lifetime stats on the user doc. Also clears the
+    #    past_leagues_cleared_at cutoff since we've now truly cleared.
+    await db.users.update_one(
+        {"id": user_id},
+        {
+            "$set": {
+                "all_time_points": 0,
+                "total_wins": 0,
+                "total_submissions": 0,
+            },
+            "$unset": {"past_leagues_cleared_at": ""},
+        },
+    )
+    counts["stats_reset"] = 1
+
+    return counts
+
+
+@api_router.post("/users/me/clear-data")
+async def users_me_clear_data(current_user: dict = Depends(get_current_user)):
+    """Clear personal gameplay data (past leagues, taste, recent subs,
+    stats). Active leagues the user is currently in are untouched. The
+    account itself — email, username, password hash, profile photo —
+    stays put."""
+    user_id = current_user["id"]
+    counts = await _clear_gameplay_data(user_id)
+    logger.info(f"users_me_clear_data: user={user_id} counts={counts}")
+    return {"message": "Account data cleared", "deleted": counts}
+
+
+@api_router.delete("/users/me")
+async def users_me_delete(current_user: dict = Depends(get_current_user)):
+    """Hard-delete the user account and everything derived from it.
+
+    - Anonymize the user's submissions in ACTIVE leagues so round
+      integrity is preserved (standings, winners, scoring all depend on
+      those rows being there). Usernames on those rows are rewritten to
+      "[deleted user]".
+    - Remove the user from members[] of every active league they're in.
+      If the user was the creator and other members remain, transfer
+      creatorship to the first remaining member.
+    - If the user was the sole member of any active league, that league
+      is hard-deleted entirely (rounds, submissions, votes, messages,
+      chat_reads, snapshots). Solo-creator leagues with nobody else to
+      play don't need to sit around as zombies.
+    - Run the full clear-data sweep (past leagues, taste, stats).
+    - Delete the user doc itself so the email/username become available
+      for a fresh signup immediately.
+    """
+    user_id = current_user["id"]
+
+    # 1. Active leagues this user is in.
+    my_leagues = await db.leagues.find(
+        {
+            "members.id": user_id,
+            "$or": [{"deleted_at": {"$exists": False}}, {"deleted_at": None}],
+        },
+        {"_id": 0, "id": 1, "creator_id": 1, "members": 1},
+    ).to_list(500)
+
+    for l in my_leagues:
+        lid = l["id"]
+        # Transfer creatorship if the user is the creator and there's
+        # another member to hand it to. If the user was the sole member,
+        # the league becomes orphaned and gets hard-deleted in step 1b
+        # below — no creator-transfer needed.
+        if l.get("creator_id") == user_id:
+            remaining = [m for m in l.get("members", []) if m.get("id") != user_id]
+            if remaining:
+                heir = remaining[0]
+                await db.leagues.update_one(
+                    {"id": lid},
+                    {"$set": {
+                        "creator_id": heir["id"],
+                        "creator_username": heir.get("username", DELETED_USER_DISPLAY),
+                    }},
+                )
+        # Pull the user from the members array.
+        await db.leagues.update_one(
+            {"id": lid},
+            {"$pull": {"members": {"id": user_id}}},
+        )
+        # Remove any extended submission grants for this user.
+        await db.rounds.update_many(
+            {"league_id": lid, "extended_submissions.user_id": user_id},
+            {"$pull": {"extended_submissions": {"user_id": user_id}}},
+        )
+
+    # 1b. Orphan cleanup — any league whose members array is now empty
+    #     because the deleted user was its sole member. Hard-delete the
+    #     league and everything attached to it so we don't leave
+    #     unplayable zombie leagues around.
+    all_my_league_ids = [l["id"] for l in my_leagues]
+    orphaned_ids: list[str] = []
+    if all_my_league_ids:
+        orphaned = await db.leagues.find(
+            {"id": {"$in": all_my_league_ids}, "members": {"$size": 0}},
+            {"_id": 0, "id": 1},
+        ).to_list(500)
+        orphaned_ids = [l["id"] for l in orphaned]
+        if orphaned_ids:
+            orphan_round_docs = await db.rounds.find(
+                {"league_id": {"$in": orphaned_ids}},
+                {"_id": 0, "id": 1},
+            ).to_list(5000)
+            orphan_round_ids = [r["id"] for r in orphan_round_docs]
+            if orphan_round_ids:
+                await db.submissions.delete_many(
+                    {"round_id": {"$in": orphan_round_ids}},
+                )
+                await db.votes.delete_many({"round_id": {"$in": orphan_round_ids}})
+                await db.round_results.delete_many(
+                    {"round_id": {"$in": orphan_round_ids}},
+                )
+            await db.rounds.delete_many({"league_id": {"$in": orphaned_ids}})
+            await db.messages.delete_many({"league_id": {"$in": orphaned_ids}})
+            await db.chat_reads.delete_many({"league_id": {"$in": orphaned_ids}})
+            await db.league_snapshots.delete_many(
+                {"league_id": {"$in": orphaned_ids}},
+            )
+            # past_leagues is keyed by league id (not league_id) — the
+            # snapshot id is the league id.
+            await db.past_leagues.delete_many({"id": {"$in": orphaned_ids}})
+            await db.leagues.delete_many({"id": {"$in": orphaned_ids}})
+    logger.info(
+        f"users_me_delete_orphan_cleanup: user={user_id} "
+        f"deleted_leagues={len(orphaned_ids)}"
+    )
+
+    # 2. Anonymize the user's submissions in ACTIVE leagues (excluding
+    #    leagues we just hard-deleted in step 1b). Keep rows so round
+    #    scoring stays intact — we only rewrite the display name.
+    orphaned_set = set(orphaned_ids)
+    active_league_ids = [lid for lid in all_my_league_ids if lid not in orphaned_set]
+    if active_league_ids:
+        round_docs = await db.rounds.find(
+            {"league_id": {"$in": active_league_ids}},
+            {"_id": 0, "id": 1},
+        ).to_list(5000)
+        round_ids = [r["id"] for r in round_docs]
+        if round_ids:
+            await db.submissions.update_many(
+                {"round_id": {"$in": round_ids}, "user_id": user_id},
+                {"$set": {"username": DELETED_USER_DISPLAY}},
+            )
+            # Votes have no username field — voter_id stays; results code
+            # resolves usernames via the users collection, so we overwrite
+            # the user's username later anyway (after delete, results
+            # queries that look up the user will miss — see note below).
+
+    # 3. Submissions / votes in leagues the user ISN'T a current member
+    #    of (e.g. past leagues the scheduler has already archived). Those
+    #    rows can be deleted — the past_leagues snapshot already has its
+    #    own frozen copy of username + song for the historical display.
+    if active_league_ids:
+        all_user_sub_rounds = await db.submissions.find(
+            {"user_id": user_id},
+            {"_id": 0, "round_id": 1},
+        ).to_list(5000)
+        inactive_round_ids = [
+            r["round_id"] for r in all_user_sub_rounds
+            if r["round_id"] not in set(round_ids)
+        ]
+        if inactive_round_ids:
+            await db.submissions.delete_many(
+                {"user_id": user_id, "round_id": {"$in": inactive_round_ids}},
+            )
+        # Same for votes.
+        await db.votes.delete_many({"voter_id": user_id})
+    else:
+        await db.submissions.delete_many({"user_id": user_id})
+        await db.votes.delete_many({"voter_id": user_id})
+
+    # 4. Chat messages — always deleted.
+    await db.messages.delete_many({"user_id": user_id})
+    await db.chat_reads.delete_many({"user_id": user_id})
+
+    # 5. Password reset codes.
+    await db.reset_codes.delete_many(
+        {"phone_number": current_user.get("phone_number", "")},
+    )
+
+    # 6. Clear data sweep (past snapshots, taste, lifetime counters).
+    counts = await _clear_gameplay_data(user_id)
+
+    # 7. Hard-delete the user doc. After this point, the same email and
+    #    username are immediately available for a fresh registration —
+    #    there is no soft-delete flag on the user collection.
+    await db.users.delete_one({"id": user_id})
+
+    logger.info(f"users_me_delete: user={user_id} clear_counts={counts}")
+    return {"message": "Account deleted", "deleted": counts}
+
 
 @api_router.post("/auth/delete-by-credentials")
 async def delete_account_by_credentials(request: DeleteByCredentialsRequest):
@@ -1582,9 +1835,11 @@ async def _pregenerate_rounds(
     themes: list[str],
     start_round: int = 1,
 ) -> None:
-    """Create round docs for rounds `start_round`..`total_rounds`. The first
-    round created (if `start_round == 1`) goes live immediately; the rest
-    start locked. Idempotent — skips rounds that already exist."""
+    """Create round docs for rounds `start_round`..`total_rounds`. Round 1
+    is created in "ready" state — the creator can start it with a button
+    tap; no timer runs until they do. Rounds 2..N are created in "locked"
+    state and get unlocked by the transition helper when the previous
+    round finishes. Idempotent — skips round numbers that already exist."""
     if total_rounds <= 0:
         return
     existing = await db.rounds.find(
@@ -1602,10 +1857,15 @@ async def _pregenerate_rounds(
         if rn - 1 < len(themes):
             theme = (themes[rn - 1] or "").strip()
         if rn == 1 and not existing:
-            sub_deadline = now + timedelta(hours=submission_hours)
-            vote_deadline = sub_deadline + timedelta(hours=voting_hours)
-            status = "submission"
+            # R1 starts ready — waiting for the creator to hit Start.
+            sub_deadline = None
+            vote_deadline = None
+            status = "ready"
         else:
+            # Future rounds stay locked until their predecessor finishes.
+            # Use the placeholder so legacy queries that assume the field
+            # is a datetime keep working — the "locked" status is the
+            # authoritative gate.
             sub_deadline = _LOCKED_PLACEHOLDER_DT
             vote_deadline = _LOCKED_PLACEHOLDER_DT
             status = "locked"
@@ -2597,6 +2857,85 @@ async def get_round(round_id: str, current_user: dict = Depends(get_current_user
         user_vote_locked=user_vote_locked,
         user_submission_locked=user_submission_locked
     )
+
+@api_router.post("/leagues/{league_id}/rounds/{round_number}/start", response_model=RoundResponse)
+async def start_round(
+    league_id: str,
+    round_number: int,
+    current_user: dict = Depends(get_current_user),
+):
+    """Transition a round from `ready` to `submission`, setting real
+    deadlines from the league's configured submission/voting hours. Only
+    the league creator can call this.
+    """
+    league = await db.leagues.find_one({"id": league_id})
+    if not league:
+        raise HTTPException(status_code=404, detail="League not found")
+    if league.get("creator_id") != current_user["id"]:
+        raise HTTPException(
+            status_code=403, detail="Only the league creator can start a round",
+        )
+
+    round_doc = await db.rounds.find_one(
+        {"league_id": league_id, "round_number": round_number},
+    )
+    if not round_doc:
+        raise HTTPException(status_code=404, detail="Round not found")
+    if round_doc.get("status") != "ready":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Round is not ready to start (status: {round_doc.get('status')})",
+        )
+
+    now = datetime.now(timezone.utc)
+    sub_hours = (
+        round_doc.get("submission_hours")
+        or league.get("submission_hours")
+        or 24
+    )
+    vote_hours = (
+        round_doc.get("voting_hours") or league.get("voting_hours") or 24
+    )
+    new_sub_deadline = now + timedelta(hours=sub_hours)
+    new_vote_deadline = new_sub_deadline + timedelta(hours=vote_hours)
+
+    await db.rounds.update_one(
+        {"id": round_doc["id"]},
+        {"$set": {
+            "status": "submission",
+            "submission_deadline": new_sub_deadline,
+            "voting_deadline": new_vote_deadline,
+        }},
+    )
+    # Make sure current_round reflects this round in case the league was
+    # created before we started bumping current_round at creation time.
+    if (league.get("current_round") or 0) < round_number:
+        await db.leagues.update_one(
+            {"id": league_id},
+            {"$set": {"current_round": round_number}},
+        )
+
+    logger.info(
+        f"round_started: league={league_id} round={round_number} "
+        f"by={current_user['id']} sub_deadline={new_sub_deadline.isoformat()}"
+    )
+
+    # Return the updated round using the same response shape as get_round.
+    round_doc["status"] = "submission"
+    round_doc["submission_deadline"] = new_sub_deadline
+    round_doc["voting_deadline"] = new_vote_deadline
+    submissions_count = await db.submissions.count_documents({"round_id": round_doc["id"]})
+    return RoundResponse(
+        **round_doc,
+        submissions_count=submissions_count,
+        votes_count=0,
+        total_members=len(league.get("members", [])),
+        has_user_submitted=False,
+        has_user_voted=False,
+        user_vote_locked=False,
+        user_submission_locked=False,
+    )
+
 
 @api_router.post("/rounds/{round_id}/advance")
 async def advance_round(round_id: str, current_user: dict = Depends(get_current_user)):
@@ -3935,16 +4274,14 @@ async def _unlock_next_round_or_complete_league(
     next_round = await db.rounds.find_one({"league_id": league_id, "round_number": next_number})
     if not next_round:
         return False
-    sub_hours = next_round.get("submission_hours") or league.get("submission_hours") or 24
-    vote_hours = next_round.get("voting_hours") or league.get("voting_hours") or 24
-    new_sub_deadline = now + timedelta(hours=sub_hours)
-    new_vote_deadline = new_sub_deadline + timedelta(hours=vote_hours)
+    # Unlock the next round into "ready" — no timer yet, creator will
+    # press Start. Deadlines get filled in by the /start endpoint.
     await db.rounds.update_one(
         {"id": next_round["id"]},
         {"$set": {
-            "status": "submission",
-            "submission_deadline": new_sub_deadline,
-            "voting_deadline": new_vote_deadline,
+            "status": "ready",
+            "submission_deadline": None,
+            "voting_deadline": None,
         }},
     )
     await db.leagues.update_one(

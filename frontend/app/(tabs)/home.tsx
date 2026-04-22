@@ -8,9 +8,6 @@ import {
   RefreshControl,
   Modal,
   Image,
-  LayoutAnimation,
-  UIManager,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -31,10 +28,6 @@ import { leagueEvents } from '../../src/utils/leagueEvents';
 import { pluralize } from '../../src/utils/pluralize';
 import LeagueAvatar from '../../src/components/LeagueAvatar';
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
-
 const getGreeting = () => {
   const h = new Date().getHours();
   if (h < 12) return 'Good morning';
@@ -45,33 +38,61 @@ const getGreeting = () => {
 const parseDeadline = (d: string) =>
   new Date(d.endsWith('Z') || d.includes('+') ? d : d + 'Z');
 
-// Render a countdown string sized by magnitude: "2D 4H" / "23H 14M" / "45M".
-// `now` is passed in so the caller can swap time sources for testing and so
-// every re-render shares a consistent "now" across cards.
-const countdownLabel = (deadline: string, now: number = Date.now()): string => {
+// Live-ticking countdown pill. Owns its own timer so the rest of the home
+// screen doesn't re-render every second just to move a single digit.
+// Adaptive cadence: when the remaining time is under 2 minutes we tick
+// every second to animate the seconds readout; above that, every 30s is
+// plenty since only the minute digit changes.
+function CountdownPill({ deadline, color }: { deadline: string; color: string }) {
+  const [nowMs, setNowMs] = useState<number>(() => Date.now());
+  useEffect(() => {
+    let cancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const schedule = () => {
+      if (cancelled) return;
+      const remaining = parseDeadline(deadline).getTime() - Date.now();
+      if (remaining <= 0) return; // stop ticking once expired
+      const delay = remaining < 2 * 60 * 1000 ? 1000 : 30000;
+      timeoutId = setTimeout(() => {
+        if (cancelled) return;
+        setNowMs(Date.now());
+        schedule();
+      }, delay);
+    };
+    schedule();
+    return () => {
+      cancelled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [deadline]);
+
+  return (
+    <View style={[styles.statusPill, { borderColor: color, backgroundColor: `${color}22` }]}>
+      <Text style={[styles.statusPillText, { color }]}>
+        {formatCountdown(deadline, nowMs)}
+      </Text>
+    </View>
+  );
+}
+
+// Smart-format a countdown:
+//   >24h → "2D 14H 23M"
+//   >1h  → "14H 23M"
+//   >1m  → "23M"
+//   <1m  → "45S" (the only case that shows seconds)
+const formatCountdown = (deadline: string, now: number = Date.now()): string => {
   const diffMs = parseDeadline(deadline).getTime() - now;
-  if (diffMs <= 0) return '0M';
-  const totalMinutes = Math.floor(diffMs / 60000);
-  const days = Math.floor(totalMinutes / (60 * 24));
-  const hoursAfterDays = Math.floor((totalMinutes % (60 * 24)) / 60);
+  if (diffMs <= 0) return '0S';
+  const totalSeconds = Math.floor(diffMs / 1000);
+  if (totalSeconds < 60) return `${Math.max(1, totalSeconds)}S`;
+  const totalMinutes = Math.floor(totalSeconds / 60);
+  if (totalMinutes < 60) return `${totalMinutes}M`;
   const hours = Math.floor(totalMinutes / 60);
   const minutesAfterHours = totalMinutes % 60;
-  if (days >= 1) return `${days}D ${hoursAfterDays}H`;
-  if (hours >= 1) return `${hours}H ${minutesAfterHours}M`;
-  return `${Math.max(1, totalMinutes)}M`;
-};
-
-const formatFinishDate = (iso: string | null) => {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return '';
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-};
-
-const ordinalBadge = (n: number) => {
-  const s = ['th', 'st', 'nd', 'rd'];
-  const v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  if (hours < 24) return `${hours}H ${minutesAfterHours}M`;
+  const days = Math.floor(hours / 24);
+  const hoursAfterDays = hours % 24;
+  return `${days}D ${hoursAfterDays}H ${minutesAfterHours}M`;
 };
 
 export default function HomeScreen() {
@@ -86,19 +107,9 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [pastLeagues, setPastLeagues] = useState<PastLeague[]>([]);
-  const [pastExpanded, setPastExpanded] = useState(false);
 
   const flatListRef = useRef<FlatList>(null);
   const dataLoaded = useRef(false);
-
-  // Tick every 30s so countdown pills on active-league cards stay fresh
-  // without a full refetch. State holds a millisecond timestamp that's
-  // threaded through the pill renderer.
-  const [nowTick, setNowTick] = useState<number>(Date.now());
-  useEffect(() => {
-    const t = setInterval(() => setNowTick(Date.now()), 30000);
-    return () => clearInterval(t);
-  }, []);
 
   const fetchAll = async () => {
     try {
@@ -106,9 +117,14 @@ export default function HomeScreen() {
         getLeagues(),
         getPastLeagues().catch(() => ({ data: { leagues: [] } } as any)),
       ]);
-      const active = leaguesRes.data.filter(
-        (l) => !(l.current_round > 0 && l.current_round >= l.total_rounds),
-      );
+      // A league is "active" iff it hasn't been marked completed. The old
+      // `current_round >= total_rounds` heuristic incorrectly hid leagues
+      // whose final round was ready/submission/voting (since
+      // `current_round` is bumped when the final round unlocks, long
+      // before that round actually finishes). `status === "completed"` is
+      // set by the auto-advance helper only when the final round's voting
+      // phase ends, which is the true Active→Past boundary.
+      const active = leaguesRes.data.filter((l) => l.status !== 'completed');
       setLeagues(active);
       setPastLeagues(pastRes?.data?.leagues ?? []);
       dataLoaded.current = true;
@@ -138,9 +154,16 @@ export default function HomeScreen() {
           ]);
           if (roundsRes) {
             const rounds = roundsRes.data;
+            // "Active" here means the round the creator/player should see
+            // on the home card: ready (awaiting start), submission (timer
+            // running), or voting. Completed/locked are not surfaced.
             roundsData[l.id] =
-              rounds.find((r: Round) => r.status === 'submission' || r.status === 'voting') ||
-              null;
+              rounds.find(
+                (r: Round) =>
+                  r.status === 'ready' ||
+                  r.status === 'submission' ||
+                  r.status === 'voting',
+              ) || null;
           } else roundsData[l.id] = null;
           if (standingsRes) standingsData[l.id] = standingsRes.data;
         }),
@@ -174,11 +197,6 @@ export default function HomeScreen() {
     setRefreshing(false);
   };
 
-  const togglePast = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setPastExpanded((v) => !v);
-  };
-
   const renderLeagueItem = ({ item }: { item: League }) => {
     const activeRound = activeRounds[item.id];
     const displayImage = item.league_image || cachedImages[item.id];
@@ -200,34 +218,40 @@ export default function HomeScreen() {
     const MUTED = '#6A6A6A';
     let pillText: string | null = null;
     let pillColor = MUTED;
+    let pillDeadline: string | null = null;
+    const isCreator = item.creator_id === user?.id;
     if (activeRound) {
-      if (activeRound.status === 'submission') {
+      if (activeRound.status === 'ready') {
+        // No timer yet — round hasn't been started. Creator sees
+        // "READY TO START"; members see "WAITING TO START". Both muted.
+        pillText = isCreator ? 'READY TO START' : 'WAITING TO START';
+        pillColor = MUTED;
+      } else if (activeRound.status === 'submission') {
         if (activeRound.has_user_submitted) {
           pillText = 'SUBMITTED';
           pillColor = MUTED;
-        } else {
-          pillText = countdownLabel(activeRound.submission_deadline, nowTick);
+        } else if (activeRound.submission_deadline) {
+          pillDeadline = activeRound.submission_deadline;
           pillColor = PURPLE;
         }
       } else if (activeRound.status === 'voting') {
         if (activeRound.has_user_voted) {
           pillText = 'VOTED';
           pillColor = MUTED;
-        } else {
-          pillText = countdownLabel(activeRound.voting_deadline, nowTick);
+        } else if (activeRound.voting_deadline) {
+          pillDeadline = activeRound.voting_deadline;
           pillColor = PURPLE;
         }
       }
     } else {
-      // No active round. Differentiate "league finished" from "between
-      // rounds" so we don't flash COMPLETED on a league that still has
-      // locked rounds waiting to open.
-      const totalRounds = item.total_rounds || 0;
-      const current = item.current_round || 0;
-      const leagueFinished = totalRounds > 0 && current >= totalRounds;
+      // No active round surfaced. Only show COMPLETED when the league's
+      // server-side status actually says so — `current_round >=
+      // total_rounds` alone can fire while the final round is still in
+      // progress (see active-filter comment above).
+      const leagueFinished = item.status === 'completed';
       if (leagueFinished) {
         pillText = 'COMPLETED';
-      } else if (current > 0) {
+      } else if ((item.current_round || 0) > 0) {
         pillText = 'ROUND COMPLETE';
       }
       pillColor = MUTED;
@@ -261,11 +285,13 @@ export default function HomeScreen() {
                 : `${pluralize(item.members.length, 'player')} · Code ${item.league_code}`}
             </Text>
           </View>
-          {pillText && (
+          {pillDeadline ? (
+            <CountdownPill deadline={pillDeadline} color={pillColor} />
+          ) : pillText ? (
             <View style={[styles.statusPill, { borderColor: pillColor, backgroundColor: `${pillColor}22` }]}>
               <Text style={[styles.statusPillText, { color: pillColor }]}>{pillText}</Text>
             </View>
-          )}
+          ) : null}
         </View>
 
         {hasStarted && hasAnyPoints && rank !== null ? (
@@ -340,47 +366,6 @@ export default function HomeScreen() {
     );
   };
 
-  const renderPastRow = (p: PastLeague) => {
-    return (
-      <TouchableOpacity
-        key={p.id}
-        style={styles.pastRow}
-        activeOpacity={0.75}
-        onPress={() => router.push(`/past-league/${p.id}` as any)}
-      >
-        <LeagueAvatar
-          image={p.league_image}
-          name={p.name}
-          size={40}
-          imageBorderRadius={8}
-        />
-        <View style={{ flex: 1, marginLeft: 12 }}>
-          <View style={styles.pastNameRow}>
-            <Text style={styles.pastName} numberOfLines={1}>
-              {p.name}
-            </Text>
-            {p.is_deleted && (
-              <View style={styles.deletedTag}>
-                <Text style={styles.deletedTagText}>DELETED</Text>
-              </View>
-            )}
-          </View>
-          <Text style={styles.pastMeta} numberOfLines={1}>
-            {formatFinishDate(p.finished_at)} · {p.rounds_completed}/{p.total_rounds}
-            {p.winner ? ` · ${p.winner.username} won` : ''}
-          </Text>
-        </View>
-        {p.my_place != null ? (
-          <View style={styles.placeBadge}>
-            <Text style={styles.placeBadgeText}>{ordinalBadge(p.my_place)}</Text>
-          </View>
-        ) : (
-          <Ionicons name="chevron-forward" size={18} color="#6A6A6A" />
-        )}
-      </TouchableOpacity>
-    );
-  };
-
   const activeCount = leagues.length;
 
   const listHeader = (
@@ -407,11 +392,11 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Active leagues section header */}
+      {/* Active leagues — page section title, matches INBOX */}
       {activeCount > 0 && (
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionHeaderTitle}>ACTIVE LEAGUES</Text>
-          <Text style={styles.sectionHeaderCount}>{activeCount} ACTIVE</Text>
+        <View style={styles.activeLeaguesHeader}>
+          <Text style={styles.activeLeaguesTitle}>ACTIVE LEAGUES</Text>
+          <Text style={styles.activeLeaguesCount}>{activeCount} ACTIVE</Text>
         </View>
       )}
     </View>
@@ -419,28 +404,20 @@ export default function HomeScreen() {
 
   const listFooter =
     pastLeagues.length > 0 ? (
-      <View style={{ marginTop: leagues.length > 0 ? 20 : 6 }}>
-        <TouchableOpacity
-          style={styles.pastToggle}
-          onPress={togglePast}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.sectionHeaderTitle}>PAST LEAGUES</Text>
-          <View style={styles.pastToggleRight}>
-            <Text style={styles.sectionHeaderCount}>{pastLeagues.length}</Text>
-            <Ionicons
-              name={pastExpanded ? 'chevron-up' : 'chevron-down'}
-              size={18}
-              color="#B3B3B3"
-            />
-          </View>
-        </TouchableOpacity>
-        {pastExpanded && (
-          <View style={styles.pastList}>
-            {pastLeagues.map(renderPastRow)}
-          </View>
-        )}
-      </View>
+      <TouchableOpacity
+        style={[
+          styles.pastEntry,
+          { marginTop: leagues.length > 0 ? 20 : 6 },
+        ]}
+        onPress={() => router.push('/past-leagues' as any)}
+        activeOpacity={0.75}
+      >
+        <Text style={styles.activeLeaguesTitle}>PAST LEAGUES</Text>
+        <View style={styles.pastEntryRight}>
+          <Text style={styles.pastEntryCount}>{pastLeagues.length}</Text>
+          <Ionicons name="chevron-forward" size={22} color="#B3B3B3" />
+        </View>
+      </TouchableOpacity>
     ) : null;
 
   return (
@@ -512,9 +489,11 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#121212' },
 
   headerRow: {
+    // Horizontal padding comes from the list container (styles.listContent)
+    // so the greeting and icons align with "ACTIVE LEAGUES" and the league
+    // card edges. Do not add paddingHorizontal here — it double-pads.
     flexDirection: 'row',
     alignItems: 'flex-end',
-    paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 18,
     gap: 6,
@@ -554,6 +533,31 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#B3B3B3',
     letterSpacing: 1,
+  },
+
+  // ACTIVE LEAGUES is styled as a page-level section title (matches the
+  // INBOX page title on the Inbox tab). Other section labels on this
+  // screen (e.g. PAST LEAGUES) continue to use the small sectionHeader
+  // treatment above.
+  activeLeaguesHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+    marginTop: 4,
+  },
+  activeLeaguesTitle: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 1,
+  },
+  activeLeaguesCount: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#B3B3B3',
+    marginBottom: 4,
+    letterSpacing: 0.5,
   },
 
   leagueCardV2: {
@@ -596,62 +600,24 @@ const styles = StyleSheet.create({
   memberAvatarInlineMore: { backgroundColor: '#3A3A3A' },
   memberAvatarInlineMoreText: { fontSize: 9, fontWeight: '600', color: '#B3B3B3' },
 
-  // Past leagues
-  pastToggle: {
+  // Past leagues entry row (taps through to /past-leagues)
+  pastEntry: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 10,
-  },
-  pastToggleRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  pastList: {
-    marginTop: 4,
-    backgroundColor: '#181818',
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  pastRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
   },
-  pastNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  pastName: { color: '#FFFFFF', fontWeight: '700', fontSize: 14, flexShrink: 1 },
-  pastMeta: { color: '#B3B3B3', fontSize: 12, marginTop: 2 },
-  deletedTag: {
-    backgroundColor: 'rgba(239,68,68,0.15)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+  pastEntryRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
-  deletedTagText: {
-    color: '#EF4444',
-    fontSize: 9,
-    fontWeight: '800',
+  pastEntryCount: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#B3B3B3',
     letterSpacing: 0.5,
   },
-  placeBadge: {
-    minWidth: 44,
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: 'rgba(124,58,237,0.15)',
-  },
-  placeBadgeText: {
-    color: '#7C3AED',
-    fontWeight: '800',
-    fontSize: 13,
-  },
-  pastEmpty: { padding: 20 },
-  pastEmptyText: { color: '#B3B3B3', fontSize: 13, textAlign: 'center' },
 
   emptyState: {
     flex: 1, justifyContent: 'center', alignItems: 'center',

@@ -22,18 +22,21 @@ function NewTabButton(props: any) {
     >
       <View
         style={{
-          width: 52,
-          height: 52,
-          borderRadius: 26,
+          width: 56,
+          height: 56,
+          borderRadius: 28,
           backgroundColor: '#7C3AED',
           alignItems: 'center',
           justifyContent: 'center',
-          marginTop: -14,
+          // Lift the button above the bar's top edge so it visually
+          // overlaps the divider and floats over the dark nav.
+          marginTop: -18,
+          // Purple glow (shadow on iOS / elevation on Android).
           shadowColor: '#7C3AED',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.4,
-          shadowRadius: 8,
-          elevation: 8,
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.5,
+          shadowRadius: 14,
+          elevation: 10,
         }}
       >
         <Ionicons name="add" size={30} color="#FFFFFF" />
@@ -62,16 +65,29 @@ export default function TabLayout() {
           headerShown: false,
           tabBarStyle: {
             backgroundColor: '#121212',
-            borderTopWidth: 0,
-            height: Platform.OS === 'ios' ? 80 : 60,
-            paddingBottom: Platform.OS === 'ios' ? 24 : 8,
+            // Subtle top divider line — a hairline that reads as a
+            // separator against the dark background without looking like
+            // a hard border.
+            borderTopWidth: StyleSheet.hairlineWidth,
+            borderTopColor: 'rgba(255,255,255,0.08)',
+            height: Platform.OS === 'ios' ? 84 : 64,
+            paddingBottom: Platform.OS === 'ios' ? 26 : 10,
             paddingTop: 10,
             elevation: 0,
             shadowOpacity: 0,
           },
           tabBarActiveTintColor: '#7C3AED',
           tabBarInactiveTintColor: '#B3B3B3',
-          tabBarLabelStyle: { fontSize: 10, fontWeight: '700', marginTop: 2, letterSpacing: 0.6 },
+          tabBarItemStyle: {
+            paddingVertical: 2,
+          },
+          tabBarLabelStyle: {
+            fontSize: 10,
+            fontWeight: '700',
+            marginTop: 4,
+            letterSpacing: 0.8,
+            textTransform: 'uppercase',
+          },
         }}
       >
         <Tabs.Screen
