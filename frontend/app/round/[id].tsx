@@ -19,6 +19,8 @@ import {
   Pressable,
   Share,
   Image,
+  Animated,
+  Easing,
 } from 'react-native';
 import ViewShot from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
@@ -1038,83 +1040,228 @@ export default function RoundScreen() {
       {/* COMPLETED - RESULTS */}
       {round.status === 'completed' && results && (
         <>
-          {results.winners && results.winners.length > 0 && (
-            <View style={[styles.winnerBanner, results.is_tie && styles.tieBanner, { marginTop: 16 }]}>
-              <Ionicons name={results.is_tie ? "ribbon" : "trophy"} size={32} color="#7C3AED" />
-              <View style={styles.winnerInfo}>
-                <Text style={styles.winnerLabel}>
-                  {results.is_tie ? `It's a Tie! (${results.winners.length} Winners)` : 'Winner'}
-                </Text>
+          {results.winners && results.winners.length > 0 && (() => {
+            // Winner-hero color scheme: ACCENT (#7C3AED) when the winner is
+            // the current user, HOT (#F59E0B) otherwise. Ties always use
+            // HOT so we don't need to pick a single user to highlight.
+            const accent = '#7C3AED';
+            const hot = '#F59E0B';
+            const mineWon =
+              !results.is_tie && results.winners[0]?.user_id === user?.id;
+            const heroColor = mineWon ? accent : hot;
+            return (
+              <View
+                accessibilityRole="summary"
+                accessibilityLabel="Round winner"
+                style={[
+                  styles.winnerHero,
+                  {
+                    borderColor: heroColor + '54',
+                    backgroundColor: heroColor + '1A',
+                  },
+                ]}
+              >
+                <View style={styles.winnerHeroLabelRow}>
+                  <Ionicons
+                    name={results.is_tie ? 'ribbon' : 'trophy'}
+                    size={14}
+                    color={heroColor}
+                  />
+                  <Text style={[styles.winnerHeroLabel, { color: heroColor }]}>
+                    {results.is_tie
+                      ? `TIE · ${results.winners.length} WINNERS`
+                      : 'ROUND WINNER'}
+                  </Text>
+                </View>
+
                 {results.is_tie ? (
-                  results.winners.map((winner) => (
-                    <View key={winner.submission_id} style={styles.tieWinnerItem}>
-                      <View style={styles.tieWinnerRow}>
-                        <View style={styles.tieWinnerText}>
-                          <Text style={styles.winnerSong}>{winner.song.title}</Text>
-                          <Text style={styles.winnerUser}>by {winner.username}</Text>
+                  <View style={{ marginTop: 6 }}>
+                    {results.winners.map((w, i) => {
+                      const isMeRow = w.user_id === user?.id;
+                      return (
+                        <View
+                          key={w.submission_id}
+                          style={[
+                            styles.winnerHeroBody,
+                            i > 0 && styles.winnerHeroBodyTiedRow,
+                          ]}
+                        >
+                          <View style={styles.winnerHeroArtWrap}>
+                            <AlbumArt
+                              uri={w.song.cover_url}
+                              size={64}
+                              borderRadius={10}
+                            />
+                            <View
+                              style={[
+                                styles.winnerHeroRankBadge,
+                                { backgroundColor: heroColor },
+                              ]}
+                            >
+                              <Text style={styles.winnerHeroRankBadgeText}>1</Text>
+                            </View>
+                          </View>
+                          <View style={{ flex: 1, marginLeft: 14 }}>
+                            <Text style={styles.winnerHeroSong} numberOfLines={1}>
+                              {w.song.title}
+                            </Text>
+                            <Text style={styles.winnerHeroArtist} numberOfLines={1}>
+                              {w.song.artist}
+                            </Text>
+                            <View style={styles.winnerHeroSubRow}>
+                              <Text style={styles.winnerHeroUser} numberOfLines={1}>
+                                {w.username}
+                                {isMeRow ? ' · YOU' : ''}
+                              </Text>
+                              <View style={styles.winnerHeroPtsGroup}>
+                                <Text
+                                  style={[
+                                    styles.winnerHeroPts,
+                                    { color: heroColor },
+                                  ]}
+                                >
+                                  {w.points}
+                                </Text>
+                                <Text style={styles.winnerHeroPtsUnit}>PTS</Text>
+                              </View>
+                            </View>
+                          </View>
+                          <PreviewPlayButton
+                            previewUrl={w.song.preview_url}
+                            deezerId={w.song.deezer_id}
+                            songId={`winner-${w.song.deezer_id}`}
+                            size={16}
+                            style={styles.playButtonWinner}
+                          />
                         </View>
-                        <PreviewPlayButton
-                          previewUrl={winner.song.preview_url}
-                          deezerId={winner.song.deezer_id}
-                          songId={`winner-${winner.song.deezer_id}`}
-                          size={14}
-                          style={styles.playButtonWinner}
-                        />
+                      );
+                    })}
+                  </View>
+                ) : (
+                  <View style={styles.winnerHeroBody}>
+                    <View style={styles.winnerHeroArtWrap}>
+                      <AlbumArt
+                        uri={results.winners[0].song.cover_url}
+                        size={80}
+                        borderRadius={12}
+                      />
+                      <View
+                        style={[
+                          styles.winnerHeroRankBadge,
+                          { backgroundColor: heroColor },
+                        ]}
+                      >
+                        <Text style={styles.winnerHeroRankBadgeText}>1</Text>
                       </View>
                     </View>
-                  ))
-                ) : (
-                  <View style={styles.singleWinnerRow}>
-                    <View style={styles.singleWinnerText}>
-                      <Text style={styles.winnerSong}>{results.winners[0].song.title}</Text>
-                      <Text style={styles.winnerUser}>by {results.winners[0].username}</Text>
+                    <View style={{ flex: 1, marginLeft: 14 }}>
+                      <Text style={styles.winnerHeroSong} numberOfLines={1}>
+                        {results.winners[0].song.title}
+                      </Text>
+                      <Text style={styles.winnerHeroArtist} numberOfLines={1}>
+                        {results.winners[0].song.artist}
+                      </Text>
+                      <View style={styles.winnerHeroSubRow}>
+                        <Text style={styles.winnerHeroUser} numberOfLines={1}>
+                          {results.winners[0].username}
+                          {mineWon ? ' · YOU' : ''}
+                        </Text>
+                        <View style={styles.winnerHeroPtsGroup}>
+                          <Text style={[styles.winnerHeroPts, { color: heroColor }]}>
+                            {results.winners[0].points}
+                          </Text>
+                          <Text style={styles.winnerHeroPtsUnit}>PTS</Text>
+                        </View>
+                      </View>
                     </View>
                     <PreviewPlayButton
                       previewUrl={results.winners[0].song.preview_url}
                       deezerId={results.winners[0].song.deezer_id}
                       songId={`winner-single-${results.winners[0].song.deezer_id}`}
-                      size={14}
+                      size={16}
                       style={styles.playButtonWinner}
                     />
                   </View>
                 )}
               </View>
-            </View>
-          )}
+            );
+          })()}
 
-          <Text style={styles.sectionTitle}>Final Rankings</Text>
-          <FlatList
-            data={results.rankings}
-            keyExtractor={(item) => item.submission_id}
-            renderItem={renderResultItem}
-            contentContainerStyle={styles.listContent}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#7C3AED" />
-            }
-            ListFooterComponent={
-              <View style={styles.shareResultsFooter}>
-                <TouchableOpacity
-                  style={[styles.shareResultsButton, isSharing && styles.buttonDisabled]}
-                  onPress={handleShareResults}
-                  disabled={isSharing}
-                  activeOpacity={0.8}
-                >
-                  {isSharing ? (
-                    <ActivityIndicator color="#FFFFFF" />
-                  ) : (
-                    <Text style={styles.shareResultsText}>Share Results</Text>
-                  )}
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.expandResultsButton}
-                  onPress={() => setShowExpandModal(true)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.shareResultsText}>Expand Results</Text>
-                </TouchableOpacity>
-              </View>
-            }
-          />
+          {(() => {
+            // Build the "full results" list: everyone who isn't in the
+            // winner hero. For ties we still hide the tied top-rank rows;
+            // everything else (rank > 1, or non-winner rank-1 entries)
+            // appears here. `maxPoints` drives bar widths.
+            const winnerIds = new Set(
+              (results.winners ?? []).map((w) => w.submission_id),
+            );
+            const rest = (results.rankings ?? []).filter(
+              (r) => !winnerIds.has(r.submission_id),
+            );
+            const maxPoints = Math.max(
+              1,
+              ...(results.rankings ?? []).map((r) => r.points || 0),
+            );
+            return (
+              <FlatList
+                data={rest}
+                keyExtractor={(item) => item.submission_id}
+                renderItem={({ item, index }) => (
+                  <ResultsRankRow
+                    item={item}
+                    index={index}
+                    maxPoints={maxPoints}
+                    isMe={item.user_id === user?.id}
+                    onOpenSpotify={() => openInService(item.song, 'spotify')}
+                    onOpenApple={() => openInService(item.song, 'apple')}
+                    onOpenYoutube={() => openInService(item.song, 'youtube')}
+                  />
+                )}
+                ListHeaderComponent={
+                  <Text style={styles.fullResultsLabel}>FULL RESULTS</Text>
+                }
+                ListEmptyComponent={
+                  <Text style={styles.emptyRestText}>
+                    No other submissions in this round.
+                  </Text>
+                }
+                contentContainerStyle={styles.listContent}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
+                    tintColor="#7C3AED"
+                  />
+                }
+                ListFooterComponent={
+                  <View style={styles.shareResultsFooter}>
+                    <TouchableOpacity
+                      style={[
+                        styles.shareResultsButton,
+                        isSharing && styles.buttonDisabled,
+                      ]}
+                      onPress={handleShareResults}
+                      disabled={isSharing}
+                      activeOpacity={0.8}
+                    >
+                      {isSharing ? (
+                        <ActivityIndicator color="#FFFFFF" />
+                      ) : (
+                        <Text style={styles.shareResultsText}>Share Results</Text>
+                      )}
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.expandResultsButton}
+                      onPress={() => setShowExpandModal(true)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.shareResultsText}>Expand Results</Text>
+                    </TouchableOpacity>
+                  </View>
+                }
+              />
+            );
+          })()}
 
           {/* Off-screen share card — rendered for capture only */}
           <View style={styles.shareCardOffscreen} pointerEvents="none">
@@ -1492,6 +1639,113 @@ export default function RoundScreen() {
         </View>
       </Modal>
     </SafeAreaView>
+  );
+}
+
+// ── Results rank row (non-winner list) ──────────────────────────────────────
+//
+// Each row owns an Animated.Value that interpolates 0 → 1 and drives the
+// background bar's width. Bars stagger in top → bottom (index * 80ms delay)
+// so the list "draws in" when the completed state mounts.
+function ResultsRankRow({
+  item,
+  index,
+  maxPoints,
+  isMe,
+  onOpenSpotify,
+  onOpenApple,
+  onOpenYoutube,
+}: {
+  item: RoundResult['rankings'][0];
+  index: number;
+  maxPoints: number;
+  isMe: boolean;
+  onOpenSpotify: () => void;
+  onOpenApple: () => void;
+  onOpenYoutube: () => void;
+}) {
+  const accent = '#7C3AED';
+  const progress = useRef(new Animated.Value(0)).current;
+  const fillPct = Math.max(4, (item.points / maxPoints) * 100);
+
+  useEffect(() => {
+    const anim = Animated.timing(progress, {
+      toValue: 1,
+      duration: 800,
+      delay: index * 80,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    });
+    anim.start();
+    return () => anim.stop();
+  }, [progress, index]);
+
+  const barWidth = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', `${fillPct}%`],
+  });
+
+  return (
+    <View
+      accessible
+      accessibilityLabel={`Rank ${item.rank}, ${item.song.title} by ${item.song.artist}, submitted by ${item.username}, ${item.points} points`}
+      style={[
+        styles.resultsRow,
+        isMe && { backgroundColor: 'rgba(124,58,237,0.13)', borderColor: accent + '54' },
+      ]}
+    >
+      <Animated.View
+        style={[
+          styles.resultsBar,
+          {
+            width: barWidth,
+            backgroundColor: isMe ? 'rgba(124,58,237,0.22)' : 'rgba(255,255,255,0.07)',
+          },
+        ]}
+        pointerEvents="none"
+      />
+      <View style={styles.resultsRowForeground}>
+        <Text style={styles.resultsRank}>{item.rank}</Text>
+        <AlbumArt uri={item.song.cover_url} size={36} borderRadius={6} />
+        <View style={styles.resultsInfo}>
+          <Text style={styles.resultsSong} numberOfLines={1}>
+            {item.song.title}
+          </Text>
+          <View style={styles.resultsMetaRow}>
+            <Text style={styles.resultsUser} numberOfLines={1}>
+              {item.username}
+            </Text>
+            {isMe && <Text style={styles.resultsYouTag}>YOU</Text>}
+          </View>
+          <View style={styles.resultsLinksRow}>
+            <Pressable
+              style={[styles.resultsLinkBtn, { backgroundColor: '#1DB954' }]}
+              onPress={onOpenSpotify}
+            >
+              <FontAwesome name="spotify" size={9} color="#FFFFFF" />
+            </Pressable>
+            <Pressable
+              style={[styles.resultsLinkBtn, { backgroundColor: '#FA243C' }]}
+              onPress={onOpenApple}
+            >
+              <Ionicons name="logo-apple" size={9} color="#FFFFFF" />
+            </Pressable>
+            <Pressable
+              style={[styles.resultsLinkBtn, { backgroundColor: '#FF0000' }]}
+              onPress={onOpenYoutube}
+            >
+              <Ionicons name="logo-youtube" size={9} color="#FFFFFF" />
+            </Pressable>
+          </View>
+        </View>
+        <PreviewPlayButton
+          previewUrl={item.song.preview_url}
+          deezerId={item.song.deezer_id}
+          songId={`result-${item.song.deezer_id}`}
+        />
+        <Text style={styles.resultsPoints}>{item.points}</Text>
+      </View>
+    </View>
   );
 }
 
@@ -2667,5 +2921,195 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#6A6A6A',
     marginTop: 2,
+  },
+
+  // ── Results — winner hero ──────────────────────────────────────────────
+  winnerHero: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 18,
+  },
+  winnerHeroLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  winnerHeroLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
+  winnerHeroBody: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  winnerHeroBodyTiedRow: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.06)',
+  },
+  winnerHeroArtWrap: {
+    position: 'relative',
+  },
+  winnerHeroRankBadge: {
+    position: 'absolute',
+    right: -6,
+    top: -6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#121212',
+  },
+  winnerHeroRankBadgeText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 11,
+  },
+  winnerHeroSong: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  winnerHeroArtist: {
+    fontSize: 13,
+    color: '#B3B3B3',
+    marginTop: 2,
+  },
+  winnerHeroSubRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  winnerHeroUser: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginRight: 8,
+  },
+  winnerHeroPtsGroup: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  winnerHeroPts: {
+    fontSize: 28,
+    fontWeight: '900',
+    lineHeight: 30,
+  },
+  winnerHeroPtsUnit: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
+    color: '#B3B3B3',
+    marginBottom: 4,
+  },
+
+  // ── Results — full list ───────────────────────────────────────────────
+  fullResultsLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#B3B3B3',
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    marginHorizontal: 4,
+    marginTop: 4,
+    marginBottom: 10,
+  },
+  resultsRow: {
+    marginBottom: 8,
+    borderRadius: 14,
+    backgroundColor: '#181818',
+    borderWidth: 1,
+    borderColor: 'transparent',
+    overflow: 'hidden',
+    minHeight: 72,
+    justifyContent: 'center',
+  },
+  resultsBar: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    borderRadius: 14,
+  },
+  resultsRowForeground: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 10,
+  },
+  resultsRank: {
+    width: 22,
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#B3B3B3',
+    textAlign: 'center',
+  },
+  resultsInfo: {
+    flex: 1,
+  },
+  resultsSong: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  resultsMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 2,
+  },
+  resultsUser: {
+    fontSize: 11,
+    color: '#B3B3B3',
+    flexShrink: 1,
+  },
+  resultsYouTag: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#7C3AED',
+    letterSpacing: 0.6,
+    backgroundColor: 'rgba(124,58,237,0.18)',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  resultsLinksRow: {
+    flexDirection: 'row',
+    gap: 5,
+    marginTop: 6,
+  },
+  resultsLinkBtn: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  resultsPoints: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    minWidth: 40,
+    textAlign: 'right',
+  },
+  emptyRestText: {
+    color: '#B3B3B3',
+    fontSize: 13,
+    textAlign: 'center',
+    padding: 20,
   },
 });

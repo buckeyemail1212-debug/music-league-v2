@@ -285,41 +285,23 @@ export default function LeagueDetailScreen() {
 
   const handleStartRound = async () => {
     if (!league) return;
-    
-    // If this is the first round, show a warning
-    if (rounds.length === 0) {
-      Alert.alert(
-        'Start First Round?',
-        'Once you start a round, new members will no longer be able to join this league. Make sure everyone has joined before continuing.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Start Round',
-            onPress: () => doStartRound(),
-          },
-        ]
-      );
-    } else {
-      doStartRound();
-    }
-  };
 
-  const doStartRound = async () => {
-    if (!league) return;
-    
+    // The league's defaults were set at creation. Round creation is a
+    // single tap — no confirmation popup, no inputs.
     setCreatingRound(true);
     try {
+      const nextRoundNumber = (league.current_round || 0) + 1;
+      const savedThemes = Array.isArray(league.themes) ? league.themes : null;
+      const savedTheme = savedThemes?.[nextRoundNumber - 1]?.trim() || '';
+      const subHours = league.submission_hours ?? 24;
+      const voteHours = league.voting_hours ?? 24;
+
       await createRound(league.id, {
-        theme: roundTheme.trim(),
-        submission_hours: parseInt(submissionHours) || 24,
-        voting_hours: parseInt(votingHours) || 24,
+        theme: savedTheme,
+        submission_hours: subHours,
+        voting_hours: voteHours,
         timezone: selectedTimezone,
       });
-      setShowStartRoundModal(false);
-      setRoundTheme('');
-      setSubmissionHours('24');
-      setVotingHours('24');
-      setSelectedTimezone('EST');
       await fetchData();
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.detail || 'Failed to start round');
@@ -550,7 +532,7 @@ export default function LeagueDetailScreen() {
       {isCreator && !activeRound && (league.total_rounds === 0 || league.current_round < league.total_rounds) && (
         <TouchableOpacity
           style={[styles.startRoundButton, creatingRound && styles.buttonDisabled]}
-          onPress={() => setShowStartRoundModal(true)}
+          onPress={handleStartRound}
           disabled={creatingRound}
         >
           {creatingRound ? (

@@ -4,35 +4,35 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   FlatList,
   RefreshControl,
   Modal,
-  ActivityIndicator,
   Image,
-  TextInput,
-  KeyboardAvoidingView,
-  Keyboard,
-  Alert,
+  LayoutAnimation,
+  UIManager,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../src/context/AuthContext';
 import {
-  getLeagues, getRounds, joinLeague, createLeague,
-  getUserStats, getLeagueStandings,
-  getLifetimeStats, getWeeklyPoints,
-  League, Round, UserStats, LeagueStandings, LifetimeStats,
+  getLeagues,
+  getRounds,
+  getLeagueStandings,
+  getPastLeagues,
+  League,
+  Round,
+  LeagueStandings,
+  PastLeague,
 } from '../../src/services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { leagueEvents } from '../../src/utils/leagueEvents';
-import { tabEvents } from '../../src/utils/tabEvents';
-import { pluralize, pluralWord } from '../../src/utils/pluralize';
+import { pluralize } from '../../src/utils/pluralize';
 
-// ─── helpers ─────────────────────────────────────────────────────────────────
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 const getGreeting = () => {
   const h = new Date().getHours();
@@ -51,24 +51,12 @@ const getLeagueColor = (name: string) => {
 const parseDeadline = (d: string) =>
   new Date(d.endsWith('Z') || d.includes('+') ? d : d + 'Z');
 
-const shortTimeLeft = (deadline: string): string => {
-  const diff = parseDeadline(deadline).getTime() - Date.now();
-  if (diff <= 0) return 'ended';
-  const days = Math.floor(diff / 86400000);
-  const hours = Math.floor((diff % 86400000) / 3600000);
-  const mins = Math.floor((diff % 3600000) / 60000);
-  if (days > 0) return `${days}d ${hours}h left`;
-  if (hours > 0) return `${hours}h ${mins}m left`;
-  return `${mins}m left`;
-};
-
 const shortDay = (deadline: string): string => {
   const end = parseDeadline(deadline);
   const today = new Date();
   const diffDays = Math.floor(
     (new Date(end.getFullYear(), end.getMonth(), end.getDate()).getTime() -
-      new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()) /
-      86400000,
+      new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()) / 86400000,
   );
   if (diffDays <= 0) return 'TODAY';
   if (diffDays === 1) return 'TMRW';
@@ -76,320 +64,126 @@ const shortDay = (deadline: string): string => {
   return days[end.getDay()];
 };
 
-// ─── component ───────────────────────────────────────────────────────────────
+const formatFinishDate = (iso: string | null) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
+const ordinalBadge = (n: number) => {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+};
 
 export default function HomeScreen() {
   const { user } = useAuth();
   const router = useRouter();
 
-  // league list
   const [leagues, setLeagues] = useState<League[]>([]);
   const [activeRounds, setActiveRounds] = useState<{ [id: string]: Round | null }>({});
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [cachedImages, setCachedImages] = useState<{ [id: string]: string }>({});
   const [zoomLeagueImage, setZoomLeagueImage] = useState<string | null>(null);
-  const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [leagueStandings, setLeagueStandings] = useState<{ [leagueId: string]: LeagueStandings }>({});
-  const [weeklyPoints, setWeeklyPoints] = useState<number>(0);
-  const [lifetimeStats, setLifetimeStats] = useState<LifetimeStats | null>(null);
-  const flatListRef  = useRef<FlatList>(null);
-  const dataLoaded   = useRef(false);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [pastLeagues, setPastLeagues] = useState<PastLeague[]>([]);
+  const [pastExpanded, setPastExpanded] = useState(false);
 
-  // timer re-render
+  const flatListRef = useRef<FlatList>(null);
+  const dataLoaded = useRef(false);
+
   useEffect(() => {
     const t = setInterval(() => {}, 1000);
     return () => clearInterval(t);
   }, []);
 
-  // add/join modal
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [addMode, setAddMode] = useState<'choose' | 'create' | 'join'>('choose');
-  const [leagueCode, setLeagueCode] = useState('');
-  const [joining, setJoining] = useState(false);
-  const [leagueName, setLeagueName] = useState('');
-  const [totalRounds, setTotalRounds] = useState(5);
-  const [leagueImage, setLeagueImage] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
-
-  // ── modal helpers ──────────────────────────────────────────────────────────
-
-  const resetAndClose = () => {
-    setShowAddModal(false);
-    setAddMode('choose');
-    setLeagueCode('');
-    setLeagueName('');
-    setTotalRounds(5);
-    setLeagueImage(null);
-  };
-
-  const handleJoin = async () => {
-    if (!leagueCode.trim()) return;
-    setJoining(true);
+  const fetchAll = async () => {
     try {
-      const res = await joinLeague(leagueCode.trim().toUpperCase());
-      resetAndClose();
-      leagueEvents.emit();
-      Alert.alert('League Joined!', `You joined ${res.data.name}`);
-    } catch (e: any) {
-      Alert.alert('Error', e.response?.data?.detail || 'Failed to join');
-    } finally {
-      setJoining(false);
-    }
-  };
-
-  const handleCreate = async () => {
-    if (!leagueName.trim()) return;
-    setCreating(true);
-    try {
-      const payload: any = { name: leagueName.trim(), total_rounds: totalRounds };
-      if (leagueImage) payload.league_image = leagueImage;
-      const res = await createLeague(payload);
-      if (leagueImage && res.data?.id) {
-        try { if (user?.id) await AsyncStorage.setItem(`league_image_${user.id}_${res.data.id}`, leagueImage); } catch {}
-      }
-      resetAndClose();
-      leagueEvents.emit();
-      Alert.alert('League Created!', `Code: ${res.data.league_code}`);
-    } catch (e: any) {
-      Alert.alert('Error', e.response?.data?.detail || 'Failed to create');
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const pickImage = () => {
-    Alert.alert('League Photo', '', [
-      {
-        text: 'Take Photo',
-        onPress: async () => {
-          const { status } = await ImagePicker.requestCameraPermissionsAsync();
-          if (status !== 'granted') { Alert.alert('Permission needed'); return; }
-          const r = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.15, base64: true });
-          if (!r.canceled && r.assets[0].base64) setLeagueImage(`data:image/jpeg;base64,${r.assets[0].base64}`);
-        },
-      },
-      {
-        text: 'Choose from Library',
-        onPress: async () => {
-          const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [1, 1], quality: 0.15, base64: true });
-          if (!r.canceled && r.assets[0].base64) setLeagueImage(`data:image/jpeg;base64,${r.assets[0].base64}`);
-        },
-      },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
-  };
-
-  const renderModalContent = () => {
-    if (addMode === 'join') {
-      return (
-        <View style={ms.popup}>
-          <View style={ms.popupHeader}>
-            <TouchableOpacity onPress={() => setAddMode('choose')}>
-              <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-            </TouchableOpacity>
-            <Text style={ms.popupTitle}>Join League</Text>
-            <View style={{ width: 22 }} />
-          </View>
-          <TextInput
-            style={ms.codeInput}
-            placeholder="Enter code"
-            placeholderTextColor="#B3B3B3"
-            value={leagueCode}
-            onChangeText={setLeagueCode}
-            autoCapitalize="characters"
-            maxLength={6}
-            autoFocus
-          />
-          <TouchableOpacity
-            style={[ms.actionBtn, !leagueCode.trim() && ms.actionBtnOff]}
-            onPress={handleJoin}
-            disabled={!leagueCode.trim() || joining}
-          >
-            {joining ? <ActivityIndicator color="#121212" /> : <Text style={ms.actionBtnText}>Join League</Text>}
-          </TouchableOpacity>
-        </View>
-      );
-    }
-
-    if (addMode === 'create') {
-      return (
-        <View style={ms.popup}>
-          <View style={ms.popupHeader}>
-            <TouchableOpacity onPress={() => setAddMode('choose')}>
-              <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-            </TouchableOpacity>
-            <Text style={ms.popupTitle}>Create League</Text>
-            <View style={{ width: 22 }} />
-          </View>
-          <TouchableOpacity style={ms.imgPicker} onPress={pickImage}>
-            {leagueImage ? (
-              <Image source={{ uri: leagueImage }} style={ms.imgPreview} />
-            ) : (
-              <>
-                <Ionicons name="camera-outline" size={24} color="#7C3AED" />
-                <Text style={ms.imgLabel}>Add Photo</Text>
-              </>
-            )}
-          </TouchableOpacity>
-          {leagueImage && (
-            <TouchableOpacity onPress={() => setLeagueImage(null)}>
-              <Text style={ms.removeImg}>Remove</Text>
-            </TouchableOpacity>
-          )}
-          <Text style={ms.label}>League Name</Text>
-          <TextInput
-            style={ms.input}
-            placeholder="e.g., Friday Night Vibes"
-            placeholderTextColor="#B3B3B3"
-            value={leagueName}
-            onChangeText={setLeagueName}
-          />
-          <Text style={ms.label}>Rounds</Text>
-          <View style={ms.roundsGrid}>
-            {[1,2,3,4,5,6,7,8,9,10].map(n => (
-              <TouchableOpacity
-                key={n}
-                style={[ms.roundCircle, totalRounds === n && ms.roundCircleSel]}
-                onPress={() => setTotalRounds(n)}
-              >
-                <Text style={[ms.roundText, totalRounds === n && ms.roundTextSel]}>{n}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          <TouchableOpacity
-            style={[ms.actionBtn, !leagueName.trim() && ms.actionBtnOff]}
-            onPress={handleCreate}
-            disabled={!leagueName.trim() || creating}
-          >
-            {creating ? <ActivityIndicator color="#121212" /> : <Text style={ms.actionBtnText}>Create League</Text>}
-          </TouchableOpacity>
-        </View>
-      );
-    }
-
-    // choose
-    return (
-      <View style={ms.popup}>
-        <Text style={[ms.popupTitle, { marginBottom: 8 }]}>What would you like to do?</Text>
-        <TouchableOpacity style={ms.optionBtn} onPress={() => setAddMode('create')}>
-          <Ionicons name="add-circle-outline" size={24} color="#7C3AED" />
-          <Text style={ms.optionText}>Create League</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={ms.optionBtn} onPress={() => setAddMode('join')}>
-          <Ionicons name="enter-outline" size={24} color="#7C3AED" />
-          <Text style={ms.optionText}>Join League</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  };
-
-  // ── league fetching ────────────────────────────────────────────────────────
-
-  const fetchLeagues = async () => {
-    try {
-      const [leaguesRes, statsRes, lifetimeRes] = await Promise.all([
+      const [leaguesRes, pastRes] = await Promise.all([
         getLeagues(),
-        getUserStats().catch(() => null),
-        getLifetimeStats().catch(() => null),
+        getPastLeagues().catch(() => ({ data: { leagues: [] } } as any)),
       ]);
-      const list = leaguesRes.data;
-      setLeagues(list);
-      setUserStats(statsRes?.data ?? null);
-      setLifetimeStats(lifetimeRes?.data ?? null);
+      const active = leaguesRes.data.filter(
+        (l) => !(l.current_round > 0 && l.current_round >= l.total_rounds),
+      );
+      setLeagues(active);
+      setPastLeagues(pastRes?.data?.leagues ?? []);
       dataLoaded.current = true;
 
       const imgCache: { [id: string]: string } = {};
-      await Promise.all(list.map(async (l: League) => {
-        if (!l.league_image) {
-          try {
-            const cached = user?.id ? await AsyncStorage.getItem(`league_image_${user.id}_${l.id}`) : null;
-            if (cached) imgCache[l.id] = cached;
-          } catch {}
-        }
-      }));
+      await Promise.all(
+        active.map(async (l) => {
+          if (!l.league_image) {
+            try {
+              const cached = user?.id
+                ? await AsyncStorage.getItem(`league_image_${user.id}_${l.id}`)
+                : null;
+              if (cached) imgCache[l.id] = cached;
+            } catch {}
+          }
+        }),
+      );
       setCachedImages(imgCache);
 
       const roundsData: { [id: string]: Round | null } = {};
       const standingsData: { [id: string]: LeagueStandings } = {};
-
-      await Promise.all(list.map(async (l: League) => {
-        const [roundsRes, standingsRes] = await Promise.all([
-          getRounds(l.id).catch(() => null),
-          getLeagueStandings(l.id).catch(() => null),
-        ]);
-        if (roundsRes) {
-          const rounds = roundsRes.data;
-          roundsData[l.id] = rounds.find((r: Round) => r.status === 'submission' || r.status === 'voting') || null;
-        } else {
-          roundsData[l.id] = null;
-        }
-        if (standingsRes) standingsData[l.id] = standingsRes.data;
-      }));
+      await Promise.all(
+        active.map(async (l) => {
+          const [roundsRes, standingsRes] = await Promise.all([
+            getRounds(l.id).catch(() => null),
+            getLeagueStandings(l.id).catch(() => null),
+          ]);
+          if (roundsRes) {
+            const rounds = roundsRes.data;
+            roundsData[l.id] =
+              rounds.find((r: Round) => r.status === 'submission' || r.status === 'voting') ||
+              null;
+          } else roundsData[l.id] = null;
+          if (standingsRes) standingsData[l.id] = standingsRes.data;
+        }),
+      );
       setActiveRounds(roundsData);
       setLeagueStandings(standingsData);
-
-      // Weekly delta comes from the server's permanent submission history,
-      // so it stays accurate even after leagues are deleted.
-      try {
-        const wr = await getWeeklyPoints();
-        setWeeklyPoints(wr.data.weekly_points ?? 0);
-      } catch {
-        setWeeklyPoints(0);
-      }
     } catch (err) {
-      console.error('Failed to fetch leagues:', err);
+      console.error('Failed to fetch home data:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  useFocusEffect(useCallback(() => {
-    fetchLeagues();
-    flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
-  }, []));
+  useFocusEffect(
+    useCallback(() => {
+      fetchAll();
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+    }, []),
+  );
 
-  useEffect(() => leagueEvents.subscribe(fetchLeagues), []);
-  useEffect(() => tabEvents.onNewLeague(() => setShowAddModal(true)), []);
+  useEffect(() => {
+    const unsub = leagueEvents.subscribe(fetchAll);
+    return () => {
+      unsub();
+    };
+  }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchLeagues();
+    await fetchAll();
     setRefreshing(false);
   };
 
-  // ── derived data ───────────────────────────────────────────────────────────
-
-  // "Across all leagues" pulls from the server's running all_time_points
-  // which is incremented when a round completes and is never decreased when
-  // a league is deleted. The current-standings sum is used as a fallback on
-  // first launch before the server has finalized any rounds.
-  const liveTotalPoints = Object.values(leagueStandings).reduce((sum, s) => {
-    const mine = s.standings.find((st) => st.user_id === user?.id);
-    return sum + (mine?.total_points || 0);
-  }, 0);
-  const totalPoints = Math.max(lifetimeStats?.all_time_points ?? 0, liveTotalPoints);
-
-  const activeLeaguesCount = leagues.filter(l => l.status !== 'completed').length;
-
-  const pendingAction = (() => {
-    for (const l of leagues) {
-      const r = activeRounds[l.id];
-      if (!r) continue;
-      if (r.status === 'submission' && !r.has_user_submitted) return { league: l, round: r };
-      if (r.status === 'voting' && !r.has_user_voted) return { league: l, round: r };
-    }
-    return null;
-  })();
-
-  // ── render league card ─────────────────────────────────────────────────────
+  const togglePast = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setPastExpanded((v) => !v);
+  };
 
   const renderLeagueItem = ({ item }: { item: League }) => {
     const activeRound = activeRounds[item.id];
     const displayImage = item.league_image || cachedImages[item.id];
     const standings = leagueStandings[item.id];
     const sorted = standings?.standings ?? [];
-    const mineIdx = sorted.findIndex(s => s.user_id === user?.id);
+    const mineIdx = sorted.findIndex((s) => s.user_id === user?.id);
     const mine = mineIdx >= 0 ? sorted[mineIdx] : null;
     const leader = sorted[0];
     const rank = mineIdx >= 0 ? mineIdx + 1 : null;
@@ -403,9 +197,8 @@ export default function HomeScreen() {
     let pillColor = '#B3B3B3';
     if (activeRound) {
       if (activeRound.status === 'voting') {
-        // Once the user has voted we reflect that instead of the deadline.
         pillText = activeRound.has_user_voted ? 'VOTED' : 'VOTING OPEN';
-        pillColor = activeRound.has_user_voted ? '#10B981' : '#10B981';
+        pillColor = '#10B981';
       } else if (activeRound.status === 'submission') {
         pillText = activeRound.has_user_submitted
           ? 'SUBMITTED'
@@ -417,8 +210,8 @@ export default function HomeScreen() {
       pillColor = '#6A6A6A';
     }
 
-    // A league has no useful standings yet if nobody has earned points.
-    const hasAnyPoints = sorted.some(p => (p.total_points || 0) > 0);
+    const hasStarted = item.current_round > 0;
+    const hasAnyPoints = sorted.some((p) => (p.total_points || 0) > 0);
 
     return (
       <TouchableOpacity
@@ -430,15 +223,24 @@ export default function HomeScreen() {
       >
         <View style={styles.leagueCardTopRow}>
           <View style={[styles.leagueColorSquare, { backgroundColor: squareColor }]}>
-            {displayImage
-              ? <Image source={{ uri: displayImage }} style={styles.leagueColorSquareImage} resizeMode="cover" />
-              : <Text style={styles.leagueColorSquareInitial}>{item.name.charAt(0).toUpperCase()}</Text>
-            }
+            {displayImage ? (
+              <Image
+                source={{ uri: displayImage }}
+                style={styles.leagueColorSquareImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <Text style={styles.leagueColorSquareInitial}>
+                {item.name.charAt(0).toUpperCase()}
+              </Text>
+            )}
           </View>
           <View style={styles.leagueCardInfo}>
-            <Text style={styles.leagueCardName} numberOfLines={1}>{item.name}</Text>
+            <Text style={styles.leagueCardName} numberOfLines={1}>
+              {item.name}
+            </Text>
             <Text style={styles.leagueCardSubtext} numberOfLines={1}>
-              {item.current_round > 0
+              {hasStarted
                 ? `R${item.current_round}/${item.total_rounds} · ${pluralize(item.members.length, 'player')}`
                 : `${pluralize(item.members.length, 'player')} · Code ${item.league_code}`}
             </Text>
@@ -450,7 +252,7 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {hasAnyPoints && rank !== null ? (
+        {hasStarted && hasAnyPoints && rank !== null ? (
           <View style={styles.leagueCardProgressRow}>
             <Text style={styles.leagueCardRank}>#{rank}</Text>
             <View style={styles.leagueCardMiddle}>
@@ -478,20 +280,24 @@ export default function HomeScreen() {
         ) : (
           <View style={styles.leagueCardProgressRow}>
             <View style={styles.memberAvatarsInline}>
-              {item.members.slice(0, 4).map((m, i) => (
+              {item.members.slice(0, 5).map((m, i) => (
                 <View
                   key={m.id}
                   style={[
                     styles.memberAvatarInline,
-                    { marginLeft: i > 0 ? -8 : 0, zIndex: 4 - i },
+                    { marginLeft: i > 0 ? -8 : 0, zIndex: 5 - i },
                   ]}
                 >
-                  {m.profile_photo
-                    ? <Image source={{ uri: m.profile_photo }} style={styles.memberAvatarInlineImage} />
-                    : <Text style={styles.memberAvatarInlineText}>{m.username.charAt(0).toUpperCase()}</Text>}
+                  {m.profile_photo ? (
+                    <Image source={{ uri: m.profile_photo }} style={styles.memberAvatarInlineImage} />
+                  ) : (
+                    <Text style={styles.memberAvatarInlineText}>
+                      {m.username.charAt(0).toUpperCase()}
+                    </Text>
+                  )}
                 </View>
               ))}
-              {item.members.length > 4 && (
+              {item.members.length > 5 && (
                 <View
                   style={[
                     styles.memberAvatarInline,
@@ -500,122 +306,141 @@ export default function HomeScreen() {
                   ]}
                 >
                   <Text style={styles.memberAvatarInlineMoreText}>
-                    +{item.members.length - 4}
+                    +{item.members.length - 5}
                   </Text>
                 </View>
               )}
             </View>
             <View style={styles.leagueCardMiddle}>
-              <Text style={styles.leagueCardGap}>NOT STARTED</Text>
+              <Text style={styles.leagueCardGap}>
+                {hasStarted ? 'NO POINTS YET' : 'NOT STARTED'}
+              </Text>
               <View style={styles.progressBarTrack} />
             </View>
-            <Text style={styles.leagueCardTotal}>0</Text>
+            <Ionicons name="chevron-forward" size={18} color="#6A6A6A" />
           </View>
         )}
       </TouchableOpacity>
     );
   };
 
-  // ── render ─────────────────────────────────────────────────────────────────
+  const renderPastRow = (p: PastLeague) => {
+    const squareColor = getLeagueColor(p.name);
+    return (
+      <TouchableOpacity
+        key={p.id}
+        style={styles.pastRow}
+        activeOpacity={0.75}
+        onPress={() => router.push(`/past-league/${p.id}` as any)}
+      >
+        <View style={[styles.pastSquare, { backgroundColor: squareColor }]}>
+          {p.league_image ? (
+            <Image source={{ uri: p.league_image }} style={styles.pastSquareImg} />
+          ) : (
+            <Text style={styles.pastSquareLetter}>{p.name.charAt(0).toUpperCase()}</Text>
+          )}
+        </View>
+        <View style={{ flex: 1, marginLeft: 12 }}>
+          <View style={styles.pastNameRow}>
+            <Text style={styles.pastName} numberOfLines={1}>
+              {p.name}
+            </Text>
+            {p.is_deleted && (
+              <View style={styles.deletedTag}>
+                <Text style={styles.deletedTagText}>DELETED</Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.pastMeta} numberOfLines={1}>
+            {formatFinishDate(p.finished_at)} · {p.rounds_completed}/{p.total_rounds}
+            {p.winner ? ` · ${p.winner.username} won` : ''}
+          </Text>
+        </View>
+        {p.my_place != null ? (
+          <View style={styles.placeBadge}>
+            <Text style={styles.placeBadgeText}>{ordinalBadge(p.my_place)}</Text>
+          </View>
+        ) : (
+          <Ionicons name="chevron-forward" size={18} color="#6A6A6A" />
+        )}
+      </TouchableOpacity>
+    );
+  };
+
+  const activeCount = leagues.length;
 
   const listHeader = (
     <View>
-      {/* Greeting */}
-      <View style={styles.header}>
-        <Text style={styles.greeting}>{getGreeting()},</Text>
-        <Text style={styles.username}>{user?.display_name || user?.username}</Text>
-      </View>
-
-      {/* Stats Card */}
-      <View style={styles.statsCard}>
-        <View style={styles.statsCardTopRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.statsCardLabel}>ACROSS ALL LEAGUES</Text>
-            <View style={styles.statsCardPointsRow}>
-              <Text style={styles.statsCardPoints}>{totalPoints.toLocaleString()}</Text>
-              <Text style={styles.statsCardPointsUnit}>PTS</Text>
-            </View>
-          </View>
-          {weeklyPoints > 0 && (
-            <Text style={styles.statsCardDelta}>
-              +{pluralize(weeklyPoints, 'point')} this week
-            </Text>
-          )}
+      {/* Greeting row with gear + help */}
+      <View style={styles.headerRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.greeting}>{getGreeting()},</Text>
+          <Text style={styles.username}>{user?.display_name || user?.username}</Text>
         </View>
-        <View style={styles.statsCardDivider} />
-        <View style={styles.statsCardBottomRow}>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{userStats?.leagues_count ?? leagues.length}</Text>
-            <Text style={styles.statLabel}>LEAGUES</Text>
-          </View>
-          <View style={styles.statItemDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{userStats?.total_wins ?? 0}</Text>
-            <Text style={styles.statLabel}>WINS</Text>
-          </View>
-          <View style={styles.statItemDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{Math.round(userStats?.win_rate ?? 0)}%</Text>
-            <Text style={styles.statLabel}>WIN RATE</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Active Action Card */}
-      {pendingAction && (
         <TouchableOpacity
-          style={styles.actionCard}
-          onPress={() => router.push(`/round/${pendingAction.round.id}`)}
-          activeOpacity={0.8}
+          style={styles.headerIconBtn}
+          hitSlop={10}
+          onPress={() => router.push('/how-to-play' as any)}
         >
-          <View style={styles.actionCardAccent} />
-          <View style={styles.actionCardContent}>
-            <View style={styles.actionCardPill}>
-              <View style={styles.actionCardDot} />
-              <Text style={styles.actionCardPillText}>
-                {pendingAction.round.status === 'voting' ? 'VOTING OPEN' : 'SUBMISSION OPEN'} · {shortTimeLeft(
-                  pendingAction.round.status === 'voting'
-                    ? pendingAction.round.voting_deadline
-                    : pendingAction.round.submission_deadline,
-                )}
-              </Text>
-            </View>
-            <Text style={styles.actionCardTheme} numberOfLines={1}>
-              {pendingAction.round.theme}
-            </Text>
-            <Text style={styles.actionCardSubtext} numberOfLines={1}>
-              {pendingAction.league.name} · Round {pendingAction.round.round_number}
-            </Text>
-          </View>
-          <View style={styles.actionCardArrow}>
-            <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
-          </View>
+          <Ionicons name="help-circle-outline" size={24} color="#FFFFFF" />
         </TouchableOpacity>
-      )}
+        <TouchableOpacity
+          style={styles.headerIconBtn}
+          hitSlop={10}
+          onPress={() => router.push('/settings' as any)}
+        >
+          <Ionicons name="settings-outline" size={22} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
 
-      {/* Section Header */}
-      {leagues.length > 0 && (
+      {/* Active leagues section header */}
+      {activeCount > 0 && (
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionHeaderTitle}>YOUR LEAGUES</Text>
-          <Text style={styles.sectionHeaderCount}>
-            {activeLeaguesCount} ACTIVE
-          </Text>
+          <Text style={styles.sectionHeaderTitle}>ACTIVE LEAGUES</Text>
+          <Text style={styles.sectionHeaderCount}>{activeCount} ACTIVE</Text>
         </View>
       )}
     </View>
   );
 
+  const listFooter =
+    pastLeagues.length > 0 ? (
+      <View style={{ marginTop: leagues.length > 0 ? 20 : 6 }}>
+        <TouchableOpacity
+          style={styles.pastToggle}
+          onPress={togglePast}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.sectionHeaderTitle}>PAST LEAGUES</Text>
+          <View style={styles.pastToggleRight}>
+            <Text style={styles.sectionHeaderCount}>{pastLeagues.length}</Text>
+            <Ionicons
+              name={pastExpanded ? 'chevron-up' : 'chevron-down'}
+              size={18}
+              color="#B3B3B3"
+            />
+          </View>
+        </TouchableOpacity>
+        {pastExpanded && (
+          <View style={styles.pastList}>
+            {pastLeagues.map(renderPastRow)}
+          </View>
+        )}
+      </View>
+    ) : null;
+
   return (
     <SafeAreaView style={styles.container}>
       {loading && !dataLoaded.current ? (
         <View style={styles.listContent}>
-          <View style={styles.header}>
-            <View style={styles.skeletonLineShort} />
-            <View style={styles.skeletonLineLong} />
+          <View style={styles.headerRow}>
+            <View style={{ flex: 1 }}>
+              <View style={styles.skeletonLineShort} />
+              <View style={styles.skeletonLineLong} />
+            </View>
           </View>
-          <View style={[styles.statsCard, styles.skeletonBlock, { height: 140 }]} />
-          {[0, 1, 2].map(i => (
-            <View key={i} style={[styles.leagueCardV2, styles.skeletonCard, { height: 120 }]} />
+          {[0, 1, 2].map((i) => (
+            <View key={i} style={[styles.leagueCardV2, styles.skeletonCard, { height: 110 }]} />
           ))}
         </View>
       ) : (
@@ -625,26 +450,39 @@ export default function HomeScreen() {
           keyExtractor={(item) => item.id}
           renderItem={renderLeagueItem}
           ListHeaderComponent={listHeader}
+          ListFooterComponent={listFooter}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Ionicons name="musical-notes" size={64} color="#7C3AED" />
-              <Text style={styles.emptyTitle}>No Leagues Yet</Text>
+              <Ionicons name="musical-notes" size={56} color="#7C3AED" />
+              <Text style={styles.emptyTitle}>No active leagues</Text>
               <Text style={styles.emptyText}>
-                Tap the Add button below to create a league or join an existing one.
+                Tap the + button below to create a league or join one.
               </Text>
             </View>
           }
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#7C3AED" />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#7C3AED"
+            />
           }
         />
       )}
 
-      {/* League image zoom */}
-      <Modal visible={!!zoomLeagueImage} transparent animationType="fade" onRequestClose={() => setZoomLeagueImage(null)}>
-        <TouchableOpacity style={styles.zoomOverlay} activeOpacity={1} onPress={() => setZoomLeagueImage(null)}>
+      <Modal
+        visible={!!zoomLeagueImage}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setZoomLeagueImage(null)}
+      >
+        <TouchableOpacity
+          style={styles.zoomOverlay}
+          activeOpacity={1}
+          onPress={() => setZoomLeagueImage(null)}
+        >
           <View style={styles.zoomContainer}>
             {zoomLeagueImage && (
               <Image source={{ uri: zoomLeagueImage }} style={styles.zoomImage} resizeMode="contain" />
@@ -652,181 +490,39 @@ export default function HomeScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
-
-      {/* Add / Join modal */}
-      <Modal visible={showAddModal} transparent animationType="fade" onRequestClose={resetAndClose}>
-        <TouchableWithoutFeedback onPress={() => { Keyboard.dismiss(); resetAndClose(); }}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={ms.overlay}
-          >
-            <TouchableWithoutFeedback onPress={() => {}}>
-              {renderModalContent()}
-            </TouchableWithoutFeedback>
-          </KeyboardAvoidingView>
-        </TouchableWithoutFeedback>
-      </Modal>
     </SafeAreaView>
   );
 }
 
-// ─── league list styles ───────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#121212' },
-  header: {
+
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 16,
+    paddingBottom: 18,
+    gap: 6,
   },
   greeting: { fontSize: 14, color: '#B3B3B3', fontWeight: '400' },
   username: { fontSize: 26, fontWeight: '700', color: '#FFFFFF', marginTop: 2 },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  headerIconBtn: {
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  listContent: { paddingHorizontal: 20, paddingBottom: 40, flexGrow: 1 },
   skeletonCard: { opacity: 0.6, backgroundColor: '#181818' },
-  skeletonBlock: { backgroundColor: '#282828', opacity: 0.5 },
   skeletonLineLong: {
-    height: 14, width: '60%', borderRadius: 4,
-    backgroundColor: '#282828', marginBottom: 8,
+    height: 14, width: '60%', borderRadius: 4, backgroundColor: '#282828', marginBottom: 8,
   },
   skeletonLineShort: {
     height: 12, width: '35%', borderRadius: 4, backgroundColor: '#1F1F1F', marginBottom: 8,
   },
-  listContent: { paddingHorizontal: 20, paddingBottom: 40, flexGrow: 1 },
 
-  // ── Stats card ───────────────────────────────────────────────────────────
-  statsCard: {
-    backgroundColor: '#181818',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 14,
-  },
-  statsCardTopRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-  },
-  statsCardLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#B3B3B3',
-    letterSpacing: 1,
-  },
-  statsCardPointsRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    marginTop: 6,
-  },
-  statsCardPoints: {
-    fontSize: 40,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    lineHeight: 44,
-  },
-  statsCardPointsUnit: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#B3B3B3',
-    letterSpacing: 1,
-    marginLeft: 8,
-    marginBottom: 6,
-  },
-  statsCardDelta: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#10B981',
-    marginBottom: 6,
-  },
-  statsCardDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    marginVertical: 16,
-  },
-  statsCardBottomRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statItemDivider: {
-    width: 1,
-    height: 28,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  statNumber: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  statLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#B3B3B3',
-    letterSpacing: 1,
-    marginTop: 4,
-  },
-
-  // ── Active action card ───────────────────────────────────────────────────
-  actionCard: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    backgroundColor: '#181818',
-    borderRadius: 12,
-    marginBottom: 20,
-    overflow: 'hidden',
-  },
-  actionCardAccent: {
-    width: 4,
-    backgroundColor: '#10B981',
-  },
-  actionCardContent: {
-    flex: 1,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-  },
-  actionCardPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(16,185,129,0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  actionCardDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#10B981',
-    marginRight: 6,
-  },
-  actionCardPillText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#10B981',
-    letterSpacing: 0.5,
-  },
-  actionCardTheme: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginTop: 8,
-  },
-  actionCardSubtext: {
-    fontSize: 12,
-    fontWeight: '400',
-    color: '#B3B3B3',
-    marginTop: 2,
-  },
-  actionCardArrow: {
-    width: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#7C3AED',
-  },
-
-  // ── Section header ───────────────────────────────────────────────────────
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -841,169 +537,130 @@ const styles = StyleSheet.create({
   },
   sectionHeaderCount: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#B3B3B3',
     letterSpacing: 1,
   },
 
-  // ── League card ──────────────────────────────────────────────────────────
   leagueCardV2: {
     backgroundColor: '#181818',
     borderRadius: 12,
     padding: 16,
     marginBottom: 10,
   },
-  leagueCardTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+  leagueCardTopRow: { flexDirection: 'row', alignItems: 'center' },
   leagueColorSquare: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
+    width: 44, height: 44, borderRadius: 8,
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
   },
-  leagueColorSquareImage: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
-  },
-  leagueColorSquareInitial: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  leagueCardInfo: {
-    flex: 1,
-    marginLeft: 12,
-    marginRight: 8,
-  },
-  leagueCardName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  leagueCardSubtext: {
-    fontSize: 12,
-    fontWeight: '400',
-    color: '#B3B3B3',
-    marginTop: 2,
-  },
+  leagueColorSquareImage: { width: 44, height: 44, borderRadius: 8 },
+  leagueColorSquareInitial: { fontSize: 20, fontWeight: '700', color: '#FFFFFF' },
+  leagueCardInfo: { flex: 1, marginLeft: 12, marginRight: 8 },
+  leagueCardName: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  leagueCardSubtext: { fontSize: 12, color: '#B3B3B3', marginTop: 2 },
   statusPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    borderWidth: 1,
+    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, borderWidth: 1,
   },
-  statusPillText: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  leagueCardProgressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 14,
-  },
-  leagueCardRank: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#7C3AED',
-    width: 44,
-  },
-  leagueCardMiddle: {
-    flex: 1,
-    marginHorizontal: 8,
-  },
+  statusPillText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
+  leagueCardProgressRow: { flexDirection: 'row', alignItems: 'center', marginTop: 14 },
+  leagueCardRank: { fontSize: 18, fontWeight: '700', color: '#7C3AED', width: 44 },
+  leagueCardMiddle: { flex: 1, marginHorizontal: 8 },
   leagueCardGap: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#B3B3B3',
-    letterSpacing: 0.8,
-    marginBottom: 6,
+    fontSize: 10, fontWeight: '700', color: '#B3B3B3',
+    letterSpacing: 0.8, marginBottom: 6,
   },
   progressBarTrack: {
-    height: 4,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 2,
-    overflow: 'hidden',
+    height: 4, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 2, overflow: 'hidden',
   },
-  progressBarFill: {
-    height: 4,
-    borderRadius: 2,
-  },
+  progressBarFill: { height: 4, borderRadius: 2 },
   leagueCardTotal: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    minWidth: 40,
-    textAlign: 'right',
+    fontSize: 18, fontWeight: '700', color: '#FFFFFF',
+    minWidth: 40, textAlign: 'right',
   },
-  memberAvatarsInline: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: 44,
-  },
+  memberAvatarsInline: { flexDirection: 'row', alignItems: 'center', width: 78 },
   memberAvatarInline: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#282828',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: '#181818',
-    overflow: 'hidden',
+    width: 24, height: 24, borderRadius: 12,
+    backgroundColor: '#282828', alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: '#181818', overflow: 'hidden',
   },
-  memberAvatarInlineImage: { width: 22, height: 22, borderRadius: 11 },
-  memberAvatarInlineText: { fontSize: 9, fontWeight: '600', color: '#FFFFFF' },
+  memberAvatarInlineImage: { width: 24, height: 24, borderRadius: 12 },
+  memberAvatarInlineText: { fontSize: 10, fontWeight: '600', color: '#FFFFFF' },
   memberAvatarInlineMore: { backgroundColor: '#3A3A3A' },
   memberAvatarInlineMoreText: { fontSize: 9, fontWeight: '600', color: '#B3B3B3' },
 
-  // ── Empty / zoom ─────────────────────────────────────────────────────────
-  emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 80, paddingHorizontal: 40 },
-  emptyTitle: { fontSize: 24, fontWeight: '700', color: '#FFFFFF', marginTop: 16 },
+  // Past leagues
+  pastToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+  },
+  pastToggleRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  pastList: {
+    marginTop: 4,
+    backgroundColor: '#181818',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  pastRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
+  },
+  pastSquare: {
+    width: 40, height: 40, borderRadius: 8,
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+  },
+  pastSquareImg: { width: 40, height: 40, borderRadius: 8 },
+  pastSquareLetter: { color: '#FFFFFF', fontWeight: '700' },
+  pastNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  pastName: { color: '#FFFFFF', fontWeight: '700', fontSize: 14, flexShrink: 1 },
+  pastMeta: { color: '#B3B3B3', fontSize: 12, marginTop: 2 },
+  deletedTag: {
+    backgroundColor: 'rgba(239,68,68,0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  deletedTagText: {
+    color: '#EF4444',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  placeBadge: {
+    minWidth: 44,
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: 'rgba(124,58,237,0.15)',
+  },
+  placeBadgeText: {
+    color: '#7C3AED',
+    fontWeight: '800',
+    fontSize: 13,
+  },
+  pastEmpty: { padding: 20 },
+  pastEmptyText: { color: '#B3B3B3', fontSize: 13, textAlign: 'center' },
+
+  emptyState: {
+    flex: 1, justifyContent: 'center', alignItems: 'center',
+    paddingVertical: 64, paddingHorizontal: 40,
+  },
+  emptyTitle: { fontSize: 22, fontWeight: '700', color: '#FFFFFF', marginTop: 14 },
   emptyText: { fontSize: 14, color: '#B3B3B3', textAlign: 'center', marginTop: 8, lineHeight: 20 },
-  zoomOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' },
+  zoomOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.95)',
+    justifyContent: 'center', alignItems: 'center',
+  },
   zoomContainer: { width: '80%', aspectRatio: 1, borderRadius: 20, overflow: 'hidden' },
   zoomImage: { width: '100%', height: '100%' },
-});
-
-// ─── modal styles ─────────────────────────────────────────────────────────────
-
-const ms = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', paddingHorizontal: 24 },
-  popup: { backgroundColor: '#282828', borderRadius: 12, padding: 24 },
-  popupHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
-  popupTitle: { fontSize: 18, fontWeight: '700', color: '#FFFFFF', textAlign: 'center', flex: 1 },
-  optionBtn: {
-    flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 8,
-    backgroundColor: '#3E3E3E', marginTop: 10, gap: 12,
-  },
-  optionText: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
-  codeInput: {
-    backgroundColor: '#3E3E3E', borderRadius: 8, padding: 16, fontSize: 22,
-    fontWeight: '700', color: '#FFFFFF', textAlign: 'center', letterSpacing: 6,
-    marginBottom: 12,
-  },
-  actionBtn: { backgroundColor: '#7C3AED', borderRadius: 50, paddingVertical: 14, alignItems: 'center', marginTop: 16 },
-  actionBtnOff: { opacity: 0.4 },
-  actionBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
-  imgPicker: {
-    width: 80, height: 80, borderRadius: 40, backgroundColor: '#282828',
-    alignItems: 'center', justifyContent: 'center', alignSelf: 'center',
-    borderWidth: 2, borderColor: '#7C3AED', borderStyle: 'dashed', overflow: 'hidden',
-  },
-  imgPreview: { width: 80, height: 80, borderRadius: 40 },
-  imgLabel: { fontSize: 10, color: '#B3B3B3', marginTop: 2 },
-  removeImg: { fontSize: 13, color: '#7C3AED', textAlign: 'center', marginTop: 6 },
-  label: { fontSize: 12, fontWeight: '700', color: '#B3B3B3', marginTop: 16, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1.5 },
-  input: { backgroundColor: '#3E3E3E', borderRadius: 8, padding: 14, fontSize: 15, color: '#FFFFFF' },
-  roundsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' },
-  roundCircle: { width: 40, height: 40, borderRadius: 4, backgroundColor: '#3E3E3E', alignItems: 'center', justifyContent: 'center' },
-  roundCircleSel: { backgroundColor: '#7C3AED' },
-  roundText: { fontSize: 14, fontWeight: '600', color: '#B3B3B3' },
-  roundTextSel: { color: '#FFFFFF', fontWeight: '700' },
 });

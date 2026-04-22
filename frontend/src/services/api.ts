@@ -44,6 +44,9 @@ export interface League {
   current_round: number;
   status: string;
   created_at: string;
+  submission_hours?: number | null;
+  voting_hours?: number | null;
+  themes?: string[] | null;
 }
 
 export interface Round {
@@ -191,6 +194,9 @@ export const createLeague = (data: {
   name: string;
   total_rounds: number;
   league_image?: string | null;
+  submission_hours?: number | null;
+  voting_hours?: number | null;
+  themes?: string[] | null;
 }) => api.post<League>('/leagues', data);
 
 export const updateLeague = (id: string, data: {
@@ -232,6 +238,54 @@ export const getDeletedLeagues = () =>
 
 export const restoreLeague = (id: string) =>
   api.post<League>(`/leagues/${id}/restore`);
+
+export interface PastLeagueStanding {
+  user_id: string;
+  username: string;
+  profile_photo?: string | null;
+  total_points: number;
+  wins: number;
+  rounds_played: number;
+}
+
+export interface PastLeagueSubmission {
+  submission_id: string;
+  round_id: string;
+  round_number: number | null;
+  round_theme: string | null;
+  song: Song | null;
+  submitted_at: string | null;
+}
+
+export interface PastLeague {
+  id: string;
+  name: string;
+  league_code?: string | null;
+  league_image?: string | null;
+  total_rounds: number;
+  rounds_completed: number;
+  members_count: number;
+  is_deleted: boolean;
+  deleted_at: string | null;
+  finished_at: string | null;
+  my_place: number | null;
+  winner: {
+    user_id: string;
+    username: string;
+    profile_photo?: string | null;
+    total_points: number;
+  } | null;
+  standings: PastLeagueStanding[];
+  my_submissions: PastLeagueSubmission[];
+}
+
+export const getPastLeagues = () =>
+  api.get<{ leagues: PastLeague[] }>('/leagues/past');
+
+export const clearPastLeagues = () =>
+  api.delete<{ message: string; hard_deleted_leagues: number; cleared_at: string }>(
+    '/leagues/past',
+  );
 
 export const leaveLeague = (id: string) => 
   api.post(`/leagues/${id}/leave`);

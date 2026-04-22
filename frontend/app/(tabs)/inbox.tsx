@@ -472,27 +472,24 @@ export default function InboxScreen() {
 
         {/* Filter tabs */}
         <View style={styles.filterRow}>
-          <FlatList
-            horizontal
-            data={FILTER_TABS}
-            keyExtractor={(t) => t.key}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filterList}
-            renderItem={({ item }) => {
-              const active = filter === item.key;
-              return (
-                <TouchableOpacity
-                  style={[styles.filterTab, active && styles.filterTabActive]}
-                  onPress={() => setFilter(item.key)}
-                  activeOpacity={0.75}
+          {FILTER_TABS.map((item) => {
+            const active = filter === item.key;
+            return (
+              <TouchableOpacity
+                key={item.key}
+                style={[styles.filterTab, active && styles.filterTabActive]}
+                onPress={() => setFilter(item.key)}
+                activeOpacity={0.75}
+              >
+                <Text
+                  style={[styles.filterTabText, active && styles.filterTabTextActive]}
+                  numberOfLines={1}
                 >
-                  <Text style={[styles.filterTabText, active && styles.filterTabTextActive]}>
-                    {item.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            }}
-          />
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {visibleNotifs.length === 0 ? (
@@ -544,19 +541,21 @@ const styles = StyleSheet.create({
 
   // ── Filter tabs ──
   filterRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 12,
     paddingBottom: 10,
-  },
-  filterList: {
-    paddingHorizontal: 16,
-    gap: 8,
+    gap: 6,
   },
   filterTab: {
-    paddingHorizontal: 14,
+    flex: 1,
+    paddingHorizontal: 4,
     paddingVertical: 7,
-    borderRadius: 16,
+    borderRadius: 14,
     backgroundColor: '#1a1a1a',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   filterTabActive: {
     backgroundColor: '#7C3AED',
@@ -566,7 +565,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: '#B3B3B3',
-    letterSpacing: 0.8,
+    letterSpacing: 0.3,
   },
   filterTabTextActive: {
     color: '#FFFFFF',
