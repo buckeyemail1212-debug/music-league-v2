@@ -1469,10 +1469,11 @@ async def update_profile(update_data: UserUpdate, current_user: dict = Depends(g
         new_name = update_data.username.strip()
         if not new_name:
             raise HTTPException(status_code=400, detail="Username cannot be empty")
-        # Check if username is taken by another user
+        # Check if username is taken by a different user — 409 Conflict is
+        # the correct status for a uniqueness collision.
         existing = await db.users.find_one({"username": new_name, "id": {"$ne": current_user["id"]}})
         if existing:
-            raise HTTPException(status_code=400, detail="Username already taken")
+            raise HTTPException(status_code=409, detail="Username already taken")
         update_fields["username"] = new_name
 
     if update_data.display_name is not None:
