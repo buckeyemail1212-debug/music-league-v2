@@ -19,7 +19,6 @@ import { useAuth } from '../../src/context/AuthContext';
 import {
   getLeagues,
   getUserStats,
-  getLeagueStandings,
   getMySubmissions,
   getLifetimeStats,
   getUserTaste,
@@ -120,7 +119,6 @@ export default function MyGameScreen() {
 
   const [leaguesCount, setLeaguesCount] = useState(0);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
-  const [totalPoints, setTotalPoints] = useState(0);
   const [mySubmissions, setMySubmissions] = useState<MySubmission[]>([]);
   const [lifetimeStats, setLifetimeStats] = useState<LifetimeStats | null>(null);
   const [taste, setTaste] = useState<TasteBreakdown | null>(null);
@@ -132,6 +130,11 @@ export default function MyGameScreen() {
 
   const loadStats = useCallback(async () => {
     try {
+      // The My Game tiles read from lifetime endpoints only. We skip the
+      // per-league standings fan-out that used to feed a
+      // Math.max(lifetime, active-league-sum) tile so Clear Account Data
+      // actually shows zeros post-clear — the lifetime endpoints are the
+      // sole source of truth for the aggregate view.
       const [leaguesRes, statsRes, subsRes, lifetimeRes, tasteRes] = await Promise.all([
         getLeagues(),
         getUserStats().catch(() => null),
@@ -141,24 +144,11 @@ export default function MyGameScreen() {
       ]);
       setLeaguesCount(leaguesRes.data.length);
       setUserStats(statsRes?.data ?? null);
-      const subs = subsRes?.data?.submissions ?? [];
-      setMySubmissions(subs);
+      setMySubmissions(subsRes?.data?.submissions ?? []);
       setLifetimeStats(lifetimeRes?.data ?? null);
       setTaste(tasteRes?.data ?? null);
-
-      let pts = 0;
-      await Promise.all(
-        leaguesRes.data.map(async (l) => {
-          try {
-            const sr = await getLeagueStandings(l.id);
-            const mine = sr.data.standings.find((s) => s.user_id === user?.id);
-            if (mine) pts += mine.total_points;
-          } catch {}
-        }),
-      );
-      setTotalPoints(Math.max(lifetimeRes?.data?.all_time_points ?? 0, pts));
     } catch {}
-  }, [user?.id]);
+  }, []);
 
   // For each completed round in recent submissions, derive "Nth of M" — we
   // already have points, but translating to a place requires round results.
@@ -245,7 +235,9 @@ export default function MyGameScreen() {
           <Text style={styles.pageSubtitle}>Your taste, your stats, your songs.</Text>
         </View>
 
-        {/* 2x2 Stats grid */}
+        {/* 2x2 Stats grid — backed solely by lifetime stats so Clear
+            Account Data actually zeros the tiles. Per-league standings
+            remain visible on each league's own detail page. */}
         <View style={styles.statsGrid}>
           <StatTile
             label="LEAGUES PLAYED"
@@ -253,19 +245,15 @@ export default function MyGameScreen() {
           />
           <StatTile
             label="TOTAL PTS"
-            value={Math.max(lifetimeStats?.all_time_points ?? 0, totalPoints)}
+            value={lifetimeStats?.all_time_points ?? 0}
           />
           <StatTile
             label="WINS"
-            value={Math.max(lifetimeStats?.total_wins ?? 0, userStats?.total_wins ?? 0)}
+            value={lifetimeStats?.total_wins ?? 0}
           />
           <StatTile
             label="SUBMISSIONS"
-            value={Math.max(
-              lifetimeStats?.total_submissions ?? 0,
-              mySubmissions.length,
-              userStats?.rounds_played ?? 0,
-            )}
+            value={lifetimeStats?.total_submissions ?? 0}
           />
         </View>
 
