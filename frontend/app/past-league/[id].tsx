@@ -13,13 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getPastLeagues, PastLeague } from '../../src/services/api';
 import { useAuth } from '../../src/context/AuthContext';
-
-const LEAGUE_COLORS = ['#7C3AED', '#10B981', '#F59E0B', '#EF4444', '#3B82F6', '#EC4899', '#14B8A6', '#F97316'];
-const getLeagueColor = (name: string) => {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = ((h << 5) - h + name.charCodeAt(i)) >>> 0;
-  return LEAGUE_COLORS[h % LEAGUE_COLORS.length];
-};
+import LeagueAvatar from '../../src/components/LeagueAvatar';
 
 const formatDate = (iso: string | null) => {
   if (!iso) return '';
@@ -92,7 +86,6 @@ export default function PastLeaguePage() {
     );
   }
 
-  const squareColor = getLeagueColor(league.name);
   const finishedAt = formatDate(league.finished_at);
 
   return (
@@ -108,14 +101,8 @@ export default function PastLeaguePage() {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Top card */}
         <View style={styles.topCard}>
-          <View style={[styles.thumb, { backgroundColor: squareColor }]}>
-            {league.league_image ? (
-              <Image source={{ uri: league.league_image }} style={styles.thumbImg} />
-            ) : (
-              <Text style={styles.thumbLetter}>
-                {league.name.charAt(0).toUpperCase()}
-              </Text>
-            )}
+          <View style={styles.thumbWrap}>
+            <LeagueAvatar image={league.league_image} size={72} imageBorderRadius={12} />
           </View>
           <Text style={styles.leagueName}>{league.name}</Text>
           <View style={styles.metaRow}>
@@ -254,17 +241,9 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     paddingHorizontal: 20,
   },
-  thumb: {
-    width: 72,
-    height: 72,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
+  thumbWrap: {
     marginBottom: 14,
   },
-  thumbImg: { width: 72, height: 72, borderRadius: 12 },
-  thumbLetter: { color: '#FFFFFF', fontSize: 28, fontWeight: '800' },
   leagueName: {
     fontSize: 22,
     fontWeight: '800',

@@ -29,6 +29,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { leagueEvents } from '../../src/utils/leagueEvents';
 import { pluralize } from '../../src/utils/pluralize';
+import LeagueAvatar from '../../src/components/LeagueAvatar';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -39,13 +40,6 @@ const getGreeting = () => {
   if (h < 12) return 'Good morning';
   if (h < 18) return 'Good afternoon';
   return 'Good evening';
-};
-
-const LEAGUE_COLORS = ['#7C3AED', '#10B981', '#F59E0B', '#EF4444', '#3B82F6', '#EC4899', '#14B8A6', '#F97316'];
-const getLeagueColor = (name: string) => {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = ((h << 5) - h + name.charCodeAt(i)) >>> 0;
-  return LEAGUE_COLORS[h % LEAGUE_COLORS.length];
 };
 
 const parseDeadline = (d: string) =>
@@ -191,7 +185,6 @@ export default function HomeScreen() {
     const leaderPoints = leader?.total_points ?? 0;
     const isLeading = rank === 1 && myPoints > 0;
     const progressPct = leaderPoints > 0 ? Math.min(1, myPoints / leaderPoints) : 0;
-    const squareColor = getLeagueColor(item.name);
 
     let pillText: string | null = null;
     let pillColor = '#B3B3B3';
@@ -222,19 +215,7 @@ export default function HomeScreen() {
         activeOpacity={0.75}
       >
         <View style={styles.leagueCardTopRow}>
-          <View style={[styles.leagueColorSquare, { backgroundColor: squareColor }]}>
-            {displayImage ? (
-              <Image
-                source={{ uri: displayImage }}
-                style={styles.leagueColorSquareImage}
-                resizeMode="cover"
-              />
-            ) : (
-              <Text style={styles.leagueColorSquareInitial}>
-                {item.name.charAt(0).toUpperCase()}
-              </Text>
-            )}
-          </View>
+          <LeagueAvatar image={displayImage} size={44} imageBorderRadius={8} />
           <View style={styles.leagueCardInfo}>
             <Text style={styles.leagueCardName} numberOfLines={1}>
               {item.name}
@@ -325,7 +306,6 @@ export default function HomeScreen() {
   };
 
   const renderPastRow = (p: PastLeague) => {
-    const squareColor = getLeagueColor(p.name);
     return (
       <TouchableOpacity
         key={p.id}
@@ -333,13 +313,7 @@ export default function HomeScreen() {
         activeOpacity={0.75}
         onPress={() => router.push(`/past-league/${p.id}` as any)}
       >
-        <View style={[styles.pastSquare, { backgroundColor: squareColor }]}>
-          {p.league_image ? (
-            <Image source={{ uri: p.league_image }} style={styles.pastSquareImg} />
-          ) : (
-            <Text style={styles.pastSquareLetter}>{p.name.charAt(0).toUpperCase()}</Text>
-          )}
-        </View>
+        <LeagueAvatar image={p.league_image} size={40} imageBorderRadius={8} />
         <View style={{ flex: 1, marginLeft: 12 }}>
           <View style={styles.pastNameRow}>
             <Text style={styles.pastName} numberOfLines={1}>
@@ -549,12 +523,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   leagueCardTopRow: { flexDirection: 'row', alignItems: 'center' },
-  leagueColorSquare: {
-    width: 44, height: 44, borderRadius: 8,
-    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-  },
-  leagueColorSquareImage: { width: 44, height: 44, borderRadius: 8 },
-  leagueColorSquareInitial: { fontSize: 20, fontWeight: '700', color: '#FFFFFF' },
   leagueCardInfo: { flex: 1, marginLeft: 12, marginRight: 8 },
   leagueCardName: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
   leagueCardSubtext: { fontSize: 12, color: '#B3B3B3', marginTop: 2 },
@@ -614,12 +582,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.05)',
   },
-  pastSquare: {
-    width: 40, height: 40, borderRadius: 8,
-    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-  },
-  pastSquareImg: { width: 40, height: 40, borderRadius: 8 },
-  pastSquareLetter: { color: '#FFFFFF', fontWeight: '700' },
   pastNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   pastName: { color: '#FFFFFF', fontWeight: '700', fontSize: 14, flexShrink: 1 },
   pastMeta: { color: '#B3B3B3', fontSize: 12, marginTop: 2 },

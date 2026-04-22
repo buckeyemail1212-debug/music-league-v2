@@ -6,7 +6,6 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  Image,
   RefreshControl,
   Animated,
 } from 'react-native';
@@ -28,6 +27,7 @@ import {
 import { SharedChat } from '../../src/components/SharedChat';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { pluralize } from '../../src/utils/pluralize';
+import LeagueAvatar from '../../src/components/LeagueAvatar';
 
 type NotifType = 'COMMENT' | 'RESULT' | 'REMINDER' | 'ACTIVITY' | 'SUBMIT';
 type FilterKey = 'ALL' | 'RESULTS' | 'REMINDER' | 'ACTIVITY' | 'SUBMIT';
@@ -62,18 +62,6 @@ const FILTER_TABS: { key: FilterKey; label: string }[] = [
 ];
 
 const NOTIF_PERSIST_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
-
-function abbreviateName(name: string): string {
-  const tokens = (name || '').trim().split(/\s+/).filter(Boolean);
-  if (tokens.length === 0) return 'FM';
-  if (tokens.length >= 2 && /^\d+$/.test(tokens[1])) {
-    return (tokens[0][0] + tokens[1]).toUpperCase();
-  }
-  if (tokens.length >= 2) {
-    return (tokens[0][0] + tokens[1][0]).toUpperCase();
-  }
-  return tokens[0].slice(0, 2).toUpperCase();
-}
 
 function parseTs(s?: string | null): number {
   if (!s) return 0;
@@ -435,13 +423,7 @@ export default function InboxScreen() {
         activeOpacity={0.75}
       >
         <View style={styles.notifIcon}>
-          {item.leagueImage ? (
-            <Image source={{ uri: item.leagueImage }} style={styles.notifIconImage} />
-          ) : (
-            <View style={styles.notifIconPlaceholder}>
-              <Text style={styles.notifIconText}>{abbreviateName(item.leagueName)}</Text>
-            </View>
-          )}
+          <LeagueAvatar image={item.leagueImage} size={40} imageBorderRadius={8} />
         </View>
         <View style={styles.notifBody}>
           <View style={styles.notifTopLine}>
@@ -588,25 +570,6 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 8,
     overflow: 'hidden',
-  },
-  notifIconImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-  },
-  notifIconPlaceholder: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: '#7C3AED',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  notifIconText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: 0.5,
   },
   notifBody: {
     flex: 1,

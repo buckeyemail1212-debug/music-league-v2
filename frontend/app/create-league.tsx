@@ -12,7 +12,6 @@ import {
   Switch,
   Alert,
   ActionSheetIOS,
-  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +20,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Clipboard from 'expo-clipboard';
 import { createLeague, League } from '../src/services/api';
 import { leagueEvents } from '../src/utils/leagueEvents';
+import LeagueAvatar from '../src/components/LeagueAvatar';
 
 const ROUND_CHOICES = [3, 5, 6, 8, 10, 12];
 const TIME_CHOICES: { label: string; hours: number }[] = [
@@ -191,18 +191,12 @@ export default function CreateLeaguePage() {
               onPress={handlePhotoTap}
               style={styles.photoBtn}
             >
-              {photo ? (
-                <Image source={{ uri: photo }} style={styles.photoImg} />
-              ) : (
-                <View style={styles.photoPlaceholder}>
-                  <Text style={styles.photoLetter}>
-                    {(name.trim() || '?').charAt(0).toUpperCase()}
-                  </Text>
+              <LeagueAvatar image={photo} size={88} imageBorderRadius={16} />
+              {photo && (
+                <View style={styles.photoBadge}>
+                  <Ionicons name="camera" size={14} color="#FFFFFF" />
                 </View>
               )}
-              <View style={styles.photoBadge}>
-                <Ionicons name="camera" size={14} color="#FFFFFF" />
-              </View>
             </TouchableOpacity>
             <Text style={styles.photoHint}>
               {photo ? 'Tap to change photo' : 'Add a league photo (optional)'}
@@ -413,24 +407,6 @@ const styles = StyleSheet.create({
   },
   photoBtn: {
     position: 'relative',
-  },
-  photoImg: {
-    width: 88,
-    height: 88,
-    borderRadius: 16,
-  },
-  photoPlaceholder: {
-    width: 88,
-    height: 88,
-    borderRadius: 16,
-    backgroundColor: '#7C3AED',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  photoLetter: {
-    color: '#FFFFFF',
-    fontSize: 36,
-    fontWeight: '800',
   },
   photoBadge: {
     position: 'absolute',
