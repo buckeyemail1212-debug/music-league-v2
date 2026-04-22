@@ -102,30 +102,330 @@ def _categorize_by_genre_id(genre_id: int) -> str:
     return _DEEZER_GENRE_TO_CATEGORY.get(int(genre_id), "Other")
 
 
-def _fetch_song_category(deezer_id) -> str:
-    """Best-effort lookup of a song's category from Deezer. Falls back to
-    "Other" when the call fails. Runs synchronously — callers should wrap in
-    ``asyncio.to_thread``.
-    """
-    if not deezer_id:
+def _category_from_genre_name(name: str) -> str:
+    """Normalize a Deezer genre name string into one of our categories."""
+    if not name:
         return "Other"
+    n = name.lower()
+    if "rap" in n or "hip" in n or "trap" in n or "drill" in n:
+        return "Hip-Hop"
+    if "r&b" in n or "soul" in n or "funk" in n or "rnb" in n:
+        return "R&B"
+    if "country" in n or "bluegrass" in n or "americana" in n:
+        return "Country"
+    if "electro" in n or "dance" in n or "house" in n or "techno" in n or "edm" in n or "trance" in n or "dubstep" in n:
+        return "Electronic"
+    if "indie" in n or "alternative" in n or "alt-rock" in n:
+        return "Indie"
+    if "rock" in n or "metal" in n or "punk" in n or "grunge" in n:
+        return "Rock"
+    if "pop" in n:
+        return "Pop"
+    return "Other"
+
+
+# Hardcoded artist → category map. Matched case-insensitively against the
+# Deezer artist name. These are authoritative and bypass the Deezer genre
+# lookup entirely — Deezer often returns a generic or empty genre for very
+# popular artists.
+_ARTIST_CATEGORY: dict[str, str] = {
+    # Hip-Hop
+    "eminem": "Hip-Hop",
+    "drake": "Hip-Hop",
+    "kendrick lamar": "Hip-Hop",
+    "kanye west": "Hip-Hop",
+    "ye": "Hip-Hop",
+    "jay-z": "Hip-Hop",
+    "lil wayne": "Hip-Hop",
+    "travis scott": "Hip-Hop",
+    "cardi b": "Hip-Hop",
+    "nicki minaj": "Hip-Hop",
+    "post malone": "Hip-Hop",
+    "j. cole": "Hip-Hop",
+    "j cole": "Hip-Hop",
+    "future": "Hip-Hop",
+    "21 savage": "Hip-Hop",
+    "tyler, the creator": "Hip-Hop",
+    "asap rocky": "Hip-Hop",
+    "a$ap rocky": "Hip-Hop",
+    "megan thee stallion": "Hip-Hop",
+    "doja cat": "Hip-Hop",
+    "snoop dogg": "Hip-Hop",
+    "dr. dre": "Hip-Hop",
+    "50 cent": "Hip-Hop",
+    "ice cube": "Hip-Hop",
+    "2pac": "Hip-Hop",
+    "notorious b.i.g.": "Hip-Hop",
+    "the notorious b.i.g.": "Hip-Hop",
+    "nas": "Hip-Hop",
+    "run the jewels": "Hip-Hop",
+    "lil baby": "Hip-Hop",
+    "lil uzi vert": "Hip-Hop",
+    "playboi carti": "Hip-Hop",
+    "chance the rapper": "Hip-Hop",
+    "juice wrld": "Hip-Hop",
+    "xxxtentacion": "Hip-Hop",
+    "dmx": "Hip-Hop",
+    "busta rhymes": "Hip-Hop",
+    "eazy-e": "Hip-Hop",
+    "gucci mane": "Hip-Hop",
+    "roddy ricch": "Hip-Hop",
+
+    # Pop
+    "taylor swift": "Pop",
+    "ariana grande": "Pop",
+    "dua lipa": "Pop",
+    "katy perry": "Pop",
+    "ed sheeran": "Pop",
+    "justin bieber": "Pop",
+    "bruno mars": "Pop",
+    "harry styles": "Pop",
+    "olivia rodrigo": "Pop",
+    "billie eilish": "Pop",
+    "lady gaga": "Pop",
+    "miley cyrus": "Pop",
+    "selena gomez": "Pop",
+    "camila cabello": "Pop",
+    "shawn mendes": "Pop",
+    "the weeknd": "Pop",
+    "adele": "Pop",
+    "sabrina carpenter": "Pop",
+    "charli xcx": "Pop",
+    "demi lovato": "Pop",
+    "one direction": "Pop",
+    "chappell roan": "Pop",
+
+    # R&B
+    "beyoncé": "R&B",
+    "beyonce": "R&B",
+    "rihanna": "R&B",
+    "sza": "R&B",
+    "h.e.r.": "R&B",
+    "her": "R&B",
+    "usher": "R&B",
+    "frank ocean": "R&B",
+    "the-dream": "R&B",
+    "alicia keys": "R&B",
+    "john legend": "R&B",
+    "mary j. blige": "R&B",
+    "bryson tiller": "R&B",
+    "summer walker": "R&B",
+    "daniel caesar": "R&B",
+    "kehlani": "R&B",
+    "jhené aiko": "R&B",
+    "jhene aiko": "R&B",
+    "chris brown": "R&B",
+    "trey songz": "R&B",
+    "brandy": "R&B",
+    "tems": "R&B",
+    "miguel": "R&B",
+    "giveon": "R&B",
+    "brent faiyaz": "R&B",
+    "khalid": "R&B",
+    "anderson .paak": "R&B",
+    "anderson paak": "R&B",
+
+    # Country
+    "luke combs": "Country",
+    "morgan wallen": "Country",
+    "blake shelton": "Country",
+    "carrie underwood": "Country",
+    "zach bryan": "Country",
+    "luke bryan": "Country",
+    "tim mcgraw": "Country",
+    "keith urban": "Country",
+    "kenny chesney": "Country",
+    "kacey musgraves": "Country",
+    "chris stapleton": "Country",
+    "miranda lambert": "Country",
+    "dolly parton": "Country",
+    "johnny cash": "Country",
+    "willie nelson": "Country",
+    "shania twain": "Country",
+    "garth brooks": "Country",
+    "jason aldean": "Country",
+
+    # Indie
+    "radiohead": "Indie",
+    "arctic monkeys": "Indie",
+    "the strokes": "Indie",
+    "tame impala": "Indie",
+    "vampire weekend": "Indie",
+    "the national": "Indie",
+    "mitski": "Indie",
+    "phoebe bridgers": "Indie",
+    "father john misty": "Indie",
+    "bon iver": "Indie",
+    "fleet foxes": "Indie",
+    "mgmt": "Indie",
+    "the 1975": "Indie",
+    "lana del rey": "Indie",
+    "big thief": "Indie",
+    "arcade fire": "Indie",
+    "beach house": "Indie",
+    "sufjan stevens": "Indie",
+    "mac demarco": "Indie",
+    "alex g": "Indie",
+    "clairo": "Indie",
+    "weyes blood": "Indie",
+    "car seat headrest": "Indie",
+
+    # Electronic
+    "daft punk": "Electronic",
+    "calvin harris": "Electronic",
+    "skrillex": "Electronic",
+    "deadmau5": "Electronic",
+    "flume": "Electronic",
+    "disclosure": "Electronic",
+    "odesza": "Electronic",
+    "fred again..": "Electronic",
+    "fred again": "Electronic",
+    "four tet": "Electronic",
+    "aphex twin": "Electronic",
+    "the chemical brothers": "Electronic",
+    "justice": "Electronic",
+    "marshmello": "Electronic",
+    "avicii": "Electronic",
+    "tiësto": "Electronic",
+    "tiesto": "Electronic",
+    "david guetta": "Electronic",
+    "swedish house mafia": "Electronic",
+    "zedd": "Electronic",
+    "kaytranada": "Electronic",
+    "porter robinson": "Electronic",
+    "kygo": "Electronic",
+    "diplo": "Electronic",
+    "major lazer": "Electronic",
+    "alesso": "Electronic",
+    "illenium": "Electronic",
+    "rüfüs du sol": "Electronic",
+    "rufus du sol": "Electronic",
+
+    # Rock
+    "ac/dc": "Rock",
+    "acdc": "Rock",
+    "metallica": "Rock",
+    "foo fighters": "Rock",
+    "nirvana": "Rock",
+    "led zeppelin": "Rock",
+    "queen": "Rock",
+    "the beatles": "Rock",
+    "the rolling stones": "Rock",
+    "pink floyd": "Rock",
+    "pearl jam": "Rock",
+    "red hot chili peppers": "Rock",
+    "guns n' roses": "Rock",
+    "guns n roses": "Rock",
+    "aerosmith": "Rock",
+    "bon jovi": "Rock",
+    "green day": "Rock",
+    "blink-182": "Rock",
+    "blink 182": "Rock",
+    "weezer": "Rock",
+    "soundgarden": "Rock",
+    "audioslave": "Rock",
+    "muse": "Rock",
+    "coldplay": "Rock",
+    "imagine dragons": "Rock",
+    "twenty one pilots": "Rock",
+    "paramore": "Rock",
+    "u2": "Rock",
+    "the killers": "Rock",
+    "linkin park": "Rock",
+}
+
+
+def _category_from_artist(artist_name: str) -> str:
+    """Exact/token match against the hardcoded artist → category map."""
+    if not artist_name:
+        return "Other"
+    key = artist_name.strip().lower()
+    if key in _ARTIST_CATEGORY:
+        return _ARTIST_CATEGORY[key]
+    # Featured-artist splits: "Artist feat. X", "A & B", "A, B"
+    for sep in (" feat.", " ft.", " feat ", " ft ", " x ", " & ", ","):
+        if sep in key:
+            first = key.split(sep, 1)[0].strip()
+            if first in _ARTIST_CATEGORY:
+                return _ARTIST_CATEGORY[first]
+    return "Other"
+
+
+def _fetch_song_category(deezer_id, artist_hint: str = "", title_hint: str = "") -> str:
+    """Best-effort lookup of a song's category.
+
+    Precedence:
+      1. Hardcoded artist → category map (instant, authoritative).
+      2. Deezer track/album genre data.
+      3. Keyword lookup against the artist/title string.
+
+    Runs synchronously — callers should wrap with ``asyncio.to_thread``.
+    """
+    # Layer 1: hardcoded artist map — try hint first so we can short-circuit
+    # without any network call when the caller already has the artist name.
+    if artist_hint:
+        cat = _category_from_artist(artist_hint)
+        if cat != "Other":
+            return cat
+
+    if not deezer_id:
+        # Fall back to keyword lookup on whatever we were given.
+        return _category_from_genre_name(f"{artist_hint} {title_hint}")
     try:
         did = int(deezer_id)
     except (TypeError, ValueError):
-        return "Other"
+        return _category_from_genre_name(f"{artist_hint} {title_hint}")
     if did in _genre_cache:
         return _genre_cache[did]
+
+    cat = "Other"
     try:
-        r = _requests.get(f"https://api.deezer.com/track/{did}", timeout=6)
-        data = r.json() or {}
-        genre_id = (data.get("album") or {}).get("genre_id")
-        if genre_id is None or int(genre_id) <= 0:
-            cat = "Other"
-        else:
-            cat = _categorize_by_genre_id(genre_id)
+        # Step 1: /track/{id} — album.genre_id is often usable.
+        track = _requests.get(f"https://api.deezer.com/track/{did}", timeout=6).json() or {}
+        album = track.get("album") or {}
+        track_artist = (track.get("artist") or {}).get("name") or artist_hint
+        track_title = track.get("title") or title_hint
+
+        # Re-check the hardcoded map with the Deezer-reported artist name.
+        if cat == "Other":
+            from_map = _category_from_artist(track_artist)
+            if from_map != "Other":
+                cat = from_map
+
+        if cat == "Other":
+            genre_id = album.get("genre_id")
+            if genre_id and int(genre_id) > 0:
+                cat = _categorize_by_genre_id(genre_id)
+
+        # Step 2: /album/{id} — has a richer genres.data list when genre_id is 0.
+        if cat == "Other" and album.get("id"):
+            alb = _requests.get(f"https://api.deezer.com/album/{album['id']}", timeout=6).json() or {}
+            for g in ((alb.get("genres") or {}).get("data") or []):
+                gid = g.get("id")
+                if gid and int(gid) > 0:
+                    mapped = _categorize_by_genre_id(gid)
+                    if mapped != "Other":
+                        cat = mapped
+                        break
+                name = g.get("name")
+                if name:
+                    mapped = _category_from_genre_name(name)
+                    if mapped != "Other":
+                        cat = mapped
+                        break
+
+        # Step 3: last-ditch keyword match on artist + title.
+        if cat == "Other":
+            guess = _category_from_genre_name(f"{track_artist} {track_title}")
+            if guess != "Other":
+                cat = guess
     except Exception as e:
         logger.debug(f"Deezer genre lookup failed for {did}: {e}")
-        cat = "Other"
+        # Keyword fallback from hints if everything else failed.
+        guess = _category_from_genre_name(f"{artist_hint} {title_hint}")
+        if guess != "Other":
+            cat = guess
+
     _genre_cache[did] = cat
     return cat
 
@@ -137,7 +437,12 @@ async def _record_user_submission(current_user: dict, round_doc: dict, submissio
     profile "Your Taste" breakdown reflects true lifetime history.
     """
     song = submission.get("song") or {}
-    category = await asyncio.to_thread(_fetch_song_category, song.get("deezer_id"))
+    category = await asyncio.to_thread(
+        _fetch_song_category,
+        song.get("deezer_id"),
+        song.get("artist", ""),
+        song.get("title", ""),
+    )
     if league_doc is None:
         league_doc = await db.leagues.find_one({"id": round_doc["league_id"]})
 
@@ -670,6 +975,62 @@ async def reset_password(request: ResetPasswordRequest):
         }
     }
 
+@api_router.delete("/auth/data")
+async def clear_user_data(current_user: dict = Depends(get_current_user)):
+    """Wipe all gameplay data for the current user while keeping the account.
+
+    Removes: leagues they created (and all their rounds/submissions/votes/
+    messages), submissions and votes they cast in other leagues, their
+    permanent user_submissions history, and resets the lifetime counters on
+    their user doc to zero. The account, email, username, and profile photo
+    are preserved.
+    """
+    user_id = current_user["id"]
+
+    # Leagues this user created → fully remove, along with every round/
+    # submission/vote/message in those leagues.
+    created_leagues = await db.leagues.find(
+        {"creator_id": user_id},
+        {"_id": 0, "id": 1},
+    ).to_list(500)
+    created_league_ids = [l["id"] for l in created_leagues]
+    if created_league_ids:
+        round_docs = await db.rounds.find(
+            {"league_id": {"$in": created_league_ids}},
+            {"_id": 0, "id": 1},
+        ).to_list(2000)
+        round_ids = [r["id"] for r in round_docs]
+        if round_ids:
+            await db.submissions.delete_many({"round_id": {"$in": round_ids}})
+            await db.votes.delete_many({"round_id": {"$in": round_ids}})
+        await db.rounds.delete_many({"league_id": {"$in": created_league_ids}})
+        await db.messages.delete_many({"league_id": {"$in": created_league_ids}})
+        await db.leagues.delete_many({"id": {"$in": created_league_ids}})
+        await db.league_snapshots.delete_many({"league_id": {"$in": created_league_ids}})
+
+    # Remove any submissions / votes the user cast in other people's leagues.
+    await db.submissions.delete_many({"user_id": user_id})
+    await db.votes.delete_many({"voter_id": user_id})
+
+    # Remove any chat messages the user authored anywhere.
+    await db.messages.delete_many({"user_id": user_id})
+
+    # Wipe the permanent taste/stats history.
+    await db.user_submissions.delete_many({"user_id": user_id})
+
+    # Reset lifetime counters on the user doc.
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {
+            "all_time_points": 0,
+            "total_wins": 0,
+            "total_submissions": 0,
+        }},
+    )
+
+    return {"message": "All data cleared successfully"}
+
+
 @api_router.delete("/auth/account")
 async def delete_account(current_user: dict = Depends(get_current_user)):
     """Delete user account and all associated data, fully releasing email and username"""
@@ -943,8 +1304,37 @@ async def get_user_taste(current_user: dict = Depends(get_current_user)):
     user_id = current_user["id"]
     rows = await db.user_submissions.find(
         {"user_id": user_id},
-        {"_id": 0, "genre": 1, "song": 1},
+        {"_id": 0, "submission_id": 1, "genre": 1, "song": 1},
     ).to_list(5000)
+
+    # Re-resolve any stored "Other" rows — the early submission pipeline
+    # sometimes logged "Other" before we could reach Deezer. Cap the number
+    # we re-look-up per request so a user with 500 Other rows doesn't stall.
+    to_reresolve = [r for r in rows if r.get("genre") in (None, "Other")]
+    for r in to_reresolve[:25]:
+        song = r.get("song") or {}
+        deezer_id = song.get("deezer_id")
+        # Quick win: hardcoded artist map doesn't need a network round-trip.
+        quick = _category_from_artist(song.get("artist", ""))
+        if quick != "Other":
+            new_cat = quick
+        elif deezer_id:
+            new_cat = await asyncio.to_thread(
+                _fetch_song_category,
+                deezer_id,
+                song.get("artist", ""),
+                song.get("title", ""),
+            )
+        else:
+            new_cat = _category_from_genre_name(
+                f"{song.get('artist', '')} {song.get('title', '')}"
+            )
+        if new_cat and new_cat != r.get("genre"):
+            await db.user_submissions.update_one(
+                {"submission_id": r["submission_id"]},
+                {"$set": {"genre": new_cat, "updated_at": datetime.now(timezone.utc)}},
+            )
+            r["genre"] = new_cat
 
     counts: dict[str, int] = {c: 0 for c in TASTE_CATEGORIES}
     for r in rows:
@@ -1074,28 +1464,36 @@ async def get_my_submissions(current_user: dict = Depends(get_current_user)):
 @api_router.put("/auth/me", response_model=UserResponse)
 async def update_profile(update_data: UserUpdate, current_user: dict = Depends(get_current_user)):
     update_fields = {}
-    
+
     if update_data.username is not None:
+        new_name = update_data.username.strip()
+        if not new_name:
+            raise HTTPException(status_code=400, detail="Username cannot be empty")
         # Check if username is taken by another user
-        existing = await db.users.find_one({"username": update_data.username, "id": {"$ne": current_user["id"]}})
+        existing = await db.users.find_one({"username": new_name, "id": {"$ne": current_user["id"]}})
         if existing:
             raise HTTPException(status_code=400, detail="Username already taken")
-        update_fields["username"] = update_data.username
-    
+        update_fields["username"] = new_name
+
+    if update_data.display_name is not None:
+        update_fields["display_name"] = update_data.display_name
+
     if update_data.profile_photo is not None:
         update_fields["profile_photo"] = update_data.profile_photo
-    
+
     if update_fields:
         await db.users.update_one({"id": current_user["id"]}, {"$set": update_fields})
-    
-    # Fetch updated user
+
+    # Fetch updated user and return the full record so the client can replace
+    # its cached copy in AsyncStorage / AuthContext wholesale.
     user = await db.users.find_one({"id": current_user["id"]})
     return UserResponse(
         id=user["id"],
         email=user["email"],
         username=user["username"],
+        display_name=user.get("display_name", user["username"]),
         profile_photo=user.get("profile_photo"),
-        created_at=user["created_at"]
+        created_at=user["created_at"],
     )
 
 # ==================== LEAGUE ENDPOINTS ====================
@@ -1127,8 +1525,46 @@ async def create_league(league_data: LeagueCreate, current_user: dict = Depends(
     }
     await db.leagues.insert_one(league)
     league.pop("_id", None)
-    
+
+    # Durable snapshot used by the inbox to render notifications for this
+    # league even after it's been deleted.
+    await _upsert_league_snapshot(league_id, league_data.name, league_data.league_image if has_image else None)
+
     return LeagueResponse(**league)
+
+
+async def _upsert_league_snapshot(league_id: str, name: str, image: str | None):
+    await db.league_snapshots.update_one(
+        {"league_id": league_id},
+        {"$set": {
+            "league_id": league_id,
+            "name": name,
+            "league_image": image,
+            "updated_at": datetime.now(timezone.utc),
+        }},
+        upsert=True,
+    )
+
+
+@api_router.get("/leagues/{league_id}/snapshot")
+async def get_league_snapshot(league_id: str, current_user: dict = Depends(get_current_user)):
+    """Return a durable name + image snapshot for a league id. Works even if
+    the league has been deleted — this is what the inbox uses to keep
+    notification thumbnails after deletion.
+    """
+    snap = await db.league_snapshots.find_one({"league_id": league_id}, {"_id": 0})
+    if snap:
+        return snap
+    # Fall back to the current league doc if no snapshot exists yet.
+    league = await db.leagues.find_one({"id": league_id}, {"_id": 0})
+    if not league:
+        raise HTTPException(status_code=404, detail="No snapshot available")
+    return {
+        "league_id": league_id,
+        "name": league.get("name"),
+        "league_image": league.get("league_image"),
+    }
+
 
 def add_league_defaults(league: dict) -> dict:
     """Add default values for new fields to support existing leagues"""
@@ -1233,6 +1669,15 @@ async def delete_league(league_id: str, current_user: dict = Depends(get_current
         {"$set": {"deleted_at": now}},
     )
 
+    # Clear the league's chat so members stop seeing messages for a league
+    # that's been deleted. Notifications live client-side (AsyncStorage) and
+    # the inbox code drops any cached notif whose league no longer appears in
+    # /leagues on its next fetch.
+    try:
+        await db.messages.delete_many({"league_id": league_id})
+    except Exception as e:
+        logger.warning(f"Failed to purge messages for deleted league {league_id}: {e}")
+
     return {"message": "League deleted successfully"}
 
 
@@ -1327,9 +1772,11 @@ async def update_league(league_id: str, update_data: LeagueUpdate, current_user:
     
     if update_fields:
         await db.leagues.update_one({"id": league_id}, {"$set": update_fields})
-    
+
     # Fetch updated league
     league = await db.leagues.find_one({"id": league_id})
+    # Keep the durable snapshot current so the inbox shows the latest photo.
+    await _upsert_league_snapshot(league_id, league.get("name"), league.get("league_image"))
     return LeagueResponse(**add_league_defaults(league))
 
 @api_router.post("/leagues/{league_id}/leave")
@@ -2720,6 +3167,112 @@ async def chart_refresh_loop():
 async def start_chart_refresh_loop():
     logger.info("chart_refresh_loop: scheduling background task")
     asyncio.create_task(chart_refresh_loop())
+
+
+async def _reclassify_unknown_genres(max_rows: int = 500):
+    """Walk user_submissions where genre is None or 'Other' and re-resolve
+    them using the hardcoded artist map first, then Deezer. Rate-limited so
+    the background task doesn't hammer Deezer.
+    """
+    try:
+        rows = await db.user_submissions.find(
+            {"$or": [{"genre": None}, {"genre": {"$exists": False}}, {"genre": "Other"}]},
+            {"_id": 0, "submission_id": 1, "genre": 1, "song": 1},
+        ).to_list(max_rows)
+
+        updated = 0
+        for r in rows:
+            song = r.get("song") or {}
+            # Try the hardcoded artist map first (no network).
+            new_cat = _category_from_artist(song.get("artist", ""))
+            if new_cat == "Other":
+                deezer_id = song.get("deezer_id")
+                if deezer_id:
+                    try:
+                        new_cat = await asyncio.to_thread(
+                            _fetch_song_category,
+                            deezer_id,
+                            song.get("artist", ""),
+                            song.get("title", ""),
+                        )
+                    except Exception as e:
+                        logger.debug(f"reclassify: Deezer lookup failed for {deezer_id}: {e}")
+                        continue
+                    # Be nice to Deezer.
+                    await asyncio.sleep(0.1)
+                else:
+                    new_cat = _category_from_genre_name(
+                        f"{song.get('artist', '')} {song.get('title', '')}"
+                    )
+
+            if new_cat and new_cat != (r.get("genre") or "Other"):
+                await db.user_submissions.update_one(
+                    {"submission_id": r["submission_id"]},
+                    {"$set": {"genre": new_cat, "updated_at": datetime.now(timezone.utc)}},
+                )
+                updated += 1
+        if updated:
+            logger.info(f"reclassify_unknown_genres: updated {updated}/{len(rows)} rows")
+    except Exception as e:
+        logger.exception(f"reclassify_unknown_genres failed: {e}")
+
+
+@app.on_event("startup")
+async def start_genre_reclassifier():
+    """Fire-and-forget background task that gradually repairs any
+    user_submissions rows whose genre couldn't be resolved at submit time.
+    Runs once on startup and then every 30 minutes.
+    """
+    async def loop():
+        logger.info("reclassify_unknown_genres: scheduled on startup")
+        # Wait briefly so startup logs aren't mixed with first batch output.
+        await asyncio.sleep(10)
+        while True:
+            await _reclassify_unknown_genres()
+            await asyncio.sleep(30 * 60)
+    asyncio.create_task(loop())
+
+
+@api_router.post("/auth/reclassify-genres")
+async def trigger_genre_reclassify(current_user: dict = Depends(get_current_user)):
+    """Manually kick the background genre reclassifier, scoped to the current
+    user's own submissions so testing a single account returns quickly.
+    """
+    rows = await db.user_submissions.find(
+        {
+            "user_id": current_user["id"],
+            "$or": [{"genre": None}, {"genre": {"$exists": False}}, {"genre": "Other"}],
+        },
+        {"_id": 0, "submission_id": 1, "genre": 1, "song": 1},
+    ).to_list(1000)
+
+    updated = 0
+    for r in rows:
+        song = r.get("song") or {}
+        new_cat = _category_from_artist(song.get("artist", ""))
+        if new_cat == "Other":
+            deezer_id = song.get("deezer_id")
+            if deezer_id:
+                try:
+                    new_cat = await asyncio.to_thread(
+                        _fetch_song_category,
+                        deezer_id,
+                        song.get("artist", ""),
+                        song.get("title", ""),
+                    )
+                except Exception:
+                    continue
+            else:
+                new_cat = _category_from_genre_name(
+                    f"{song.get('artist', '')} {song.get('title', '')}"
+                )
+        if new_cat and new_cat != (r.get("genre") or "Other"):
+            await db.user_submissions.update_one(
+                {"submission_id": r["submission_id"]},
+                {"$set": {"genre": new_cat, "updated_at": datetime.now(timezone.utc)}},
+            )
+            updated += 1
+    return {"scanned": len(rows), "updated": updated}
 
 async def get_chart_from_db(chart_name: str) -> list:
     """Read chart from MongoDB. Falls back to live fetch if not yet cached."""
