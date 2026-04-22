@@ -670,7 +670,7 @@ class RoundResponse(BaseModel):
     league_id: str
     round_number: int
     theme: str
-    status: str  # "submission", "voting", "completed"
+    status: str  # "locked", "submission", "voting", "completed", "skipped"
     submission_hours: int = 24
     voting_hours: int = 24
     submission_deadline: datetime
@@ -1544,7 +1544,86 @@ async def create_league(league_data: LeagueCreate, current_user: dict = Depends(
     # league even after it's been deleted.
     await _upsert_league_snapshot(league_id, league_data.name, league_data.league_image if has_image else None)
 
+    # Pre-generate every round up-front. R1 starts active (submission phase)
+    # so the creator doesn't have to hit "Start Round"; R2..RN start locked
+    # and get unlocked when the previous round finishes (see the server-side
+    # auto-advance job).
+    await _pregenerate_rounds(
+        league_id=league_id,
+        total_rounds=league_data.total_rounds,
+        submission_hours=league_data.submission_hours or 24,
+        voting_hours=league_data.voting_hours or 24,
+        themes=league_data.themes or [],
+    )
+    # Round 1 is live — reflect that in current_round.
+    if league_data.total_rounds > 0:
+        await db.leagues.update_one(
+            {"id": league_id},
+            {"$set": {"current_round": 1}},
+        )
+        league["current_round"] = 1
+
     return LeagueResponse(**league)
+
+
+# Sentinel far-future timestamp used as a placeholder for locked rounds'
+# deadlines. The deadline fields are required by the Round model, so we use
+# an obviously-unreachable value until the round unlocks and the real
+# deadline is recomputed.
+_LOCKED_PLACEHOLDER_DT = datetime(9999, 1, 1, tzinfo=timezone.utc)
+
+
+async def _pregenerate_rounds(
+    *,
+    league_id: str,
+    total_rounds: int,
+    submission_hours: int,
+    voting_hours: int,
+    themes: list[str],
+    start_round: int = 1,
+) -> None:
+    """Create round docs for rounds `start_round`..`total_rounds`. The first
+    round created (if `start_round == 1`) goes live immediately; the rest
+    start locked. Idempotent — skips rounds that already exist."""
+    if total_rounds <= 0:
+        return
+    existing = await db.rounds.find(
+        {"league_id": league_id},
+        {"_id": 0, "round_number": 1},
+    ).to_list(200)
+    existing_numbers = {int(r.get("round_number", 0)) for r in existing}
+
+    now = datetime.now(timezone.utc)
+    docs: list[dict] = []
+    for rn in range(start_round, total_rounds + 1):
+        if rn in existing_numbers:
+            continue
+        theme = ""
+        if rn - 1 < len(themes):
+            theme = (themes[rn - 1] or "").strip()
+        if rn == 1 and not existing:
+            sub_deadline = now + timedelta(hours=submission_hours)
+            vote_deadline = sub_deadline + timedelta(hours=voting_hours)
+            status = "submission"
+        else:
+            sub_deadline = _LOCKED_PLACEHOLDER_DT
+            vote_deadline = _LOCKED_PLACEHOLDER_DT
+            status = "locked"
+        docs.append({
+            "id": str(uuid.uuid4()),
+            "league_id": league_id,
+            "round_number": rn,
+            "theme": theme,
+            "status": status,
+            "submission_hours": submission_hours,
+            "voting_hours": voting_hours,
+            "submission_deadline": sub_deadline,
+            "voting_deadline": vote_deadline,
+            "created_at": now,
+        })
+
+    if docs:
+        await db.rounds.insert_many(docs)
 
 
 async def _upsert_league_snapshot(league_id: str, name: str, image: str | None):
@@ -2345,13 +2424,31 @@ async def create_round(league_id: str, round_data: StartRoundRequest = None, cur
 
 @api_router.get("/leagues/{league_id}/rounds", response_model=List[RoundResponse])
 async def get_rounds(league_id: str, current_user: dict = Depends(get_current_user)):
-    league = await db.leagues.find_one({"id": league_id}, {"_id": 0, "members": 1})
-    if not league:
+    league_full = await db.leagues.find_one({"id": league_id}, {"_id": 0})
+    if not league_full:
         raise HTTPException(status_code=404, detail="League not found")
-    
-    total_members = len(league.get("members", []))
-    rounds = await db.rounds.find({"league_id": league_id}, {"_id": 0}).sort("round_number", -1).to_list(100)
-    
+
+    total_members = len(league_full.get("members", []))
+
+    # Lazy backfill: for leagues that were created before the pre-generate
+    # model, ensure every round 1..total_rounds exists. Any missing numbers
+    # are created as locked rounds; if zero rounds exist we also start R1
+    # as active so the league has a live phase.
+    planned_total = league_full.get("total_rounds", 0) or 0
+    if planned_total > 0:
+        try:
+            await _pregenerate_rounds(
+                league_id=league_id,
+                total_rounds=planned_total,
+                submission_hours=league_full.get("submission_hours") or 24,
+                voting_hours=league_full.get("voting_hours") or 24,
+                themes=league_full.get("themes") or [],
+            )
+        except Exception as e:
+            logger.warning(f"lazy pregenerate for {league_id} failed: {e}")
+
+    rounds = await db.rounds.find({"league_id": league_id}, {"_id": 0}).sort("round_number", 1).to_list(200)
+
     if not rounds:
         return []
     
@@ -3708,6 +3805,160 @@ async def start_genre_reclassifier():
         while True:
             await _reclassify_unknown_genres()
             await asyncio.sleep(30 * 60)
+    asyncio.create_task(loop())
+
+
+# ==================== ROUND AUTO-ADVANCE (SERVER-SIDE) ====================
+#
+# Scheduled background task that walks every league's active round once a
+# minute and transitions it based on deadlines. Mirrors the lazy
+# auto-advance already embedded in the read-path endpoints, but runs even
+# when no user has opened the app — required so "round ends at midnight"
+# actually happens at midnight rather than whenever the next client shows
+# up. Safe to run alongside the lazy logic: MongoDB updates are idempotent
+# and the status guards ensure we only advance a round once.
+
+async def _run_round_auto_advance_tick() -> None:
+    """Advance any round whose deadline has passed. Returns the number of
+    rounds that transitioned so callers can log / test."""
+    now = datetime.now(timezone.utc)
+
+    # Expired submission phases.
+    subs_expired = await db.rounds.find(
+        {
+            "status": "submission",
+            "submission_deadline": {"$lte": now, "$lt": _LOCKED_PLACEHOLDER_DT},
+        },
+        {"_id": 0},
+    ).to_list(500)
+    for r in subs_expired:
+        await _advance_submission_expired(r, now)
+
+    # Expired voting phases.
+    votes_expired = await db.rounds.find(
+        {
+            "status": "voting",
+            "voting_deadline": {"$lte": now, "$lt": _LOCKED_PLACEHOLDER_DT},
+        },
+        {"_id": 0},
+    ).to_list(500)
+    for r in votes_expired:
+        await _advance_voting_expired(r, now)
+
+
+async def _advance_submission_expired(round_doc: dict, now: datetime) -> None:
+    """Submission deadline hit: either move to voting, or if there were no
+    submissions, skip the round and unlock the next one."""
+    round_id = round_doc["id"]
+    league_id = round_doc["league_id"]
+    sub_count = await db.submissions.count_documents({"round_id": round_id})
+
+    if sub_count == 0:
+        # Nothing to vote on — mark the round skipped and move on.
+        await db.rounds.update_one(
+            {"id": round_id},
+            {"$set": {"status": "skipped"}},
+        )
+        await _unlock_next_round_or_complete_league(league_id, round_doc["round_number"], now)
+        return
+
+    # Lock in any remaining drafts and open the voting window.
+    await db.submissions.update_many(
+        {"round_id": round_id, "locked": {"$ne": True}},
+        {"$set": {"locked": True}},
+    )
+    voting_hours = round_doc.get("voting_hours", 24)
+    new_voting_deadline = now + timedelta(hours=voting_hours)
+    await db.rounds.update_one(
+        {"id": round_id},
+        {"$set": {"status": "voting", "voting_deadline": new_voting_deadline}},
+    )
+
+
+async def _advance_voting_expired(round_doc: dict, now: datetime) -> None:
+    """Voting deadline hit: lock votes, mark completed, unlock the next
+    round. If no next round exists, this was the final one."""
+    round_id = round_doc["id"]
+    league_id = round_doc["league_id"]
+    await db.votes.update_many(
+        {"round_id": round_id, "locked": {"$ne": True}},
+        {"$set": {"locked": True}},
+    )
+    await db.rounds.update_one(
+        {"id": round_id},
+        {"$set": {"status": "completed"}},
+    )
+    try:
+        await _finalize_round_lifetime(round_id)
+    except Exception as e:
+        logger.warning(f"auto-advance: _finalize_round_lifetime failed for {round_id}: {e}")
+    try:
+        await _maybe_snapshot_completed_league(league_id)
+    except Exception as e:
+        logger.warning(f"auto-advance: past snapshot failed for {league_id}: {e}")
+
+    await _unlock_next_round_or_complete_league(league_id, round_doc["round_number"], now)
+
+
+async def _unlock_next_round_or_complete_league(
+    league_id: str, just_finished_number: int, now: datetime,
+) -> None:
+    """Find the next locked round for this league and activate it. If there
+    isn't one, the league is done."""
+    league = await db.leagues.find_one({"id": league_id})
+    if not league:
+        return
+    total_rounds = league.get("total_rounds", 0) or 0
+    next_number = just_finished_number + 1
+
+    if total_rounds > 0 and next_number > total_rounds:
+        # League fully complete — mark it and snapshot.
+        await db.leagues.update_one(
+            {"id": league_id},
+            {"$set": {"current_round": total_rounds, "status": "completed"}},
+        )
+        try:
+            await _maybe_snapshot_completed_league(league_id)
+        except Exception as e:
+            logger.warning(f"auto-advance: final snapshot failed for {league_id}: {e}")
+        return
+
+    next_round = await db.rounds.find_one({"league_id": league_id, "round_number": next_number})
+    if not next_round:
+        return
+    sub_hours = next_round.get("submission_hours") or league.get("submission_hours") or 24
+    vote_hours = next_round.get("voting_hours") or league.get("voting_hours") or 24
+    new_sub_deadline = now + timedelta(hours=sub_hours)
+    new_vote_deadline = new_sub_deadline + timedelta(hours=vote_hours)
+    await db.rounds.update_one(
+        {"id": next_round["id"]},
+        {"$set": {
+            "status": "submission",
+            "submission_deadline": new_sub_deadline,
+            "voting_deadline": new_vote_deadline,
+        }},
+    )
+    await db.leagues.update_one(
+        {"id": league_id},
+        {"$set": {"current_round": next_number}},
+    )
+
+
+@app.on_event("startup")
+async def start_round_auto_advance():
+    """Run the round auto-advance job every minute. Started once per
+    process. Idempotent — safe to run alongside the lazy advance logic
+    embedded in the read-path endpoints."""
+    async def loop():
+        logger.info("round_auto_advance: scheduled on startup")
+        # Let the web workers finish booting before we start touching rounds.
+        await asyncio.sleep(5)
+        while True:
+            try:
+                await _run_round_auto_advance_tick()
+            except Exception as e:
+                logger.exception(f"round_auto_advance tick failed: {e}")
+            await asyncio.sleep(60)
     asyncio.create_task(loop())
 
 
