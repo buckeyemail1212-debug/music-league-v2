@@ -1112,6 +1112,34 @@ async def delete_account(current_user: dict = Depends(get_current_user)):
 DELETED_USER_DISPLAY = "[deleted user]"
 
 
+def _effective_cleared_at(user_doc: dict | None) -> Optional[datetime]:
+    """Return the timestamp that "hides pre-clear data from the user's
+    view." Reads both the new `gameplay_data_cleared_at` and the legacy
+    `past_leagues_cleared_at` (set by the older DELETE /leagues/past
+    endpoint) and returns the later of the two so we don't regress
+    users whose old field is still set.
+    """
+    if not user_doc:
+        return None
+    candidates: list[datetime] = []
+    for key in ("gameplay_data_cleared_at", "past_leagues_cleared_at"):
+        v = user_doc.get(key)
+        if v is None:
+            continue
+        try:
+            if isinstance(v, datetime):
+                candidates.append(ensure_utc(v))
+            else:
+                candidates.append(
+                    ensure_utc(
+                        datetime.fromisoformat(str(v).replace("Z", "+00:00"))
+                    )
+                )
+        except Exception:
+            continue
+    return max(candidates) if candidates else None
+
+
 async def _clear_gameplay_data(user_id: str) -> dict:
     """Shared helper for /users/me/clear-data and DELETE /users/me.
     Returns a dict of per-collection deletion counts for logging."""
@@ -1154,8 +1182,14 @@ async def _clear_gameplay_data(user_id: str) -> dict:
     res = await db.user_submissions.delete_many({"user_id": user_id})
     counts["taste_history_rows_deleted"] = res.deleted_count or 0
 
-    # 3. Reset lifetime stats on the user doc. Also clears the
-    #    past_leagues_cleared_at cutoff since we've now truly cleared.
+    # 3. Reset lifetime stats on the user doc AND stamp a
+    #    `gameplay_data_cleared_at` timestamp. All read endpoints
+    #    (Past Leagues, /auth/submissions, /auth/stats, /auth/lifetime-
+    #    stats) filter out rows dated before this timestamp so the user
+    #    sees a fresh slate without us destructively rewriting shared
+    #    data (submissions + votes + past_league snapshots are used to
+    #    compute standings for OTHER players too).
+    cleared_at = datetime.now(timezone.utc)
     await db.users.update_one(
         {"id": user_id},
         {
@@ -1163,11 +1197,13 @@ async def _clear_gameplay_data(user_id: str) -> dict:
                 "all_time_points": 0,
                 "total_wins": 0,
                 "total_submissions": 0,
+                "gameplay_data_cleared_at": cleared_at,
             },
-            "$unset": {"past_leagues_cleared_at": ""},
         },
     )
     counts["stats_reset"] = 1
+    counts["cleared_at_set"] = True
+    counts["cleared_at"] = cleared_at.isoformat()
 
     return counts
 
@@ -1383,19 +1419,44 @@ async def delete_account_by_credentials(request: DeleteByCredentialsRequest):
 
 @api_router.get("/auth/stats")
 async def get_user_stats(current_user: dict = Depends(get_current_user)):
-    """Get user statistics: total wins, rounds played, win rate, leagues count"""
+    """Get user statistics: total wins, rounds played, win rate, leagues count.
+
+    All fields are scoped to activity *after* the user's
+    `gameplay_data_cleared_at` cutoff (if set). Raw submissions / rounds
+    are not deleted — we just filter them out of this user's view.
+    """
     user_id = current_user["id"]
-    
-    # Get leagues count
-    leagues_count = await db.leagues.count_documents({
-        "members.id": user_id,
-        "$or": [{"deleted_at": {"$exists": False}}, {"deleted_at": None}],
-    })
-    
-    # Get all submissions by user
-    submissions = await db.submissions.find({"user_id": user_id}).to_list(1000)
+    cleared_at = _effective_cleared_at(current_user)
+
+    # User's submissions — apply the clear cutoff. Everything downstream
+    # (rounds_played, total_wins, distinct leagues) keys off this list,
+    # so hiding pre-clear submissions here is enough to hide them from
+    # every computed field.
+    sub_query: dict = {"user_id": user_id}
+    if cleared_at:
+        sub_query["submitted_at"] = {"$gt": cleared_at}
+    submissions = await db.submissions.find(sub_query).to_list(1000)
     rounds_played = len(submissions)
-    
+
+    # leagues_count: count distinct leagues the user has submitted to
+    # since the clear cutoff. With no cutoff, fall back to "active
+    # leagues I'm currently a member of".
+    if cleared_at:
+        if submissions:
+            post_clear_round_ids = list({s["round_id"] for s in submissions})
+            round_league_rows = await db.rounds.find(
+                {"id": {"$in": post_clear_round_ids}},
+                {"_id": 0, "league_id": 1},
+            ).to_list(2000)
+            leagues_count = len({r["league_id"] for r in round_league_rows})
+        else:
+            leagues_count = 0
+    else:
+        leagues_count = await db.leagues.count_documents({
+            "members.id": user_id,
+            "$or": [{"deleted_at": {"$exists": False}}, {"deleted_at": None}],
+        })
+
     if not submissions:
         return {
             "total_wins": 0,
@@ -1498,10 +1559,17 @@ async def get_lifetime_stats(current_user: dict = Depends(get_current_user)):
     completed rounds whose stats haven't been finalized yet (legacy data).
     """
     user_id = current_user["id"]
+    cleared_at = _effective_cleared_at(current_user)
 
-    # Back-fill: finalize any completed rounds the user submitted in that
-    # still need lifetime accounting.
-    my_subs = await db.submissions.find({"user_id": user_id}, {"_id": 0, "round_id": 1}).to_list(1000)
+    # Back-fill: finalize any completed rounds the user submitted in
+    # that still need lifetime accounting. Scope to post-clear
+    # submissions so we don't re-increment the counters we just zeroed.
+    my_subs_query: dict = {"user_id": user_id}
+    if cleared_at:
+        my_subs_query["submitted_at"] = {"$gt": cleared_at}
+    my_subs = await db.submissions.find(
+        my_subs_query, {"_id": 0, "round_id": 1},
+    ).to_list(1000)
     round_ids = list({s["round_id"] for s in my_subs})
     if round_ids:
         pending = await db.rounds.find(
@@ -1519,7 +1587,14 @@ async def get_lifetime_stats(current_user: dict = Depends(get_current_user)):
                 logger.warning(f"back-fill finalize failed for round {r['id']}: {e}")
 
     # Ensure total_submissions matches actual count at minimum (max-only).
-    actual_subs = await db.user_submissions.count_documents({"user_id": user_id})
+    # user_submissions is the permanent archive; clear-data wipes it.
+    actual_subs_query: dict = {"user_id": user_id}
+    if cleared_at:
+        # user_submissions rows written before cleared_at were deleted
+        # by clear-data. Filtering by submitted_at here is defensive —
+        # if some stray pre-clear row survived we still won't count it.
+        actual_subs_query["submitted_at"] = {"$gt": cleared_at}
+    actual_subs = await db.user_submissions.count_documents(actual_subs_query)
     user_doc = await db.users.find_one({"id": user_id}) or {}
     all_time_points = int(user_doc.get("all_time_points", 0))
     total_wins = int(user_doc.get("total_wins", 0))
@@ -1635,8 +1710,17 @@ async def get_user_taste(current_user: dict = Depends(get_current_user)):
 async def get_my_submissions(current_user: dict = Depends(get_current_user)):
     """Return the current user's submissions across all leagues, newest first, with league/round info and points earned."""
     user_id = current_user["id"]
+    cleared_at = _effective_cleared_at(current_user)
 
-    submissions = await db.submissions.find({"user_id": user_id}).sort("submitted_at", -1).to_list(500)
+    # Hide submissions dated before the user's clear-data cutoff so My
+    # Game's Recent Submissions honors the "fresh slate" intent. Raw
+    # rows stay in db.submissions so other members' standings aren't
+    # affected.
+    sub_query: dict = {"user_id": user_id}
+    if cleared_at:
+        sub_query["submitted_at"] = {"$gt": cleared_at}
+
+    submissions = await db.submissions.find(sub_query).sort("submitted_at", -1).to_list(500)
     if not submissions:
         return {"submissions": []}
 
@@ -1970,13 +2054,12 @@ async def get_user_leagues(current_user: dict = Depends(get_current_user)):
 @api_router.get("/leagues/past")
 async def get_past_leagues(current_user: dict = Depends(get_current_user)):
     user_id = current_user["id"]
-    cleared_at_raw = current_user.get("past_leagues_cleared_at")
-    cleared_at = ensure_utc(cleared_at_raw) if cleared_at_raw else None
+    cleared_at = _effective_cleared_at(current_user)
 
     # Back-fill snapshots for any league this user is/was a member of that
-    # qualifies as "past" but isn't in past_leagues yet. This is a one-shot
-    # migration for leagues that finished or got deleted before the
-    # snapshot system existed.
+    # qualifies as "past" but isn't in past_leagues yet. Skips leagues
+    # that ended before the user's clear-data cutoff so cleared history
+    # doesn't re-materialize on every page open.
     await _backfill_past_leagues_for_user(user_id)
 
     docs = await db.past_leagues.find(
@@ -2495,7 +2578,18 @@ async def _backfill_past_leagues_for_user(user_id: str) -> None:
     """For legacy data: snapshot any league where the user is a member that
     is already past (completed or soft-deleted) but isn't in past_leagues.
     Safe, idempotent — runs a small amount of work per call and skips
-    leagues that already have a snapshot."""
+    leagues that already have a snapshot.
+
+    Respects the user's `gameplay_data_cleared_at`: if the league ended
+    before the clear cutoff, we skip it so previously-cleared history
+    doesn't re-materialize every time the user opens Past Leagues.
+    """
+    user_doc = await db.users.find_one(
+        {"id": user_id},
+        {"_id": 0, "gameplay_data_cleared_at": 1, "past_leagues_cleared_at": 1},
+    )
+    cleared_at = _effective_cleared_at(user_doc)
+
     candidates = await db.leagues.find(
         {"members.id": user_id},
         {"_id": 0, "id": 1, "deleted_at": 1, "total_rounds": 1, "current_round": 1},
@@ -2507,8 +2601,14 @@ async def _backfill_past_leagues_for_user(user_id: str) -> None:
             continue
         deleted_at = l.get("deleted_at")
         if deleted_at:
+            deleted_dt = ensure_utc(deleted_at)
+            # Pre-clear history: skip so the user's cleared view stays
+            # clean. Other members' snapshots of this same league are
+            # unaffected — they regenerate on their own fetches.
+            if cleared_at and deleted_dt <= cleared_at:
+                continue
             try:
-                await _save_past_league_snapshot(lid, is_deleted=True, deleted_at=ensure_utc(deleted_at))
+                await _save_past_league_snapshot(lid, is_deleted=True, deleted_at=deleted_dt)
             except Exception as e:
                 logger.warning(f"backfill snapshot (deleted) failed for {lid}: {e}")
             continue
@@ -2518,12 +2618,22 @@ async def _backfill_past_leagues_for_user(user_id: str) -> None:
             continue
         rounds = await db.rounds.find(
             {"league_id": lid},
-            {"_id": 0, "status": 1},
+            {"_id": 0, "status": 1, "voting_deadline": 1},
         ).to_list(500)
         if not rounds or len(rounds) < total:
             continue
         if not all(r.get("status") == "completed" for r in rounds):
             continue
+        if cleared_at:
+            # A completed league's "finished at" is the latest
+            # voting_deadline across its rounds. Skip if that's before
+            # the user's clear cutoff.
+            latest_done = max(
+                (ensure_utc(r.get("voting_deadline")) for r in rounds if r.get("voting_deadline")),
+                default=None,
+            )
+            if latest_done and latest_done <= cleared_at:
+                continue
         try:
             await _save_past_league_snapshot(lid, is_deleted=False)
         except Exception as e:
