@@ -2512,25 +2512,10 @@ async def get_rounds(league_id: str, current_user: dict = Depends(get_current_us
             round_doc["voting_deadline"] = new_voting_deadline
             
         elif status == "voting" and voting_deadline_dt < now:
-            # Auto-lock all unlocked votes and complete round
-            await db.votes.update_many(
-                {"round_id": round_id, "locked": {"$ne": True}},
-                {"$set": {"locked": True}}
-            )
-            await db.rounds.update_one(
-                {"id": round_id},
-                {"$set": {"status": "completed"}}
-            )
-            status = "completed"
-            round_doc["status"] = status
-            try:
-                await _finalize_round_lifetime(round_id)
-            except Exception as e:
-                logger.warning(f"_finalize_round_lifetime failed: {e}")
-            try:
-                await _maybe_snapshot_completed_league(round_doc["league_id"])
-            except Exception as e:
-                logger.warning(f"past snapshot (auto-advance batch) failed: {e}")
+            # Same transition as the scheduler — delegate to the helper so
+            # the unlock step can't get skipped on the read path.
+            await _complete_round_and_unlock_next(round_doc, now)
+            status = round_doc["status"]
 
         result.append(RoundResponse(
             **round_doc,
@@ -2579,25 +2564,11 @@ async def get_round(round_id: str, current_user: dict = Depends(get_current_user
         round_doc["voting_deadline"] = new_voting_deadline
         
     elif status == "voting" and voting_deadline < now:
-        # Auto-lock all unlocked votes and complete round
-        await db.votes.update_many(
-            {"round_id": round_id, "locked": {"$ne": True}},
-            {"$set": {"locked": True}}
-        )
-        await db.rounds.update_one(
-            {"id": round_id},
-            {"$set": {"status": "completed"}}
-        )
-        status = "completed"
-        try:
-            await _finalize_round_lifetime(round_id)
-        except Exception as e:
-            logger.warning(f"_finalize_round_lifetime failed: {e}")
-        try:
-            await _maybe_snapshot_completed_league(round_doc["league_id"])
-        except Exception as e:
-            logger.warning(f"past snapshot (single-round auto-advance) failed: {e}")
-        round_doc["status"] = status
+        # Shared voting → completed transition. The helper also unlocks
+        # the next round so the single-round fetch path doesn't leak a
+        # stuck league.
+        await _complete_round_and_unlock_next(round_doc, now)
+        status = round_doc["status"]
 
     submissions_count = await db.submissions.count_documents({"round_id": round_id})
     votes_count = await db.votes.count_documents({"round_id": round_id})
@@ -2650,20 +2621,11 @@ async def advance_round(round_id: str, current_user: dict = Depends(get_current_
         )
         return {"message": "Round advanced to voting phase"}
     elif round_doc["status"] == "voting":
-        # Auto-lock all unlocked votes when completing the round
-        await db.votes.update_many(
-            {"round_id": round_id, "locked": False},
-            {"$set": {"locked": True}}
-        )
-        await db.rounds.update_one({"id": round_id}, {"$set": {"status": "completed"}})
-        try:
-            await _finalize_round_lifetime(round_id)
-        except Exception as e:
-            logger.warning(f"_finalize_round_lifetime failed: {e}")
-        try:
-            await _maybe_snapshot_completed_league(round_doc["league_id"])
-        except Exception as e:
-            logger.warning(f"past snapshot (manual advance) failed: {e}")
+        # Same transition as the scheduler / lazy paths. The helper locks
+        # remaining votes, finalizes stats, snapshots the past league if
+        # this was the last round, and unlocks the next one.
+        now = datetime.now(timezone.utc)
+        await _complete_round_and_unlock_next(round_doc, now)
         return {"message": "Round completed"}
     else:
         return {"message": "Round is already completed"}
@@ -3819,31 +3781,95 @@ async def start_genre_reclassifier():
 # and the status guards ensure we only advance a round once.
 
 async def _run_round_auto_advance_tick() -> None:
-    """Advance any round whose deadline has passed. Returns the number of
-    rounds that transitioned so callers can log / test."""
+    """Run three independent passes:
+      1. Submission deadlines that have passed → move to voting (or skip
+         if no submissions).
+      2. Voting deadlines that have passed → complete + unlock next.
+      3. Self-healing sweep: any round stuck at "completed" whose
+         successor is still locked — heal it by calling the unlock
+         helper. This cleans up leagues that went stale before this patch
+         shipped, and backstops any future code path that forgets to
+         call the helper.
+
+    Each pass is wrapped in its own try/except so a failure in one
+    doesn't block the other two.
+    """
     now = datetime.now(timezone.utc)
 
-    # Expired submission phases.
-    subs_expired = await db.rounds.find(
-        {
-            "status": "submission",
-            "submission_deadline": {"$lte": now, "$lt": _LOCKED_PLACEHOLDER_DT},
-        },
-        {"_id": 0},
-    ).to_list(500)
-    for r in subs_expired:
-        await _advance_submission_expired(r, now)
+    # --- Pass 1: expired submission phases ----------------------------
+    try:
+        subs_expired = await db.rounds.find(
+            {
+                "status": "submission",
+                "submission_deadline": {"$lte": now, "$lt": _LOCKED_PLACEHOLDER_DT},
+            },
+            {"_id": 0},
+        ).to_list(500)
+        for r in subs_expired:
+            try:
+                await _advance_submission_expired(r, now)
+            except Exception as e:
+                logger.exception(
+                    f"auto-advance: submission-expired handler failed for round {r.get('id')}: {e}"
+                )
+    except Exception as e:
+        logger.exception(f"auto-advance: submission-expired query failed: {e}")
 
-    # Expired voting phases.
-    votes_expired = await db.rounds.find(
-        {
-            "status": "voting",
-            "voting_deadline": {"$lte": now, "$lt": _LOCKED_PLACEHOLDER_DT},
-        },
-        {"_id": 0},
-    ).to_list(500)
-    for r in votes_expired:
-        await _advance_voting_expired(r, now)
+    # --- Pass 2: expired voting phases --------------------------------
+    try:
+        votes_expired = await db.rounds.find(
+            {
+                "status": "voting",
+                "voting_deadline": {"$lte": now, "$lt": _LOCKED_PLACEHOLDER_DT},
+            },
+            {"_id": 0},
+        ).to_list(500)
+        for r in votes_expired:
+            try:
+                await _advance_voting_expired(r, now)
+            except Exception as e:
+                logger.exception(
+                    f"auto-advance: voting-expired handler failed for round {r.get('id')}: {e}"
+                )
+    except Exception as e:
+        logger.exception(f"auto-advance: voting-expired query failed: {e}")
+
+    # --- Pass 3: self-healing sweep -----------------------------------
+    # Find rounds where status="completed" but the next round (by
+    # round_number + 1) in the same league is still locked. If a league
+    # is in this state, something in the transition chain dropped the
+    # unlock step — heal it here.
+    try:
+        completed_rounds = await db.rounds.find(
+            {"status": "completed"},
+            {"_id": 0, "id": 1, "league_id": 1, "round_number": 1},
+        ).to_list(500)
+        for r in completed_rounds:
+            try:
+                next_round = await db.rounds.find_one(
+                    {
+                        "league_id": r["league_id"],
+                        "round_number": r.get("round_number", 0) + 1,
+                        "status": "locked",
+                    },
+                    {"_id": 0, "id": 1},
+                )
+                if not next_round:
+                    continue
+                healed = await _unlock_next_round_or_complete_league(
+                    r["league_id"], r.get("round_number", 0), now,
+                )
+                if healed:
+                    logger.info(
+                        f"self_heal_sweep: healed stuck league={r['league_id']} "
+                        f"after_round={r.get('round_number')}"
+                    )
+            except Exception as e:
+                logger.exception(
+                    f"auto-advance: self-heal handler failed for round {r.get('id')}: {e}"
+                )
+    except Exception as e:
+        logger.exception(f"auto-advance: self-heal query failed: {e}")
 
 
 async def _advance_submission_expired(round_doc: dict, now: datetime) -> None:
@@ -3876,38 +3902,21 @@ async def _advance_submission_expired(round_doc: dict, now: datetime) -> None:
 
 
 async def _advance_voting_expired(round_doc: dict, now: datetime) -> None:
-    """Voting deadline hit: lock votes, mark completed, unlock the next
-    round. If no next round exists, this was the final one."""
-    round_id = round_doc["id"]
-    league_id = round_doc["league_id"]
-    await db.votes.update_many(
-        {"round_id": round_id, "locked": {"$ne": True}},
-        {"$set": {"locked": True}},
-    )
-    await db.rounds.update_one(
-        {"id": round_id},
-        {"$set": {"status": "completed"}},
-    )
-    try:
-        await _finalize_round_lifetime(round_id)
-    except Exception as e:
-        logger.warning(f"auto-advance: _finalize_round_lifetime failed for {round_id}: {e}")
-    try:
-        await _maybe_snapshot_completed_league(league_id)
-    except Exception as e:
-        logger.warning(f"auto-advance: past snapshot failed for {league_id}: {e}")
-
-    await _unlock_next_round_or_complete_league(league_id, round_doc["round_number"], now)
+    """Voting deadline hit: delegate to the shared helper so the scheduler
+    path is identical to the read-path lazy-advance path."""
+    await _complete_round_and_unlock_next(round_doc, now)
 
 
 async def _unlock_next_round_or_complete_league(
     league_id: str, just_finished_number: int, now: datetime,
-) -> None:
+) -> bool:
     """Find the next locked round for this league and activate it. If there
-    isn't one, the league is done."""
+    isn't one, the league is done. Returns True iff a next round was
+    actually unlocked (so the caller can log whether a transition
+    happened)."""
     league = await db.leagues.find_one({"id": league_id})
     if not league:
-        return
+        return False
     total_rounds = league.get("total_rounds", 0) or 0
     next_number = just_finished_number + 1
 
@@ -3921,11 +3930,11 @@ async def _unlock_next_round_or_complete_league(
             await _maybe_snapshot_completed_league(league_id)
         except Exception as e:
             logger.warning(f"auto-advance: final snapshot failed for {league_id}: {e}")
-        return
+        return False
 
     next_round = await db.rounds.find_one({"league_id": league_id, "round_number": next_number})
     if not next_round:
-        return
+        return False
     sub_hours = next_round.get("submission_hours") or league.get("submission_hours") or 24
     vote_hours = next_round.get("voting_hours") or league.get("voting_hours") or 24
     new_sub_deadline = now + timedelta(hours=sub_hours)
@@ -3942,6 +3951,72 @@ async def _unlock_next_round_or_complete_league(
         {"id": league_id},
         {"$set": {"current_round": next_number}},
     )
+    return True
+
+
+async def _complete_round_and_unlock_next(round_doc: dict, now: datetime) -> None:
+    """Idempotent voting → completed transition that ALSO unlocks the next
+    round. This is the single source of truth for "the round just ended";
+    every code path that observes an expired voting deadline must route
+    through this function so the unlock step can't be skipped.
+
+    Idempotency: if the round is already marked "completed" we skip the
+    lock/status-set, but still run finalize, snapshot, and — critically —
+    the unlock helper. That way a retry after a partial failure always
+    finishes the job it started.
+    """
+    round_id = round_doc["id"]
+    league_id = round_doc["league_id"]
+    round_number = round_doc.get("round_number", 0)
+    already_completed = round_doc.get("status") == "completed"
+
+    if not already_completed:
+        # 1. Lock any stragglers.
+        await db.votes.update_many(
+            {"round_id": round_id, "locked": {"$ne": True}},
+            {"$set": {"locked": True}},
+        )
+        # 2. Flip status.
+        await db.rounds.update_one(
+            {"id": round_id},
+            {"$set": {"status": "completed"}},
+        )
+        # Reflect the new status on the in-memory doc so callers rendering
+        # a RoundResponse from this dict don't ship stale "voting".
+        round_doc["status"] = "completed"
+
+    # 3. Lifetime stats — best-effort.
+    try:
+        await _finalize_round_lifetime(round_id)
+    except Exception as e:
+        logger.warning(
+            f"_complete_round_and_unlock_next: finalize failed for round {round_id}: {e}"
+        )
+
+    # 4. Past-league snapshot if this was the last round — best-effort.
+    try:
+        await _maybe_snapshot_completed_league(league_id)
+    except Exception as e:
+        logger.warning(
+            f"_complete_round_and_unlock_next: snapshot failed for league {league_id}: {e}"
+        )
+
+    # 5. Unlock the next round (or mark the league complete).
+    next_unlocked = await _unlock_next_round_or_complete_league(
+        league_id, round_number, now,
+    )
+    logger.info(
+        f"round_complete_and_unlock: league={league_id} "
+        f"round={round_number} next_unlocked={next_unlocked}"
+    )
+
+
+# Module-level reference to the background task so the event loop doesn't
+# garbage-collect it mid-run. asyncio's docs warn that `create_task` returns
+# a Task the loop only weakly references, which can cause the task to
+# vanish if nothing else holds it. Keeping it here guarantees the
+# scheduler keeps running for the life of the process.
+_auto_advance_task: Optional[asyncio.Task] = None
 
 
 @app.on_event("startup")
@@ -3959,7 +4034,9 @@ async def start_round_auto_advance():
             except Exception as e:
                 logger.exception(f"round_auto_advance tick failed: {e}")
             await asyncio.sleep(60)
-    asyncio.create_task(loop())
+
+    global _auto_advance_task
+    _auto_advance_task = asyncio.create_task(loop())
 
 
 @api_router.post("/auth/reclassify-genres")
