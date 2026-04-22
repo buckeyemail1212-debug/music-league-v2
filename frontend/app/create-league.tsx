@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -17,12 +17,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import * as Clipboard from 'expo-clipboard';
 import { createLeague, League } from '../src/services/api';
 import { leagueEvents } from '../src/utils/leagueEvents';
 import LeagueAvatar from '../src/components/LeagueAvatar';
+import LeagueCreatedSuccess from '../src/components/LeagueCreatedSuccess';
+import { leagueDraft } from '../src/utils/leagueDraft';
 
-const ROUND_CHOICES = [3, 5, 6, 8, 10, 12];
+const ROUND_CHOICES = [2, 3, 4, 5, 6, 7, 8, 9, 10];
 const TIME_CHOICES: { label: string; hours: number }[] = [
   { label: '1 hr', hours: 1 },
   { label: '6 hrs', hours: 6 },
@@ -40,8 +41,7 @@ export default function CreateLeaguePage() {
   const [rounds, setRounds] = useState(6);
   const [submissionHours, setSubmissionHours] = useState(24);
   const [votingHours, setVotingHours] = useState(24);
-  const [themesOn, setThemesOn] = useState(false);
-  const [themes, setThemes] = useState<string[]>(Array(6).fill(''));
+  const [themesOn, setThemesOn] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [createdLeague, setCreatedLeague] = useState<League | null>(null);
 
@@ -109,25 +109,26 @@ export default function CreateLeaguePage() {
     }
   };
 
-  // Keep the themes array in sync with the selected round count so that
-  // toggling rounds after typing doesn't drop or duplicate entries.
-  const syncThemesLength = (next: number) => {
-    setThemes((prev) => {
-      const arr = prev.slice(0, next);
-      while (arr.length < next) arr.push('');
-      return arr;
-    });
-  };
-
-  const onRoundsChange = (n: number) => {
-    setRounds(n);
-    syncThemesLength(n);
-  };
-
   const canSubmit = name.trim().length > 0 && !submitting;
 
   const handleCreate = async () => {
     if (!canSubmit) return;
+
+    // Themes ON → hand off to the Set Round Themes screen. It owns the
+    // actual createLeague call so we don't create a league that's missing
+    // the themes the user promised to supply.
+    if (themesOn) {
+      leagueDraft.set({
+        name: name.trim(),
+        photo,
+        totalRounds: rounds,
+        submissionHours,
+        votingHours,
+      });
+      router.push('/set-round-themes' as any);
+      return;
+    }
+
     setSubmitting(true);
     try {
       const payload: Parameters<typeof createLeague>[0] = {
@@ -137,9 +138,6 @@ export default function CreateLeaguePage() {
         voting_hours: votingHours,
       };
       if (photo) payload.league_image = photo;
-      if (themesOn) {
-        payload.themes = themes.map((t) => t.trim());
-      }
       const res = await createLeague(payload);
       leagueEvents.emit();
       setCreatedLeague(res.data);
@@ -157,7 +155,7 @@ export default function CreateLeaguePage() {
 
   if (createdLeague) {
     return (
-      <SuccessView
+      <LeagueCreatedSuccess
         league={createdLeague}
         onGo={goToLeague}
         onClose={() => router.back()}
@@ -191,7 +189,12 @@ export default function CreateLeaguePage() {
               onPress={handlePhotoTap}
               style={styles.photoBtn}
             >
-              <LeagueAvatar image={photo} size={88} imageBorderRadius={16} />
+              <LeagueAvatar
+                variant="upload"
+                image={photo}
+                size={88}
+                imageBorderRadius={16}
+              />
               {photo && (
                 <View style={styles.photoBadge}>
                   <Ionicons name="camera" size={14} color="#FFFFFF" />
@@ -220,7 +223,7 @@ export default function CreateLeaguePage() {
           <ChipRow
             options={ROUND_CHOICES.map((n) => ({ label: String(n), value: n }))}
             value={rounds}
-            onChange={(v) => onRoundsChange(v)}
+            onChange={setRounds}
           />
 
           {/* Submission time */}
@@ -255,32 +258,6 @@ export default function CreateLeaguePage() {
             />
           </View>
 
-          {themesOn && (
-            <View style={styles.themesBlock}>
-              {Array.from({ length: rounds }).map((_, i) => (
-                <View key={i} style={styles.themeRow}>
-                  <View style={styles.themePill}>
-                    <Text style={styles.themePillText}>R{i + 1}</Text>
-                  </View>
-                  <TextInput
-                    style={styles.themeInput}
-                    placeholder={`Theme for round ${i + 1}`}
-                    placeholderTextColor="#6A6A6A"
-                    value={themes[i] ?? ''}
-                    onChangeText={(txt) => {
-                      setThemes((prev) => {
-                        const next = [...prev];
-                        next[i] = txt;
-                        return next;
-                      });
-                    }}
-                    maxLength={80}
-                  />
-                </View>
-              ))}
-            </View>
-          )}
-
           <TouchableOpacity
             style={[styles.cta, !canSubmit && styles.ctaDisabled]}
             onPress={handleCreate}
@@ -290,7 +267,9 @@ export default function CreateLeaguePage() {
             {submitting ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text style={styles.ctaText}>CREATE LEAGUE</Text>
+              <Text style={styles.ctaText}>
+                {themesOn ? 'NEXT — SET ROUND THEMES' : 'CREATE LEAGUE'}
+              </Text>
             )}
           </TouchableOpacity>
         </ScrollView>
@@ -326,58 +305,6 @@ function ChipRow<T extends string | number>({
         );
       })}
     </View>
-  );
-}
-
-function SuccessView({
-  league,
-  onGo,
-  onClose,
-}: {
-  league: League;
-  onGo: () => void;
-  onClose: () => void;
-}) {
-  const code = useMemo(() => league.league_code || '------', [league]);
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async () => {
-    try {
-      await Clipboard.setStringAsync(code);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    } catch {
-      Alert.alert('Error', 'Could not copy code.');
-    }
-  };
-
-  return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <View style={{ width: 26 }} />
-        <View style={{ width: 26 }} />
-        <TouchableOpacity onPress={onClose} hitSlop={10} style={styles.headerBtn}>
-          <Ionicons name="close" size={26} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
-      <View style={styles.successWrap}>
-        <View style={styles.successBadge}>
-          <Ionicons name="checkmark-circle" size={48} color="#10B981" />
-        </View>
-        <Text style={styles.successTitle}>LEAGUE CREATED</Text>
-        <Text style={styles.successName}>{league.name}</Text>
-        <Text style={styles.successPrompt}>Share this code with friends to invite them:</Text>
-        <View style={styles.codeBox}>
-          <Text style={styles.codeText}>{code}</Text>
-        </View>
-        <TouchableOpacity style={styles.shareBtn} onPress={handleCopy} activeOpacity={0.85}>
-          <Text style={styles.shareBtnText}>{copied ? 'COPIED!' : 'COPY CODE'}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.goBtn} onPress={onGo} activeOpacity={0.85}>
-          <Text style={styles.goBtnText}>Go to my league</Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
   );
 }
 

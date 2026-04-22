@@ -30,6 +30,7 @@ import {
   TasteBreakdown,
 } from '../../src/services/api';
 import { pluralize } from '../../src/utils/pluralize';
+import { leagueEvents } from '../../src/utils/leagueEvents';
 import AlbumArt from '../../src/components/AlbumArt';
 
 const getLikedKey = (userId: string) => `liked_songs_${userId}`;
@@ -215,6 +216,16 @@ export default function MyGameScreen() {
       loadStats();
     }, [loadLikedSongs, loadStats]),
   );
+
+  // Also refresh when a league is created / deleted anywhere in the app,
+  // so the "Leagues" stat on this tab stays in sync without waiting for
+  // a re-focus.
+  useEffect(() => {
+    const unsub = leagueEvents.subscribe(loadStats);
+    return () => {
+      unsub();
+    };
+  }, [loadStats]);
 
   const unlikeSong = async (song: LikedSong) => {
     if (!user?.id) return;

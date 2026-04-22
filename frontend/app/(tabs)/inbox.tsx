@@ -217,7 +217,9 @@ export default function InboxScreen() {
                     leagueName: league.name,
                     leagueImage: league.league_image || undefined,
                     roundInfo: `Round ${r.round_number}`,
-                    message: `New round: \u201C${r.theme}\u201D`,
+                    message: (r.theme || '').trim()
+                      ? `New round in ${league.name}: \u201C${(r.theme || '').trim()}\u201D`
+                      : `Submit song to ${league.name} League`,
                     timestamp: createdTs,
                     onTap: 'round',
                     roundId: r.id,
@@ -423,7 +425,12 @@ export default function InboxScreen() {
         activeOpacity={0.75}
       >
         <View style={styles.notifIcon}>
-          <LeagueAvatar image={item.leagueImage} size={40} imageBorderRadius={8} />
+          <LeagueAvatar
+            image={item.leagueImage}
+            name={item.leagueName}
+            size={40}
+            imageBorderRadius={8}
+          />
         </View>
         <View style={styles.notifBody}>
           <View style={styles.notifTopLine}>

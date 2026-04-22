@@ -45,17 +45,20 @@ const getGreeting = () => {
 const parseDeadline = (d: string) =>
   new Date(d.endsWith('Z') || d.includes('+') ? d : d + 'Z');
 
-const shortDay = (deadline: string): string => {
-  const end = parseDeadline(deadline);
-  const today = new Date();
-  const diffDays = Math.floor(
-    (new Date(end.getFullYear(), end.getMonth(), end.getDate()).getTime() -
-      new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()) / 86400000,
-  );
-  if (diffDays <= 0) return 'TODAY';
-  if (diffDays === 1) return 'TMRW';
-  const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-  return days[end.getDay()];
+// Render a countdown string sized by magnitude: "2D 4H" / "23H 14M" / "45M".
+// `now` is passed in so the caller can swap time sources for testing and so
+// every re-render shares a consistent "now" across cards.
+const countdownLabel = (deadline: string, now: number = Date.now()): string => {
+  const diffMs = parseDeadline(deadline).getTime() - now;
+  if (diffMs <= 0) return '0M';
+  const totalMinutes = Math.floor(diffMs / 60000);
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const hoursAfterDays = Math.floor((totalMinutes % (60 * 24)) / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutesAfterHours = totalMinutes % 60;
+  if (days >= 1) return `${days}D ${hoursAfterDays}H`;
+  if (hours >= 1) return `${hours}H ${minutesAfterHours}M`;
+  return `${Math.max(1, totalMinutes)}M`;
 };
 
 const formatFinishDate = (iso: string | null) => {
@@ -88,8 +91,12 @@ export default function HomeScreen() {
   const flatListRef = useRef<FlatList>(null);
   const dataLoaded = useRef(false);
 
+  // Tick every 30s so countdown pills on active-league cards stay fresh
+  // without a full refetch. State holds a millisecond timestamp that's
+  // threaded through the pill renderer.
+  const [nowTick, setNowTick] = useState<number>(Date.now());
   useEffect(() => {
-    const t = setInterval(() => {}, 1000);
+    const t = setInterval(() => setNowTick(Date.now()), 30000);
     return () => clearInterval(t);
   }, []);
 
@@ -186,21 +193,44 @@ export default function HomeScreen() {
     const isLeading = rank === 1 && myPoints > 0;
     const progressPct = leaderPoints > 0 ? Math.min(1, myPoints / leaderPoints) : 0;
 
+    // Status pill: state-aware, with a live countdown when the user still
+    // needs to act. Colors are purple (action needed) or muted gray (no
+    // action). Never yellow/orange, per spec.
+    const PURPLE = '#7C3AED';
+    const MUTED = '#6A6A6A';
     let pillText: string | null = null;
-    let pillColor = '#B3B3B3';
+    let pillColor = MUTED;
     if (activeRound) {
-      if (activeRound.status === 'voting') {
-        pillText = activeRound.has_user_voted ? 'VOTED' : 'VOTING OPEN';
-        pillColor = '#10B981';
-      } else if (activeRound.status === 'submission') {
-        pillText = activeRound.has_user_submitted
-          ? 'SUBMITTED'
-          : `SUBMIT BY ${shortDay(activeRound.submission_deadline)}`;
-        pillColor = activeRound.has_user_submitted ? '#10B981' : '#F59E0B';
+      if (activeRound.status === 'submission') {
+        if (activeRound.has_user_submitted) {
+          pillText = 'SUBMITTED';
+          pillColor = MUTED;
+        } else {
+          pillText = countdownLabel(activeRound.submission_deadline, nowTick);
+          pillColor = PURPLE;
+        }
+      } else if (activeRound.status === 'voting') {
+        if (activeRound.has_user_voted) {
+          pillText = 'VOTED';
+          pillColor = MUTED;
+        } else {
+          pillText = countdownLabel(activeRound.voting_deadline, nowTick);
+          pillColor = PURPLE;
+        }
       }
-    } else if (item.current_round > 0) {
-      pillText = 'COMPLETED';
-      pillColor = '#6A6A6A';
+    } else {
+      // No active round. Differentiate "league finished" from "between
+      // rounds" so we don't flash COMPLETED on a league that still has
+      // locked rounds waiting to open.
+      const totalRounds = item.total_rounds || 0;
+      const current = item.current_round || 0;
+      const leagueFinished = totalRounds > 0 && current >= totalRounds;
+      if (leagueFinished) {
+        pillText = 'COMPLETED';
+      } else if (current > 0) {
+        pillText = 'ROUND COMPLETE';
+      }
+      pillColor = MUTED;
     }
 
     const hasStarted = item.current_round > 0;
@@ -215,7 +245,12 @@ export default function HomeScreen() {
         activeOpacity={0.75}
       >
         <View style={styles.leagueCardTopRow}>
-          <LeagueAvatar image={displayImage} size={44} imageBorderRadius={8} />
+          <LeagueAvatar
+            image={displayImage}
+            name={item.name}
+            size={44}
+            imageBorderRadius={8}
+          />
           <View style={styles.leagueCardInfo}>
             <Text style={styles.leagueCardName} numberOfLines={1}>
               {item.name}
@@ -313,7 +348,12 @@ export default function HomeScreen() {
         activeOpacity={0.75}
         onPress={() => router.push(`/past-league/${p.id}` as any)}
       >
-        <LeagueAvatar image={p.league_image} size={40} imageBorderRadius={8} />
+        <LeagueAvatar
+          image={p.league_image}
+          name={p.name}
+          size={40}
+          imageBorderRadius={8}
+        />
         <View style={{ flex: 1, marginLeft: 12 }}>
           <View style={styles.pastNameRow}>
             <Text style={styles.pastName} numberOfLines={1}>

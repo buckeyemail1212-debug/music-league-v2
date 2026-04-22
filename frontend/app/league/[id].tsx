@@ -29,6 +29,8 @@ import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
 import { useAuth } from '../../src/context/AuthContext';
 import { SharedChat } from '../../src/components/SharedChat';
+import LeagueAvatar from '../../src/components/LeagueAvatar';
+import { leagueEvents } from '../../src/utils/leagueEvents';
 import {
   getLeague,
   getRounds,
@@ -347,6 +349,11 @@ export default function LeagueDetailScreen() {
           onPress: async () => {
             try {
               await deleteLeague(id!);
+              // Fan out to the home / past-leagues / profile subscribers
+              // so they refetch before/as the user lands back there. Without
+              // this, the active-league count and the past-league row
+              // stay stale until the next app focus.
+              leagueEvents.emit();
               router.back();
             } catch (error: any) {
               Alert.alert('Error', error.response?.data?.detail || 'Failed to delete league');
@@ -369,6 +376,7 @@ export default function LeagueDetailScreen() {
           onPress: async () => {
             try {
               await leaveLeague(id!);
+              leagueEvents.emit();
               router.back();
             } catch (error: any) {
               Alert.alert('Error', error.response?.data?.detail || 'Failed to leave league');
@@ -398,71 +406,100 @@ export default function LeagueDetailScreen() {
   };
 
   const isCreator = league?.creator_id === user?.id;
-  const activeRound = rounds.find(r => r.status !== 'completed');
-
-  const renderRoundItem = ({ item }: { item: Round }) => (
-    <View style={styles.roundCard}>
-      <TouchableOpacity
-        style={styles.roundContent}
-        onPress={() => router.push(`/round/${item.id}`)}
-        activeOpacity={0.7}
-      >
-        <View style={styles.roundHeader}>
-          <View style={styles.roundInfo}>
-            <Text style={styles.roundNumberHeader}>Round {item.round_number}</Text>
-            <Text style={styles.roundThemeSubheader}>{item.theme}</Text>
-            <View style={styles.roundMetaRow}>
-              <Text style={styles.roundStatusText}>{item.status.toUpperCase()}</Text>
-              <Text style={styles.roundMetaDot}>·</Text>
-              <Text style={styles.roundMetaText}>{item.submissions_count} songs</Text>
-              {item.status !== 'completed' && (
-                <>
-                  <Text style={styles.roundMetaDot}>·</Text>
-                  <Text style={styles.roundMetaTextStrong}>
-                    {getTimeRemaining(item.status === 'submission' ? item.submission_deadline : item.voting_deadline)}
-                  </Text>
-                </>
-              )}
-              {item.status === 'submission' && (
-                <>
-                  <Text style={styles.roundMetaDot}>·</Text>
-                  <Text style={item.has_user_submitted ? styles.roundMetaTextStrong : styles.roundMetaText}>
-                    {item.has_user_submitted ? 'Submitted' : 'Pending'}
-                  </Text>
-                </>
-              )}
-              {item.status === 'voting' && (
-                <>
-                  <Text style={styles.roundMetaDot}>·</Text>
-                  <Text style={item.has_user_voted ? styles.roundMetaTextStrong : styles.roundMetaText}>
-                    {item.has_user_voted ? 'Voted' : 'Vote Pending'}
-                  </Text>
-                </>
-              )}
-            </View>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color="#6A6A6A" />
-        </View>
-      </TouchableOpacity>
-
-      {isCreator && item.status !== 'completed' && (
-        <TouchableOpacity
-          style={styles.advanceButton}
-          onPress={() => handleAdvanceRound(item.id, item.status)}
-          activeOpacity={0.7}
-          disabled={advancing === item.id}
-        >
-          {advancing === item.id ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <Text style={styles.advanceButtonText}>
-              Advance to {item.status === 'submission' ? 'Voting' : 'Results'}
-            </Text>
-          )}
-        </TouchableOpacity>
-      )}
-    </View>
+  const activeRound = rounds.find(
+    (r) => r.status === 'submission' || r.status === 'voting',
   );
+
+  const renderRoundItem = ({ item }: { item: Round }) => {
+    const isLocked = item.status === 'locked';
+    const isSkipped = item.status === 'skipped';
+    const isCompleted = item.status === 'completed' || isSkipped;
+    const isActive = !isLocked && !isCompleted;
+
+    const badgeColor = isLocked
+      ? '#3A3A3A'
+      : isCompleted
+        ? '#10B981'
+        : '#7C3AED';
+    const nameColor = isLocked ? '#6A6A6A' : '#FFFFFF';
+    const displayName = item.theme?.trim() || `Round ${item.round_number}`;
+
+    let statusText = '';
+    if (isLocked) {
+      statusText = `Opens when R${item.round_number - 1} ends`;
+    } else if (isSkipped) {
+      statusText = 'Skipped · No submissions';
+    } else if (isCompleted) {
+      statusText = `Completed · ${item.submissions_count} songs`;
+    } else {
+      const deadline =
+        item.status === 'submission'
+          ? item.submission_deadline
+          : item.voting_deadline;
+      const timeLeft = getTimeRemaining(deadline);
+      statusText = `${item.submissions_count} songs · ${timeLeft} left`;
+    }
+
+    const onPress = () => {
+      if (isLocked) {
+        Alert.alert(
+          'Round locked',
+          `This round is locked. It opens when Round ${item.round_number - 1} ends.`,
+        );
+        return;
+      }
+      router.push(`/round/${item.id}`);
+    };
+
+    return (
+      <View style={styles.roundCard}>
+        <TouchableOpacity
+          style={styles.roundContent}
+          onPress={onPress}
+          activeOpacity={0.7}
+        >
+          <View style={styles.roundRow}>
+            <View style={[styles.roundNumberBadge, { backgroundColor: badgeColor }]}>
+              <Text style={styles.roundNumberBadgeText}>{item.round_number}</Text>
+            </View>
+            <View style={styles.roundInfo}>
+              <Text
+                style={[styles.roundThemeSubheader, { color: nameColor }]}
+                numberOfLines={1}
+              >
+                {displayName}
+              </Text>
+              <Text style={styles.roundMetaText} numberOfLines={1}>
+                {statusText}
+              </Text>
+            </View>
+            {isLocked ? (
+              <Ionicons name="lock-closed" size={18} color="#6A6A6A" />
+            ) : (
+              <Ionicons name="chevron-forward" size={20} color="#6A6A6A" />
+            )}
+          </View>
+        </TouchableOpacity>
+
+        {isCreator && isActive && (
+          <TouchableOpacity
+            style={styles.advanceButton}
+            onPress={() => handleAdvanceRound(item.id, item.status)}
+            activeOpacity={0.7}
+            disabled={advancing === item.id}
+          >
+            {advancing === item.id ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.advanceButtonText}>
+                Advance to {item.status === 'submission' ? 'Voting' : 'Results'}
+              </Text>
+            )}
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
 
   if (loading && !dataLoaded.current) {
     return (
@@ -491,7 +528,13 @@ export default function LeagueDetailScreen() {
           <Ionicons name="chevron-back" size={24} color="rgba(255,255,255,0.75)" />
         </TouchableOpacity>
         <View style={styles.headerInfo}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <LeagueAvatar
+              image={league.league_image}
+              name={league.name}
+              size={32}
+              imageBorderRadius={6}
+            />
             <Text style={styles.leagueName}>{league.name}</Text>
             {loading && dataLoaded.current && (
               <ActivityIndicator size="small" color="rgba(255,255,255,0.4)" />
@@ -529,20 +572,6 @@ export default function LeagueDetailScreen() {
       </View>
 
 
-      {isCreator && !activeRound && (league.total_rounds === 0 || league.current_round < league.total_rounds) && (
-        <TouchableOpacity
-          style={[styles.startRoundButton, creatingRound && styles.buttonDisabled]}
-          onPress={handleStartRound}
-          disabled={creatingRound}
-        >
-          {creatingRound ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <Text style={styles.startRoundText}>Start New Round</Text>
-          )}
-        </TouchableOpacity>
-      )}
-
       {/* Tab Selector */}
       <View style={styles.tabContainer}>
         <TouchableOpacity
@@ -561,33 +590,19 @@ export default function LeagueDetailScreen() {
 
       {/* Rounds Tab */}
       {activeTab === 'rounds' && (
-        <>
-          {rounds.length > 0 ? (
-            <FlatList
-              data={rounds}
-              keyExtractor={(item) => item.id}
-              renderItem={renderRoundItem}
-              contentContainerStyle={styles.listContent}
-              refreshControl={
-                <RefreshControl
-                  refreshing={refreshing}
-                  onRefresh={onRefresh}
-                  tintColor="#7C3AED"
-                />
-              }
+        <FlatList
+          data={rounds}
+          keyExtractor={(item) => item.id}
+          renderItem={renderRoundItem}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#7C3AED"
             />
-          ) : (
-            <View style={styles.emptyState}>
-              <Ionicons name="musical-notes" size={60} color="#7C3AED" />
-              <Text style={styles.emptyTitle}>No Rounds Yet</Text>
-              <Text style={styles.emptyText}>
-                {isCreator
-                  ? 'Start a new round to begin the competition!'
-                  : 'Waiting for the league creator to start a round.'}
-              </Text>
-            </View>
-          )}
-        </>
+          }
+        />
       )}
 
       {/* Standings Tab */}
@@ -1348,6 +1363,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  roundRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  roundNumberBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  roundNumberBadgeText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 14,
+  },
   roundInfo: {
     flex: 1,
   },
@@ -1358,9 +1390,9 @@ const styles = StyleSheet.create({
   },
   roundThemeSubheader: {
     fontSize: 15,
-    fontWeight: '500',
-    color: '#7C3AED',
-    marginTop: 2,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 2,
   },
   roundMetaRow: {
     flexDirection: 'row',

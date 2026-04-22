@@ -102,7 +102,12 @@ export default function PastLeaguePage() {
         {/* Top card */}
         <View style={styles.topCard}>
           <View style={styles.thumbWrap}>
-            <LeagueAvatar image={league.league_image} size={72} imageBorderRadius={12} />
+            <LeagueAvatar
+              image={league.league_image}
+              name={league.name}
+              size={72}
+              imageBorderRadius={12}
+            />
           </View>
           <Text style={styles.leagueName}>{league.name}</Text>
           <View style={styles.metaRow}>

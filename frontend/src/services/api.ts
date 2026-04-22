@@ -54,7 +54,7 @@ export interface Round {
   league_id: string;
   round_number: number;
   theme: string;
-  status: 'submission' | 'voting' | 'completed';
+  status: 'locked' | 'submission' | 'voting' | 'completed' | 'skipped';
   submission_hours: number;
   voting_hours: number;
   submission_deadline: string;
