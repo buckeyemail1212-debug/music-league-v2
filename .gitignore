@@ -359,4 +359,3 @@ android-sdk/
 *.env
 *.env.*
 .metro-cache/
-frontend/ios/
