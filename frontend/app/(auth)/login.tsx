@@ -9,6 +9,7 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -48,9 +49,12 @@ export default function LoginScreen() {
       >
         <View style={styles.content}>
           <View style={styles.header}>
-            <Ionicons name="musical-notes" size={60} color="#7C3AED" />
-            <Text style={styles.title}>Music League</Text>
-            <Text style={styles.subtitle}>Sign in to continue</Text>
+            <Image
+              source={require('../../assets/images/icon.png')}
+              style={styles.appIcon}
+              resizeMode="contain"
+            />
+            <Text style={styles.title}>Fantasy Music League</Text>
           </View>
 
           <View style={styles.form}>
@@ -64,10 +68,9 @@ export default function LoginScreen() {
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
-                autoComplete="off"
+                autoComplete="username"
                 autoCorrect={false}
-                textContentType="oneTimeCode"
-                importantForAutofill="no"
+                textContentType="username"
                 spellCheck={false}
               />
             </View>
@@ -81,12 +84,10 @@ export default function LoginScreen() {
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
-                autoComplete="off"
+                autoComplete="password"
                 autoCorrect={false}
-                textContentType="oneTimeCode"
-                importantForAutofill="no"
+                textContentType="password"
                 spellCheck={false}
-                passwordRules=""
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                 <Ionicons
@@ -107,13 +108,6 @@ export default function LoginScreen() {
               ) : (
                 <Text style={styles.buttonText}>Sign In</Text>
               )}
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.forgotPassword}
-              onPress={() => router.push('/(auth)/forgot-password')}
-            >
-              <Text style={styles.forgotPasswordText}>Forgot password?</Text>
             </TouchableOpacity>
 
             <View style={styles.footer}>
@@ -146,16 +140,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 48,
   },
+  appIcon: {
+    width: 96,
+    height: 96,
+    borderRadius: 20,
+  },
   title: {
     fontSize: 24,
     fontWeight: '700',
     color: '#FFFFFF',
     marginTop: 16,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#B3B3B3',
-    marginTop: 8,
   },
   form: {
     gap: 12,
@@ -192,15 +186,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
-  },
-  forgotPassword: {
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  forgotPasswordText: {
-    color: '#7C3AED',
-    fontSize: 14,
-    fontWeight: '500',
   },
   footer: {
     flexDirection: 'row',

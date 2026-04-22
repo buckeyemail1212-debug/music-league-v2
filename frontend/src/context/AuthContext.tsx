@@ -20,6 +20,7 @@ interface AuthContextType {
   register: (email: string, username: string, password: string, phone_number?: string, display_name?: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (data: Partial<User>) => Promise<void>;
+  setAuth: (token: string, user: User) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -101,6 +102,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
+  const setAuthState = async (newToken: string, newUser: User) => {
+    await AsyncStorage.setItem('token', newToken);
+    await AsyncStorage.setItem('user', JSON.stringify(newUser));
+    setToken(newToken);
+    setUser(newUser);
+  };
+
   const updateUser = async (data: Partial<User>) => {
     if (!token) return;
     
@@ -114,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, register, logout, updateUser, setAuth: setAuthState }}>
       {children}
     </AuthContext.Provider>
   );

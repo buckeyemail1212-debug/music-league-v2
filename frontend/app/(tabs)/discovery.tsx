@@ -23,14 +23,13 @@ import { useFocusEffect, useNavigation } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Song, API_URL, searchSongs } from '../../src/services/api';
-import { stopAllPreviews } from '../../src/components/PreviewPlayButton';
+import { stopAllPreviews, registerStopHandler } from '../../src/components/PreviewPlayButton';
+import { useAuth } from '../../src/context/AuthContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const ART_SIZE              = SCREEN_WIDTH - 60;
-const LIKED_KEY              = 'liked_songs';
-const DISCOVER_LAST_FETCH_KEY = 'discover_last_fetch';
-const PAGE_SIZE              = 30;
-const ONE_HOUR               = 1 * 60 * 60 * 1000;
+const getLikedKey = (userId: string) => `liked_songs_${userId}`;
+const PAGE_SIZE = 30;
 
 // ─── Genre filters ────────────────────────────────────────────────────────────
 
@@ -74,27 +73,33 @@ function getHighResCover(url: string): string {
     .replace('cover_medium', 'cover_big');
 }
 
-// ─── Billboard chart fetcher with artist-search fallback ─────────────────────
-// Tries the chart endpoint first; falls back to a random artist search if empty.
+// ─── Billboard chart fetcher ──────────────────────────────────────────────────
 
-async function fetchSongsForFilter(label: string): Promise<Song[]> {
-  const endpoint = FILTER_CHART_ENDPOINT[label];
-  if (endpoint) {
-    try {
-      const res = await fetch(`${API_URL}/api${endpoint}`);
-      if (res.ok) {
-        const json = await res.json();
-        const songs: Song[] = json.data ?? [];
-        if (songs.length > 0) {
-          const shuffled = songs
-            .map(s => ({ ...s, cover_url: getHighResCover(s.cover_url ?? '') }))
-            .sort(() => Math.random() - 0.5);
-          return shuffled;
-        }
+async function fetchSongsForFilter(label: string, forceFresh = false): Promise<Song[]> {
+  const endpoint = FILTER_CHART_ENDPOINT[label] || '/songs/chart/top';
+  // Cache-buster guarantees the request never returns a stale OS/CDN-level
+  // cached response when the user pulls down to refresh.
+  const buster = forceFresh ? `?_=${Date.now()}` : '';
+  try {
+    const res = await fetch(`${API_URL}/api${endpoint}${buster}`, {
+      cache: 'no-store',
+      headers: forceFresh
+        ? { 'Cache-Control': 'no-cache', Pragma: 'no-cache' }
+        : undefined,
+    });
+    const data = await res.json();
+    const raw: Song[] = data.data || data || [];
+    if (raw.length > 0) {
+      // Fisher-Yates shuffle for genuinely random ordering on every fetch
+      const arr = raw.map(s => ({ ...s, cover_url: getHighResCover(s.cover_url ?? '') }));
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
       }
-    } catch (e) {
-      console.log(`[Discovery] chart endpoint error for "${label}":`, e);
+      return arr;
     }
+  } catch (e) {
+    console.log(`[Discovery] chart fetch error for "${label}":`, e);
   }
   return [];
 }
@@ -261,6 +266,7 @@ const SongCard = React.memo(({
 // ─── DiscoverScreen ───────────────────────────────────────────────────────────
 
 export default function DiscoverScreen() {
+  const { user } = useAuth();
   const [selectedFilter, setSelectedFilter] = useState(0);
   const [songs, setSongs]                   = useState<Song[]>([]);
   // isFetching drives the inline loader — never blocks chips or the whole screen
@@ -296,8 +302,14 @@ export default function DiscoverScreen() {
   const fetchCounterRef   = useRef(0);
 
   // Infinite scroll
-  const offsetRef  = useRef(0);
-  const seenIdsRef = useRef(new Set<number>());
+  const offsetRef = useRef(0);
+
+  // Session-level seen IDs — cleared on every focus, never cleared on filter switch.
+  // Prevents any song from repeating within a single Discover session.
+  const seenSongIdsRef = useRef<Set<string>>(new Set());
+
+  // Track the deezer_id of the currently playing song to prevent audio overlap
+  const currentlyPlayingRef = useRef<string | null>(null);
 
   // Search mode
   const isSearchModeRef  = useRef(false);
@@ -311,17 +323,22 @@ export default function DiscoverScreen() {
   useEffect(() => { loadingMoreRef.current = loadingMore; }, [loadingMore]);
 
   // ── Load liked songs ──────────────────────────────────────────────────────
-  useEffect(() => {
-    AsyncStorage.getItem(LIKED_KEY).then(raw => {
-      if (!raw) return;
-      try {
-        const arr: Song[] = JSON.parse(raw);
-        if (arr.length > 0 && typeof arr[0] === 'object') {
-          setLikedSongs(new Map(arr.map(s => [String(s.deezer_id), s])));
-        }
-      } catch {}
-    });
-  }, []);
+  // Reload from AsyncStorage on every focus so likes persist across logout/login
+  // and reflect any edits made from the Profile screen.
+  const loadLikedSongs = useCallback(async () => {
+    if (!user?.id) { setLikedSongs(new Map()); return; }
+    try {
+      const raw = await AsyncStorage.getItem(getLikedKey(user.id));
+      if (!raw) { setLikedSongs(new Map()); return; }
+      const arr: Song[] = JSON.parse(raw);
+      if (Array.isArray(arr) && arr.length > 0 && typeof arr[0] === 'object') {
+        setLikedSongs(new Map(arr.map(s => [String(s.deezer_id), s])));
+      } else {
+        setLikedSongs(new Map());
+      }
+    } catch {}
+  }, [user?.id]);
+  useEffect(() => { loadLikedSongs(); }, [loadLikedSongs]);
 
   // ── Audio helpers ─────────────────────────────────────────────────────────
   const stopSound = useCallback(async () => {
@@ -376,6 +393,12 @@ export default function DiscoverScreen() {
 
   useEffect(() => { playPreviewFnRef.current = playPreview; }, [playPreview]);
 
+  // Register discovery stopSound with global audio manager
+  useEffect(() => {
+    const unregister = registerStopHandler(stopSound);
+    return unregister;
+  }, [stopSound]);
+
   // ── Toggle play / pause on tap ────────────────────────────────────────────
   const togglePlayPause = useCallback(async () => {
     if (!soundRef.current) return;
@@ -392,24 +415,27 @@ export default function DiscoverScreen() {
     } catch {}
   }, []);
 
-  // ── Focus: audio cleanup on blur + 1-hour silent auto-refresh ────────────
+  // ── Focus: reset session state and fetch fresh Top Hits on every visit ────
   useFocusEffect(useCallback(() => {
-    // Auto-refresh in the background if > 1 hour since last fetch.
-    // Only runs when songs are already loaded (no spinner shown).
-    if (songsRef.current.length > 0) {
-      AsyncStorage.getItem(DISCOVER_LAST_FETCH_KEY).then(ts => {
-        const age = ts ? Date.now() - Number(ts) : Infinity;
-        if (age > ONE_HOUR) {
-          fetchSongsRef.current(true, false, true); // silent reset
-        }
-      }).catch(() => {});
-    }
+    seenSongIdsRef.current.clear();
+    currentlyPlayingRef.current = null;
+    setSelectedFilter(0);
+    selectedFilterRef.current = 0;
+    loadLikedSongs();
+    fetchSongsRef.current(true);
 
     return () => {
-      stopSound();
+      // Cancel any pending viewability-triggered autoplay so the previous song
+      // can't start after the user has left the screen.
+      if ((onViewableItemsChanged as any)._timer) {
+        clearTimeout((onViewableItemsChanged as any)._timer);
+        (onViewableItemsChanged as any)._timer = null;
+      }
+      currentlyPlayingRef.current = null;
       stopAllPreviews();
+      stopSound();
     };
-  }, [stopSound]));
+  }, [stopSound, loadLikedSongs]));
 
   useEffect(() => {
     return () => {
@@ -432,20 +458,19 @@ export default function DiscoverScreen() {
     console.log(`[Discovery] fetchSongs called — filter: "${filter.label}", reset: ${reset}, silent: ${silent}, id: ${id}`);
 
     if (reset) {
-      seenIdsRef.current.clear();
-
       if (isRefresh) {
         setRefreshing(true);
       } else if (!silent) {
-        setSongs([]);
-        songsRef.current = [];
-        setIsFetching(true);
+        // Only mark fetching when we have zero songs to show (initial load).
+        // For filter taps / end-reached, keep old songs visible until new ones arrive —
+        // prevents the screen going blank.
+        if (songsRef.current.length === 0) {
+          setIsFetching(true);
+        }
       }
 
       if (!silent) {
         await stopSound();
-        currentIdxRef.current = 0;
-        flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
       }
     } else {
       if (loadingMoreRef.current) return;
@@ -453,7 +478,7 @@ export default function DiscoverScreen() {
     }
 
     try {
-      const fetched = await fetchSongsForFilter(filter.label);
+      const fetched = await fetchSongsForFilter(filter.label, isRefresh);
 
       console.log(`[Discovery] fetched ${fetched.length} songs for "${filter.label}"`);
 
@@ -468,27 +493,32 @@ export default function DiscoverScreen() {
       }
       setChartError(false);
 
-      // Deduplicate (in case of re-fetch)
-      const unique = fetched.filter(s => !seenIdsRef.current.has(s.deezer_id));
-      unique.forEach(s => seenIdsRef.current.add(s.deezer_id));
+      // Filter out songs already shown this session (cross-filter dedup)
+      const unique = fetched.filter(s => !seenSongIdsRef.current.has(String(s.deezer_id)));
 
-      // Shuffle for TikTok-style variety on every load
-      const shuffled = unique.sort(() => Math.random() - 0.5);
+      // Fisher-Yates shuffle — true randomization so each fetch surfaces a different order
+      const shuffled = [...unique];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+
+      // Mark these songs as seen for this session
+      shuffled.forEach(s => seenSongIdsRef.current.add(String(s.deezer_id)));
 
       const next = reset ? shuffled : [...songsRef.current, ...shuffled];
       console.log(`[Discovery] setSongs → ${next.length} total songs`);
       songsRef.current = next;
       setSongs(next);
 
-      // Persist fetch timestamp so hourly auto-refresh knows when last fetch occurred
-      if (reset) {
-        AsyncStorage.setItem(DISCOVER_LAST_FETCH_KEY, String(Date.now())).catch(() => {});
-      }
-
-      if (reset && !silent && shuffled.length > 0) {
-        setTimeout(() => {
-          if (id === fetchCounterRef.current) playPreviewFnRef.current(shuffled[0]);
-        }, 400);
+      if (reset && !silent) {
+        currentIdxRef.current = 0;
+        flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+        if (shuffled.length > 0) {
+          setTimeout(() => {
+            if (id === fetchCounterRef.current) playPreviewFnRef.current(shuffled[0]);
+          }, 400);
+        }
       }
     } catch (e) {
       console.error('[Discovery] fetchSongs uncaught error:', e);
@@ -505,20 +535,30 @@ export default function DiscoverScreen() {
   // Keep fetchSongsRef current so useFocusEffect can call it without a dep
   useEffect(() => { fetchSongsRef.current = fetchSongs; }, [fetchSongs]);
 
-  useEffect(() => { fetchSongs(true); }, [selectedFilter, fetchSongs]);
+  // Filter changes (chip taps) trigger a fresh fetch via onPress — no useEffect needed here
 
   // ── Tab press reload: tapping the Discover tab while already on it ────────
+  // Clear the seen-songs set (so any chart track can re-surface with a fresh
+  // shuffle) and refetch. fetchSongs was updated earlier so that on reset it
+  // preserves the existing list and skips the loading indicator when songs
+  // are already on screen — the current cards stay visible while the new
+  // list loads, then get swapped in once it arrives. The list never blanks.
   const navigation = useNavigation();
   useEffect(() => {
     const unsubscribe = (navigation as any).addListener('tabPress', () => {
       if ((navigation as any).isFocused()) {
+        seenSongIdsRef.current.clear();
+        currentlyPlayingRef.current = null;
         fetchSongsRef.current(true);
       }
     });
     return unsubscribe;
   }, [navigation]);
 
-  const onRefresh = useCallback(() => fetchSongs(true, true), [fetchSongs]);
+  const onRefresh = useCallback(() => {
+    seenSongIdsRef.current.clear();
+    fetchSongs(true, true);
+  }, [fetchSongs]);
 
   // ── Inline search ─────────────────────────────────────────────────────────
   const openSearch = useCallback(() => {
@@ -593,10 +633,25 @@ export default function DiscoverScreen() {
     if (idx === currentIdxRef.current) return;
     currentIdxRef.current = idx;
     const song = songsRef.current[idx];
-    if (song) playPreviewFnRef.current(song);
+    if (!song) return;
+
+    const songId = String(song.deezer_id);
+    currentlyPlayingRef.current = songId;
+
+    // Stop any playing audio immediately, then start the new song after a short gap
+    stopAllPreviews();
+    if ((onViewableItemsChanged as any)._timer) {
+      clearTimeout((onViewableItemsChanged as any)._timer);
+    }
+    (onViewableItemsChanged as any)._timer = setTimeout(() => {
+      // Only play if this card is still the visible one
+      if (currentlyPlayingRef.current === songId) {
+        playPreviewFnRef.current(song);
+      }
+    }, 300);
   }).current;
 
-  const viewabilityConfig = useRef({ viewAreaCoveragePercentThreshold: 60 });
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 80 });
 
   const getItemLayout = useCallback((_: any, index: number) => ({
     length: cardHeightRef.current,
@@ -611,6 +666,11 @@ export default function DiscoverScreen() {
   }, []);
 
   const skipToNext = useCallback(() => {
+    // Stop the currently playing song immediately so audio never lingers while
+    // the list animates to the next card.
+    currentlyPlayingRef.current = null;
+    stopAllPreviews();
+    stopSound();
     const next = currentIdxRef.current + 1;
     if (next < songsRef.current.length) {
       flatListRef.current?.scrollToOffset({
@@ -618,22 +678,42 @@ export default function DiscoverScreen() {
         animated: true,
       });
     }
-  }, []);
+  }, [stopSound]);
 
   const toggleLike = useCallback(async (song: Song) => {
+    if (!user?.id) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     const id = String(song.deezer_id);
-    setLikedSongs(prev => {
-      const next = new Map(prev);
-      next.has(id) ? next.delete(id) : next.set(id, song);
-      AsyncStorage.setItem(LIKED_KEY, JSON.stringify([...next.values()])).catch(() => {});
-      return next;
-    });
-  }, []);
+    const key = getLikedKey(user.id);
+    // Read the canonical list from AsyncStorage first so likes persist regardless
+    // of any remount that may have stale in-memory state.
+    let current: Song[] = [];
+    try {
+      const raw = await AsyncStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) current = parsed;
+      }
+    } catch {}
+
+    const map = new Map(current.map(s => [String(s.deezer_id), s]));
+    if (map.has(id)) map.delete(id);
+    else map.set(id, song);
+
+    const nextArr = [...map.values()];
+    try {
+      await AsyncStorage.setItem(key, JSON.stringify(nextArr));
+    } catch {}
+    setLikedSongs(map);
+  }, [user?.id]);
 
   const handleEndReached = useCallback(() => {
     if (isSearchModeRef.current) fetchMoreSearch();
-    else fetchSongs(false);
+    else {
+      // Billboard charts have fixed size — cycle back with fresh shuffle
+      seenSongIdsRef.current.clear();
+      fetchSongs(true);
+    }
   }, [fetchSongs, fetchMoreSearch]);
 
   const renderItem = useCallback(({ item }: { item: Song }) => (
@@ -659,46 +739,54 @@ export default function DiscoverScreen() {
   return (
     <View style={styles.container} onLayout={handleLayout}>
 
-      {/* Feed or inline loader — chips always stay on top */}
-      {isFetching && songs.length === 0 ? (
-        <View style={styles.feedLoader}>
-          <ActivityIndicator size="large" color="#7C3AED" />
+      {/* Feed — always mounted; overlay spinner only when no songs yet */}
+      <FlatList
+        ref={flatListRef}
+        data={songs}
+        renderItem={renderItem}
+        keyExtractor={item => String(item.deezer_id)}
+        pagingEnabled
+        snapToAlignment="start"
+        decelerationRate="fast"
+        showsVerticalScrollIndicator={false}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig.current}
+        getItemLayout={getItemLayout}
+        onEndReached={handleEndReached}
+        onEndReachedThreshold={0.3}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#7C3AED"
+            colors={['#7C3AED']}
+          />
+        }
+        ListFooterComponent={null}
+      />
+
+      {/* Skeleton placeholder — only while waiting with no songs loaded */}
+      {isFetching && songs.length === 0 && !chartError && (
+        <View style={[styles.inlineLoader, { height: cardHeight }]} pointerEvents="none">
+          <View style={styles.skeletonArt} />
+          <View style={styles.skeletonBottom}>
+            <View style={styles.skeletonTitle} />
+            <View style={styles.skeletonArtist} />
+            <View style={styles.skeletonProgress} />
+            <View style={styles.skeletonServices}>
+              <View style={styles.skeletonServiceBtn} />
+              <View style={styles.skeletonServiceBtn} />
+              <View style={styles.skeletonServiceBtn} />
+            </View>
+          </View>
         </View>
-      ) : !isFetching && songs.length === 0 && chartError ? (
-        <View style={styles.feedLoader}>
+      )}
+      {!isFetching && songs.length === 0 && chartError && (
+        <View style={styles.inlineLoader} pointerEvents="none">
           <Text style={{ color: '#B3B3B3', fontSize: 15, textAlign: 'center', paddingHorizontal: 32 }}>
             Charts loading, try again shortly
           </Text>
         </View>
-      ) : (
-        <FlatList
-          ref={flatListRef}
-          data={songs}
-          renderItem={renderItem}
-          keyExtractor={item => String(item.deezer_id)}
-          pagingEnabled
-          snapToAlignment="start"
-          decelerationRate="fast"
-          showsVerticalScrollIndicator={false}
-          onViewableItemsChanged={onViewableItemsChanged}
-          viewabilityConfig={viewabilityConfig.current}
-          getItemLayout={getItemLayout}
-          onEndReached={handleEndReached}
-          onEndReachedThreshold={0.3}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor="#7C3AED"
-              colors={['#7C3AED']}
-            />
-          }
-          ListFooterComponent={loadingMore ? (
-            <View style={styles.footer}>
-              <ActivityIndicator size="small" color="#7C3AED" />
-            </View>
-          ) : null}
-        />
       )}
 
       {/* ── Header overlay: filter chips OR inline search bar — always visible ── */}
@@ -723,7 +811,14 @@ export default function DiscoverScreen() {
                   <TouchableOpacity
                     key={f.label}
                     style={[styles.chip, i === selectedFilter && styles.chipActive]}
-                    onPress={() => setSelectedFilter(i)}
+                    onPress={() => {
+                      stopAllPreviews();
+                      setSelectedFilter(i);
+                      selectedFilterRef.current = i;
+                      seenSongIdsRef.current.clear();
+                      currentlyPlayingRef.current = null;
+                      fetchSongsRef.current(true);
+                    }}
                     activeOpacity={0.75}
                   >
                     <Text style={[styles.chipText, i === selectedFilter && styles.chipTextActive]}>
@@ -805,11 +900,53 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#121212',
   },
-  // Inline feed loader — chips still render above this via absolute overlay
-  feedLoader: {
-    flex: 1,
+  // Skeleton placeholder — absolute overlay so FlatList stays mounted underneath
+  inlineLoader: {
+    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  skeletonArt: {
+    width: ART_SIZE,
+    height: ART_SIZE,
+    borderRadius: 12,
+    backgroundColor: '#282828',
+  },
+  skeletonBottom: {
+    width: SCREEN_WIDTH,
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 24,
+  },
+  skeletonTitle: {
+    height: 22,
+    width: '60%',
+    borderRadius: 4,
+    backgroundColor: '#282828',
+  },
+  skeletonArtist: {
+    height: 14,
+    width: '40%',
+    borderRadius: 4,
+    backgroundColor: '#1F1F1F',
+    marginTop: 10,
+  },
+  skeletonProgress: {
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: '#1F1F1F',
+    marginTop: 20,
+  },
+  skeletonServices: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 16,
+  },
+  skeletonServiceBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: '#282828',
   },
 
   // ── Card ──────────────────────────────────────────────────────────────────
@@ -964,23 +1101,24 @@ const styles = StyleSheet.create({
   },
   chip: {
     backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 50,
+    borderWidth: 0,
     paddingHorizontal: 16,
     paddingVertical: 7,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
   },
   chipActive: {
-    backgroundColor: '#7C3AED',
-    borderWidth: 0,
+    borderBottomColor: '#7C3AED',
   },
   chipText: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '400',
     color: '#B3B3B3',
   },
   chipTextActive: {
-    color: '#FFFFFF',
+    color: '#7C3AED',
+    fontWeight: '700',
+    fontSize: 14,
   },
   searchIconBtn: {
     width: 44,

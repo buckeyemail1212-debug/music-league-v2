@@ -14,7 +14,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.fantasymusicleague.app",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryUsageDescription": "Allow Fantasy Music League to access your photos to set your profile and league images.",
+        "NSCameraUsageDescription": "Allow Fantasy Music League to use your camera to take profile and league photos."
       }
     },
     "android": {
@@ -42,7 +44,8 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true

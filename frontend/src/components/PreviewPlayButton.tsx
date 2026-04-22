@@ -201,9 +201,18 @@ export const PreviewPlayButton: React.FC<PreviewPlayButtonProps> = ({
   );
 };
 
+// Registry for extra stop handlers (e.g. DiscoverScreen's own soundRef)
+const extraStopHandlers: Set<() => Promise<void>> = new Set();
+
+export const registerStopHandler = (fn: () => Promise<void>) => {
+  extraStopHandlers.add(fn);
+  return () => extraStopHandlers.delete(fn);
+};
+
 // Export cleanup function for use in screen focus/blur
 export const stopAllPreviews = async () => {
   await stopGlobalAudio();
+  await Promise.all([...extraStopHandlers].map(fn => fn().catch(() => {})));
 };
 
 const styles = StyleSheet.create({

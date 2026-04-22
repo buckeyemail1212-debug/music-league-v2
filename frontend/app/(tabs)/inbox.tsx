@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,82 +8,300 @@ import {
   ActivityIndicator,
   Image,
   RefreshControl,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 import { useAuth } from '../../src/context/AuthContext';
-import { getLeagues, getLeagueMessages } from '../../src/services/api';
+import {
+  getLeagues,
+  getLeagueMessages,
+  getRounds,
+  getMySubmissions,
+  League as ApiLeague,
+  Round,
+  MySubmission,
+} from '../../src/services/api';
 import { SharedChat } from '../../src/components/SharedChat';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-interface League {
+type NotifType = 'COMMENT' | 'RESULT' | 'REMINDER' | 'ACTIVITY' | 'SUBMIT';
+type FilterKey = 'ALL' | 'RESULTS' | 'REMINDER' | 'ACTIVITY' | 'SUBMIT';
+
+interface Notif {
   id: string;
-  name: string;
-  league_code: string;
-  league_image?: string;
-  members: Array<{ id: string; username: string; display_name?: string }>;
+  type: NotifType;
+  leagueId: string;
+  leagueName: string;
+  leagueImage?: string;
+  roundInfo?: string;
+  message: string;
+  timestamp: number;
+  onTap: 'chat' | 'round' | 'league';
+  roundId?: string;
 }
 
-interface ChatMessage {
-  id: string;
-  user_id: string;
-  username: string;
-  display_name?: string;
-  content: string;
-  created_at: string;
+const TYPE_COLORS: Record<NotifType, string> = {
+  COMMENT: '#3B82F6',
+  RESULT: '#F59E0B',
+  REMINDER: '#EF4444',
+  ACTIVITY: '#10B981',
+  SUBMIT: '#7C3AED',
+};
+
+const FILTER_TABS: { key: FilterKey; label: string }[] = [
+  { key: 'ALL', label: 'ALL' },
+  { key: 'RESULTS', label: 'RESULTS' },
+  { key: 'REMINDER', label: 'REMINDER' },
+  { key: 'ACTIVITY', label: 'ACTIVITY' },
+  { key: 'SUBMIT', label: 'SUBMIT' },
+];
+
+const NOTIF_PERSIST_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
+
+function abbreviateName(name: string): string {
+  const tokens = (name || '').trim().split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return 'FM';
+  if (tokens.length >= 2 && /^\d+$/.test(tokens[1])) {
+    return (tokens[0][0] + tokens[1]).toUpperCase();
+  }
+  if (tokens.length >= 2) {
+    return (tokens[0][0] + tokens[1][0]).toUpperCase();
+  }
+  return tokens[0].slice(0, 2).toUpperCase();
+}
+
+function parseTs(s?: string | null): number {
+  if (!s) return 0;
+  const t = new Date(s.endsWith('Z') || s.includes('+') ? s : s + 'Z').getTime();
+  return isNaN(t) ? 0 : t;
+}
+
+function relativeTime(ts: number): string {
+  const diff = Date.now() - ts;
+  if (diff < 60_000) return 'now';
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h`;
+  if (diff < 7 * 86_400_000) return `${Math.floor(diff / 86_400_000)}d`;
+  const d = new Date(ts);
+  return `${d.toLocaleString('en-US', { month: 'short' })} ${d.getDate()}`;
+}
+
+// Per-spec cache key — user-scoped so each account has its own photo copy.
+// The photo stays cached after the league is deleted so notifications still
+// show the correct thumbnail during the 3-day persistence window.
+const leaguePhotoKey = (userId: string, leagueId: string) =>
+  `league_image_${userId}_${leagueId}`;
+const notifCacheKey = (userId: string) => `inbox_notifs_${userId}`;
+const dismissedKey = (userId: string) => `inbox_dismissed_${userId}`;
+
+async function cacheLeaguePhoto(userId: string, leagueId: string, photo?: string | null) {
+  if (!userId || !leagueId || !photo) return;
+  try {
+    await AsyncStorage.setItem(leaguePhotoKey(userId, leagueId), photo);
+  } catch {}
+}
+async function getCachedLeaguePhoto(userId: string, leagueId: string): Promise<string | undefined> {
+  try {
+    const v = await AsyncStorage.getItem(leaguePhotoKey(userId, leagueId));
+    return v || undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export default function InboxScreen() {
   const { user } = useAuth();
-  const [leagues, setLeagues] = useState<League[]>([]);
+  const router = useRouter();
+
+  const [notifs, setNotifs] = useState<Notif[]>([]);
+  const [leaguesList, setLeaguesList] = useState<ApiLeague[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [latestMessages, setLatestMessages] = useState<{ [leagueId: string]: ChatMessage | null }>({});
-  const [activeLeague, setActiveLeague] = useState<League | null>(null);
-  const [cachedImages, setCachedImages] = useState<{ [leagueId: string]: string }>({});
+  const [activeLeague, setActiveLeague] = useState<ApiLeague | null>(null);
+  const [filter, setFilter] = useState<FilterKey>('ALL');
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const lastFetchTime = useRef<number>(0);
-  const dataLoaded    = useRef(false);
+  const dataLoaded = useRef(false);
 
-  const fetchLeagues = async () => {
+  // Load dismissed IDs on user change
+  useEffect(() => {
+    if (!user?.id) return;
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(dismissedKey(user.id));
+        if (raw) setDismissed(new Set(JSON.parse(raw)));
+      } catch {}
+    })();
+  }, [user?.id]);
+
+  const persistDismissed = async (next: Set<string>) => {
+    if (!user?.id) return;
+    try {
+      await AsyncStorage.setItem(dismissedKey(user.id), JSON.stringify([...next]));
+    } catch {}
+  };
+
+  const fetchAll = async () => {
     lastFetchTime.current = Date.now();
     try {
-      const response = await getLeagues();
-      const leagueList = response.data;
-      
-      // Load cached images for leagues without one from API
-      const imgCache: { [id: string]: string } = {};
-      await Promise.all(leagueList.map(async (league: League) => {
-        if (!league.league_image) {
+      const leaguesRes = await getLeagues();
+      const leagueList = leaguesRes.data;
+
+      // hydrate league images from async-storage cache
+      await Promise.all(leagueList.map(async (l) => {
+        if (!l.league_image) {
           try {
-            const cached = await AsyncStorage.getItem(`league_image_${league.id}`);
-            if (cached) {
-              imgCache[league.id] = cached;
-              league.league_image = cached;
-            }
+            const cached = user?.id ? await AsyncStorage.getItem(`league_image_${user.id}_${l.id}`) : null;
+            if (cached) l.league_image = cached;
           } catch {}
         }
+        // Always keep a durable copy of the current photo so deleted leagues
+        // still render their thumbnail for the 3-day persistence window.
+        if (l.league_image && user?.id) cacheLeaguePhoto(user.id, l.id, l.league_image);
       }));
-      setCachedImages(imgCache);
-      setLeagues(leagueList);
+      setLeaguesList(leagueList);
       dataLoaded.current = true;
-      
-      const msgMap: { [id: string]: ChatMessage | null } = {};
-      await Promise.all(leagueList.map(async (league: League) => {
+
+      const items: Notif[] = [];
+
+      const mySubsRes = await getMySubmissions().catch(() => null);
+      const mySubs: MySubmission[] = mySubsRes?.data?.submissions ?? [];
+
+      await Promise.all(leagueList.map(async (league) => {
+        // messages → COMMENT
         try {
           const msgRes = await getLeagueMessages(league.id);
-          if (msgRes.data && msgRes.data.length > 0) {
-            msgMap[league.id] = msgRes.data[msgRes.data.length - 1];
-          } else {
-            msgMap[league.id] = null;
+          const msgs = msgRes.data || [];
+          const latestOther = [...msgs].reverse().find(m => m.user_id !== user?.id);
+          if (latestOther) {
+            items.push({
+              id: `msg-${latestOther.id}`,
+              type: 'COMMENT',
+              leagueId: league.id,
+              leagueName: league.name,
+              leagueImage: league.league_image || undefined,
+              message: `${latestOther.username}: ${latestOther.content}`,
+              timestamp: parseTs(latestOther.created_at),
+              onTap: 'chat',
+            });
           }
-        } catch {
-          msgMap[league.id] = null;
-        }
+        } catch {}
+
+        // rounds → REMINDER + SUBMIT
+        try {
+          const roundsRes = await getRounds(league.id);
+          const rounds: Round[] = roundsRes.data || [];
+          for (const r of rounds) {
+            if (r.status === 'submission' || r.status === 'voting') {
+              const deadline = r.status === 'submission' ? r.submission_deadline : r.voting_deadline;
+              const deadlineTs = parseTs(deadline);
+              const diff = deadlineTs - Date.now();
+              const userActed = r.status === 'submission' ? r.has_user_submitted : r.has_user_voted;
+
+              if (diff > 0 && diff < 24 * 3600 * 1000 && !userActed) {
+                const hours = Math.ceil(diff / 3_600_000);
+                items.push({
+                  id: `rem-${r.id}-${r.status}`,
+                  type: 'REMINDER',
+                  leagueId: league.id,
+                  leagueName: league.name,
+                  leagueImage: league.league_image || undefined,
+                  roundInfo: `Round ${r.round_number}`,
+                  message: `${r.status === 'submission' ? 'Submit' : 'Vote'} closes in ${hours}h — don\u2019t miss out`,
+                  timestamp: Date.now() - 1000,
+                  onTap: 'round',
+                  roundId: r.id,
+                });
+              }
+
+              if (r.status === 'submission' && !r.has_user_submitted) {
+                const createdTs = parseTs(r.created_at);
+                if (createdTs && Date.now() - createdTs < 2 * 86_400_000) {
+                  items.push({
+                    id: `sub-${r.id}`,
+                    type: 'SUBMIT',
+                    leagueId: league.id,
+                    leagueName: league.name,
+                    leagueImage: league.league_image || undefined,
+                    roundInfo: `Round ${r.round_number}`,
+                    message: `New round: \u201C${r.theme}\u201D`,
+                    timestamp: createdTs,
+                    onTap: 'round',
+                    roundId: r.id,
+                  });
+                }
+              }
+            }
+          }
+        } catch {}
       }));
-      setLatestMessages(msgMap);
-    } catch (error) {
-      console.error('Failed to fetch leagues:', error);
+
+      // RESULT from my completed submissions
+      for (const sub of mySubs) {
+        if (sub.round_status !== 'completed' || sub.points === null || sub.points === undefined) continue;
+        const ts = parseTs(sub.submitted_at);
+        items.push({
+          id: `res-${sub.submission_id}`,
+          type: 'RESULT',
+          leagueId: sub.league_id,
+          leagueName: sub.league_name,
+          leagueImage: sub.league_image || undefined,
+          roundInfo: `Round ${sub.round_number}`,
+          message: `You earned ${sub.points} pts on \u201C${sub.song?.title ?? 'your song'}\u201D`,
+          timestamp: ts,
+          onTap: 'round',
+          roundId: sub.round_id,
+        });
+      }
+
+      // Merge with persisted cache so notifications from deleted leagues
+      // keep showing for up to 3 days. Also hydrate missing thumbnails from
+      // the durable photo cache.
+      let cached: Notif[] = [];
+      if (user?.id) {
+        try {
+          const raw = await AsyncStorage.getItem(notifCacheKey(user.id));
+          if (raw) cached = JSON.parse(raw);
+        } catch {}
+      }
+
+      const byId = new Map<string, Notif>();
+      // Fresh items take precedence (they have most recent data).
+      for (const it of items) byId.set(it.id, it);
+      // Add cached items not present in fresh and still within 3-day window.
+      const cutoff = Date.now() - NOTIF_PERSIST_MS;
+      for (const c of cached) {
+        if (!byId.has(c.id) && c.timestamp >= cutoff) {
+          byId.set(c.id, c);
+        }
+      }
+
+      // Hydrate thumbnails from durable photo cache for any notif missing one.
+      const merged = [...byId.values()];
+      if (user?.id) {
+        await Promise.all(merged.map(async (n) => {
+          if (!n.leagueImage) {
+            const p = await getCachedLeaguePhoto(user.id, n.leagueId);
+            if (p) n.leagueImage = p;
+          }
+        }));
+      }
+
+      merged.sort((a, b) => b.timestamp - a.timestamp);
+      setNotifs(merged);
+
+      // Persist the merged list back to AsyncStorage for next launch.
+      if (user?.id) {
+        try {
+          const toStore = merged.filter(m => m.timestamp >= cutoff).slice(0, 100);
+          await AsyncStorage.setItem(notifCacheKey(user.id), JSON.stringify(toStore));
+        } catch {}
+      }
+    } catch (err) {
+      console.error('Failed to build inbox:', err);
     } finally {
       setLoading(false);
     }
@@ -93,21 +311,50 @@ export default function InboxScreen() {
     useCallback(() => {
       setActiveLeague(null);
       if (Date.now() - lastFetchTime.current > 30000) {
-        lastFetchTime.current = Date.now();
-        fetchLeagues();
+        fetchAll();
       }
-    }, [])
+    }, []),
   );
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchLeagues();
+    await fetchAll();
     setRefreshing(false);
   };
 
   const closeChat = () => {
     setActiveLeague(null);
-    fetchLeagues();
+    fetchAll();
+  };
+
+  const handleTap = (n: Notif) => {
+    if (n.onTap === 'chat') {
+      const league = leaguesList.find(l => l.id === n.leagueId);
+      if (league) setActiveLeague(league);
+    } else if (n.onTap === 'round' && n.roundId) {
+      router.push(`/round/${n.roundId}`);
+    } else {
+      router.push(`/league/${n.leagueId}`);
+    }
+  };
+
+  const handleDismiss = (n: Notif) => {
+    // Remove from the displayed list and persist the dismissal so the notif
+    // doesn't reappear on next fetch.
+    const next = new Set(dismissed);
+    next.add(n.id);
+    setDismissed(next);
+    persistDismissed(next);
+
+    setNotifs(prev => {
+      const updated = prev.filter(p => p.id !== n.id);
+      if (user?.id) {
+        const cutoff = Date.now() - NOTIF_PERSIST_MS;
+        const toStore = updated.filter(m => m.timestamp >= cutoff).slice(0, 100);
+        AsyncStorage.setItem(notifCacheKey(user.id), JSON.stringify(toStore)).catch(() => {});
+      }
+      return updated;
+    });
   };
 
   if (activeLeague) {
@@ -125,83 +372,283 @@ export default function InboxScreen() {
   if (loading && !dataLoaded.current) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}><Text style={styles.title}>Inbox</Text></View>
-        <View style={styles.loadingContainer}><ActivityIndicator size="large" color="#7C3AED" /></View>
+        <View style={styles.header}>
+          <Text style={styles.title}>INBOX</Text>
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#7C3AED" />
+        </View>
       </SafeAreaView>
     );
   }
 
-  const renderLeagueChat = ({ item }: { item: League }) => {
-    const latest = latestMessages[item.id];
+  // Apply dismiss + filter
+  const visibleNotifs = notifs
+    .filter(n => !dismissed.has(n.id))
+    .filter(n => {
+      if (filter === 'ALL') return true;
+      if (filter === 'RESULTS') return n.type === 'RESULT';
+      return n.type === filter;
+    });
+
+  const renderRightActions = (progress: Animated.AnimatedInterpolation<number>, notif: Notif) => {
+    const translateX = progress.interpolate({
+      inputRange: [0, 1],
+      outputRange: [80, 0],
+      extrapolate: 'clamp',
+    });
     return (
-      <TouchableOpacity
-        style={styles.chatItem}
-        onPress={() => setActiveLeague(item)}
-        activeOpacity={0.7}
-        data-testid={`inbox-league-${item.id}`}
-      >
-        <View style={styles.chatAvatar}>
-          {item.league_image ? (
-            <Image source={{ uri: item.league_image }} style={styles.chatAvatarImage} />
-          ) : (
-            <View style={styles.chatAvatarPlaceholder}>
-              <Text style={styles.chatAvatarText}>{item.name.charAt(0).toUpperCase()}</Text>
-            </View>
-          )}
-        </View>
-        <View style={styles.chatInfo}>
-          <Text style={styles.chatName} numberOfLines={1}>{item.name}</Text>
-          <Text style={styles.chatPreview} numberOfLines={1}>
-            {latest
-              ? `${latest.display_name || latest.username}: ${latest.content}`
-              : 'Send a chat to your league mates!'
-            }
-          </Text>
-        </View>
-        <Ionicons name="chevron-forward" size={18} color="#6A6A6A" />
-      </TouchableOpacity>
+      <Animated.View style={[styles.swipeActionWrap, { transform: [{ translateX }] }]}>
+        <TouchableOpacity
+          style={styles.trashBtn}
+          onPress={() => handleDismiss(notif)}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="trash" size={22} color="#FFFFFF" />
+        </TouchableOpacity>
+      </Animated.View>
     );
   };
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}><Text style={styles.title}>Inbox</Text></View>
-      {leagues.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Ionicons name="chatbubbles-outline" size={64} color="#7C3AED" />
-          <Text style={styles.emptyTitle}>No Chats Yet</Text>
-          <Text style={styles.emptyText}>Join or create a league to start chatting.</Text>
+  const renderNotif = ({ item }: { item: Notif }) => (
+    <Swipeable
+      renderRightActions={(p) => renderRightActions(p, item)}
+      rightThreshold={40}
+      friction={2}
+      overshootRight={false}
+    >
+      <TouchableOpacity
+        style={styles.notifCard}
+        onPress={() => handleTap(item)}
+        activeOpacity={0.75}
+      >
+        <View style={styles.notifIcon}>
+          {item.leagueImage ? (
+            <Image source={{ uri: item.leagueImage }} style={styles.notifIconImage} />
+          ) : (
+            <View style={styles.notifIconPlaceholder}>
+              <Text style={styles.notifIconText}>{abbreviateName(item.leagueName)}</Text>
+            </View>
+          )}
         </View>
-      ) : (
-        <FlatList
-          data={leagues}
-          keyExtractor={(item) => item.id}
-          renderItem={renderLeagueChat}
-          contentContainerStyle={styles.listContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#7C3AED" />}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
-        />
-      )}
-    </SafeAreaView>
+        <View style={styles.notifBody}>
+          <View style={styles.notifTopLine}>
+            <Text style={[styles.notifType, { color: TYPE_COLORS[item.type] }]} numberOfLines={1}>
+              {item.type}
+              <Text style={styles.notifMeta}>
+                {` · ${item.leagueName}`}
+                {item.roundInfo ? ` · ${item.roundInfo}` : ''}
+              </Text>
+            </Text>
+            <Text style={styles.notifTime}>{relativeTime(item.timestamp)}</Text>
+          </View>
+          <Text style={styles.notifMessage} numberOfLines={2}>
+            {item.message}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    </Swipeable>
+  );
+
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>INBOX</Text>
+          <Text style={styles.count}>{visibleNotifs.length} items</Text>
+        </View>
+
+        {/* Filter tabs */}
+        <View style={styles.filterRow}>
+          <FlatList
+            horizontal
+            data={FILTER_TABS}
+            keyExtractor={(t) => t.key}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterList}
+            renderItem={({ item }) => {
+              const active = filter === item.key;
+              return (
+                <TouchableOpacity
+                  style={[styles.filterTab, active && styles.filterTabActive]}
+                  onPress={() => setFilter(item.key)}
+                  activeOpacity={0.75}
+                >
+                  <Text style={[styles.filterTabText, active && styles.filterTabTextActive]}>
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            }}
+          />
+        </View>
+
+        {visibleNotifs.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="mail-outline" size={64} color="#7C3AED" />
+            <Text style={styles.emptyTitle}>Nothing here yet</Text>
+            <Text style={styles.emptyText}>
+              Notifications about your leagues — rounds, votes, results, and chat — will show up here.
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={visibleNotifs}
+            keyExtractor={(item) => item.id}
+            renderItem={renderNotif}
+            contentContainerStyle={styles.listContent}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#7C3AED" />}
+            showsVerticalScrollIndicator={false}
+          />
+        )}
+      </SafeAreaView>
+    </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#121212' },
-  header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 },
-  title: { fontSize: 24, fontWeight: '700', color: '#FFFFFF' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 12,
+  },
+  title: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 1,
+  },
+  count: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#B3B3B3',
+    marginBottom: 4,
+  },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  listContent: { paddingHorizontal: 16 },
-  chatItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 4 },
-  chatAvatar: { width: 50, height: 50, borderRadius: 25, marginRight: 14 },
-  chatAvatarImage: { width: 50, height: 50, borderRadius: 25 },
-  chatAvatarPlaceholder: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#282828', alignItems: 'center', justifyContent: 'center' },
-  chatAvatarText: { fontSize: 20, fontWeight: '600', color: '#FFFFFF' },
-  chatInfo: { flex: 1 },
-  chatName: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
-  chatPreview: { fontSize: 12, color: '#B3B3B3', marginTop: 2 },
-  separator: { height: 0.5, backgroundColor: 'rgba(255,255,255,0.1)', marginLeft: 68 },
+
+  // ── Filter tabs ──
+  filterRow: {
+    paddingBottom: 10,
+  },
+  filterList: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  filterTab: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 16,
+    backgroundColor: '#1a1a1a',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+  },
+  filterTabActive: {
+    backgroundColor: '#7C3AED',
+    borderColor: '#7C3AED',
+  },
+  filterTabText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#B3B3B3',
+    letterSpacing: 0.8,
+  },
+  filterTabTextActive: {
+    color: '#FFFFFF',
+  },
+
+  listContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+  },
+  notifCard: {
+    flexDirection: 'row',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  notifIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  notifIconImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+  },
+  notifIconPlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: '#7C3AED',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notifIconText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  notifBody: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  notifTopLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  notifType: {
+    flex: 1,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+  },
+  notifMeta: {
+    fontWeight: '500',
+    color: '#B3B3B3',
+    letterSpacing: 0,
+    fontSize: 11,
+  },
+  notifTime: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#6A6A6A',
+    marginLeft: 8,
+  },
+  notifMessage: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginTop: 4,
+    lineHeight: 19,
+  },
+
+  // ── Swipe trash action ──
+  swipeActionWrap: {
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    paddingRight: 16,
+    marginBottom: 10,
+  },
+  trashBtn: {
+    width: 60,
+    height: '100%',
+    backgroundColor: '#EF4444',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 },
-  emptyTitle: { fontSize: 24, fontWeight: '700', color: '#FFFFFF', marginTop: 16 },
-  emptyText: { fontSize: 14, color: '#B3B3B3', textAlign: 'center', marginTop: 8 },
+  emptyTitle: { fontSize: 22, fontWeight: '700', color: '#FFFFFF', marginTop: 16 },
+  emptyText: { fontSize: 14, color: '#B3B3B3', textAlign: 'center', marginTop: 8, lineHeight: 20 },
 });

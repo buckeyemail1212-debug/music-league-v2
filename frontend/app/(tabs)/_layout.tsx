@@ -1,7 +1,7 @@
 import React from 'react';
 import { Tabs, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Platform, Pressable, Text } from 'react-native';
+import { Platform, Pressable, View } from 'react-native';
 import { tabEvents } from '../../src/utils/tabEvents';
 
 function NewTabButton(props: any) {
@@ -13,7 +13,27 @@ function NewTabButton(props: any) {
         tabEvents.openNewLeague();
         router.navigate('/(tabs)/home');
       }}
-    />
+      style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+    >
+      <View
+        style={{
+          width: 52,
+          height: 52,
+          borderRadius: 26,
+          backgroundColor: '#7C3AED',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginTop: -14,
+          shadowColor: '#7C3AED',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.4,
+          shadowRadius: 8,
+          elevation: 8,
+        }}
+      >
+        <Ionicons name="add" size={30} color="#FFFFFF" />
+      </View>
+    </Pressable>
   );
 }
 
@@ -31,52 +51,50 @@ export default function TabLayout() {
           elevation: 0,
           shadowOpacity: 0,
         },
-        tabBarActiveTintColor: '#FFFFFF',
+        tabBarActiveTintColor: '#7C3AED',
         tabBarInactiveTintColor: '#B3B3B3',
-        tabBarLabelStyle: { fontSize: 10, fontWeight: '600', marginTop: 2 },
+        tabBarLabelStyle: { fontSize: 10, fontWeight: '700', marginTop: 2, letterSpacing: 0.6 },
       }}
     >
       <Tabs.Screen
         name="home"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <Ionicons name="home-outline" size={24} color={color} />,
+          title: 'HOME',
+          tabBarIcon: ({ color }) => <Ionicons name="home-outline" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
         name="discovery"
         options={{
-          title: 'Discover',
-          tabBarIcon: ({ color }) => <Ionicons name="search-outline" size={24} color={color} />,
+          title: 'DISCOVER',
+          tabBarIcon: ({ color }) => <Ionicons name="search-outline" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
         name="add"
         options={{
-          title: 'New',
+          title: '',
           tabBarButton: (props) => <NewTabButton {...props} />,
-          tabBarIcon: () => <Ionicons name="add" size={28} color="#7C3AED" />,
-          tabBarLabel: () => (
-            <Text style={{ fontSize: 10, fontWeight: '600', color: '#7C3AED', marginTop: 2 }}>
-              New
-            </Text>
-          ),
+          tabBarLabel: () => null,
+          tabBarIcon: () => null,
         }}
       />
       <Tabs.Screen
         name="inbox"
         options={{
-          title: 'Inbox',
-          tabBarIcon: ({ color }) => <Ionicons name="chatbubble-outline" size={24} color={color} />,
+          title: 'INBOX',
+          tabBarIcon: ({ color }) => <Ionicons name="chatbubble-outline" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
-          tabBarIcon: ({ color }) => <Ionicons name="person-outline" size={24} color={color} />,
+          title: 'PROFILE',
+          tabBarIcon: ({ color }) => <Ionicons name="person-outline" size={22} color={color} />,
         }}
       />
+      {/* join.tsx exists in this directory but must not appear in the tab bar */}
+      <Tabs.Screen name="join" options={{ href: null }} />
     </Tabs>
   );
 }

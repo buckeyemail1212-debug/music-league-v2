@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   ScrollView,
   FlatList,
   Modal,
@@ -14,6 +13,8 @@ import {
   Platform,
   Alert,
   Linking,
+  TextInput,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -24,8 +25,22 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../src/context/AuthContext';
 import {
   deleteAccount,
-  getLeagues, getRounds, getResults,
+  getLeagues,
+  getUserStats,
+  getLeagueStandings,
+  getMySubmissions,
+  updateProfile,
+  getDeletedLeagues,
+  restoreLeague,
+  getLifetimeStats,
+  getUserTaste,
+  MySubmission,
+  UserStats,
+  DeletedLeague,
+  LifetimeStats,
+  TasteBreakdown,
 } from '../../src/services/api';
+import { leagueEvents } from '../../src/utils/leagueEvents';
 import AlbumArt from '../../src/components/AlbumArt';
 
 const HOW_TO_PLAY_STEPS = [
@@ -35,7 +50,40 @@ const HOW_TO_PLAY_STEPS = [
   'See who wins when voting ends!',
 ];
 
-const LIKED_KEY = 'liked_songs';
+const getLikedKey = (userId: string) => `liked_songs_${userId}`;
+
+const getMusicTitle = (wins: number): string => {
+  if (wins >= 10) return 'The Champion';
+  if (wins >= 5) return 'The Maestro';
+  if (wins >= 3) return 'The Curator';
+  if (wins >= 1) return 'The Enthusiast';
+  return 'The Newcomer';
+};
+
+const getJoinedYear = (createdAt?: string): string => {
+  if (!createdAt) return '';
+  const d = new Date(createdAt.endsWith('Z') || createdAt.includes('+') ? createdAt : createdAt + 'Z');
+  if (isNaN(d.getTime())) return '';
+  return `'${String(d.getFullYear()).slice(-2)}`;
+};
+
+const TASTE_COLORS: Record<string, string> = {
+  Indie: '#7C3AED',
+  Electronic: '#14B8A6',
+  'Hip-Hop': '#F97316',
+  'R&B': '#EC4899',
+  Pop: '#EF4444',
+  Country: '#F59E0B',
+  Rock: '#3B82F6',
+  Other: '#6A6A6A',
+};
+
+const SUBMISSION_COLORS = ['#7C3AED', '#10B981', '#F59E0B', '#EF4444', '#3B82F6', '#EC4899'];
+const pickColor = (seed: string) => {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = ((h << 5) - h + seed.charCodeAt(i)) >>> 0;
+  return SUBMISSION_COLORS[h % SUBMISSION_COLORS.length];
+};
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -106,50 +154,71 @@ export default function ProfileScreen() {
   const [privacyOpen, setPrivacyOpen]     = useState(false);
   const [termsOpen, setTermsOpen]         = useState(false);
 
-  // Wins modal
-  const [showWins, setShowWins]     = useState(false);
-  const [winsLoading, setWinsLoading] = useState(false);
-  const [winsData, setWinsData]     = useState<{ leagueName: string; roundNumber: number; songTitle: string }[] | null>(null);
+  // Stats counts
+  const [leaguesCount, setLeaguesCount] = useState(0);
+  const [userStats, setUserStats] = useState<UserStats | null>(null);
+  const [totalPoints, setTotalPoints] = useState(0);
+  const [mySubmissions, setMySubmissions] = useState<MySubmission[]>([]);
+  const [deletedLeagues, setDeletedLeagues] = useState<DeletedLeague[]>([]);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
+  const [lifetimeStats, setLifetimeStats] = useState<LifetimeStats | null>(null);
+  const [taste, setTaste] = useState<TasteBreakdown | null>(null);
 
-  const loadWins = useCallback(async () => {
-    if (winsData !== null) return; // already loaded
-    setWinsLoading(true);
+  // Edit profile modal
+  const [editOpen, setEditOpen] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const loadStats = useCallback(async () => {
     try {
-      const leaguesRes = await getLeagues();
-      const leagues = leaguesRes.data;
-      const wins: { leagueName: string; roundNumber: number; songTitle: string }[] = [];
+      const [leaguesRes, statsRes, subsRes, deletedRes, lifetimeRes, tasteRes] = await Promise.all([
+        getLeagues(),
+        getUserStats().catch(() => null),
+        getMySubmissions().catch(() => null),
+        getDeletedLeagues().catch(() => null),
+        getLifetimeStats().catch(() => null),
+        getUserTaste().catch(() => null),
+      ]);
+      setLeaguesCount(leaguesRes.data.length);
+      setUserStats(statsRes?.data ?? null);
+      setMySubmissions(subsRes?.data?.submissions ?? []);
+      setDeletedLeagues(deletedRes?.data?.leagues ?? []);
+      setLifetimeStats(lifetimeRes?.data ?? null);
+      setTaste(tasteRes?.data ?? null);
 
-      await Promise.all(leagues.map(async (league) => {
+      // Fall back to summed active-league standings so the display works the
+      // first time before the server's all_time_points has been finalized.
+      let pts = 0;
+      await Promise.all(leaguesRes.data.map(async (l) => {
         try {
-          const roundsRes = await getRounds(league.id);
-          const completed = roundsRes.data.filter(r => r.status === 'completed');
-          await Promise.all(completed.map(async (round) => {
-            try {
-              const resultRes = await getResults(round.id);
-              const result = resultRes.data;
-              const isWinner = result.winners.some(w => w.user_id === user?.id);
-              if (isWinner) {
-                const myWin = result.winners.find(w => w.user_id === user?.id);
-                if (myWin) {
-                  wins.push({
-                    leagueName: league.name,
-                    roundNumber: round.round_number,
-                    songTitle: myWin.song.title,
-                  });
-                }
-              }
-            } catch {}
-          }));
+          const sr = await getLeagueStandings(l.id);
+          const mine = sr.data.standings.find((s) => s.user_id === user?.id);
+          if (mine) pts += mine.total_points;
         } catch {}
       }));
+      setTotalPoints(Math.max(lifetimeRes?.data?.all_time_points ?? 0, pts));
+    } catch {}
+  }, [user?.id]);
 
-      setWinsData(wins);
-    } catch {
-      setWinsData([]);
+  const handleRestoreLeague = async (league: DeletedLeague) => {
+    if (restoringId) return;
+    setRestoringId(league.id);
+    try {
+      await restoreLeague(league.id);
+      setDeletedLeagues(prev => prev.filter(d => d.id !== league.id));
+      leagueEvents.emit();
+      Alert.alert('Restored', `${league.name} has been restored.`);
+    } catch (e: any) {
+      Alert.alert('Error', e.response?.data?.detail || 'Failed to restore league');
     } finally {
-      setWinsLoading(false);
+      setRestoringId(null);
     }
-  }, [user?.id, winsData]);
+  };
+
+  const daysLeft = (expiresAt: string): number => {
+    const ms = new Date(expiresAt).getTime() - Date.now();
+    return Math.max(0, Math.ceil(ms / 86400000));
+  };
 
   // Liked songs
   const [likedSongs, setLikedSongs] = useState<LikedSong[]>([]);
@@ -157,8 +226,9 @@ export default function ProfileScreen() {
 
   // Load liked songs
   const loadLikedSongs = useCallback(async () => {
+    if (!user?.id) { setLikedSongs([]); return; }
     try {
-      const raw = await AsyncStorage.getItem(LIKED_KEY);
+      const raw = await AsyncStorage.getItem(getLikedKey(user.id));
       if (raw) {
         const parsed = JSON.parse(raw);
         // Ensure it's Song objects not legacy string IDs
@@ -173,31 +243,34 @@ export default function ProfileScreen() {
     } catch {
       setLikedSongs([]);
     }
-  }, []);
+  }, [user?.id]);
 
-  // Reload liked songs whenever the tab gains focus
+  // Reload liked songs + stats whenever the tab gains focus
   useFocusEffect(useCallback(() => {
     loadLikedSongs();
-  }, [loadLikedSongs]));
+    loadStats();
+  }, [loadLikedSongs, loadStats]));
 
   const unlikeSong = async (song: LikedSong) => {
+    if (!user?.id) return;
     const next = likedSongs.filter(s => s.deezer_id !== song.deezer_id);
     setLikedSongs(next);
-    await AsyncStorage.setItem(LIKED_KEY, JSON.stringify(next)).catch(() => {});
+    await AsyncStorage.setItem(getLikedKey(user.id), JSON.stringify(next)).catch(() => {});
   };
 
   const handleDeleteAccount = () => {
     Alert.alert(
       'Delete Account',
-      'Are you sure? This is permanent and cannot be undone.',
+      'Are you sure you want to delete your account? This cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete Account',
+          text: 'Delete',
           style: 'destructive',
           onPress: async () => {
             try {
               await deleteAccount();
+              await AsyncStorage.clear();
               await logout();
               router.replace('/(auth)/login');
             } catch (error: any) {
@@ -270,6 +343,26 @@ export default function ProfileScreen() {
     }
   };
 
+  const openEdit = () => {
+    setEditName(user?.display_name || user?.username || '');
+    setEditOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    const trimmed = editName.trim();
+    if (!trimmed) { Alert.alert('Error', 'Name cannot be empty.'); return; }
+    setSavingEdit(true);
+    try {
+      await updateProfile({ username: trimmed });
+      await updateUser({ username: trimmed });
+      setEditOpen(false);
+    } catch (e: any) {
+      Alert.alert('Error', e.response?.data?.detail || 'Failed to update profile');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   const handleChangePhoto = () => {
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
@@ -291,27 +384,155 @@ export default function ProfileScreen() {
 
         {/* ── Profile header ── */}
         <View style={styles.profileHeader}>
-          <View style={styles.avatarWrapper}>
-            <View style={styles.avatarContainer}>
-              {uploading ? (
-                <ActivityIndicator size="large" color="#7C3AED" />
-              ) : user?.profile_photo ? (
-                <Image source={{ uri: user.profile_photo }} style={styles.avatarImage} />
-              ) : (
-                <Ionicons name="person" size={44} color="#7C3AED" />
-              )}
+          <View style={styles.avatarRow}>
+            <View style={styles.avatarWrapper}>
+              <View style={styles.avatarContainer}>
+                {uploading ? (
+                  <ActivityIndicator size="large" color="#7C3AED" />
+                ) : user?.profile_photo ? (
+                  <Image source={{ uri: user.profile_photo }} style={styles.avatarImage} />
+                ) : (
+                  <Ionicons name="person" size={44} color="#7C3AED" />
+                )}
+              </View>
+              <TouchableOpacity
+                style={styles.cameraOverlay}
+                onPress={handleChangePhoto}
+                disabled={uploading}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="camera" size={14} color="#FFFFFF" />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              style={styles.editButton}
-              onPress={handleChangePhoto}
-              disabled={uploading}
-            >
-              <Ionicons name="camera" size={14} color="#121212" />
+            <View style={styles.avatarInfo}>
+              <Text style={styles.profileName} numberOfLines={1}>
+                {user?.display_name || user?.username}
+              </Text>
+            </View>
+            <TouchableOpacity style={styles.editBtn} onPress={openEdit} activeOpacity={0.7}>
+              <Text style={styles.editBtnText}>Edit</Text>
             </TouchableOpacity>
           </View>
-          <Text style={styles.profileName}>{user?.display_name || user?.username}</Text>
-          <Text style={styles.profileEmail}>{user?.email}</Text>
+
+          {/* ── Stats row ── */}
+          <View style={styles.statsCard}>
+            <View style={styles.statCol}>
+              <Text style={styles.statNumber}>{userStats?.leagues_count ?? leaguesCount}</Text>
+              <Text style={styles.statLabel}>LEAGUES</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statCol}>
+              <Text style={styles.statNumber}>
+                {Math.max(lifetimeStats?.all_time_points ?? 0, totalPoints)}
+              </Text>
+              <Text style={styles.statLabel}>TOTAL PTS</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statCol}>
+              <Text style={styles.statNumber}>
+                {Math.max(lifetimeStats?.total_wins ?? 0, userStats?.total_wins ?? 0)}
+              </Text>
+              <Text style={styles.statLabel}>WINS</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statCol}>
+              <Text style={styles.statNumber}>
+                {Math.max(
+                  lifetimeStats?.total_submissions ?? 0,
+                  mySubmissions.length,
+                  userStats?.rounds_played ?? 0,
+                )}
+              </Text>
+              <Text style={styles.statLabel}>SUBMISSIONS</Text>
+            </View>
+          </View>
         </View>
+
+        {/* ── Recent Submissions ── */}
+        {mySubmissions.length > 0 && (
+          <>
+            <Text style={styles.sectionLabel}>RECENT SUBMISSIONS</Text>
+            <View style={styles.group}>
+              {mySubmissions.slice(0, 5).map((sub, idx, arr) => {
+                const last = idx === arr.length - 1;
+                return (
+                  <TouchableOpacity
+                    key={sub.submission_id}
+                    style={[styles.submissionRow, last && styles.rowLast]}
+                    onPress={() => router.push(`/round/${sub.round_id}`)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.submissionArt, { backgroundColor: pickColor(sub.song?.title || sub.submission_id) }]}>
+                      {sub.song?.cover_url
+                        ? <Image source={{ uri: sub.song.cover_url }} style={styles.submissionArtImage} />
+                        : <Text style={styles.submissionArtInitial}>{(sub.song?.title || '?').charAt(0).toUpperCase()}</Text>
+                      }
+                    </View>
+                    <View style={styles.submissionInfo}>
+                      <Text style={styles.submissionTitle} numberOfLines={1}>{sub.song?.title}</Text>
+                      <Text style={styles.submissionArtist} numberOfLines={1}>
+                        {sub.song?.artist}
+                        {sub.league_name ? ` · ${sub.league_name}` : ''}
+                      </Text>
+                    </View>
+                    {sub.points !== null && sub.points !== undefined ? (
+                      <View style={styles.submissionPoints}>
+                        <Text style={styles.submissionPointsText}>{sub.points}</Text>
+                        <Text style={styles.submissionPointsLabel}>pts</Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.submissionPending}>
+                        {sub.round_status === 'voting' ? 'VOTING' : 'OPEN'}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </>
+        )}
+
+        {/* ── Your Taste · All-Time ── */}
+        {taste && taste.total > 0 && taste.breakdown.length > 0 && (
+          <>
+            <Text style={styles.sectionLabel}>YOUR TASTE · ALL-TIME</Text>
+            <View style={[styles.group, styles.tasteCard]}>
+              <View style={styles.tasteBar}>
+                {taste.breakdown.map((b, i) => {
+                  const color = TASTE_COLORS[b.genre] ?? '#6A6A6A';
+                  const isFirst = i === 0;
+                  const isLast = i === taste.breakdown.length - 1;
+                  return (
+                    <View
+                      key={b.genre}
+                      style={{
+                        flex: b.pct,
+                        height: '100%',
+                        backgroundColor: color,
+                        borderTopLeftRadius: isFirst ? 6 : 0,
+                        borderBottomLeftRadius: isFirst ? 6 : 0,
+                        borderTopRightRadius: isLast ? 6 : 0,
+                        borderBottomRightRadius: isLast ? 6 : 0,
+                      }}
+                    />
+                  );
+                })}
+              </View>
+              <View style={styles.tasteList}>
+                {taste.breakdown.map((b) => {
+                  const color = TASTE_COLORS[b.genre] ?? '#6A6A6A';
+                  return (
+                    <View key={b.genre} style={styles.tasteRow}>
+                      <View style={[styles.tasteDot, { backgroundColor: color }]} />
+                      <Text style={styles.tasteGenre}>{b.genre}</Text>
+                      <Text style={styles.tastePct}>{b.pct}%</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          </>
+        )}
 
         {/* ── Liked Songs row ── */}
         <View style={styles.group}>
@@ -332,6 +553,55 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-forward" size={18} color="#B3B3B3" />
           </TouchableOpacity>
         </View>
+
+        {/* ── Recently Deleted Leagues (creator only) ── */}
+        {deletedLeagues.length > 0 && (
+          <>
+            <Text style={styles.groupLabel}>Recently Deleted Leagues</Text>
+            <View style={styles.group}>
+              {deletedLeagues.map((d, i, arr) => {
+                const last = i === arr.length - 1;
+                const left = daysLeft(d.expires_at);
+                return (
+                  <View
+                    key={d.id}
+                    style={[styles.deletedRow, last && styles.rowLast]}
+                  >
+                    <View style={styles.deletedThumb}>
+                      {d.league_image ? (
+                        <Image source={{ uri: d.league_image }} style={styles.deletedThumbImg} />
+                      ) : (
+                        <Text style={styles.deletedThumbInitial}>
+                          {d.name.charAt(0).toUpperCase()}
+                        </Text>
+                      )}
+                    </View>
+                    <View style={styles.deletedInfo}>
+                      <Text style={styles.rowLabel} numberOfLines={1}>{d.name}</Text>
+                      <Text style={styles.deletedSubtitle}>
+                        {left === 0
+                          ? 'Expires today'
+                          : `Expires in ${left} day${left === 1 ? '' : 's'}`}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.restoreBtn}
+                      onPress={() => handleRestoreLeague(d)}
+                      disabled={restoringId === d.id}
+                      activeOpacity={0.7}
+                    >
+                      {restoringId === d.id ? (
+                        <ActivityIndicator color="#FFFFFF" size="small" />
+                      ) : (
+                        <Text style={styles.restoreBtnText}>Restore</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </View>
+          </>
+        )}
 
         {/* ── Group 2: Support ── */}
         <Text style={styles.groupLabel}>Support</Text>
@@ -427,8 +697,51 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.version}>Music League v1.0</Text>
+        <Text style={styles.version}>Fantasy Music League v1.0</Text>
       </ScrollView>
+
+      {/* ── Edit Profile Modal ── */}
+      <Modal
+        visible={editOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditOpen(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.editOverlay}
+        >
+          <View style={styles.editPopup}>
+            <Text style={styles.editPopupTitle}>Edit Profile</Text>
+            <Text style={styles.editInputLabel}>USERNAME</Text>
+            <TextInput
+              style={styles.editInput}
+              value={editName}
+              onChangeText={setEditName}
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoFocus
+            />
+            <TouchableOpacity
+              style={styles.editSaveBtn}
+              onPress={handleSaveEdit}
+              disabled={savingEdit}
+              activeOpacity={0.8}
+            >
+              {savingEdit
+                ? <ActivityIndicator color="#FFFFFF" />
+                : <Text style={styles.editSaveText}>Save</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.editCancelBtn}
+              onPress={() => setEditOpen(false)}
+              disabled={savingEdit}
+            >
+              <Text style={styles.editCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* ── Liked Songs Modal ── */}
       <Modal
@@ -473,48 +786,6 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
-      {/* ── Wins Modal ── */}
-      <Modal
-        visible={showWins}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowWins(false)}
-      >
-        <TouchableWithoutFeedback onPress={() => setShowWins(false)}>
-          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 }}>
-            <TouchableWithoutFeedback onPress={() => {}}>
-              <View style={{ backgroundColor: '#1E1E1E', borderRadius: 16, padding: 24, width: '100%' }}>
-                {/* Header */}
-                <View style={winsStyles.cardHeader}>
-                  <Text style={winsStyles.cardTitle}>Your Wins</Text>
-                  <TouchableOpacity onPress={() => setShowWins(false)} hitSlop={8}>
-                    <Ionicons name="close" size={22} color="#FFFFFF" />
-                  </TouchableOpacity>
-                </View>
-
-                {winsLoading ? (
-                  <ActivityIndicator size="small" color="#7C3AED" style={{ marginVertical: 24 }} />
-                ) : !winsData || winsData.length === 0 ? (
-                  <Text style={winsStyles.empty}>No wins yet — keep playing!</Text>
-                ) : (
-                  <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 360 }}>
-                    {winsData.map((win, i) => (
-                      <View key={i} style={winsStyles.winRow}>
-                        <Ionicons name="trophy" size={20} color="#7C3AED" style={winsStyles.trophyIcon} />
-                        <View style={winsStyles.winInfo}>
-                          <Text style={winsStyles.winLeague}>{win.leagueName}</Text>
-                          <Text style={winsStyles.winRound}>Round {win.roundNumber}</Text>
-                          <Text style={winsStyles.winSong}>{win.songTitle}</Text>
-                        </View>
-                      </View>
-                    ))}
-                  </ScrollView>
-                )}
-              </View>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -532,53 +803,223 @@ const styles = StyleSheet.create({
 
   // ── Profile header ──
   profileHeader: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 20,
+  },
+  avatarRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 32,
-    paddingBottom: 28,
   },
   avatarWrapper: {
     position: 'relative',
-    marginBottom: 14,
   },
   avatarContainer: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: '#181818',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(124,58,237,0.40)',
     overflow: 'hidden',
   },
   avatarImage: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
   },
-  editButton: {
+  cameraOverlay: {
     position: 'absolute',
     bottom: 0,
     right: 0,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     backgroundColor: '#7C3AED',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: '#121212',
   },
+  avatarInfo: {
+    flex: 1,
+    marginLeft: 14,
+  },
   profileName: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700',
     color: '#FFFFFF',
   },
-  profileEmail: {
-    fontSize: 14,
+  profileTitle: {
+    fontSize: 13,
     color: '#B3B3B3',
+    marginTop: 3,
+  },
+  editBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  editBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+
+  // ── Stats row ──
+  statsCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#181818',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    marginTop: 20,
+  },
+  statCol: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  statLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#B3B3B3',
+    letterSpacing: 0.8,
     marginTop: 4,
   },
+  statDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+
+  // ── Recent submissions ──
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#B3B3B3',
+    letterSpacing: 1.2,
+    marginHorizontal: 20,
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  submissionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  submissionArt: {
+    width: 44,
+    height: 44,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  submissionArtImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 6,
+  },
+  submissionArtInitial: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  submissionInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  submissionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  submissionArtist: {
+    fontSize: 12,
+    color: '#B3B3B3',
+    marginTop: 2,
+  },
+  submissionPoints: {
+    alignItems: 'center',
+    minWidth: 44,
+  },
+  submissionPointsText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#7C3AED',
+  },
+  submissionPointsLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#B3B3B3',
+    letterSpacing: 0.6,
+  },
+  submissionPending: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#F59E0B',
+    letterSpacing: 0.6,
+  },
+
+  // ── Edit profile modal ──
+  editOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  editPopup: {
+    backgroundColor: '#282828',
+    borderRadius: 12,
+    padding: 24,
+  },
+  editPopupTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  editInputLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#B3B3B3',
+    letterSpacing: 1,
+    marginBottom: 8,
+  },
+  editInput: {
+    backgroundColor: '#3E3E3E',
+    borderRadius: 8,
+    padding: 14,
+    fontSize: 15,
+    color: '#FFFFFF',
+    marginBottom: 18,
+  },
+  editSaveBtn: {
+    backgroundColor: '#7C3AED',
+    borderRadius: 50,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  editCancelBtn: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  editSaveText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
+  editCancelText: { color: '#B3B3B3', fontSize: 13, fontWeight: '600' },
 
   // ── Liked Songs row ──
   likedIconBox: {
@@ -593,6 +1034,95 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#B3B3B3',
     marginTop: 2,
+  },
+
+  // ── Your Taste ──
+  tasteCard: {
+    padding: 16,
+  },
+  tasteBar: {
+    flexDirection: 'row',
+    height: 12,
+    borderRadius: 6,
+    overflow: 'hidden',
+    backgroundColor: '#282828',
+  },
+  tasteList: {
+    marginTop: 14,
+  },
+  tasteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  tasteDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 10,
+  },
+  tasteGenre: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#FFFFFF',
+  },
+  tastePct: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#B3B3B3',
+  },
+
+  // ── Recently Deleted Leagues ──
+  deletedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  deletedThumb: {
+    width: 40,
+    height: 40,
+    borderRadius: 6,
+    backgroundColor: '#282828',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  deletedThumbImg: {
+    width: 40,
+    height: 40,
+    borderRadius: 6,
+  },
+  deletedThumbInitial: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#7C3AED',
+  },
+  deletedInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  deletedSubtitle: {
+    fontSize: 12,
+    color: '#B3B3B3',
+    marginTop: 2,
+  },
+  restoreBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#7C3AED',
+    minWidth: 72,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  restoreBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
   },
 
   // ── Group label ──
@@ -800,53 +1330,3 @@ const likedStyles = StyleSheet.create({
   },
 });
 
-// ─── Wins Modal Styles ────────────────────────────────────────────────────────
-
-const winsStyles = StyleSheet.create({
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  empty: {
-    fontSize: 14,
-    color: '#B3B3B3',
-    textAlign: 'center',
-    paddingVertical: 24,
-  },
-  winRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingVertical: 10,
-    borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
-  },
-  trophyIcon: {
-    marginRight: 12,
-    marginTop: 1,
-  },
-  winInfo: {
-    flex: 1,
-  },
-  winLeague: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  winRound: {
-    fontSize: 13,
-    color: '#B3B3B3',
-    marginTop: 2,
-  },
-  winSong: {
-    fontSize: 13,
-    color: '#7C3AED',
-    marginTop: 2,
-  },
-});

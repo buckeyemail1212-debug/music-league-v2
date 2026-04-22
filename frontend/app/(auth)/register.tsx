@@ -82,11 +82,10 @@ export default function RegisterScreen() {
                   placeholderTextColor="#6A6A6A"
                   value={displayName}
                   onChangeText={setDisplayName}
-                  autoCapitalize="words"
-                  autoComplete="off"
+                  autoCapitalize="none"
+                  autoComplete="name"
                   autoCorrect={false}
-                  textContentType="oneTimeCode"
-                  importantForAutofill="no"
+                  textContentType="name"
                   spellCheck={false}
                 />
               </View>
@@ -101,10 +100,9 @@ export default function RegisterScreen() {
                   onChangeText={setEmail}
                   keyboardType="email-address"
                   autoCapitalize="none"
-                  autoComplete="off"
+                  autoComplete="email"
                   autoCorrect={false}
-                  textContentType="oneTimeCode"
-                  importantForAutofill="no"
+                  textContentType="emailAddress"
                   spellCheck={false}
                 />
               </View>
@@ -118,10 +116,9 @@ export default function RegisterScreen() {
                   value={username}
                   onChangeText={setUsername}
                   autoCapitalize="none"
-                  autoComplete="off"
+                  autoComplete="username-new"
                   autoCorrect={false}
-                  textContentType="oneTimeCode"
-                  importantForAutofill="no"
+                  textContentType="username"
                   spellCheck={false}
                 />
               </View>
@@ -135,10 +132,9 @@ export default function RegisterScreen() {
                   value={phoneNumber}
                   onChangeText={setPhoneNumber}
                   keyboardType="phone-pad"
-                  autoComplete="off"
+                  autoComplete="tel"
                   autoCorrect={false}
-                  textContentType="oneTimeCode"
-                  importantForAutofill="no"
+                  textContentType="telephoneNumber"
                   spellCheck={false}
                 />
               </View>
@@ -152,12 +148,10 @@ export default function RegisterScreen() {
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
-                  autoComplete="off"
+                  autoComplete="password-new"
                   autoCorrect={false}
-                  textContentType="oneTimeCode"
-                  importantForAutofill="no"
+                  textContentType="newPassword"
                   spellCheck={false}
-                  passwordRules=""
                 />
                 <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                   <Ionicons
@@ -177,12 +171,10 @@ export default function RegisterScreen() {
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   secureTextEntry={!showPassword}
-                  autoComplete="off"
+                  autoComplete="password-new"
                   autoCorrect={false}
-                  textContentType="none"
-                  importantForAutofill="no"
+                  textContentType="newPassword"
                   spellCheck={false}
-                  passwordRules=""
                 />
               </View>
 

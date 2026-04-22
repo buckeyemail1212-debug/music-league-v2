@@ -17,8 +17,12 @@ import {
   Keyboard,
   Platform,
   Pressable,
+  Share,
+  Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import ViewShot from 'react-native-view-shot';
+import * as Sharing from 'expo-sharing';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
@@ -45,6 +49,7 @@ export default function RoundScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [round, setRound] = useState<Round | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [results, setResults] = useState<RoundResult | null>(null);
@@ -82,6 +87,13 @@ export default function RoundScreen() {
 
   // Timer
   const [timeRemaining, setTimeRemaining] = useState<string>('');
+
+  // Share results card
+  const [isSharing, setIsSharing] = useState(false);
+  const shareCardRef = useRef<ViewShot>(null);
+
+  // Expand results modal
+  const [showExpandModal, setShowExpandModal] = useState(false);
 
   // Computed: user's own submission
   const userSubmission = submissions.find(s => s.user_id === user?.id) || null;
@@ -692,6 +704,35 @@ export default function RoundScreen() {
     );
   }
 
+  // Share round results as image
+  const handleShareResults = async () => {
+    if (!shareCardRef.current || isSharing) return;
+    setIsSharing(true);
+    try {
+      const uri = await shareCardRef.current.capture?.();
+      if (uri) {
+        const available = await Sharing.isAvailableAsync();
+        if (available) {
+          await Sharing.shareAsync(uri, {
+            mimeType: 'image/png',
+            dialogTitle: 'Share Round Results',
+          });
+        } else {
+          const winner = results?.winners?.[0];
+          const msg = winner
+            ? `${round?.theme ?? 'Round'} winner: ${winner.song.title} by ${winner.song.artist} — submitted by ${winner.username}`
+            : 'Round results';
+          await Share.share({ message: msg });
+        }
+      }
+    } catch (err) {
+      console.error('Share round results failed:', err);
+      Alert.alert('Error', 'Failed to share results');
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
   if (error || !round) {
     return (
       <SafeAreaView style={styles.container}>
@@ -998,7 +1039,7 @@ export default function RoundScreen() {
       {round.status === 'completed' && results && (
         <>
           {results.winners && results.winners.length > 0 && (
-            <View style={[styles.winnerBanner, results.is_tie && styles.tieBanner]}>
+            <View style={[styles.winnerBanner, results.is_tie && styles.tieBanner, { marginTop: 16 }]}>
               <Ionicons name={results.is_tie ? "ribbon" : "trophy"} size={32} color="#7C3AED" />
               <View style={styles.winnerInfo}>
                 <Text style={styles.winnerLabel}>
@@ -1050,7 +1091,78 @@ export default function RoundScreen() {
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#7C3AED" />
             }
+            ListFooterComponent={
+              <View style={styles.shareResultsFooter}>
+                <TouchableOpacity
+                  style={[styles.shareResultsButton, isSharing && styles.buttonDisabled]}
+                  onPress={handleShareResults}
+                  disabled={isSharing}
+                  activeOpacity={0.8}
+                >
+                  {isSharing ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.shareResultsText}>Share Results</Text>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.expandResultsButton}
+                  onPress={() => setShowExpandModal(true)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.shareResultsText}>Expand Results</Text>
+                </TouchableOpacity>
+              </View>
+            }
           />
+
+          {/* Off-screen share card — rendered for capture only */}
+          <View style={styles.shareCardOffscreen} pointerEvents="none">
+            <ViewShot ref={shareCardRef} options={{ format: 'png', quality: 1 }}>
+              <View style={styles.shareCard}>
+                <Text style={styles.shareCardAppName}>Fantasy Music League</Text>
+                <Text style={styles.shareCardRoundName}>Round {round.round_number}</Text>
+                <Text style={styles.shareCardTheme}>{round.theme}</Text>
+
+                {results.winners && results.winners.length > 0 && (
+                  <View style={styles.shareCardWinnerBlock}>
+                    <Text style={styles.shareCardWinnerLabel}>
+                      {results.is_tie ? 'Winners' : 'Winner'}
+                    </Text>
+                    <Text style={styles.shareCardWinnerSong} numberOfLines={2}>
+                      {results.winners[0].song.title}
+                    </Text>
+                    <Text style={styles.shareCardWinnerArtist} numberOfLines={1}>
+                      {results.winners[0].song.artist}
+                    </Text>
+                    <Text style={styles.shareCardSubmittedBy} numberOfLines={1}>
+                      submitted by {results.winners[0].username}
+                    </Text>
+                  </View>
+                )}
+
+                <View style={styles.shareCardDivider} />
+
+                <Text style={styles.shareCardRankingsLabel}>Final Rankings</Text>
+                {results.rankings.slice(0, 3).map((r, i) => (
+                  <View key={r.submission_id} style={styles.shareCardRankingRow}>
+                    <Text style={styles.shareCardRankNum}>{i + 1}</Text>
+                    <View style={styles.shareCardRankInfo}>
+                      <Text style={styles.shareCardRankSong} numberOfLines={1}>
+                        {r.song.title}
+                      </Text>
+                      <Text style={styles.shareCardRankArtist} numberOfLines={1}>
+                        {r.song.artist}
+                      </Text>
+                      <Text style={styles.shareCardRankUser} numberOfLines={1}>
+                        {r.username}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </ViewShot>
+          </View>
         </>
       )}
 
@@ -1246,6 +1358,139 @@ export default function RoundScreen() {
           />
         </View>
       )}
+
+      {/* Expand Results Modal */}
+      <Modal
+        visible={showExpandModal}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setShowExpandModal(false)}
+      >
+        <View style={[styles.expandModalContainer, { paddingTop: insets.top }]}>
+          <View style={styles.expandModalHeader}>
+            <TouchableOpacity
+              style={styles.expandModalClose}
+              onPress={() => setShowExpandModal(false)}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="close" size={26} color="#FFFFFF" />
+            </TouchableOpacity>
+            <Text style={styles.expandModalTitle}>Results Grid</Text>
+            <View style={{ width: 44 }} />
+          </View>
+
+          {results && (() => {
+            const gridSubmissions = results.rankings;
+            const gridVotes = results.votes || [];
+            const numPlaces = Math.max(0, gridSubmissions.length - 1);
+            const places = Array.from({ length: numPlaces }, (_, i) => i + 1);
+            const CELL_WIDTH = 68;
+            const LEFT_COL_WIDTH = 180;
+
+            const ordinal = (n: number) => {
+              const s = ['th', 'st', 'nd', 'rd'];
+              const v = n % 100;
+              return n + (s[(v - 20) % 10] || s[v] || s[0]);
+            };
+
+            const getVoters = (submissionId: string, place: number) =>
+              gridVotes
+                .filter(v => v.rankings[place - 1] === submissionId)
+                .map(v => ({
+                  id: v.voter_id,
+                  username: v.voter_username,
+                  profile_photo: v.voter_profile_photo,
+                }));
+
+            return (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: 24 }}
+              >
+                <View>
+                  {/* Header row */}
+                  <View style={styles.gridHeaderRow}>
+                    <View style={{ width: LEFT_COL_WIDTH }} />
+                    {places.map(p => (
+                      <View key={p} style={[styles.gridHeaderCell, { width: CELL_WIDTH }]}>
+                        <Text style={styles.gridHeaderText}>{ordinal(p)}</Text>
+                      </View>
+                    ))}
+                  </View>
+
+                  {/* Body rows */}
+                  <ScrollView showsVerticalScrollIndicator={false}>
+                    {gridSubmissions.map(sub => (
+                      <View key={sub.submission_id} style={styles.gridRow}>
+                        <View style={[styles.gridSongCell, { width: LEFT_COL_WIDTH }]}>
+                          <AlbumArt uri={sub.song.cover_url} size={48} borderRadius={6} />
+                          <View style={styles.gridSongInfo}>
+                            <Text style={styles.gridSongTitle} numberOfLines={1}>
+                              {sub.song.title}
+                            </Text>
+                            <Text style={styles.gridSongArtist} numberOfLines={1}>
+                              {sub.song.artist}
+                            </Text>
+                          </View>
+                        </View>
+                        {places.map(p => {
+                          const voters = getVoters(sub.submission_id, p);
+                          const shown = voters.slice(0, 3);
+                          const overflow = voters.length - shown.length;
+                          return (
+                            <View
+                              key={p}
+                              style={[styles.gridVoteCell, { width: CELL_WIDTH }]}
+                            >
+                              <View style={styles.gridVoterStack}>
+                                {shown.map((voter, i) => (
+                                  <View
+                                    key={voter.id || i}
+                                    style={[
+                                      styles.gridVoterAvatar,
+                                      { marginLeft: i > 0 ? -10 : 0, zIndex: 3 - i },
+                                    ]}
+                                  >
+                                    {voter.profile_photo ? (
+                                      <Image
+                                        source={{ uri: voter.profile_photo }}
+                                        style={styles.gridVoterAvatarImage}
+                                      />
+                                    ) : (
+                                      <Text style={styles.gridVoterAvatarText}>
+                                        {(voter.username || '?').charAt(0).toUpperCase()}
+                                      </Text>
+                                    )}
+                                  </View>
+                                ))}
+                                {overflow > 0 && (
+                                  <View
+                                    style={[
+                                      styles.gridVoterAvatar,
+                                      styles.gridVoterAvatarMore,
+                                      { marginLeft: -10, zIndex: 0 },
+                                    ]}
+                                  >
+                                    <Text style={styles.gridVoterAvatarMoreText}>
+                                      +{overflow}
+                                    </Text>
+                                  </View>
+                                )}
+                              </View>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    ))}
+                  </ScrollView>
+                </View>
+              </ScrollView>
+            );
+          })()}
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1391,7 +1636,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginHorizontal: 16,
-    marginTop: 8,
+    marginTop: 12,
+    marginBottom: 12,
     gap: 6,
   },
   progressText: {
@@ -2175,5 +2421,251 @@ const styles = StyleSheet.create({
   noMissingText: {
     fontSize: 14,
     color: '#B3B3B3',
+  },
+
+  // ── Share Results button ─────────────────────────────────────────────────
+  shareResultsFooter: {
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 32,
+    gap: 10,
+  },
+  shareResultsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#7C3AED',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 50,
+  },
+  expandResultsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#282828',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 50,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  shareResultsText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  // ── Expand Results modal ─────────────────────────────────────────────────
+  expandModalContainer: {
+    flex: 1,
+    backgroundColor: '#121212',
+  },
+  expandModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    minHeight: 52,
+  },
+  expandModalClose: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  expandModalTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  gridHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingLeft: 16,
+  },
+  gridHeaderCell: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gridHeaderText: {
+    color: '#B3B3B3',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  gridRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingLeft: 16,
+  },
+  gridSongCell: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingRight: 12,
+  },
+  gridSongInfo: {
+    flex: 1,
+  },
+  gridSongTitle: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  gridSongArtist: {
+    color: '#B3B3B3',
+    fontSize: 11,
+    marginTop: 2,
+  },
+  gridVoteCell: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+  },
+  gridVoterStack: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  gridVoterAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#282828',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#121212',
+    overflow: 'hidden',
+  },
+  gridVoterAvatarImage: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+  gridVoterAvatarText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  gridVoterAvatarMore: {
+    backgroundColor: '#3A3A3A',
+  },
+  gridVoterAvatarMoreText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+
+  // ── Off-screen share card (captured by ViewShot) ─────────────────────────
+  shareCardOffscreen: {
+    position: 'absolute',
+    left: -10000,
+    top: 0,
+  },
+  shareCard: {
+    width: 360,
+    backgroundColor: '#121212',
+    paddingHorizontal: 28,
+    paddingVertical: 32,
+  },
+  shareCardAppName: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#B3B3B3',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    textAlign: 'center',
+  },
+  shareCardRoundName: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginTop: 12,
+  },
+  shareCardTheme: {
+    fontSize: 14,
+    color: '#B3B3B3',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  shareCardWinnerBlock: {
+    alignItems: 'center',
+    marginTop: 28,
+  },
+  shareCardWinnerLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#7C3AED',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
+  shareCardWinnerSong: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginTop: 10,
+  },
+  shareCardWinnerArtist: {
+    fontSize: 15,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  shareCardSubmittedBy: {
+    fontSize: 12,
+    color: '#6A6A6A',
+    textAlign: 'center',
+    marginTop: 6,
+  },
+  shareCardDivider: {
+    height: 0.5,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    marginVertical: 24,
+  },
+  shareCardRankingsLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#B3B3B3',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    marginBottom: 12,
+  },
+  shareCardRankingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 8,
+  },
+  shareCardRankNum: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#7C3AED',
+    width: 24,
+    textAlign: 'center',
+  },
+  shareCardRankInfo: {
+    flex: 1,
+  },
+  shareCardRankSong: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  shareCardRankArtist: {
+    fontSize: 12,
+    color: '#B3B3B3',
+    marginTop: 2,
+  },
+  shareCardRankUser: {
+    fontSize: 11,
+    color: '#6A6A6A',
+    marginTop: 2,
   },
 });

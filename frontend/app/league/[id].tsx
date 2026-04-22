@@ -38,11 +38,19 @@ import {
   leaveLeague,
   getLeagueStandings,
   getChatStatus,
+  getResults,
   League,
   Round,
   LeagueStandings,
 } from '../../src/services/api';
 import { format } from 'date-fns';
+
+const AVATAR_COLORS = ['#7C3AED', '#10B981', '#F59E0B', '#EF4444', '#3B82F6', '#EC4899', '#14B8A6', '#F97316'];
+const avatarColor = (seed: string) => {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = ((h << 5) - h + seed.charCodeAt(i)) >>> 0;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+};
 
 export default function LeagueDetailScreen() {
   const { id, openChat: openChatParam } = useLocalSearchParams<{ id: string; openChat?: string }>();
@@ -51,6 +59,7 @@ export default function LeagueDetailScreen() {
   const [league, setLeague] = useState<League | null>(null);
   const [rounds, setRounds] = useState<Round[]>([]);
   const [standings, setStandings] = useState<LeagueStandings | null>(null);
+  const [lastRoundPoints, setLastRoundPoints] = useState<{ [userId: string]: number }>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [creatingRound, setCreatingRound] = useState(false);
@@ -87,7 +96,6 @@ export default function LeagueDetailScreen() {
   const [showMembersModal, setShowMembersModal] = useState(false);
 
   // Share card state
-  const [showShareCard, setShowShareCard] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const shareCardRef = useRef<ViewShot>(null);
   const dataLoaded   = useRef(false);
@@ -154,6 +162,24 @@ export default function LeagueDetailScreen() {
       setRounds(roundsRes.data);
       setStandings(standingsRes.data);
       dataLoaded.current = true;
+
+      // Compute per-user point gain from the most recent completed round for rank-delta arrows.
+      try {
+        const completed = roundsRes.data.filter(r => r.status === 'completed');
+        if (completed.length > 0) {
+          const latest = completed.reduce((a, b) => (a.round_number > b.round_number ? a : b));
+          const resultsRes = await getResults(latest.id);
+          const pts: { [uid: string]: number } = {};
+          for (const r of resultsRes.data.rankings) {
+            pts[r.user_id] = (pts[r.user_id] || 0) + r.points;
+          }
+          setLastRoundPoints(pts);
+        } else {
+          setLastRoundPoints({});
+        }
+      } catch {
+        setLastRoundPoints({});
+      }
       
       // Check for unread messages
       try {
@@ -226,28 +252,26 @@ export default function LeagueDetailScreen() {
     }
   };
 
-  // Share results card as image
+  // Share results card as image — mirrors the round results share flow.
   const handleShareResults = async () => {
-    if (!shareCardRef.current) return;
-    
+    if (!shareCardRef.current || isSharing) return;
+
     setIsSharing(true);
     try {
-      // Capture the view as an image
       const uri = await shareCardRef.current.capture?.();
-      
       if (uri) {
-        // Check if sharing is available
         const isAvailable = await Sharing.isAvailableAsync();
-        
         if (isAvailable) {
           await Sharing.shareAsync(uri, {
             mimeType: 'image/png',
             dialogTitle: 'Share League Results',
           });
         } else {
-          // Fallback to basic share
+          const top = standings?.standings.slice(0, 3)
+            .map((p, i) => `${i + 1}. ${p.username}: ${p.total_points} pts`)
+            .join('\n');
           await Share.share({
-            message: `🏆 ${league?.name} Final Results!\n\n${standings?.standings.slice(0, 3).map((p, i) => `${i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'} ${p.username}: ${p.total_points} pts`).join('\n')}\n\nPlayed on Music League 🎵`,
+            message: `${league?.name} Final Results\n\n${top}\n\nPlayed on Fantasy Music League`,
           });
         }
       }
@@ -256,7 +280,6 @@ export default function LeagueDetailScreen() {
       Alert.alert('Error', 'Failed to share results');
     } finally {
       setIsSharing(false);
-      setShowShareCard(false);
     }
   };
 
@@ -378,7 +401,7 @@ export default function LeagueDetailScreen() {
     if (!league) return;
     
     const deepLink = Linking.createURL(`/join/${league.league_code}`);
-    const message = `Join my Music League "${league.name}"!\n\nCode: ${league.league_code}\n\nOr click this link: ${deepLink}`;
+    const message = `Join my Fantasy Music League "${league.name}"!\n\nCode: ${league.league_code}\n\nOr click this link: ${deepLink}`;
     
     try {
       await Share.share({
@@ -395,24 +418,6 @@ export default function LeagueDetailScreen() {
   const isCreator = league?.creator_id === user?.id;
   const activeRound = rounds.find(r => r.status !== 'completed');
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'submission': return '#7C3AED';
-      case 'voting': return '#FFFFFF';
-      case 'completed': return '#B3B3B3';
-      default: return '#B3B3B3';
-    }
-  };
-
-  const getStatusBgColor = (status: string) => {
-    switch (status) {
-      case 'submission': return 'rgba(124,58,237,0.15)';
-      case 'voting': return 'rgba(255,255,255,0.10)';
-      case 'completed': return 'rgba(255,255,255,0.1)';
-      default: return 'rgba(255,255,255,0.1)';
-    }
-  };
-
   const renderRoundItem = ({ item }: { item: Round }) => (
     <View style={styles.roundCard}>
       <TouchableOpacity
@@ -421,58 +426,40 @@ export default function LeagueDetailScreen() {
         activeOpacity={0.7}
       >
         <View style={styles.roundHeader}>
-          <View style={styles.roundNumber}>
-            <Text style={styles.roundNumberText}>R{item.round_number}</Text>
-          </View>
           <View style={styles.roundInfo}>
-            <Text style={styles.roundTheme}>{item.theme}</Text>
-            <View style={[styles.statusBadge, { backgroundColor: getStatusBgColor(item.status) }]}>
-              <View style={[styles.statusDot, { backgroundColor: getStatusColor(item.status) }]} />
-              <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-                {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
-              </Text>
+            <Text style={styles.roundNumberHeader}>Round {item.round_number}</Text>
+            <Text style={styles.roundThemeSubheader}>{item.theme}</Text>
+            <View style={styles.roundMetaRow}>
+              <Text style={styles.roundStatusText}>{item.status.toUpperCase()}</Text>
+              <Text style={styles.roundMetaDot}>·</Text>
+              <Text style={styles.roundMetaText}>{item.submissions_count} songs</Text>
+              {item.status !== 'completed' && (
+                <>
+                  <Text style={styles.roundMetaDot}>·</Text>
+                  <Text style={styles.roundMetaTextStrong}>
+                    {getTimeRemaining(item.status === 'submission' ? item.submission_deadline : item.voting_deadline)}
+                  </Text>
+                </>
+              )}
+              {item.status === 'submission' && (
+                <>
+                  <Text style={styles.roundMetaDot}>·</Text>
+                  <Text style={item.has_user_submitted ? styles.roundMetaTextStrong : styles.roundMetaText}>
+                    {item.has_user_submitted ? 'Submitted' : 'Pending'}
+                  </Text>
+                </>
+              )}
+              {item.status === 'voting' && (
+                <>
+                  <Text style={styles.roundMetaDot}>·</Text>
+                  <Text style={item.has_user_voted ? styles.roundMetaTextStrong : styles.roundMetaText}>
+                    {item.has_user_voted ? 'Voted' : 'Vote Pending'}
+                  </Text>
+                </>
+              )}
             </View>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#6A6A6A" />
-        </View>
-
-        <View style={styles.roundStats}>
-          <View style={styles.roundStat}>
-            <Ionicons name="musical-note" size={14} color="#B3B3B3" />
-            <Text style={styles.roundStatText}>{item.submissions_count} songs</Text>
-          </View>
-          {item.status !== 'completed' && (
-            <View style={styles.roundStat}>
-              <Ionicons name="time" size={14} color="#FFFFFF" />
-              <Text style={[styles.roundStatText, { color: '#FFFFFF', fontWeight: '600' }]}>
-                {getTimeRemaining(item.status === 'submission' ? item.submission_deadline : item.voting_deadline)}
-              </Text>
-            </View>
-          )}
-          {item.status === 'submission' && (
-            <View style={styles.roundStat}>
-              <Ionicons
-                name={item.has_user_submitted ? 'checkmark-circle' : 'time-outline'}
-                size={14}
-                color={item.has_user_submitted ? '#FFFFFF' : '#B3B3B3'}
-              />
-              <Text style={[styles.roundStatText, item.has_user_submitted && { color: '#FFFFFF' }]}>
-                {item.has_user_submitted ? 'Submitted' : 'Pending'}
-              </Text>
-            </View>
-          )}
-          {item.status === 'voting' && (
-            <View style={styles.roundStat}>
-              <Ionicons
-                name={item.has_user_voted ? 'checkmark-circle' : 'time-outline'}
-                size={14}
-                color={item.has_user_voted ? '#FFFFFF' : '#B3B3B3'}
-              />
-              <Text style={[styles.roundStatText, item.has_user_voted && { color: '#FFFFFF' }]}>
-                {item.has_user_voted ? 'Voted' : 'Vote Pending'}
-              </Text>
-            </View>
-          )}
         </View>
       </TouchableOpacity>
 
@@ -625,6 +612,7 @@ export default function LeagueDetailScreen() {
       {activeTab === 'standings' && (
         <ScrollView
           style={styles.standingsContainer}
+          contentContainerStyle={styles.standingsContent}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -633,60 +621,178 @@ export default function LeagueDetailScreen() {
             />
           }
         >
-          <View style={styles.standingsHeader}>
-            <Text style={styles.standingsTitle}>League Standings</Text>
-            <Text style={styles.roundsCompleted}>
-              {standings?.rounds_completed || 0} of {league.total_rounds > 0 ? league.total_rounds : 'Unlimited'} rounds completed
-            </Text>
-          </View>
-
           {standings && standings.standings.length > 0 && standings.standings.some(p => p.total_points > 0) ? (
             (() => {
-              // Calculate actual ranks accounting for ties
+              // Tie-aware current ranks
               let currentRank = 1;
               let prevPoints: number | null = null;
-              const rankedPlayers = standings.standings.map((player, index) => {
-                if (prevPoints !== null && player.total_points < prevPoints) {
-                  currentRank = index + 1;
-                }
-                prevPoints = player.total_points;
-                return { ...player, rank: currentRank };
+              const rankedPlayers = standings.standings.map((p, i) => {
+                if (prevPoints !== null && p.total_points < prevPoints) currentRank = i + 1;
+                prevPoints = p.total_points;
+                return { ...p, rank: currentRank };
               });
 
-              return rankedPlayers.map((player) => {
-                const hasPoints = player.total_points > 0;
-                const isFirst = player.rank === 1 && hasPoints;
-                const isSecond = player.rank === 2 && hasPoints;
-                const isThird = player.rank === 3 && hasPoints;
-                
+              // Previous-round ranks (subtract last round points, then re-rank)
+              const prevSorted = standings.standings
+                .map(p => ({
+                  user_id: p.user_id,
+                  prevTotal: p.total_points - (lastRoundPoints[p.user_id] || 0),
+                }))
+                .sort((a, b) => b.prevTotal - a.prevTotal);
+              let pRank = 1, pPts: number | null = null;
+              const prevRankMap: { [uid: string]: number } = {};
+              prevSorted.forEach((p, i) => {
+                if (pPts !== null && p.prevTotal < pPts) pRank = i + 1;
+                pPts = p.prevTotal;
+                prevRankMap[p.user_id] = pRank;
+              });
+              const hasDeltaData = Object.keys(lastRoundPoints).length > 0;
+
+              const getPhoto = (uid: string) =>
+                league?.members?.find(m => m.id === uid)?.profile_photo;
+
+              const topThree = rankedPlayers.slice(0, 3);
+              const first = topThree[0];
+              const second = topThree[1];
+              const third = topThree[2];
+
+              const PodiumPlayer = ({
+                player,
+                size,
+                podiumHeight,
+                podiumStyle,
+                placeLabel,
+              }: {
+                player: typeof rankedPlayers[number];
+                size: number;
+                podiumHeight: number;
+                podiumStyle: any;
+                placeLabel: string;
+              }) => {
+                const photo = getPhoto(player.user_id);
+                const color = avatarColor(player.username);
+                const isMe = player.user_id === user?.id;
                 return (
-                  <View key={player.user_id} style={[
-                    styles.standingRow,
-                    isFirst && styles.firstPlace,
-                    isSecond && styles.secondPlace,
-                    isThird && styles.thirdPlace,
-                  ]}>
-                    <View style={styles.rankContainer}>
-                      {isFirst ? (
-                        <Ionicons name="trophy" size={20} color="#7C3AED" />
-                      ) : isSecond ? (
-                        <Ionicons name="medal" size={20} color="#B3B3B3" />
-                      ) : isThird ? (
-                        <Ionicons name="medal" size={20} color="#B3B3B3" />
-                      ) : (
-                        <Text style={styles.rankNumber}>{player.rank}</Text>
-                      )}
+                  <View style={standingStyles.podiumCol}>
+                    <View
+                      style={[
+                        standingStyles.podiumAvatar,
+                        { width: size, height: size, borderRadius: size / 2, backgroundColor: color },
+                        isMe && standingStyles.podiumAvatarMe,
+                      ]}
+                    >
+                      {photo
+                        ? <Image source={{ uri: photo }} style={{ width: size, height: size, borderRadius: size / 2 }} />
+                        : <Text style={[standingStyles.podiumAvatarInitial, { fontSize: size * 0.4 }]}>
+                            {player.username.charAt(0).toUpperCase()}
+                          </Text>
+                      }
                     </View>
-                    <View style={styles.playerInfo}>
-                      <Text style={styles.playerName}>{player.username}</Text>
-                    </View>
-                    <View style={styles.pointsContainer}>
-                      <Text style={styles.pointsValue}>{player.total_points}</Text>
-                      <Text style={styles.pointsLabel}>pts</Text>
+                    <Text style={standingStyles.podiumName} numberOfLines={1}>{player.username}</Text>
+                    <Text style={standingStyles.podiumPoints}>{player.total_points}</Text>
+                    <View style={[standingStyles.podiumBox, { height: podiumHeight }, podiumStyle]}>
+                      <Text style={standingStyles.podiumPlace}>{placeLabel}</Text>
                     </View>
                   </View>
                 );
-              });
+              };
+
+              return (
+                <>
+                  {/* Podium */}
+                  <View style={standingStyles.podiumCard}>
+                    <View style={standingStyles.podiumRow}>
+                      {second ? (
+                        <PodiumPlayer
+                          player={second}
+                          size={56}
+                          podiumHeight={64}
+                          podiumStyle={standingStyles.podiumBoxSecond}
+                          placeLabel="2nd"
+                        />
+                      ) : <View style={standingStyles.podiumCol} />}
+                      {first ? (
+                        <PodiumPlayer
+                          player={first}
+                          size={76}
+                          podiumHeight={88}
+                          podiumStyle={standingStyles.podiumBoxFirst}
+                          placeLabel="1st"
+                        />
+                      ) : <View style={standingStyles.podiumCol} />}
+                      {third ? (
+                        <PodiumPlayer
+                          player={third}
+                          size={56}
+                          podiumHeight={48}
+                          podiumStyle={standingStyles.podiumBoxThird}
+                          placeLabel="3rd"
+                        />
+                      ) : <View style={standingStyles.podiumCol} />}
+                    </View>
+                  </View>
+
+                  {/* Column headers */}
+                  <View style={standingStyles.columnHeaders}>
+                    <Text style={standingStyles.columnHeaderText}>RANK / PLAYER</Text>
+                    <Text style={standingStyles.columnHeaderText}>PTS</Text>
+                  </View>
+
+                  {/* Rankings list */}
+                  {rankedPlayers.map((player) => {
+                    const isMe = !!user?.id && player.user_id === user.id;
+                    const prevRank = prevRankMap[player.user_id];
+                    const delta = prevRank ? prevRank - player.rank : 0;
+                    const photo = getPhoto(player.user_id);
+                    const color = avatarColor(player.username);
+
+                    return (
+                      <View
+                        key={player.user_id}
+                        style={[standingStyles.listRow, isMe && standingStyles.listRowMe]}
+                      >
+                        <Text style={standingStyles.listRank}>{player.rank}</Text>
+                        <View style={[standingStyles.listAvatar, { backgroundColor: color }]}>
+                          {photo
+                            ? <Image source={{ uri: photo }} style={standingStyles.listAvatarImg} />
+                            : <Text style={standingStyles.listAvatarInitial}>{player.username.charAt(0).toUpperCase()}</Text>
+                          }
+                        </View>
+                        <View style={standingStyles.listNameWrap}>
+                          <Text style={standingStyles.listName} numberOfLines={1}>
+                            {player.username}
+                          </Text>
+                          {isMe && (
+                            <View style={standingStyles.youBadge}>
+                              <Text style={standingStyles.youBadgeText}>YOU</Text>
+                            </View>
+                          )}
+                        </View>
+                        <View style={standingStyles.listPtsWrap}>
+                          {hasDeltaData && delta !== 0 && (
+                            <View style={standingStyles.deltaWrap}>
+                              <Ionicons
+                                name={delta > 0 ? 'arrow-up' : 'arrow-down'}
+                                size={11}
+                                color={delta > 0 ? '#10B981' : '#EF4444'}
+                              />
+                              <Text
+                                style={[
+                                  standingStyles.deltaText,
+                                  { color: delta > 0 ? '#10B981' : '#EF4444' },
+                                ]}
+                              >
+                                {Math.abs(delta)}
+                              </Text>
+                            </View>
+                          )}
+                          <Text style={standingStyles.listPts}>{player.total_points}</Text>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </>
+              );
             })()
           ) : (
             <View style={styles.emptyState}>
@@ -696,52 +802,32 @@ export default function LeagueDetailScreen() {
             </View>
           )}
 
-          {/* Share Results Button - Always visible when there are standings */}
+          {/* Share Results Button — one-tap, identical flow to round results */}
           {standings && standings.standings.length > 0 && standings.standings.some(p => p.total_points > 0) && (
             <TouchableOpacity
-              style={styles.shareResultsButton}
-              onPress={() => setShowShareCard(true)}
+              style={[styles.shareResultsButton, isSharing && styles.buttonDisabled]}
+              onPress={handleShareResults}
+              disabled={isSharing}
+              activeOpacity={0.8}
             >
-              <Ionicons name="share-social" size={20} color="#FFFFFF" />
-              <Text style={styles.shareResultsText}>Share Results</Text>
+              {isSharing
+                ? <ActivityIndicator color="#FFFFFF" />
+                : <Text style={styles.shareResultsText}>Share Results</Text>}
             </TouchableOpacity>
           )}
-        </ScrollView>
-      )}
 
-      {/* Share Card Modal */}
-      <Modal
-        visible={showShareCard}
-        animationType="fade"
-        transparent={true}
-        onRequestClose={() => setShowShareCard(false)}
-      >
-        <TouchableWithoutFeedback onPress={() => setShowShareCard(false)}>
-          <View style={styles.shareModalOverlay}>
-        <TouchableWithoutFeedback onPress={() => {}}>
-          <View style={styles.shareModalContent}>
-            <View style={styles.shareModalHeader}>
-              <Text style={styles.shareModalTitle}>Share Results</Text>
-              <TouchableOpacity onPress={() => setShowShareCard(false)}>
-                <Ionicons name="close" size={24} color="#B3B3B3" />
-              </TouchableOpacity>
-            </View>
-
-            {/* The shareable card */}
+          {/* Off-screen share card — rendered for capture only */}
+          <View style={styles.shareCardOffscreen} pointerEvents="none">
             <ViewShot ref={shareCardRef} options={{ format: 'png', quality: 1 }}>
               <View style={styles.shareCard}>
                 <View style={styles.shareCardGradient}>
-                  {/* Header */}
                   <View style={styles.shareCardHeader}>
-                    <Text style={styles.shareCardEmoji}>🏆</Text>
                     <Text style={styles.shareCardTitle}>{league?.name}</Text>
                     <Text style={styles.shareCardSubtitle}>Final Results</Text>
                   </View>
 
-                  {/* Standings */}
                   <View style={styles.shareCardStandings}>
                     {(() => {
-                      // Compute tie-aware ranks (same algorithm as the standings tab)
                       let currentRank = 1;
                       let prevPoints: number | null = null;
                       const rankedPlayers = (standings?.standings ?? []).slice(0, 5).map((player, index) => {
@@ -751,17 +837,15 @@ export default function LeagueDetailScreen() {
                         prevPoints = player.total_points;
                         return { ...player, rank: currentRank };
                       });
-
                       return rankedPlayers.map((player) => {
                         const rank = player.rank;
-                        const emoji = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}.`;
                         const isWinner = rank === 1;
                         return (
-                          <View key={player.user_id} style={[
-                            styles.shareCardRow,
-                            isWinner && styles.shareCardWinnerRow
-                          ]}>
-                            <Text style={styles.shareCardRankEmoji}>{emoji}</Text>
+                          <View
+                            key={player.user_id}
+                            style={[styles.shareCardRow, isWinner && styles.shareCardWinnerRow]}
+                          >
+                            <Text style={styles.shareCardRankEmoji}>{`${rank}.`}</Text>
                             <Text style={[styles.shareCardUsername, isWinner && styles.shareCardWinnerText]}>
                               {player.username}
                             </Text>
@@ -774,35 +858,16 @@ export default function LeagueDetailScreen() {
                     })()}
                   </View>
 
-                  {/* Footer */}
                   <View style={styles.shareCardFooter}>
-                    <Text style={styles.shareCardBranding}>🎵 Music League</Text>
+                    <Text style={styles.shareCardBranding}>Fantasy Music League</Text>
                     <Text style={styles.shareCardCTA}>Create your own league!</Text>
                   </View>
                 </View>
               </View>
             </ViewShot>
-
-            {/* Share Button */}
-            <TouchableOpacity
-              style={[styles.shareButton, isSharing && styles.buttonDisabled]}
-              onPress={handleShareResults}
-              disabled={isSharing}
-            >
-              {isSharing ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <>
-                  <Ionicons name="share-outline" size={20} color="#FFFFFF" />
-                  <Text style={styles.shareButtonText}>Share to Stories / Messages</Text>
-                </>
-              )}
-            </TouchableOpacity>
           </View>
-        </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
+        </ScrollView>
+      )}
 
       {/* Start Round Modal */}
       <Modal
@@ -830,8 +895,6 @@ export default function LeagueDetailScreen() {
                 <Text style={styles.inputLabel}>Theme</Text>
                 <TextInput
                   style={styles.modalInput}
-                  placeholder="e.g., Songs that make you dance"
-                  placeholderTextColor="#B3B3B3"
                   value={roundTheme}
                   onChangeText={setRoundTheme}
                   autoComplete="off"
@@ -1229,65 +1292,48 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  roundNumber: {
-    width: 36,
-    height: 36,
-    borderRadius: 6,
-    backgroundColor: '#7C3AED',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  roundNumberText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
   roundInfo: {
     flex: 1,
-    marginLeft: 12,
   },
-  roundTheme: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
+  roundNumberHeader: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#7C3AED',
   },
-  statusBadge: {
+  roundThemeSubheader: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#7C3AED',
+    marginTop: 2,
+  },
+  roundMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    marginTop: 4,
-    gap: 4,
+    flexWrap: 'wrap',
+    marginTop: 8,
   },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: '500',
+  roundStatusText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#B3B3B3',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  roundStats: {
-    flexDirection: 'row',
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
-    gap: 16,
-  },
-  roundStat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  roundStatText: {
-    fontSize: 13,
+  roundMetaText: {
+    fontSize: 12,
+    fontWeight: '400',
     color: '#B3B3B3',
+  },
+  roundMetaTextStrong: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  roundMetaDot: {
+    fontSize: 12,
+    fontWeight: '400',
+    color: '#6A6A6A',
+    marginHorizontal: 6,
   },
   advanceButton: {
     flexDirection: 'row',
@@ -1357,7 +1403,11 @@ const styles = StyleSheet.create({
   // Standings styles
   standingsContainer: {
     flex: 1,
+  },
+  standingsContent: {
     paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 20,
   },
   standingsHeader: {
     marginBottom: 16,
@@ -1823,8 +1873,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
   },
+  shareCardOffscreen: {
+    position: 'absolute',
+    left: -10000,
+    top: 0,
+  },
   shareCard: {
-    width: '100%',
+    width: 360,
     aspectRatio: 9 / 16,
     overflow: 'hidden',
   },
@@ -2022,5 +2077,179 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '500',
     color: '#FFFFFF',
+  },
+});
+
+const standingStyles = StyleSheet.create({
+  // ── Podium ──
+  podiumCard: {
+    backgroundColor: '#181818',
+    borderRadius: 12,
+    paddingTop: 20,
+    paddingHorizontal: 12,
+    marginBottom: 20,
+    overflow: 'hidden',
+  },
+  podiumRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-around',
+  },
+  podiumCol: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  podiumAvatar: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  podiumAvatarMe: {
+    borderWidth: 2,
+    borderColor: '#7C3AED',
+  },
+  podiumAvatarInitial: {
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  podiumName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginTop: 2,
+    maxWidth: 100,
+  },
+  podiumPoints: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginTop: 2,
+    marginBottom: 10,
+  },
+  podiumBox: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 10,
+  },
+  podiumBoxFirst: {
+    backgroundColor: '#7C3AED',
+    borderTopLeftRadius: 6,
+    borderTopRightRadius: 6,
+  },
+  podiumBoxSecond: {
+    backgroundColor: '#2A2A2A',
+    borderTopLeftRadius: 6,
+    borderTopRightRadius: 6,
+  },
+  podiumBoxThird: {
+    backgroundColor: '#1F1F1F',
+    borderTopLeftRadius: 6,
+    borderTopRightRadius: 6,
+  },
+  podiumPlace: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+
+  // ── Column headers ──
+  columnHeaders: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    marginBottom: 6,
+  },
+  columnHeaderText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#6A6A6A',
+    letterSpacing: 1,
+  },
+
+  // ── List row ──
+  listRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginBottom: 4,
+  },
+  listRowMe: {
+    backgroundColor: 'rgba(124,58,237,0.12)',
+  },
+  listRank: {
+    width: 28,
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#B3B3B3',
+  },
+  listAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    marginLeft: 4,
+  },
+  listAvatarImg: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
+  listAvatarInitial: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  listNameWrap: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 12,
+  },
+  listName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  youBadge: {
+    marginLeft: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: 'rgba(124,58,237,0.22)',
+  },
+  youBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#7C3AED',
+    letterSpacing: 0.5,
+  },
+  listPtsWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  deltaWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  deltaText: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginLeft: 2,
+  },
+  listPts: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    minWidth: 36,
+    textAlign: 'right',
   },
 });

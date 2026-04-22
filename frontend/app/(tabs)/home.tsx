@@ -23,7 +23,9 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../src/context/AuthContext';
 import {
   getLeagues, getRounds, joinLeague, createLeague,
-  League, Round,
+  getUserStats, getLeagueStandings,
+  getLifetimeStats, getWeeklyPoints,
+  League, Round, UserStats, LeagueStandings, LifetimeStats,
 } from '../../src/services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { leagueEvents } from '../../src/utils/leagueEvents';
@@ -36,6 +38,41 @@ const getGreeting = () => {
   if (h < 12) return 'Good morning';
   if (h < 18) return 'Good afternoon';
   return 'Good evening';
+};
+
+const LEAGUE_COLORS = ['#7C3AED', '#10B981', '#F59E0B', '#EF4444', '#3B82F6', '#EC4899', '#14B8A6', '#F97316'];
+const getLeagueColor = (name: string) => {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = ((h << 5) - h + name.charCodeAt(i)) >>> 0;
+  return LEAGUE_COLORS[h % LEAGUE_COLORS.length];
+};
+
+const parseDeadline = (d: string) =>
+  new Date(d.endsWith('Z') || d.includes('+') ? d : d + 'Z');
+
+const shortTimeLeft = (deadline: string): string => {
+  const diff = parseDeadline(deadline).getTime() - Date.now();
+  if (diff <= 0) return 'ended';
+  const days = Math.floor(diff / 86400000);
+  const hours = Math.floor((diff % 86400000) / 3600000);
+  const mins = Math.floor((diff % 3600000) / 60000);
+  if (days > 0) return `${days}d ${hours}h left`;
+  if (hours > 0) return `${hours}h ${mins}m left`;
+  return `${mins}m left`;
+};
+
+const shortDay = (deadline: string): string => {
+  const end = parseDeadline(deadline);
+  const today = new Date();
+  const diffDays = Math.floor(
+    (new Date(end.getFullYear(), end.getMonth(), end.getDate()).getTime() -
+      new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()) /
+      86400000,
+  );
+  if (diffDays <= 0) return 'TODAY';
+  if (diffDays === 1) return 'TMRW';
+  const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+  return days[end.getDay()];
 };
 
 // ─── component ───────────────────────────────────────────────────────────────
@@ -51,6 +88,10 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [cachedImages, setCachedImages] = useState<{ [id: string]: string }>({});
   const [zoomLeagueImage, setZoomLeagueImage] = useState<string | null>(null);
+  const [userStats, setUserStats] = useState<UserStats | null>(null);
+  const [leagueStandings, setLeagueStandings] = useState<{ [leagueId: string]: LeagueStandings }>({});
+  const [weeklyPoints, setWeeklyPoints] = useState<number>(0);
+  const [lifetimeStats, setLifetimeStats] = useState<LifetimeStats | null>(null);
   const flatListRef  = useRef<FlatList>(null);
   const dataLoaded   = useRef(false);
 
@@ -104,7 +145,7 @@ export default function HomeScreen() {
       if (leagueImage) payload.league_image = leagueImage;
       const res = await createLeague(payload);
       if (leagueImage && res.data?.id) {
-        try { await AsyncStorage.setItem(`league_image_${res.data.id}`, leagueImage); } catch {}
+        try { if (user?.id) await AsyncStorage.setItem(`league_image_${user.id}_${res.data.id}`, leagueImage); } catch {}
       }
       resetAndClose();
       leagueEvents.emit();
@@ -244,56 +285,57 @@ export default function HomeScreen() {
 
   // ── league fetching ────────────────────────────────────────────────────────
 
-  const getTimeRemaining = (deadline: string): string => {
-    const endTime = deadline.endsWith('Z') || deadline.includes('+')
-      ? new Date(deadline)
-      : new Date(deadline + 'Z');
-    const diff = endTime.getTime() - Date.now();
-    if (diff <= 0) return 'Expired';
-    const days = Math.floor(diff / 86400000);
-    const hours = Math.floor((diff % 86400000) / 3600000);
-    const mins = Math.floor((diff % 3600000) / 60000);
-    const secs = Math.floor((diff % 60000) / 1000);
-    if (days > 0) return `${days}d ${hours}h ${mins}m`;
-    if (hours > 0) return `${hours}h ${mins}m ${secs}s`;
-    return `${mins}m ${secs}s`;
-  };
-
-  const getStatusSubtitle = (item: League, activeRound: Round | null): string => {
-    if (item.current_round === 0) return 'Not started';
-    const label = `Round ${item.current_round}${item.total_rounds > 0 ? ` of ${item.total_rounds}` : ''}`;
-    if (!activeRound) return `${label} · Completed`;
-    if (activeRound.status === 'submission') return `${label} · Submission open`;
-    if (activeRound.status === 'voting') return `${label} · Voting open`;
-    return label;
-  };
-
   const fetchLeagues = async () => {
     try {
-      const res = await getLeagues();
-      const list = res.data;
+      const [leaguesRes, statsRes, lifetimeRes] = await Promise.all([
+        getLeagues(),
+        getUserStats().catch(() => null),
+        getLifetimeStats().catch(() => null),
+      ]);
+      const list = leaguesRes.data;
       setLeagues(list);
+      setUserStats(statsRes?.data ?? null);
+      setLifetimeStats(lifetimeRes?.data ?? null);
       dataLoaded.current = true;
+
       const imgCache: { [id: string]: string } = {};
       await Promise.all(list.map(async (l: League) => {
         if (!l.league_image) {
           try {
-            const cached = await AsyncStorage.getItem(`league_image_${l.id}`);
+            const cached = user?.id ? await AsyncStorage.getItem(`league_image_${user.id}_${l.id}`) : null;
             if (cached) imgCache[l.id] = cached;
           } catch {}
         }
       }));
       setCachedImages(imgCache);
+
       const roundsData: { [id: string]: Round | null } = {};
-      for (const l of list) {
-        try {
-          const rr = await getRounds(l.id);
-          roundsData[l.id] = rr.data.find((r: Round) => r.status === 'submission' || r.status === 'voting') || null;
-        } catch {
+      const standingsData: { [id: string]: LeagueStandings } = {};
+
+      await Promise.all(list.map(async (l: League) => {
+        const [roundsRes, standingsRes] = await Promise.all([
+          getRounds(l.id).catch(() => null),
+          getLeagueStandings(l.id).catch(() => null),
+        ]);
+        if (roundsRes) {
+          const rounds = roundsRes.data;
+          roundsData[l.id] = rounds.find((r: Round) => r.status === 'submission' || r.status === 'voting') || null;
+        } else {
           roundsData[l.id] = null;
         }
-      }
+        if (standingsRes) standingsData[l.id] = standingsRes.data;
+      }));
       setActiveRounds(roundsData);
+      setLeagueStandings(standingsData);
+
+      // Weekly delta comes from the server's permanent submission history,
+      // so it stays accurate even after leagues are deleted.
+      try {
+        const wr = await getWeeklyPoints();
+        setWeeklyPoints(wr.data.weekly_points ?? 0);
+      } catch {
+        setWeeklyPoints(0);
+      }
     } catch (err) {
       console.error('Failed to fetch leagues:', err);
     } finally {
@@ -315,89 +357,219 @@ export default function HomeScreen() {
     setRefreshing(false);
   };
 
+  // ── derived data ───────────────────────────────────────────────────────────
+
+  // "Across all leagues" pulls from the server's running all_time_points
+  // which is incremented when a round completes and is never decreased when
+  // a league is deleted. The current-standings sum is used as a fallback on
+  // first launch before the server has finalized any rounds.
+  const liveTotalPoints = Object.values(leagueStandings).reduce((sum, s) => {
+    const mine = s.standings.find((st) => st.user_id === user?.id);
+    return sum + (mine?.total_points || 0);
+  }, 0);
+  const totalPoints = Math.max(lifetimeStats?.all_time_points ?? 0, liveTotalPoints);
+
+  const activeLeaguesCount = leagues.filter(l => l.status !== 'completed').length;
+
+  const pendingAction = (() => {
+    for (const l of leagues) {
+      const r = activeRounds[l.id];
+      if (!r) continue;
+      if (r.status === 'submission' && !r.has_user_submitted) return { league: l, round: r };
+      if (r.status === 'voting' && !r.has_user_voted) return { league: l, round: r };
+    }
+    return null;
+  })();
+
   // ── render league card ─────────────────────────────────────────────────────
 
   const renderLeagueItem = ({ item }: { item: League }) => {
     const activeRound = activeRounds[item.id];
     const displayImage = item.league_image || cachedImages[item.id];
+    const standings = leagueStandings[item.id];
+    const sorted = standings?.standings ?? [];
+    const mineIdx = sorted.findIndex(s => s.user_id === user?.id);
+    const mine = mineIdx >= 0 ? sorted[mineIdx] : null;
+    const leader = sorted[0];
+    const rank = mineIdx >= 0 ? mineIdx + 1 : null;
+    const myPoints = mine?.total_points ?? 0;
+    const leaderPoints = leader?.total_points ?? 0;
+    const isLeading = rank === 1 && myPoints > 0;
+    const progressPct = leaderPoints > 0 ? Math.min(1, myPoints / leaderPoints) : 0;
+    const squareColor = getLeagueColor(item.name);
+
+    let pillText: string | null = null;
+    let pillColor = '#B3B3B3';
+    if (activeRound) {
+      if (activeRound.status === 'voting') {
+        pillText = 'VOTING OPEN';
+        pillColor = '#10B981';
+      } else if (activeRound.status === 'submission') {
+        pillText = `SUBMIT BY ${shortDay(activeRound.submission_deadline)}`;
+        pillColor = '#F59E0B';
+      }
+    } else if (item.current_round > 0) {
+      pillText = 'COMPLETED';
+      pillColor = '#6A6A6A';
+    }
 
     return (
       <TouchableOpacity
-        style={styles.leagueCard}
+        style={styles.leagueCardV2}
         onPress={() => router.push(`/league/${item.id}`)}
         onLongPress={() => displayImage && setZoomLeagueImage(displayImage)}
         delayLongPress={300}
         activeOpacity={0.75}
       >
-        <View style={styles.cardTop}>
-          <View style={styles.leagueIcon}>
+        <View style={styles.leagueCardTopRow}>
+          <View style={[styles.leagueColorSquare, { backgroundColor: squareColor }]}>
             {displayImage
-              ? <Image source={{ uri: displayImage }} style={styles.leagueIconImage} resizeMode="cover" />
-              : <Text style={styles.leagueIconInitial}>{item.name.charAt(0).toUpperCase()}</Text>
+              ? <Image source={{ uri: displayImage }} style={styles.leagueColorSquareImage} resizeMode="cover" />
+              : <Text style={styles.leagueColorSquareInitial}>{item.name.charAt(0).toUpperCase()}</Text>
             }
           </View>
-          <View style={styles.leagueInfo}>
-            <Text style={styles.leagueName} numberOfLines={1}>{item.name}</Text>
-            <Text style={[styles.leagueSubtitle, item.current_round === 0 && styles.leagueSubtitleDimmed]} numberOfLines={1}>
-              {getStatusSubtitle(item, activeRound)}
+          <View style={styles.leagueCardInfo}>
+            <Text style={styles.leagueCardName} numberOfLines={1}>{item.name}</Text>
+            <Text style={styles.leagueCardSubtext} numberOfLines={1}>
+              {item.current_round > 0
+                ? `R${item.current_round}/${item.total_rounds} · ${item.members.length} players`
+                : `${item.members.length} players · Code ${item.league_code}`}
             </Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.20)" />
-        </View>
-
-        {activeRound && (
-          <View style={styles.timerPill}>
-            <Ionicons name="time-outline" size={14} color="#FFFFFF" style={{ marginRight: 6 }} />
-            <Text style={styles.timerPillText}>
-              {activeRound.status === 'submission' ? 'Submission: ' : 'Voting: '}
-              {activeRound.status === 'submission'
-                ? getTimeRemaining(activeRound.submission_deadline)
-                : getTimeRemaining(activeRound.voting_deadline)}
-            </Text>
-          </View>
-        )}
-
-        <View style={styles.cardSeparator} />
-
-        <View style={styles.cardBottom}>
-          <View style={styles.memberAvatarsContainer}>
-            {item.members.slice(0, 5).map((m, i) => (
-              <View key={m.id} style={[styles.memberAvatar, { marginLeft: i > 0 ? -8 : 0, zIndex: 5 - i }]}>
-                {m.profile_photo
-                  ? <Image source={{ uri: m.profile_photo }} style={styles.memberAvatarImage} />
-                  : <Text style={styles.memberAvatarText}>{m.username.charAt(0).toUpperCase()}</Text>
-                }
-              </View>
-            ))}
-            {item.members.length > 5 && (
-              <View style={[styles.memberAvatar, styles.memberAvatarMore, { marginLeft: -8, zIndex: 0 }]}>
-                <Text style={styles.memberAvatarMoreText}>+{item.members.length - 5}</Text>
-              </View>
-            )}
-          </View>
-          {item.current_round === 0 && (
-            <View style={styles.codePill}>
-              <Text style={styles.codePillText}>Code: {item.league_code}</Text>
+          {pillText && (
+            <View style={[styles.statusPill, { borderColor: pillColor, backgroundColor: `${pillColor}22` }]}>
+              <Text style={[styles.statusPillText, { color: pillColor }]}>{pillText}</Text>
             </View>
           )}
         </View>
+
+        {standings && sorted.length > 0 && rank !== null && (
+          <View style={styles.leagueCardProgressRow}>
+            <Text style={styles.leagueCardRank}>#{rank}</Text>
+            <View style={styles.leagueCardMiddle}>
+              <Text style={[styles.leagueCardGap, isLeading && { color: '#10B981' }]}>
+                {isLeading
+                  ? 'LEADING'
+                  : leaderPoints > myPoints
+                    ? `${leaderPoints - myPoints} PTS BEHIND`
+                    : 'TIED FOR 1ST'}
+              </Text>
+              <View style={styles.progressBarTrack}>
+                <View
+                  style={[
+                    styles.progressBarFill,
+                    {
+                      width: `${Math.max(4, progressPct * 100)}%`,
+                      backgroundColor: isLeading ? '#10B981' : '#7C3AED',
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+            <Text style={styles.leagueCardTotal}>{myPoints}</Text>
+          </View>
+        )}
       </TouchableOpacity>
     );
   };
 
   // ── render ─────────────────────────────────────────────────────────────────
 
-  return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
+  const listHeader = (
+    <View>
+      {/* Greeting */}
       <View style={styles.header}>
         <Text style={styles.greeting}>{getGreeting()},</Text>
         <Text style={styles.username}>{user?.display_name || user?.username}</Text>
       </View>
 
+      {/* Stats Card */}
+      <View style={styles.statsCard}>
+        <View style={styles.statsCardTopRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.statsCardLabel}>ACROSS ALL LEAGUES</Text>
+            <View style={styles.statsCardPointsRow}>
+              <Text style={styles.statsCardPoints}>{totalPoints.toLocaleString()}</Text>
+              <Text style={styles.statsCardPointsUnit}>PTS</Text>
+            </View>
+          </View>
+          {weeklyPoints > 0 && (
+            <Text style={styles.statsCardDelta}>+{weeklyPoints} this week</Text>
+          )}
+        </View>
+        <View style={styles.statsCardDivider} />
+        <View style={styles.statsCardBottomRow}>
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>{userStats?.leagues_count ?? leagues.length}</Text>
+            <Text style={styles.statLabel}>LEAGUES</Text>
+          </View>
+          <View style={styles.statItemDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>{userStats?.total_wins ?? 0}</Text>
+            <Text style={styles.statLabel}>WINS</Text>
+          </View>
+          <View style={styles.statItemDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>{Math.round(userStats?.win_rate ?? 0)}%</Text>
+            <Text style={styles.statLabel}>WIN RATE</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Active Action Card */}
+      {pendingAction && (
+        <TouchableOpacity
+          style={styles.actionCard}
+          onPress={() => router.push(`/round/${pendingAction.round.id}`)}
+          activeOpacity={0.8}
+        >
+          <View style={styles.actionCardAccent} />
+          <View style={styles.actionCardContent}>
+            <View style={styles.actionCardPill}>
+              <View style={styles.actionCardDot} />
+              <Text style={styles.actionCardPillText}>
+                {pendingAction.round.status === 'voting' ? 'VOTING OPEN' : 'SUBMISSION OPEN'} · {shortTimeLeft(
+                  pendingAction.round.status === 'voting'
+                    ? pendingAction.round.voting_deadline
+                    : pendingAction.round.submission_deadline,
+                )}
+              </Text>
+            </View>
+            <Text style={styles.actionCardTheme} numberOfLines={1}>
+              {pendingAction.round.theme}
+            </Text>
+            <Text style={styles.actionCardSubtext} numberOfLines={1}>
+              {pendingAction.league.name} · Round {pendingAction.round.round_number}
+            </Text>
+          </View>
+          <View style={styles.actionCardArrow}>
+            <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
+          </View>
+        </TouchableOpacity>
+      )}
+
+      {/* Section Header */}
+      {leagues.length > 0 && (
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionHeaderTitle}>YOUR LEAGUES</Text>
+          <Text style={styles.sectionHeaderCount}>{activeLeaguesCount} ACTIVE</Text>
+        </View>
+      )}
+    </View>
+  );
+
+  return (
+    <SafeAreaView style={styles.container}>
       {loading && !dataLoaded.current ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#7C3AED" />
+        <View style={styles.listContent}>
+          <View style={styles.header}>
+            <View style={styles.skeletonLineShort} />
+            <View style={styles.skeletonLineLong} />
+          </View>
+          <View style={[styles.statsCard, styles.skeletonBlock, { height: 140 }]} />
+          {[0, 1, 2].map(i => (
+            <View key={i} style={[styles.leagueCardV2, styles.skeletonCard, { height: 120 }]} />
+          ))}
         </View>
       ) : (
         <FlatList
@@ -405,12 +577,13 @@ export default function HomeScreen() {
           data={leagues}
           keyExtractor={(item) => item.id}
           renderItem={renderLeagueItem}
+          ListHeaderComponent={listHeader}
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Ionicons name="musical-notes" size={64} color="#7C3AED" />
               <Text style={styles.emptyTitle}>No Leagues Yet</Text>
               <Text style={styles.emptyText}>
-                Tap the + button to create a new league or join an existing one.
+                Tap the New button below to create a league or join an existing one.
               </Text>
             </View>
           }
@@ -457,54 +630,272 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 24,
+    paddingBottom: 16,
   },
   greeting: { fontSize: 14, color: '#B3B3B3', fontWeight: '400' },
-  username: { fontSize: 28, fontWeight: '700', color: '#FFFFFF', marginTop: 2 },
+  username: { fontSize: 26, fontWeight: '700', color: '#FFFFFF', marginTop: 2 },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  listContent: { paddingHorizontal: 20, paddingBottom: 20, flexGrow: 1 },
-  leagueCard: {
+  skeletonCard: { opacity: 0.6, backgroundColor: '#181818' },
+  skeletonBlock: { backgroundColor: '#282828', opacity: 0.5 },
+  skeletonLineLong: {
+    height: 14, width: '60%', borderRadius: 4,
+    backgroundColor: '#282828', marginBottom: 8,
+  },
+  skeletonLineShort: {
+    height: 12, width: '35%', borderRadius: 4, backgroundColor: '#1F1F1F', marginBottom: 8,
+  },
+  listContent: { paddingHorizontal: 20, paddingBottom: 40, flexGrow: 1 },
+
+  // ── Stats card ───────────────────────────────────────────────────────────
+  statsCard: {
     backgroundColor: '#181818',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 14,
+  },
+  statsCardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+  },
+  statsCardLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#B3B3B3',
+    letterSpacing: 1,
+  },
+  statsCardPointsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    marginTop: 6,
+  },
+  statsCardPoints: {
+    fontSize: 40,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    lineHeight: 44,
+  },
+  statsCardPointsUnit: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#B3B3B3',
+    letterSpacing: 1,
+    marginLeft: 8,
+    marginBottom: 6,
+  },
+  statsCardDelta: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#10B981',
+    marginBottom: 6,
+  },
+  statsCardDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    marginVertical: 16,
+  },
+  statsCardBottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statItemDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  statNumber: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  statLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#B3B3B3',
+    letterSpacing: 1,
+    marginTop: 4,
+  },
+
+  // ── Active action card ───────────────────────────────────────────────────
+  actionCard: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    backgroundColor: '#181818',
+    borderRadius: 12,
+    marginBottom: 20,
+    overflow: 'hidden',
+  },
+  actionCardAccent: {
+    width: 4,
+    backgroundColor: '#10B981',
+  },
+  actionCardContent: {
+    flex: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+  },
+  actionCardPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(16,185,129,0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  actionCardDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
+    marginRight: 6,
+  },
+  actionCardPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#10B981',
+    letterSpacing: 0.5,
+  },
+  actionCardTheme: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginTop: 8,
+  },
+  actionCardSubtext: {
+    fontSize: 12,
+    fontWeight: '400',
+    color: '#B3B3B3',
+    marginTop: 2,
+  },
+  actionCardArrow: {
+    width: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#7C3AED',
+  },
+
+  // ── Section header ───────────────────────────────────────────────────────
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  sectionHeaderTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 1,
+  },
+  sectionHeaderCount: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#B3B3B3',
+    letterSpacing: 1,
+  },
+
+  // ── League card ──────────────────────────────────────────────────────────
+  leagueCardV2: {
+    backgroundColor: '#181818',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 10,
+  },
+  leagueCardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  leagueColorSquare: {
+    width: 44,
+    height: 44,
     borderRadius: 8,
-    marginBottom: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
   },
-  cardTop: { flexDirection: 'row', alignItems: 'center', padding: 16 },
-  leagueIcon: {
-    width: 72, height: 72, borderRadius: 8,
-    backgroundColor: '#282828', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+  leagueColorSquareImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
   },
-  leagueIconImage: { width: 72, height: 72, borderRadius: 8 },
-  leagueIconInitial: { fontSize: 24, fontWeight: '700', color: '#7C3AED' },
-  leagueInfo: { flex: 1, marginLeft: 12, marginRight: 8 },
-  leagueName: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
-  leagueSubtitle: { fontSize: 12, fontWeight: '400', color: '#B3B3B3', marginTop: 3 },
-  leagueSubtitleDimmed: { color: '#6A6A6A' },
-  timerPill: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: '#7C3AED', marginHorizontal: 16, marginBottom: 12,
-    paddingVertical: 6, paddingHorizontal: 12, borderRadius: 4,
+  leagueColorSquareInitial: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
-  timerPillText: { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
-  cardSeparator: { height: 0.5, backgroundColor: 'rgba(255,255,255,0.1)', marginHorizontal: 16 },
-  cardBottom: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 12,
+  leagueCardInfo: {
+    flex: 1,
+    marginLeft: 12,
+    marginRight: 8,
   },
-  memberAvatarsContainer: { flexDirection: 'row', alignItems: 'center' },
-  memberAvatar: {
-    width: 26, height: 26, borderRadius: 13, backgroundColor: '#282828',
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1.5, borderColor: '#121212', overflow: 'hidden',
+  leagueCardName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
-  memberAvatarImage: { width: 26, height: 26, borderRadius: 13 },
-  memberAvatarText: { fontSize: 10, fontWeight: '500', color: '#FFFFFF' },
-  memberAvatarMore: { backgroundColor: '#282828' },
-  memberAvatarMoreText: { fontSize: 9, fontWeight: '500', color: '#B3B3B3' },
-  codePill: {
-    backgroundColor: 'rgba(255,255,255,0.05)', paddingHorizontal: 8, paddingVertical: 3,
-    borderRadius: 6,
+  leagueCardSubtext: {
+    fontSize: 12,
+    fontWeight: '400',
+    color: '#B3B3B3',
+    marginTop: 2,
   },
-  codePillText: { fontSize: 11, fontWeight: '400', color: '#6A6A6A', fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' },
+  statusPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    borderWidth: 1,
+  },
+  statusPillText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  leagueCardProgressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 14,
+  },
+  leagueCardRank: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#7C3AED',
+    width: 44,
+  },
+  leagueCardMiddle: {
+    flex: 1,
+    marginHorizontal: 8,
+  },
+  leagueCardGap: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#B3B3B3',
+    letterSpacing: 0.8,
+    marginBottom: 6,
+  },
+  progressBarTrack: {
+    height: 4,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: 4,
+    borderRadius: 2,
+  },
+  leagueCardTotal: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    minWidth: 40,
+    textAlign: 'right',
+  },
+
+  // ── Empty / zoom ─────────────────────────────────────────────────────────
   emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 80, paddingHorizontal: 40 },
   emptyTitle: { fontSize: 24, fontWeight: '700', color: '#FFFFFF', marginTop: 16 },
   emptyText: { fontSize: 14, color: '#B3B3B3', textAlign: 'center', marginTop: 8, lineHeight: 20 },

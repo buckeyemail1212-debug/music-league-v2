@@ -106,6 +106,12 @@ export interface RoundResult {
   }[];
   is_tie: boolean;
   total_voters: number;
+  votes?: {
+    voter_id: string;
+    voter_username: string;
+    voter_profile_photo?: string | null;
+    rankings: string[];
+  }[];
 }
 
 export interface LeagueStandings {
@@ -145,6 +151,41 @@ export interface UserStats {
 // User Stats API
 export const getUserStats = () => api.get<UserStats>('/auth/stats');
 
+export interface LifetimeStats {
+  all_time_points: number;
+  total_wins: number;
+  total_submissions: number;
+}
+export const getLifetimeStats = () =>
+  api.get<LifetimeStats>('/auth/lifetime-stats');
+
+export interface TasteBreakdown {
+  total: number;
+  breakdown: { genre: string; count: number; pct: number }[];
+}
+export const getUserTaste = () =>
+  api.get<TasteBreakdown>('/auth/taste');
+
+export const getWeeklyPoints = () =>
+  api.get<{ weekly_points: number }>('/auth/weekly-points');
+
+export interface MySubmission {
+  submission_id: string;
+  song: Song;
+  submitted_at: string;
+  round_id: string;
+  round_number: number;
+  round_theme: string;
+  round_status: 'submission' | 'voting' | 'completed';
+  league_id: string;
+  league_name: string;
+  league_image?: string | null;
+  points: number | null;
+}
+
+export const getMySubmissions = () =>
+  api.get<{ submissions: MySubmission[] }>('/auth/submissions');
+
 // League APIs
 export const createLeague = (data: {
   name: string;
@@ -163,8 +204,25 @@ export const getLeague = (id: string) => api.get<League>(`/leagues/${id}`);
 export const joinLeague = (code: string) => 
   api.post<League>('/leagues/join', { league_code: code });
 
-export const deleteLeague = (id: string) => 
+export const deleteLeague = (id: string) =>
   api.delete(`/leagues/${id}`);
+
+export interface DeletedLeague {
+  id: string;
+  name: string;
+  league_code?: string;
+  league_image?: string | null;
+  total_rounds: number;
+  members_count: number;
+  deleted_at: string;
+  expires_at: string;
+}
+
+export const getDeletedLeagues = () =>
+  api.get<{ leagues: DeletedLeague[] }>('/leagues/deleted');
+
+export const restoreLeague = (id: string) =>
+  api.post<League>(`/leagues/${id}/restore`);
 
 export const leaveLeague = (id: string) => 
   api.post(`/leagues/${id}/leave`);
@@ -240,14 +298,14 @@ export const getChatStatus = (leagueId: string) =>
   api.get<ChatStatus>(`/leagues/${leagueId}/chat-status`);
 
 // Password Reset APIs
-export const forgotPassword = (email: string) =>
-  api.post('/auth/forgot-password', { email });
+export const forgotPassword = (phone_number: string) =>
+  api.post('/auth/forgot-password', { phone_number });
 
-export const verifyResetCode = (email: string, code: string) =>
-  api.post('/auth/verify-reset-code', { email, code });
+export const verifyResetCode = (phone_number: string, code: string) =>
+  api.post('/auth/verify-reset-code', { phone_number, code });
 
-export const resetPassword = (email: string, code: string, new_password: string) =>
-  api.post('/auth/reset-password', { email, code, new_password });
+export const resetPassword = (phone_number: string, code: string, new_password: string) =>
+  api.post('/auth/reset-password', { phone_number, code, new_password });
 
 // Delete Account
 export const deleteAccount = () =>
