@@ -21,7 +21,7 @@ const TERMS: Record<string, Term> = {
   submission: {
     slug: 'submission',
     display: 'Submission',
-    tagline: "Someone's gotta submit.",
+    tagline: "Everyone's gotta submit.",
     paragraphs: [
       'A submission is your entry for a round — one song, chosen by you, dropped into the league for everyone else to hear and react to. This is where taste gets tested: you pick the song, you make the case.',
       'Every round has a prompt or theme (or none at all), a deadline, and a slot reserved just for you. Miss the deadline, and your slot stays empty — the game moves on. Lock your submission early, or wait until the last minute while you second-guess yourself. Up to you.',
@@ -31,29 +31,17 @@ const TERMS: Record<string, Term> = {
   voting: {
     slug: 'voting',
     display: 'Voting',
-    tagline: 'Every vote counts.',
+    tagline: "Someone's gotta be last.",
     paragraphs: [
       'Voting opens once submissions close. You\'ll see every song your league submitted — except your own — and you rank them from favorite to least favorite.',
       'Points are distributed based on how you rank each song: the top spot gets the most, the bottom spot gets the least. Miss the vote and the game auto-splits your points across the other songs so nobody gets left out.',
-      'This is the part where friendships are tested. Be honest. Be petty. But always be listening — the songs you rank first are the ones you\'re saying are the best.',
-    ],
-  },
-  ranking: {
-    slug: 'ranking',
-    display: 'Ranking',
-    tagline: "Someone's gotta be last.",
-    paragraphs: [
-      'Ranking is the act of ordering the round\'s songs from best to worst. It\'s how your votes become points, and how points become standings.',
-      'Across the whole league, rankings build up into a running leaderboard. Win enough rounds and you\'re the one everyone\'s chasing. Lose enough and… well, someone has to be last.',
-      'The final ranking at the end of the league answers one question: who has the best taste in music? Everything else is just filler.',
+      'Voting is anonymous — rank based on what you actually heard, not who you think submitted what. The songs you put first are the ones you\'re saying stood out. Listen closely. Taste is what this game is actually about.',
     ],
   },
 };
 
 const NEXT_TERM: Record<string, string> = {
   submission: 'voting',
-  voting: 'ranking',
-  ranking: 'submission',
 };
 
 export default function GlossaryPage() {

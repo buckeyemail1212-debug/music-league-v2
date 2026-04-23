@@ -14,7 +14,7 @@ const PURPLE = '#7C3AED';
 
 export default function HowToPlayPage() {
   const router = useRouter();
-  const openTerm = (slug: 'submission' | 'voting' | 'ranking') =>
+  const openTerm = (slug: 'submission' | 'voting') =>
     router.push(`/glossary/${slug}` as any);
 
   return (
@@ -69,11 +69,7 @@ export default function HowToPlayPage() {
                 <Text style={styles.link} onPress={() => openTerm('voting')}>
                   vote
                 </Text>
-                {' '}by{' '}
-                <Text style={styles.link} onPress={() => openTerm('ranking')}>
-                  ranking
-                </Text>
-                {' '}the other songs. Whoever has the best taste wins the round — and eventually the league.
+                {' '}by ranking the other songs. Whoever has the best taste wins the round — and eventually the league.
               </Text>
             }
           />
