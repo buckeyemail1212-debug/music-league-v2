@@ -276,16 +276,20 @@ export default function SettingsPage() {
           />
         </View>
 
-        {/* Danger */}
-        <Text style={styles.sectionLabel}>Danger zone</Text>
+        {/* Account */}
+        <Text style={styles.sectionLabel}>Account</Text>
         <View style={styles.group}>
           <Row
             icon="log-out-outline"
             label="Log out"
-            danger
             onPress={handleLogout}
+            last
           />
-          <Separator />
+        </View>
+
+        {/* Danger */}
+        <Text style={styles.sectionLabel}>Danger zone</Text>
+        <View style={styles.group}>
           <Row
             icon="trash-bin-outline"
             label={clearBusy ? 'Clearing...' : 'Clear account data'}

@@ -29,7 +29,6 @@ import { leagueEvents } from '../../src/utils/leagueEvents';
 import { pluralize } from '../../src/utils/pluralize';
 import { pastLeaguesCache } from '../../src/utils/pastLeaguesCache';
 import { publicLeaguesCache } from '../../src/utils/publicLeaguesCache';
-import { chooseProfilePhoto } from '../../src/utils/profilePhotoPicker';
 import LeagueAvatar from '../../src/components/LeagueAvatar';
 
 const getGreeting = () => {
@@ -109,20 +108,12 @@ const formatCountdown = (deadline: string, now: number = Date.now()): string => 
 };
 
 export default function HomeScreen() {
-  const { user, updateUser } = useAuth();
-  const [avatarUploading, setAvatarUploading] = useState(false);
-
-  const handlePickAvatar = () => {
-    chooseProfilePhoto(async (dataUrl) => {
-      setAvatarUploading(true);
-      try {
-        await updateUser({ profile_photo: dataUrl });
-      } finally {
-        setAvatarUploading(false);
-      }
-    });
-  };
+  const { user } = useAuth();
   const router = useRouter();
+
+  // Tapping the header avatar opens the Settings screen — photo changes
+  // live there under the existing profile photo camera badge.
+  const goToSettings = () => router.push('/settings' as any);
 
   const [leagues, setLeagues] = useState<League[]>([]);
   const [activeRounds, setActiveRounds] = useState<{ [id: string]: Round | null }>({});
@@ -430,20 +421,27 @@ export default function HomeScreen() {
 
   const listHeader = (
     <View>
-      {/* Greeting row with avatar + ? + gear */}
+      {/* Greeting row with ? + avatar (avatar taps into Settings). */}
       <View style={styles.headerRow}>
         <View style={{ flex: 1 }}>
           <Text style={styles.greeting}>{getGreeting()},</Text>
           <Text style={styles.username}>{user?.display_name || user?.username}</Text>
         </View>
 
-        {/* Profile avatar: tap to change. Shows photo if set, else a
-            dashed purple circle with a small "+" badge to invite upload. */}
         <TouchableOpacity
           style={styles.headerIconBtn}
           hitSlop={10}
-          onPress={handlePickAvatar}
-          disabled={avatarUploading}
+          onPress={() => router.push('/how-to-play' as any)}
+        >
+          <Ionicons name="help-circle-outline" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+
+        {/* Profile avatar: taps into Settings. Shows photo if set, else
+            a dashed purple circle with a small "+" badge. */}
+        <TouchableOpacity
+          style={styles.headerIconBtn}
+          hitSlop={10}
+          onPress={goToSettings}
           activeOpacity={0.75}
         >
           {user?.profile_photo ? (
@@ -459,21 +457,6 @@ export default function HomeScreen() {
               </View>
             </View>
           )}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.headerIconBtn}
-          hitSlop={10}
-          onPress={() => router.push('/how-to-play' as any)}
-        >
-          <Ionicons name="help-circle-outline" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.headerIconBtn}
-          hitSlop={10}
-          onPress={() => router.push('/settings' as any)}
-        >
-          <Ionicons name="settings-outline" size={22} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
 
@@ -545,10 +528,9 @@ export default function HomeScreen() {
           ListFooterComponent={listFooter}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Ionicons name="musical-notes" size={56} color="#7C3AED" />
               <Text style={styles.emptyTitle}>No active leagues</Text>
               <Text style={styles.emptyText}>
-                Tap the + button below to create a league or join one.
+                Tap + to create a league or join one.
               </Text>
             </View>
           }
@@ -755,9 +737,9 @@ const styles = StyleSheet.create({
 
   emptyState: {
     flex: 1, justifyContent: 'center', alignItems: 'center',
-    paddingVertical: 64, paddingHorizontal: 40,
+    paddingHorizontal: 40,
   },
-  emptyTitle: { fontSize: 22, fontWeight: '700', color: '#FFFFFF', marginTop: 14 },
+  emptyTitle: { fontSize: 22, fontWeight: '700', color: '#FFFFFF' },
   emptyText: { fontSize: 14, color: '#B3B3B3', textAlign: 'center', marginTop: 8, lineHeight: 20 },
   zoomOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.95)',
