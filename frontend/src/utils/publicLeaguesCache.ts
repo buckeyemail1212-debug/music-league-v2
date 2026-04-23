@@ -1,18 +1,18 @@
-import type { DiscoverLeague } from '../services/api';
+import type { PublicLeagueSummary } from '../services/api';
 
-// Module-level cache for the Discover page. Enables a
+// Module-level cache for the Public Leagues page. Enables a
 // stale-while-revalidate pattern: the page renders cached data
 // immediately on mount, kicks off a background refetch, and reconciles
 // when the refetch returns. Invalidated by `leagueEvents.emit()` (join,
 // leave, create) and by the page's own 30s background refetch.
 
-let cache: DiscoverLeague[] | null = null;
+let cache: PublicLeagueSummary[] | null = null;
 
-export const discoverLeaguesCache = {
-  get(): DiscoverLeague[] | null {
+export const publicLeaguesCache = {
+  get(): PublicLeagueSummary[] | null {
     return cache;
   },
-  set(list: DiscoverLeague[]) {
+  set(list: PublicLeagueSummary[]) {
     cache = list.slice();
   },
   clear() {

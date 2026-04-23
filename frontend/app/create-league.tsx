@@ -282,7 +282,7 @@ export default function CreateLeaguePage() {
             <View style={{ flex: 1 }}>
               <Text style={styles.themeToggleTitle}>Public league</Text>
               <Text style={styles.themeToggleSub}>
-                Listed on Discover. No invite code — Round 1 auto-starts on a timer. Caps at 50 members.
+                Listed on Public Leagues. No invite code · Round 1 auto-starts on timer.
               </Text>
             </View>
             <Switch

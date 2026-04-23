@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -14,12 +14,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
-  getDiscoverLeagues,
+  getPublicLeagues,
   joinPublicLeague,
-  DiscoverLeague,
+  PublicLeagueSummary,
 } from '../src/services/api';
 import { leagueEvents } from '../src/utils/leagueEvents';
-import { discoverLeaguesCache } from '../src/utils/discoverLeaguesCache';
+import { publicLeaguesCache } from '../src/utils/publicLeaguesCache';
 import LeagueAvatar from '../src/components/LeagueAvatar';
 
 const PURPLE = '#7C3AED';
@@ -43,11 +43,11 @@ const formatCountdown = (deadline: string, now: number): string => {
   return `${days}D ${hoursAfterDays}H ${minutesAfterHours}M`;
 };
 
-export default function DiscoverLeaguesPage() {
+export default function PublicLeaguesPage() {
   const router = useRouter();
 
-  const cached = discoverLeaguesCache.get();
-  const [leagues, setLeagues] = useState<DiscoverLeague[]>(cached ?? []);
+  const cached = publicLeaguesCache.get();
+  const [leagues, setLeagues] = useState<PublicLeagueSummary[]>(cached ?? []);
   const [loading, setLoading] = useState(cached == null);
   const [refreshing, setRefreshing] = useState(false);
   const [query, setQuery] = useState('');
@@ -67,16 +67,16 @@ export default function DiscoverLeaguesPage() {
     return () => clearTimeout(id);
   }, [query]);
 
-  const fetchDiscover = useCallback(
+  const fetchPublic = useCallback(
     async (q: string) => {
       try {
-        const res = await getDiscoverLeagues(q ? { q } : undefined);
+        const res = await getPublicLeagues(q ? { q } : undefined);
         setLeagues(res.data.leagues);
         // Only seed the shared cache for the unfiltered view — search
         // results are transient and shouldn't leak into later loads.
-        if (!q) discoverLeaguesCache.set(res.data.leagues);
+        if (!q) publicLeaguesCache.set(res.data.leagues);
       } catch (e) {
-        console.warn('getDiscoverLeagues failed', e);
+        console.warn('getPublicLeagues failed', e);
       } finally {
         setLoading(false);
       }
@@ -86,43 +86,43 @@ export default function DiscoverLeaguesPage() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchDiscover(debouncedQuery);
-    }, [fetchDiscover, debouncedQuery]),
+      fetchPublic(debouncedQuery);
+    }, [fetchPublic, debouncedQuery]),
   );
 
   // Refetch when the debounced query changes.
   useEffect(() => {
-    fetchDiscover(debouncedQuery);
-  }, [debouncedQuery, fetchDiscover]);
+    fetchPublic(debouncedQuery);
+  }, [debouncedQuery, fetchPublic]);
 
   // Invalidate on join/leave/create events from elsewhere in the app.
   useEffect(() => {
     const unsub = leagueEvents.subscribe(() => {
-      discoverLeaguesCache.clear();
-      fetchDiscover(debouncedQuery);
+      publicLeaguesCache.clear();
+      fetchPublic(debouncedQuery);
     });
     return () => {
       unsub();
     };
-  }, [fetchDiscover, debouncedQuery]);
+  }, [fetchPublic, debouncedQuery]);
 
   // Periodic background refresh so newly-created public leagues surface
   // without requiring a pull-to-refresh.
   useEffect(() => {
     const id = setInterval(() => {
-      fetchDiscover(debouncedQuery);
+      fetchPublic(debouncedQuery);
     }, 30000);
     return () => clearInterval(id);
-  }, [fetchDiscover, debouncedQuery]);
+  }, [fetchPublic, debouncedQuery]);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    discoverLeaguesCache.clear();
-    await fetchDiscover(debouncedQuery);
+    publicLeaguesCache.clear();
+    await fetchPublic(debouncedQuery);
     setRefreshing(false);
   };
 
-  const handleJoin = async (league: DiscoverLeague) => {
+  const handleJoin = async (league: PublicLeagueSummary) => {
     if (joiningId) return;
     setJoiningId(league.id);
     try {
@@ -151,7 +151,7 @@ export default function DiscoverLeaguesPage() {
     }
   };
 
-  const renderRow = ({ item }: { item: DiscoverLeague }) => {
+  const renderRow = ({ item }: { item: PublicLeagueSummary }) => {
     const isFull = item.member_count >= item.member_cap;
     const joined = item.has_current_user_joined;
     const countdown = formatCountdown(item.starts_at, nowMs);
@@ -212,10 +212,7 @@ export default function DiscoverLeaguesPage() {
   };
 
   const count = leagues.length;
-  const subtitle =
-    count === 0
-      ? 'No public leagues starting soon'
-      : `${count} public ${count === 1 ? 'league' : 'leagues'} · Starting soon`;
+  const countLabel = `${count} public ${count === 1 ? 'league' : 'leagues'}`;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -230,9 +227,10 @@ export default function DiscoverLeaguesPage() {
       </View>
 
       <View style={styles.titleBlock}>
-        <Text style={styles.title}>DISCOVER LEAGUES</Text>
-        <Text style={styles.subtitle}>{subtitle}</Text>
+        <Text style={styles.title}>PUBLIC LEAGUES</Text>
       </View>
+
+      <Text style={styles.countLine}>{countLabel}</Text>
 
       <View style={styles.searchWrap}>
         <Ionicons
@@ -309,7 +307,7 @@ const styles = StyleSheet.create({
   titleBlock: {
     paddingHorizontal: 20,
     paddingTop: 4,
-    paddingBottom: 12,
+    paddingBottom: 6,
   },
   title: {
     fontSize: 26,
@@ -317,10 +315,11 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: 1,
   },
-  subtitle: {
+  countLine: {
+    paddingHorizontal: 20,
+    paddingBottom: 12,
     fontSize: 13,
     color: '#B3B3B3',
-    marginTop: 6,
   },
 
   searchWrap: {

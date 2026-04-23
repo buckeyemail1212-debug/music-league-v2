@@ -55,7 +55,7 @@ export default function LeagueCreatedSuccess({
         <Text style={styles.successName}>{league.name}</Text>
         {league.is_public ? (
           <Text style={styles.successPrompt}>
-            Your league is now listed on Discover. Round 1 will start automatically when the timer hits zero.
+            Your league is now listed on Public Leagues. Round 1 will start automatically when the timer hits zero.
           </Text>
         ) : (
           <>

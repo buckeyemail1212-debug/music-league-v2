@@ -1740,11 +1740,19 @@ async def get_my_submissions(current_user: dict = Depends(get_current_user)):
     rounds_by_id = {r["id"]: r for r in rounds}
 
     league_ids = list({r["league_id"] for r in rounds})
-    leagues = await db.leagues.find({"id": {"$in": league_ids}}, {"_id": 0, "id": 1, "name": 1, "league_image": 1}).to_list(500)
+    leagues = await db.leagues.find(
+        {"id": {"$in": league_ids}},
+        {"_id": 0, "id": 1, "name": 1, "league_image": 1, "status": 1, "deleted_at": 1},
+    ).to_list(500)
     leagues_by_id = {l["id"]: l for l in leagues}
 
     completed_round_ids = [rid for rid, r in rounds_by_id.items() if r.get("status") == "completed"]
     points_by_sub_id: dict[str, int] = {}
+    # Per-round: sorted submission ids by points desc so we can compute
+    # standard competition rank (1, 2, 2, 4). total_subs_by_round is the
+    # "of N" denominator in "3rd of 8".
+    sub_rank_by_id: dict[str, int] = {}
+    total_subs_by_round: dict[str, int] = {}
     if completed_round_ids:
         all_round_subs = await db.submissions.find(
             {"round_id": {"$in": completed_round_ids}},
@@ -1768,6 +1776,7 @@ async def get_my_submissions(current_user: dict = Depends(get_current_user)):
             if not round_subs:
                 continue
             num_subs = len(round_subs)
+            total_subs_by_round[rid] = num_subs
             num_to_rank = num_subs - 1
 
             pts: dict[str, int] = {s["id"]: 0 for s in round_subs}
@@ -1798,12 +1807,41 @@ async def get_my_submissions(current_user: dict = Depends(get_current_user)):
             for sid, p in pts.items():
                 points_by_sub_id[sid] = p
 
+            # Standard competition ranking: ties share a rank, the next
+            # rank skips by the tie size. Sort once by points desc.
+            ordered = sorted(pts.items(), key=lambda kv: -kv[1])
+            last_points: Optional[int] = None
+            last_rank = 0
+            for i, (sid, p) in enumerate(ordered, start=1):
+                if last_points is None or p != last_points:
+                    last_rank = i
+                    last_points = p
+                sub_rank_by_id[sid] = last_rank
+
     result = []
     for s in submissions:
         r = rounds_by_id.get(s["round_id"])
         if not r:
             continue
         league = leagues_by_id.get(r["league_id"], {})
+        # league_status is derived, not raw. "deleted" wins over the
+        # stored status when deleted_at is set — the frontend uses this
+        # to decide whether to render the "League deleted" label.
+        if league.get("deleted_at"):
+            league_status = "deleted"
+        else:
+            league_status = league.get("status") or "active"
+
+        round_status = r.get("status")
+        is_round_completed = round_status == "completed"
+        # Points/placement are only meaningful if the round actually
+        # finished scoring. For a deleted league whose round was mid-
+        # flight at deletion, round_status stays at submission/voting
+        # and these fields correctly stay null.
+        points_earned = points_by_sub_id.get(s["id"]) if is_round_completed else None
+        placement = sub_rank_by_id.get(s["id"]) if is_round_completed else None
+        total_in_round = total_subs_by_round.get(r["id"]) if is_round_completed else None
+
         result.append({
             "submission_id": s["id"],
             "song": s.get("song"),
@@ -1811,11 +1849,17 @@ async def get_my_submissions(current_user: dict = Depends(get_current_user)):
             "round_id": r["id"],
             "round_number": r.get("round_number"),
             "round_theme": r.get("theme"),
-            "round_status": r.get("status"),
+            "round_status": round_status,
             "league_id": r["league_id"],
             "league_name": league.get("name", ""),
             "league_image": league.get("league_image"),
-            "points": points_by_sub_id.get(s["id"]) if r.get("status") == "completed" else None,
+            "league_status": league_status,
+            # Legacy field, kept for older clients. New code should use
+            # points_earned.
+            "points": points_earned,
+            "points_earned": points_earned,
+            "placement": placement,
+            "total_submissions_in_round": total_in_round,
         })
     return {"submissions": result}
 
@@ -2089,14 +2133,14 @@ async def get_user_leagues(current_user: dict = Depends(get_current_user)):
     return [LeagueResponse(**add_league_defaults(league)) for league in leagues]
 
 
-# ==================== DISCOVER (PUBLIC LEAGUES) =========================
+# ==================== PUBLIC LEAGUES =====================================
 # Surfaces public leagues whose Round 1 hasn't auto-started yet. Results
 # are sorted by starts_at ascending so the soonest-to-start leagues appear
 # first. Private leagues and already-started/completed/deleted public
 # leagues are excluded.
 
-@api_router.get("/leagues/discover")
-async def discover_public_leagues(
+@api_router.get("/leagues/public")
+async def list_public_leagues(
     q: Optional[str] = None,
     limit: int = 50,
     offset: int = 0,
@@ -4923,8 +4967,8 @@ async def past_leagues_startup_maintenance():
         await _backfill_past_league_finished_dates()
     except Exception as e:
         logger.warning(f"past_leagues backfill failed: {e}")
-    # Public-league discovery queries filter on starts_at; index it so the
-    # Discover page stays fast as the leagues collection grows.
+    # Public-league listing queries filter on starts_at; index it so the
+    # Public Leagues page stays fast as the leagues collection grows.
     try:
         await db.leagues.create_index("starts_at")
     except Exception as e:

@@ -18,7 +18,7 @@ import {
   getRounds,
   getLeagueStandings,
   getPastLeagues,
-  getDiscoverLeagues,
+  getPublicLeagues,
   League,
   Round,
   LeagueStandings,
@@ -28,7 +28,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { leagueEvents } from '../../src/utils/leagueEvents';
 import { pluralize } from '../../src/utils/pluralize';
 import { pastLeaguesCache } from '../../src/utils/pastLeaguesCache';
-import { discoverLeaguesCache } from '../../src/utils/discoverLeaguesCache';
+import { publicLeaguesCache } from '../../src/utils/publicLeaguesCache';
 import { chooseProfilePhoto } from '../../src/utils/profilePhotoPicker';
 import LeagueAvatar from '../../src/components/LeagueAvatar';
 
@@ -132,8 +132,8 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [pastLeagues, setPastLeagues] = useState<PastLeague[]>([]);
-  const [discoverCount, setDiscoverCount] = useState<number>(
-    () => discoverLeaguesCache.get()?.length ?? 0,
+  const [publicCount, setPublicCount] = useState<number>(
+    () => publicLeaguesCache.get()?.length ?? 0,
   );
 
   const flatListRef = useRef<FlatList>(null);
@@ -141,16 +141,16 @@ export default function HomeScreen() {
 
   const fetchAll = async () => {
     try {
-      const [leaguesRes, pastRes, discoverRes] = await Promise.all([
+      const [leaguesRes, pastRes, publicRes] = await Promise.all([
         getLeagues(),
         getPastLeagues().catch(() => ({ data: { leagues: [] } } as any)),
-        getDiscoverLeagues().catch(
+        getPublicLeagues().catch(
           () => ({ data: { leagues: [], count: 0 } } as any),
         ),
       ]);
-      const discoverList = discoverRes?.data?.leagues ?? [];
-      setDiscoverCount(discoverList.length);
-      discoverLeaguesCache.set(discoverList);
+      const publicList = publicRes?.data?.leagues ?? [];
+      setPublicCount(publicList.length);
+      publicLeaguesCache.set(publicList);
       // A league is "active" iff it hasn't been marked completed. The old
       // `current_round >= total_rounds` heuristic incorrectly hid leagues
       // whose final round was ready/submission/voting (since
@@ -487,20 +487,20 @@ export default function HomeScreen() {
     </View>
   );
 
-  const showDiscoverRow = discoverCount > 0;
+  const showPublicRow = publicCount > 0;
   const showPastRow = pastLeagues.length > 0;
   const listFooter =
-    showDiscoverRow || showPastRow ? (
+    showPublicRow || showPastRow ? (
       <View style={{ marginTop: leagues.length > 0 ? 20 : 6 }}>
-        {showDiscoverRow && (
+        {showPublicRow && (
           <TouchableOpacity
             style={styles.pastEntry}
-            onPress={() => router.push('/discover-leagues' as any)}
+            onPress={() => router.push('/public-leagues' as any)}
             activeOpacity={0.75}
           >
-            <Text style={styles.activeLeaguesTitle}>DISCOVER LEAGUES</Text>
+            <Text style={styles.activeLeaguesTitle}>PUBLIC LEAGUES</Text>
             <View style={styles.pastEntryRight}>
-              <Text style={styles.pastEntryCount}>{discoverCount}</Text>
+              <Text style={styles.pastEntryCount}>{publicCount}</Text>
               <Ionicons name="chevron-forward" size={22} color="#B3B3B3" />
             </View>
           </TouchableOpacity>

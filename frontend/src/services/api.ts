@@ -186,11 +186,21 @@ export interface MySubmission {
   round_id: string;
   round_number: number;
   round_theme: string;
-  round_status: 'submission' | 'voting' | 'completed';
+  round_status: 'submission' | 'voting' | 'completed' | 'skipped';
   league_id: string;
   league_name: string;
   league_image?: string | null;
+  // "active" | "completed" | "deleted" — derived from league.status +
+  // league.deleted_at on the backend so the client doesn't have to
+  // reason about soft-deletes.
+  league_status?: 'active' | 'completed' | 'deleted';
+  // Legacy field kept for backward compatibility. Prefer points_earned.
   points: number | null;
+  points_earned?: number | null;
+  // User's rank in the round (standard competition: ties share a rank).
+  // Null until the round is completed.
+  placement?: number | null;
+  total_submissions_in_round?: number | null;
 }
 
 export const getMySubmissions = () =>
@@ -323,8 +333,8 @@ export const deleteAccountFull = () =>
 export const leaveLeague = (id: string) =>
   api.post<{ message: string; league_deleted?: boolean }>(`/leagues/${id}/leave`);
 
-// Public-league discovery.
-export interface DiscoverLeague {
+// Summary rows for the Public Leagues page (GET /leagues/public).
+export interface PublicLeagueSummary {
   id: string;
   name: string;
   total_rounds: number;
@@ -336,8 +346,8 @@ export interface DiscoverLeague {
   creator_username?: string | null;
 }
 
-export const getDiscoverLeagues = (params?: { q?: string; limit?: number; offset?: number }) =>
-  api.get<{ leagues: DiscoverLeague[]; count: number }>('/leagues/discover', { params });
+export const getPublicLeagues = (params?: { q?: string; limit?: number; offset?: number }) =>
+  api.get<{ leagues: PublicLeagueSummary[]; count: number }>('/leagues/public', { params });
 
 export const joinPublicLeague = (id: string) =>
   api.post<League>(`/leagues/${id}/join-public`);

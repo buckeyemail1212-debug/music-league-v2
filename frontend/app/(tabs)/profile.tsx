@@ -22,7 +22,6 @@ import {
   getMySubmissions,
   getLifetimeStats,
   getUserTaste,
-  getResults,
   MySubmission,
   UserStats,
   LifetimeStats,
@@ -121,8 +120,6 @@ export default function MyGameScreen() {
   const [mySubmissions, setMySubmissions] = useState<MySubmission[]>([]);
   const [lifetimeStats, setLifetimeStats] = useState<LifetimeStats | null>(null);
   const [taste, setTaste] = useState<TasteBreakdown | null>(null);
-  // Place lookup for recent submissions (points → place)
-  const [placeByRound, setPlaceByRound] = useState<Record<string, { place: number; of: number }>>({});
 
   const [likedSongs, setLikedSongs] = useState<LikedSong[]>([]);
   const [showLiked, setShowLiked] = useState(false);
@@ -149,32 +146,9 @@ export default function MyGameScreen() {
     } catch {}
   }, []);
 
-  // For each completed round in recent submissions, derive "Nth of M" — we
-  // already have points, but translating to a place requires round results.
-  useEffect(() => {
-    const completed = mySubmissions.filter(
-      (s) => s.round_status === 'completed' && s.points !== null && s.points !== undefined,
-    );
-    if (completed.length === 0) return;
-    let cancelled = false;
-    (async () => {
-      const next: Record<string, { place: number; of: number }> = {};
-      for (const s of completed) {
-        try {
-          const res = await getResults(s.round_id);
-          const rankings = res.data.rankings ?? [];
-          const entry = rankings.find((r) => r.submission_id === s.submission_id);
-          if (entry) {
-            next[s.round_id] = { place: entry.rank, of: rankings.length };
-          }
-        } catch {}
-      }
-      if (!cancelled) setPlaceByRound(next);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [mySubmissions]);
+  // Placement + total_submissions_in_round now arrive inline with each
+  // submission from /auth/submissions, so the per-row getResults fan-out
+  // that used to live here is gone.
 
   const loadLikedSongs = useCallback(async () => {
     if (!user?.id) return;
@@ -311,11 +285,68 @@ export default function MyGameScreen() {
           {displayedSubmissions.length > 0 ? (
             displayedSubmissions.map((sub, idx, arr) => {
               const last = idx === arr.length - 1;
-              const place = placeByRound[sub.round_id];
+
+              // State label + whether to surface points/placement.
+              // Matrix (spec):
+              //   round submission              → "Open · Submission", hide
+              //   round voting                  → "Open · Voting", hide
+              //   round completed + league active    → "Completed", show
+              //   round completed + league completed → "Final result", show
+              //   league deleted + round was completed → "League deleted", show frozen
+              //   league deleted + round not completed → "League deleted", hide
+              const leagueDeleted = sub.league_status === 'deleted';
+              const roundCompleted = sub.round_status === 'completed';
+              const leagueCompleted = sub.league_status === 'completed';
+
+              let labelPrimary: string;
+              let showScored: boolean;
+              if (leagueDeleted) {
+                labelPrimary = 'League deleted';
+                // Only surface scored data if the round actually finished
+                // before the league was deleted.
+                showScored = roundCompleted;
+              } else if (sub.round_status === 'submission') {
+                labelPrimary = 'Open · Submission';
+                showScored = false;
+              } else if (sub.round_status === 'voting') {
+                labelPrimary = 'Open · Voting';
+                showScored = false;
+              } else if (roundCompleted && leagueCompleted) {
+                labelPrimary = 'Final result';
+                showScored = true;
+              } else if (roundCompleted) {
+                labelPrimary = 'Completed';
+                showScored = true;
+              } else {
+                // skipped or unexpected states
+                labelPrimary = 'Closed';
+                showScored = false;
+              }
+
+              const points = sub.points_earned ?? sub.points;
+              const placement = sub.placement ?? null;
+              const totalInRound = sub.total_submissions_in_round ?? null;
+              const placementText =
+                showScored && placement != null && totalInRound != null
+                  ? `${ordinal(placement)} of ${totalInRound}`
+                  : null;
+              const pointsText =
+                showScored && points != null
+                  ? `${points} ${points === 1 ? 'pt' : 'pts'}`
+                  : null;
+
+              const labelParts = [labelPrimary, placementText, pointsText]
+                .filter(Boolean)
+                .join(' · ');
+
+              const roundContext = `Round ${sub.round_number} · ${sub.league_name || 'League'}`;
+
               return (
-                <View
+                <TouchableOpacity
                   key={sub.submission_id}
                   style={[styles.submissionRow, last && styles.rowLast]}
+                  activeOpacity={0.75}
+                  onPress={() => router.push(`/round/${sub.round_id}` as any)}
                 >
                   <View
                     style={[
@@ -326,9 +357,7 @@ export default function MyGameScreen() {
                     {sub.song?.cover_url ? (
                       <Image source={{ uri: sub.song.cover_url }} style={styles.submissionArtImage} />
                     ) : (
-                      <Text style={styles.submissionArtInitial}>
-                        {(sub.song?.title || '?').charAt(0).toUpperCase()}
-                      </Text>
+                      <Ionicons name="musical-note" size={20} color="#FFFFFF" />
                     )}
                   </View>
                   <View style={styles.submissionInfo}>
@@ -338,25 +367,15 @@ export default function MyGameScreen() {
                     <Text style={styles.submissionArtist} numberOfLines={1}>
                       {sub.song?.artist}
                     </Text>
-                    {sub.league_name ? (
-                      <View style={styles.leaguePill}>
-                        <Text style={styles.leaguePillText} numberOfLines={1}>
-                          {sub.league_name}
-                        </Text>
-                      </View>
-                    ) : null}
-                  </View>
-                  {sub.round_status === 'completed' && place ? (
-                    <View style={styles.placeCol}>
-                      <Text style={styles.placeOrdinal}>{ordinal(place.place)}</Text>
-                      <Text style={styles.placeOf}>of {place.of}</Text>
-                    </View>
-                  ) : (
-                    <Text style={styles.submissionPending}>
-                      {sub.round_status === 'voting' ? 'VOTING' : 'OPEN'}
+                    <Text style={styles.submissionContext} numberOfLines={1}>
+                      {roundContext}
                     </Text>
-                  )}
-                </View>
+                    <Text style={styles.submissionState} numberOfLines={1}>
+                      {labelParts}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="#6A6A6A" />
+                </TouchableOpacity>
               );
             })
           ) : (
@@ -581,6 +600,17 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#F59E0B',
     letterSpacing: 0.6,
+  },
+  submissionContext: {
+    color: '#B3B3B3',
+    fontSize: 11,
+    marginTop: 6,
+  },
+  submissionState: {
+    color: '#6A6A6A',
+    fontSize: 11,
+    marginTop: 2,
+    fontWeight: '600',
   },
 });
 

@@ -30,7 +30,7 @@ export default function RootLayout() {
           <Stack.Screen name="join-league" options={{ headerShown: false, animation: 'slide_from_right' }} />
           <Stack.Screen name="past-league/[id]" options={{ headerShown: false, animation: 'slide_from_right' }} />
           <Stack.Screen name="past-leagues" options={{ headerShown: false, animation: 'slide_from_right' }} />
-          <Stack.Screen name="discover-leagues" options={{ headerShown: false, animation: 'slide_from_right' }} />
+          <Stack.Screen name="public-leagues" options={{ headerShown: false, animation: 'slide_from_right' }} />
         </Stack>
       </AuthProvider>
     </GestureHandlerRootView>
