@@ -200,7 +200,7 @@ export default function InboxScreen() {
                   leagueName: league.name,
                   leagueImage: league.league_image || undefined,
                   roundInfo: `Round ${r.round_number}`,
-                  message: `${r.status === 'submission' ? 'Submit' : 'Vote'} closes in ${pluralize(hours, 'hour')} — don\u2019t miss out`,
+                  message: `${r.status === 'submission' ? 'Submission' : 'Voting'} closes in ${pluralize(hours, 'hour')} — don\u2019t miss out`,
                   timestamp: Date.now() - 1000,
                   onTap: 'round',
                   roundId: r.id,
@@ -219,7 +219,7 @@ export default function InboxScreen() {
                     roundInfo: `Round ${r.round_number}`,
                     message: (r.theme || '').trim()
                       ? `New round in ${league.name}: \u201C${(r.theme || '').trim()}\u201D`
-                      : `Submit song to ${league.name} League`,
+                      : `Submit a song to ${league.name}`,
                     timestamp: createdTs,
                     onTap: 'round',
                     roundId: r.id,

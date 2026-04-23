@@ -28,7 +28,6 @@ import {
   LifetimeStats,
   TasteBreakdown,
 } from '../../src/services/api';
-import { pluralize } from '../../src/utils/pluralize';
 import { leagueEvents } from '../../src/utils/leagueEvents';
 import AlbumArt from '../../src/components/AlbumArt';
 
@@ -381,11 +380,6 @@ export default function MyGameScreen() {
               </View>
               <View>
                 <Text style={styles.rowLabel}>Your liked songs</Text>
-                <Text style={styles.likedSubtitle}>
-                  {likedSongs.length === 0
-                    ? 'Heart songs in Discover to save them here'
-                    : pluralize(likedSongs.length, 'song')}
-                </Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={18} color="#B3B3B3" />

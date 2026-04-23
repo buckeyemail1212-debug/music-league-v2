@@ -26,13 +26,6 @@ import {
 } from '../src/services/api';
 import { leagueEvents } from '../src/utils/leagueEvents';
 
-function formatJoinDate(created?: string): string {
-  if (!created) return '';
-  const d = new Date(created.endsWith('Z') || created.includes('+') ? created : created + 'Z');
-  if (isNaN(d.getTime())) return '';
-  return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
-}
-
 export default function SettingsPage() {
   const router = useRouter();
   const { user, logout, updateUser } = useAuth();
@@ -245,12 +238,13 @@ export default function SettingsPage() {
           <Text style={styles.profileName}>
             {user?.display_name || user?.username}
           </Text>
-          <Text style={styles.profileJoin}>
-            Joined {formatJoinDate(user?.created_at)}
-          </Text>
-          <TouchableOpacity style={styles.editBtn} onPress={openEdit} activeOpacity={0.85}>
-            <Ionicons name="create-outline" size={14} color="#FFFFFF" />
-            <Text style={styles.editBtnText}>Edit username</Text>
+          {user?.email ? (
+            <Text style={styles.profileEmail} numberOfLines={1}>
+              {user.email}
+            </Text>
+          ) : null}
+          <TouchableOpacity style={styles.editChip} onPress={openEdit} activeOpacity={0.85}>
+            <Text style={styles.editChipText}>Edit</Text>
           </TouchableOpacity>
         </View>
 
@@ -591,23 +585,21 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     marginTop: 14,
   },
-  profileJoin: {
+  profileEmail: {
     fontSize: 13,
     color: '#B3B3B3',
     marginTop: 4,
+    maxWidth: '90%',
   },
-  editBtn: {
+  editChip: {
     marginTop: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 7,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
   },
-  editBtnText: {
+  editChipText: {
     color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '700',

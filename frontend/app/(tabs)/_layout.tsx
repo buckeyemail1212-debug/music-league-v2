@@ -79,14 +79,20 @@ export default function TabLayout() {
           tabBarActiveTintColor: '#7C3AED',
           tabBarInactiveTintColor: '#B3B3B3',
           tabBarItemStyle: {
+            // Equal horizontal space per slot. Tight internal padding so
+            // long labels like "MY GAME" don't clip.
             paddingVertical: 2,
+            paddingHorizontal: 2,
           },
           tabBarLabelStyle: {
-            fontSize: 10,
+            // Slightly smaller + tighter spacing so "MY GAME" and
+            // "DISCOVER" fit comfortably at ~390pt viewport widths.
+            fontSize: 9.5,
             fontWeight: '700',
             marginTop: 4,
-            letterSpacing: 0.8,
+            letterSpacing: 0.4,
             textTransform: 'uppercase',
+            includeFontPadding: false,
           },
         }}
       >

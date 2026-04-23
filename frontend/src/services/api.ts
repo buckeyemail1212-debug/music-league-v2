@@ -283,6 +283,14 @@ export interface PastLeague {
 export const getPastLeagues = () =>
   api.get<{ leagues: PastLeague[] }>('/leagues/past');
 
+// Remove a single past league from the current user's archive. Does not
+// affect other members' copies — the underlying snapshot is preserved
+// unless this user was its last member.
+export const deletePastLeague = (leagueId: string) =>
+  api.delete<{ message: string; snapshots_touched: number }>(
+    `/leagues/past/${leagueId}`,
+  );
+
 export const clearPastLeagues = () =>
   api.delete<{ message: string; hard_deleted_leagues: number; cleared_at: string }>(
     '/leagues/past',

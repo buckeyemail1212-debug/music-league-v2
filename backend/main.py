@@ -2055,6 +2055,7 @@ async def get_user_leagues(current_user: dict = Depends(get_current_user)):
 async def get_past_leagues(current_user: dict = Depends(get_current_user)):
     user_id = current_user["id"]
     cleared_at = _effective_cleared_at(current_user)
+    hidden_ids: set[str] = set(current_user.get("past_leagues_hidden") or [])
 
     # Back-fill snapshots for any league this user is/was a member of that
     # qualifies as "past" but isn't in past_leagues yet. Skips leagues
@@ -2069,6 +2070,11 @@ async def get_past_leagues(current_user: dict = Depends(get_current_user)):
 
     entries = []
     for d in docs:
+        # Individually-hidden past leagues (swipe-to-delete) stay out of
+        # the list even if the user is still in member_ids for some
+        # reason (e.g. snapshot re-written after they hid it).
+        if d.get("id") in hidden_ids:
+            continue
         # Respect the per-user "clear history" cutoff.
         if cleared_at and d.get("finished_at"):
             finished_raw = d["finished_at"]
@@ -2131,6 +2137,60 @@ async def delete_past_leagues(current_user: dict = Depends(get_current_user)):
         "message": "Past league history cleared",
         "snapshots_cleared": len(docs),
         "cleared_at": now.isoformat(),
+    }
+
+
+@api_router.delete("/leagues/past/{league_id}")
+async def delete_one_past_league(
+    league_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Remove a single past league from the current user's archive.
+
+    Pulls the user from the snapshot's `member_ids`/`members`/standings
+    and unsets their personal submissions entry. If the user was the
+    snapshot's sole remaining member, the snapshot doc is deleted so
+    nothing stale lingers.
+
+    Also records the league_id in `user.past_leagues_hidden` so the
+    lazy backfill doesn't re-materialize the snapshot on the next
+    /leagues/past fetch. Other members who still have this league in
+    their archive are unaffected.
+    """
+    user_id = current_user["id"]
+    snap = await db.past_leagues.find_one(
+        {"id": league_id},
+        {"_id": 0, "member_ids": 1},
+    )
+    snapshots_touched = 0
+    if snap:
+        remaining = [mid for mid in (snap.get("member_ids") or []) if mid != user_id]
+        if remaining:
+            await db.past_leagues.update_one(
+                {"id": league_id},
+                {
+                    "$pull": {
+                        "member_ids": user_id,
+                        "members": {"user_id": user_id},
+                        "standings": {"user_id": user_id},
+                    },
+                    "$unset": {f"submissions_by_user.{user_id}": ""},
+                },
+            )
+        else:
+            await db.past_leagues.delete_one({"id": league_id})
+        snapshots_touched = 1
+
+    # Remember that this user has suppressed this league_id so the
+    # backfill doesn't recreate the snapshot for them next time.
+    await db.users.update_one(
+        {"id": user_id},
+        {"$addToSet": {"past_leagues_hidden": league_id}},
+    )
+
+    return {
+        "message": "Past league removed from archive",
+        "snapshots_touched": snapshots_touched,
     }
 
 
@@ -2344,18 +2404,18 @@ async def _build_past_league_snapshot(
     completed_round_ids = [r["id"] for r in completed_rounds]
     all_round_ids = [r["id"] for r in rounds]
 
-    # Finish date = latest completed round deadline, or deleted_at.
-    finish_dt = None
-    if completed_rounds:
-        finish_dt = max(
-            (ensure_utc(r.get("voting_deadline") or r.get("created_at")) for r in completed_rounds),
-            default=None,
-        )
+    # Finish date: when the league *actually* ended.
+    #   - Deleted leagues: the delete timestamp, full stop.
+    #   - Completed leagues: `now`, which is the snapshot creation time —
+    #     the final round just tipped completed and triggered this call.
+    # Previously we used max(voting_deadline) across completed rounds,
+    # which is the *scheduled* deadline and can sit days in the future
+    # if rounds were advanced manually or the league was cut short.
     if is_deleted:
-        dd = ensure_utc(deleted_at) if deleted_at else now
-        if finish_dt is None or dd > finish_dt:
-            finish_dt = dd
-    if finish_dt is None:
+        finish_dt = ensure_utc(deleted_at) if deleted_at else now
+    elif completed_rounds:
+        finish_dt = now
+    else:
         finish_dt = ensure_utc(league.get("created_at")) or now
 
     # Members + standings seed.
@@ -2586,9 +2646,10 @@ async def _backfill_past_leagues_for_user(user_id: str) -> None:
     """
     user_doc = await db.users.find_one(
         {"id": user_id},
-        {"_id": 0, "gameplay_data_cleared_at": 1, "past_leagues_cleared_at": 1},
+        {"_id": 0, "gameplay_data_cleared_at": 1, "past_leagues_cleared_at": 1, "past_leagues_hidden": 1},
     )
     cleared_at = _effective_cleared_at(user_doc)
+    hidden_ids: set[str] = set((user_doc or {}).get("past_leagues_hidden") or [])
 
     candidates = await db.leagues.find(
         {"members.id": user_id},
@@ -2596,6 +2657,10 @@ async def _backfill_past_leagues_for_user(user_id: str) -> None:
     ).to_list(500)
     for l in candidates:
         lid = l["id"]
+        # Skip leagues the user has individually removed from their
+        # past-leagues archive via swipe-to-delete.
+        if lid in hidden_ids:
+            continue
         existing = await db.past_leagues.find_one({"id": lid}, {"_id": 0, "id": 1})
         if existing:
             continue
@@ -4484,6 +4549,105 @@ async def start_round_auto_advance():
 
     global _auto_advance_task
     _auto_advance_task = asyncio.create_task(loop())
+
+
+# ==================== PAST_LEAGUES MAINTENANCE (ON STARTUP) =============
+
+
+async def _backfill_past_league_finished_dates() -> int:
+    """Recompute `past_leagues.finished_at` using the current derivation
+    rules on every document already in the collection. One-time
+    repair for snapshots written before the finished_at fix landed.
+    Idempotent — a second run is a no-op.
+
+    Rules (mirror `_build_past_league_snapshot`):
+      - Source league soft-deleted (or snapshot flagged is_deleted) →
+        use the league's `deleted_at`.
+      - Otherwise (league completed cleanly) → use the snapshot's
+        `snapshot_at`, which was recorded at the moment the final round
+        tipped completed.
+      - Fall back to the source league's `created_at` if neither
+        reference is available.
+
+    Skip any snapshot whose source league no longer exists — nothing to
+    re-derive from.
+    """
+    docs = await db.past_leagues.find(
+        {},
+        {"_id": 0, "id": 1, "is_deleted": 1, "finished_at": 1,
+         "snapshot_at": 1, "deleted_at": 1, "completed_at": 1},
+    ).to_list(5000)
+
+    updated = 0
+    skipped_missing = 0
+    for d in docs:
+        lid = d.get("id")
+        if not lid:
+            continue
+        league = await db.leagues.find_one(
+            {"id": lid},
+            {"_id": 0, "deleted_at": 1, "created_at": 1},
+        )
+        if not league:
+            logger.info(
+                f"past_leagues backfill: source league {lid} missing — skipping"
+            )
+            skipped_missing += 1
+            continue
+
+        if d.get("is_deleted") or league.get("deleted_at"):
+            raw = league.get("deleted_at") or d.get("deleted_at")
+        else:
+            raw = d.get("snapshot_at") or d.get("completed_at") or league.get("created_at")
+
+        if not raw:
+            continue
+
+        try:
+            if isinstance(raw, datetime):
+                new_dt = ensure_utc(raw)
+            else:
+                new_dt = ensure_utc(
+                    datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+                )
+        except Exception:
+            continue
+        new_iso = new_dt.isoformat()
+
+        if new_iso == d.get("finished_at"):
+            continue  # already correct
+
+        await db.past_leagues.update_one(
+            {"id": lid},
+            {"$set": {"finished_at": new_iso}},
+        )
+        updated += 1
+
+    logger.info(
+        f"past_leagues backfill: updated={updated} "
+        f"skipped_missing_league={skipped_missing} scanned={len(docs)}"
+    )
+    return updated
+
+
+@app.on_event("startup")
+async def past_leagues_startup_maintenance():
+    """Creates the indexes the read-paths rely on (member_ids for the
+    user's archive query, finished_at for the descending sort) and runs
+    the finished_at backfill once. All three operations are idempotent
+    — safe to run on every process boot."""
+    try:
+        await db.past_leagues.create_index("member_ids")
+    except Exception as e:
+        logger.warning(f"past_leagues member_ids index creation failed: {e}")
+    try:
+        await db.past_leagues.create_index("finished_at")
+    except Exception as e:
+        logger.warning(f"past_leagues finished_at index creation failed: {e}")
+    try:
+        await _backfill_past_league_finished_dates()
+    except Exception as e:
+        logger.warning(f"past_leagues backfill failed: {e}")
 
 
 @api_router.post("/auth/reclassify-genres")

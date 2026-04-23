@@ -26,6 +26,8 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { leagueEvents } from '../../src/utils/leagueEvents';
 import { pluralize } from '../../src/utils/pluralize';
+import { pastLeaguesCache } from '../../src/utils/pastLeaguesCache';
+import { chooseProfilePhoto } from '../../src/utils/profilePhotoPicker';
 import LeagueAvatar from '../../src/components/LeagueAvatar';
 
 const getGreeting = () => {
@@ -96,7 +98,19 @@ const formatCountdown = (deadline: string, now: number = Date.now()): string => 
 };
 
 export default function HomeScreen() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
+  const [avatarUploading, setAvatarUploading] = useState(false);
+
+  const handlePickAvatar = () => {
+    chooseProfilePhoto(async (dataUrl) => {
+      setAvatarUploading(true);
+      try {
+        await updateUser({ profile_photo: dataUrl });
+      } finally {
+        setAvatarUploading(false);
+      }
+    });
+  };
   const router = useRouter();
 
   const [leagues, setLeagues] = useState<League[]>([]);
@@ -126,7 +140,11 @@ export default function HomeScreen() {
       // phase ends, which is the true Active→Past boundary.
       const active = leaguesRes.data.filter((l) => l.status !== 'completed');
       setLeagues(active);
-      setPastLeagues(pastRes?.data?.leagues ?? []);
+      const past = pastRes?.data?.leagues ?? [];
+      setPastLeagues(past);
+      // Warm the shared cache so the Past Leagues page renders instantly
+      // when the user taps through from the home row.
+      pastLeaguesCache.set(past);
       dataLoaded.current = true;
 
       const imgCache: { [id: string]: string } = {};
@@ -370,12 +388,37 @@ export default function HomeScreen() {
 
   const listHeader = (
     <View>
-      {/* Greeting row with gear + help */}
+      {/* Greeting row with avatar + ? + gear */}
       <View style={styles.headerRow}>
         <View style={{ flex: 1 }}>
           <Text style={styles.greeting}>{getGreeting()},</Text>
           <Text style={styles.username}>{user?.display_name || user?.username}</Text>
         </View>
+
+        {/* Profile avatar: tap to change. Shows photo if set, else a
+            dashed purple circle with a small "+" badge to invite upload. */}
+        <TouchableOpacity
+          style={styles.headerIconBtn}
+          hitSlop={10}
+          onPress={handlePickAvatar}
+          disabled={avatarUploading}
+          activeOpacity={0.75}
+        >
+          {user?.profile_photo ? (
+            <Image
+              source={{ uri: user.profile_photo }}
+              style={styles.headerAvatarImage}
+            />
+          ) : (
+            <View style={styles.headerAvatarEmpty}>
+              <Ionicons name="person" size={16} color="#7C3AED" />
+              <View style={styles.headerAvatarAddBadge}>
+                <Ionicons name="add" size={10} color="#FFFFFF" />
+              </View>
+            </View>
+          )}
+        </TouchableOpacity>
+
         <TouchableOpacity
           style={styles.headerIconBtn}
           hitSlop={10}
@@ -505,6 +548,39 @@ const styles = StyleSheet.create({
     height: 38,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // Avatar image — fills the same 38×38 slot as ? and gear.
+  headerAvatarImage: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+  },
+  // Empty-avatar placeholder: dashed purple circle matching the Create
+  // League upload-photo placeholder. Person glyph centered; small solid
+  // "+" badge in the bottom-right corner hints tap-to-add.
+  headerAvatarEmpty: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: '#7C3AED',
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerAvatarAddBadge: {
+    position: 'absolute',
+    right: -4,
+    bottom: -4,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#7C3AED',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#121212',
   },
 
   listContent: { paddingHorizontal: 20, paddingBottom: 40, flexGrow: 1 },
