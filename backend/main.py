@@ -938,7 +938,7 @@ async def forgot_password(request: ForgotPasswordRequest):
     })
 
     # Send SMS in a background thread
-    sms_body = f"Your Fantasy Music League reset code is: {code}\n\nIt expires in 15 minutes."
+    sms_body = f"Your Music Leeg reset code is: {code}\n\nIt expires in 15 minutes."
     await asyncio.to_thread(send_sms, request.phone_number, sms_body)
 
     return {"message": "If an account exists with this phone number, a code has been sent"}

@@ -54,7 +54,7 @@ export default function LoginScreen() {
               style={styles.appIcon}
               resizeMode="contain"
             />
-            <Text style={styles.title}>Fantasy Music League</Text>
+            <Text style={styles.title}>Music Leeg</Text>
           </View>
 
           <View style={styles.form}>

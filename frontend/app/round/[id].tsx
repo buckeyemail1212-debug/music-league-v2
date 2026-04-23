@@ -1267,7 +1267,7 @@ export default function RoundScreen() {
           <View style={styles.shareCardOffscreen} pointerEvents="none">
             <ViewShot ref={shareCardRef} options={{ format: 'png', quality: 1 }}>
               <View style={styles.shareCard}>
-                <Text style={styles.shareCardAppName}>Fantasy Music League</Text>
+                <Text style={styles.shareCardAppName}>Music Leeg</Text>
                 <Text style={styles.shareCardRoundName}>Round {round.round_number}</Text>
                 <Text style={styles.shareCardTheme}>{round.theme}</Text>
 

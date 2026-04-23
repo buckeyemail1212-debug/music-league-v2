@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Fantasy Music League",
-    "slug": "fantasy-music-league",
+    "name": "Music Leeg",
+    "slug": "music-leeg",
     "version": "1.0.0",
     "runtimeVersion": "1.0.0",
     "orientation": "portrait",
@@ -12,11 +12,11 @@
     "owner": "puchalski.12",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.fantasymusicleague.app",
+      "bundleIdentifier": "com.musicleeg.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSPhotoLibraryUsageDescription": "Allow Fantasy Music League to access your photos to set your profile and league images.",
-        "NSCameraUsageDescription": "Allow Fantasy Music League to use your camera to take profile and league photos."
+        "NSPhotoLibraryUsageDescription": "Allow Music Leeg to access your photos to set your profile and league images.",
+        "NSCameraUsageDescription": "Allow Music Leeg to use your camera to take profile and league photos."
       }
     },
     "android": {
@@ -25,7 +25,7 @@
         "backgroundColor": "#212F36"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.puchalski12.musicleague"
+      "package": "com.musicleeg.app"
     },
     "web": {
       "bundler": "metro",

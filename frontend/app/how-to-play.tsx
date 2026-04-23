@@ -41,7 +41,7 @@ export default function HowToPlayPage() {
 
         <Text style={styles.intro}>
           Do you have the best taste in music? Do you always know the perfect song for the perfect moment?
-          If so, get ready to play Fantasy Music League. Get a group of friends, submit songs, vote, and
+          If so, get ready to play Music Leeg. Get a group of friends, submit songs, vote, and
           find out whose taste ranks on top.
         </Text>
 

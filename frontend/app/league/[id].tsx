@@ -274,7 +274,7 @@ export default function LeagueDetailScreen() {
             .map((p, i) => `${i + 1}. ${p.username}: ${p.total_points} pts`)
             .join('\n');
           await Share.share({
-            message: `${league?.name} Final Results\n\n${top}\n\nPlayed on Fantasy Music League`,
+            message: `${league?.name} Final Results\n\n${top}\n\nPlayed on Music Leeg`,
           });
         }
       }
@@ -392,7 +392,7 @@ export default function LeagueDetailScreen() {
     if (!league) return;
     
     const deepLink = Linking.createURL(`/join/${league.league_code}`);
-    const message = `Join my Fantasy Music League "${league.name}"!\n\nCode: ${league.league_code}\n\nOr click this link: ${deepLink}`;
+    const message = `Join my Music Leeg "${league.name}"!\n\nCode: ${league.league_code}\n\nOr click this link: ${deepLink}`;
     
     try {
       await Share.share({
@@ -1010,7 +1010,7 @@ export default function LeagueDetailScreen() {
                   </View>
 
                   <View style={styles.shareCardFooter}>
-                    <Text style={styles.shareCardBranding}>Fantasy Music League</Text>
+                    <Text style={styles.shareCardBranding}>Music Leeg</Text>
                     <Text style={styles.shareCardCTA}>Create your own league!</Text>
                   </View>
                 </View>
