@@ -18,6 +18,7 @@ import {
   getRounds,
   getLeagueStandings,
   getPastLeagues,
+  getDiscoverLeagues,
   League,
   Round,
   LeagueStandings,
@@ -27,6 +28,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { leagueEvents } from '../../src/utils/leagueEvents';
 import { pluralize } from '../../src/utils/pluralize';
 import { pastLeaguesCache } from '../../src/utils/pastLeaguesCache';
+import { discoverLeaguesCache } from '../../src/utils/discoverLeaguesCache';
 import { chooseProfilePhoto } from '../../src/utils/profilePhotoPicker';
 import LeagueAvatar from '../../src/components/LeagueAvatar';
 
@@ -45,7 +47,15 @@ const parseDeadline = (d: string) =>
 // Adaptive cadence: when the remaining time is under 2 minutes we tick
 // every second to animate the seconds readout; above that, every 30s is
 // plenty since only the minute digit changes.
-function CountdownPill({ deadline, color }: { deadline: string; color: string }) {
+function CountdownPill({
+  deadline,
+  color,
+  prefix,
+}: {
+  deadline: string;
+  color: string;
+  prefix?: string;
+}) {
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
   useEffect(() => {
     let cancelled = false;
@@ -68,10 +78,11 @@ function CountdownPill({ deadline, color }: { deadline: string; color: string })
     };
   }, [deadline]);
 
+  const label = formatCountdown(deadline, nowMs);
   return (
     <View style={[styles.statusPill, { borderColor: color, backgroundColor: `${color}22` }]}>
       <Text style={[styles.statusPillText, { color }]}>
-        {formatCountdown(deadline, nowMs)}
+        {prefix ? `${prefix} ${label}` : label}
       </Text>
     </View>
   );
@@ -121,16 +132,25 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [pastLeagues, setPastLeagues] = useState<PastLeague[]>([]);
+  const [discoverCount, setDiscoverCount] = useState<number>(
+    () => discoverLeaguesCache.get()?.length ?? 0,
+  );
 
   const flatListRef = useRef<FlatList>(null);
   const dataLoaded = useRef(false);
 
   const fetchAll = async () => {
     try {
-      const [leaguesRes, pastRes] = await Promise.all([
+      const [leaguesRes, pastRes, discoverRes] = await Promise.all([
         getLeagues(),
         getPastLeagues().catch(() => ({ data: { leagues: [] } } as any)),
+        getDiscoverLeagues().catch(
+          () => ({ data: { leagues: [], count: 0 } } as any),
+        ),
       ]);
+      const discoverList = discoverRes?.data?.leagues ?? [];
+      setDiscoverCount(discoverList.length);
+      discoverLeaguesCache.set(discoverList);
       // A league is "active" iff it hasn't been marked completed. The old
       // `current_round >= total_rounds` heuristic incorrectly hid leagues
       // whose final round was ready/submission/voting (since
@@ -173,12 +193,14 @@ export default function HomeScreen() {
           if (roundsRes) {
             const rounds = roundsRes.data;
             // "Active" here means the round the creator/player should see
-            // on the home card: ready (awaiting start), submission (timer
-            // running), or voting. Completed/locked are not surfaced.
+            // on the home card: scheduled (public R1 awaiting auto-start),
+            // ready (awaiting manual start), submission (timer running),
+            // or voting. Completed/locked are not surfaced.
             roundsData[l.id] =
               rounds.find(
                 (r: Round) =>
                   r.status === 'ready' ||
+                  r.status === 'scheduled' ||
                   r.status === 'submission' ||
                   r.status === 'voting',
               ) || null;
@@ -237,9 +259,22 @@ export default function HomeScreen() {
     let pillText: string | null = null;
     let pillColor = MUTED;
     let pillDeadline: string | null = null;
+    let pillPrefix: string | undefined;
     const isCreator = item.creator_id === user?.id;
     if (activeRound) {
-      if (activeRound.status === 'ready') {
+      if (activeRound.status === 'scheduled') {
+        // Public-league R1 waiting for its auto-start timer. Purple
+        // countdown prefixed with "STARTS IN" so users can tell it apart
+        // from a live submission phase at a glance.
+        if (activeRound.starts_at) {
+          pillDeadline = activeRound.starts_at;
+          pillColor = PURPLE;
+          pillPrefix = 'STARTS IN';
+        } else {
+          pillText = 'STARTING SOON';
+          pillColor = PURPLE;
+        }
+      } else if (activeRound.status === 'ready') {
         // No timer yet — round hasn't been started. Creator sees
         // "READY TO START"; members see "WAITING TO START". Both muted.
         pillText = isCreator ? 'READY TO START' : 'WAITING TO START';
@@ -275,7 +310,12 @@ export default function HomeScreen() {
       pillColor = MUTED;
     }
 
-    const hasStarted = item.current_round > 0;
+    // Public leagues bump current_round to 1 at creation (so R1 is
+    // pre-generated and scheduled), but the league hasn't actually
+    // started until the auto-start timer fires. Treat a scheduled R1 as
+    // not-yet-started for UI purposes.
+    const isScheduledR1 = activeRound?.status === 'scheduled';
+    const hasStarted = item.current_round > 0 && !isScheduledR1;
     const hasAnyPoints = sorted.some((p) => (p.total_points || 0) > 0);
 
     return (
@@ -298,13 +338,15 @@ export default function HomeScreen() {
               {item.name}
             </Text>
             <Text style={styles.leagueCardSubtext} numberOfLines={1}>
-              {hasStarted
-                ? `R${item.current_round}/${item.total_rounds} · ${pluralize(item.members.length, 'player')}`
-                : `${pluralize(item.members.length, 'player')} · Code ${item.league_code}`}
+              {activeRound && activeRound.status === 'scheduled'
+                ? `${pluralize(item.members.length, 'player')} · ${item.total_rounds} ${item.total_rounds === 1 ? 'round' : 'rounds'}`
+                : hasStarted
+                  ? `R${item.current_round}/${item.total_rounds} · ${pluralize(item.members.length, 'player')}`
+                  : `${pluralize(item.members.length, 'player')} · Code ${item.league_code}`}
             </Text>
           </View>
           {pillDeadline ? (
-            <CountdownPill deadline={pillDeadline} color={pillColor} />
+            <CountdownPill deadline={pillDeadline} color={pillColor} prefix={pillPrefix} />
           ) : pillText ? (
             <View style={[styles.statusPill, { borderColor: pillColor, backgroundColor: `${pillColor}22` }]}>
               <Text style={[styles.statusPillText, { color: pillColor }]}>{pillText}</Text>
@@ -445,22 +487,38 @@ export default function HomeScreen() {
     </View>
   );
 
+  const showDiscoverRow = discoverCount > 0;
+  const showPastRow = pastLeagues.length > 0;
   const listFooter =
-    pastLeagues.length > 0 ? (
-      <TouchableOpacity
-        style={[
-          styles.pastEntry,
-          { marginTop: leagues.length > 0 ? 20 : 6 },
-        ]}
-        onPress={() => router.push('/past-leagues' as any)}
-        activeOpacity={0.75}
-      >
-        <Text style={styles.activeLeaguesTitle}>PAST LEAGUES</Text>
-        <View style={styles.pastEntryRight}>
-          <Text style={styles.pastEntryCount}>{pastLeagues.length}</Text>
-          <Ionicons name="chevron-forward" size={22} color="#B3B3B3" />
-        </View>
-      </TouchableOpacity>
+    showDiscoverRow || showPastRow ? (
+      <View style={{ marginTop: leagues.length > 0 ? 20 : 6 }}>
+        {showDiscoverRow && (
+          <TouchableOpacity
+            style={styles.pastEntry}
+            onPress={() => router.push('/discover-leagues' as any)}
+            activeOpacity={0.75}
+          >
+            <Text style={styles.activeLeaguesTitle}>DISCOVER LEAGUES</Text>
+            <View style={styles.pastEntryRight}>
+              <Text style={styles.pastEntryCount}>{discoverCount}</Text>
+              <Ionicons name="chevron-forward" size={22} color="#B3B3B3" />
+            </View>
+          </TouchableOpacity>
+        )}
+        {showPastRow && (
+          <TouchableOpacity
+            style={styles.pastEntry}
+            onPress={() => router.push('/past-leagues' as any)}
+            activeOpacity={0.75}
+          >
+            <Text style={styles.activeLeaguesTitle}>PAST LEAGUES</Text>
+            <View style={styles.pastEntryRight}>
+              <Text style={styles.pastEntryCount}>{pastLeagues.length}</Text>
+              <Ionicons name="chevron-forward" size={22} color="#B3B3B3" />
+            </View>
+          </TouchableOpacity>
+        )}
+      </View>
     ) : null;
 
   return (

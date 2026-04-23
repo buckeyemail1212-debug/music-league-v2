@@ -33,6 +33,15 @@ const TIME_CHOICES: { label: string; hours: number }[] = [
   { label: '3 days', hours: 72 },
   { label: '7 days', hours: 168 },
 ];
+// When a public league is created, Round 1 auto-starts after this many
+// hours. Default 1 day.
+const STARTS_IN_CHOICES: { label: string; hours: number }[] = [
+  { label: '1 hr', hours: 1 },
+  { label: '12 hrs', hours: 12 },
+  { label: '1 day', hours: 24 },
+  { label: '3 days', hours: 72 },
+  { label: '7 days', hours: 168 },
+];
 
 export default function CreateLeaguePage() {
   const router = useRouter();
@@ -42,6 +51,8 @@ export default function CreateLeaguePage() {
   const [submissionHours, setSubmissionHours] = useState(24);
   const [votingHours, setVotingHours] = useState(24);
   const [themesOn, setThemesOn] = useState(true);
+  const [isPublic, setIsPublic] = useState(false);
+  const [startsInHours, setStartsInHours] = useState(24);
   const [submitting, setSubmitting] = useState(false);
   const [createdLeague, setCreatedLeague] = useState<League | null>(null);
 
@@ -124,6 +135,8 @@ export default function CreateLeaguePage() {
         totalRounds: rounds,
         submissionHours,
         votingHours,
+        isPublic,
+        startsInHours: isPublic ? startsInHours : undefined,
       });
       router.push('/set-round-themes' as any);
       return;
@@ -138,6 +151,12 @@ export default function CreateLeaguePage() {
         voting_hours: votingHours,
       };
       if (photo) payload.league_image = photo;
+      if (isPublic) {
+        payload.is_public = true;
+        payload.starts_at = new Date(
+          Date.now() + startsInHours * 3600 * 1000,
+        ).toISOString();
+      }
       const res = await createLeague(payload);
       leagueEvents.emit();
       setCreatedLeague(res.data);
@@ -257,6 +276,33 @@ export default function CreateLeaguePage() {
               thumbColor="#FFFFFF"
             />
           </View>
+
+          {/* Public league toggle */}
+          <View style={styles.themeToggleRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.themeToggleTitle}>Public league</Text>
+              <Text style={styles.themeToggleSub}>
+                Listed on Discover. No invite code — Round 1 auto-starts on a timer. Caps at 50 members.
+              </Text>
+            </View>
+            <Switch
+              value={isPublic}
+              onValueChange={setIsPublic}
+              trackColor={{ false: '#3A3A3A', true: '#7C3AED' }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+
+          {isPublic && (
+            <>
+              <Text style={styles.label}>Start first round in</Text>
+              <ChipRow
+                options={STARTS_IN_CHOICES.map((t) => ({ label: t.label, value: t.hours }))}
+                value={startsInHours}
+                onChange={setStartsInHours}
+              />
+            </>
+          )}
 
           <TouchableOpacity
             style={[styles.cta, !canSubmit && styles.ctaDisabled]}

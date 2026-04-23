@@ -414,20 +414,28 @@ export default function LeagueDetailScreen() {
   const renderRoundItem = ({ item }: { item: Round }) => {
     const isLocked = item.status === 'locked';
     const isReady = item.status === 'ready';
+    const isScheduled = item.status === 'scheduled';
     const isSkipped = item.status === 'skipped';
     const isCompleted = item.status === 'completed' || isSkipped;
     const isLive = item.status === 'submission' || item.status === 'voting';
 
-    // Badge color: locked → gray, everything else (ready, submission,
-    // voting, completed, skipped) → primary purple.
-    const badgeColor = isLocked ? '#3A3A3A' : '#7C3AED';
-    const nameColor = isLocked ? '#6A6A6A' : '#FFFFFF';
+    // Badge color: locked or scheduled → gray (not yet open for action);
+    // everything else (ready, submission, voting, completed, skipped) →
+    // primary purple.
+    const badgeColor = isLocked || isScheduled ? '#3A3A3A' : '#7C3AED';
+    const nameColor = isLocked || isScheduled ? '#6A6A6A' : '#FFFFFF';
     const displayName = item.theme?.trim() || `Round ${item.round_number}`;
     const creatorUsername = league?.creator_username || 'the creator';
 
     let statusText = '';
     if (isLocked) {
       statusText = `Opens when R${item.round_number - 1} ends`;
+    } else if (isScheduled) {
+      // Public-league R1 waiting for its auto-start timer.
+      const startsIn = item.starts_at
+        ? getTimeRemaining(item.starts_at).replace(/ left$/, '')
+        : 'soon';
+      statusText = `Starts in ${startsIn}`;
     } else if (isReady) {
       statusText = isCreator
         ? 'Ready to start'
@@ -450,6 +458,13 @@ export default function LeagueDetailScreen() {
         Alert.alert(
           'Round locked',
           `This round is locked. It opens when Round ${item.round_number - 1} ends.`,
+        );
+        return;
+      }
+      if (isScheduled) {
+        Alert.alert(
+          'Round starts automatically',
+          'Round 1 starts when the countdown hits zero. Nothing to do until then.',
         );
         return;
       }
@@ -501,6 +516,8 @@ export default function LeagueDetailScreen() {
             </View>
             {isLocked ? (
               <Ionicons name="lock-closed" size={18} color="#6A6A6A" />
+            ) : isScheduled ? (
+              <Ionicons name="time-outline" size={18} color="#6A6A6A" />
             ) : isReady && isCreator ? (
               <TouchableOpacity
                 style={styles.startRoundInline}
@@ -611,16 +628,26 @@ export default function LeagueDetailScreen() {
             <Ionicons name="chatbubble-outline" size={22} color="rgba(255,255,255,0.60)" />
             {hasUnread && <View style={styles.unreadBadge} />}
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={isCreator ? handleDeleteLeague : handleLeaveLeague}
-          >
-            <Ionicons
-              name={isCreator ? 'trash-outline' : 'exit-outline'}
-              size={22}
-              color="rgba(255,255,255,0.60)"
-            />
-          </TouchableOpacity>
+          {(() => {
+            // Public-league creators surface the Leave affordance (backend
+            // only allows a public creator to *delete* when they're the
+            // sole member, so Leave is the right default — it handles
+            // creator transfer or hard-delete-if-sole automatically).
+            // Private-league creators keep the Delete affordance.
+            const showLeave = !isCreator || !!league?.is_public;
+            return (
+              <TouchableOpacity
+                style={styles.headerButton}
+                onPress={showLeave ? handleLeaveLeague : handleDeleteLeague}
+              >
+                <Ionicons
+                  name={showLeave ? 'exit-outline' : 'trash-outline'}
+                  size={22}
+                  color="rgba(255,255,255,0.60)"
+                />
+              </TouchableOpacity>
+            );
+          })()}
         </View>
       </View>
 

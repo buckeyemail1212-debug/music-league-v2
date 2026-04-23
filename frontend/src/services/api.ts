@@ -47,6 +47,9 @@ export interface League {
   submission_hours?: number | null;
   voting_hours?: number | null;
   themes?: string[] | null;
+  is_public?: boolean;
+  starts_at?: string | null;
+  member_cap?: number | null;
 }
 
 export interface Round {
@@ -54,12 +57,15 @@ export interface Round {
   league_id: string;
   round_number: number;
   theme: string;
-  status: 'locked' | 'ready' | 'submission' | 'voting' | 'completed' | 'skipped';
+  status: 'locked' | 'ready' | 'scheduled' | 'submission' | 'voting' | 'completed' | 'skipped';
   submission_hours: number;
   voting_hours: number;
-  // Null for "locked" and "ready" rounds — no timer has been set.
+  // Null for "locked", "ready", and "scheduled" rounds — no submission
+  // timer has been set yet.
   submission_deadline: string | null;
   voting_deadline: string | null;
+  // Only set for "scheduled" rounds (public-league R1 auto-start time).
+  starts_at?: string | null;
   submissions_count: number;
   votes_count: number;
   total_members: number;
@@ -198,6 +204,8 @@ export const createLeague = (data: {
   submission_hours?: number | null;
   voting_hours?: number | null;
   themes?: string[] | null;
+  is_public?: boolean;
+  starts_at?: string | null;
 }) => api.post<League>('/leagues', data);
 
 export const updateLeague = (id: string, data: {
@@ -312,8 +320,27 @@ export const deleteAccountFull = () =>
     deleted: Record<string, number>;
   }>('/users/me');
 
-export const leaveLeague = (id: string) => 
-  api.post(`/leagues/${id}/leave`);
+export const leaveLeague = (id: string) =>
+  api.post<{ message: string; league_deleted?: boolean }>(`/leagues/${id}/leave`);
+
+// Public-league discovery.
+export interface DiscoverLeague {
+  id: string;
+  name: string;
+  total_rounds: number;
+  starts_at: string;
+  member_count: number;
+  member_cap: number;
+  has_current_user_joined: boolean;
+  league_image?: string | null;
+  creator_username?: string | null;
+}
+
+export const getDiscoverLeagues = (params?: { q?: string; limit?: number; offset?: number }) =>
+  api.get<{ leagues: DiscoverLeague[]; count: number }>('/leagues/discover', { params });
+
+export const joinPublicLeague = (id: string) =>
+  api.post<League>(`/leagues/${id}/join-public`);
 
 export const getLeagueStandings = (leagueId: string) => 
   api.get<LeagueStandings>(`/leagues/${leagueId}/standings`);

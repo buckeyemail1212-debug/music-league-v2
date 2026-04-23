@@ -10,6 +10,7 @@ import json
 from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr
 from typing import List, Optional
+import re
 import uuid
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -602,6 +603,9 @@ class LeagueCreate(BaseModel):
     # total_rounds when provided; entries may be blank strings when the creator
     # opted out of themes for a specific round.
     themes: Optional[List[str]] = None
+    # Public-league fields. Private leagues ignore these.
+    is_public: bool = False
+    starts_at: Optional[datetime] = None  # When Round 1 auto-starts (public only)
 
 class LeagueResponse(BaseModel):
     id: str
@@ -618,6 +622,9 @@ class LeagueResponse(BaseModel):
     submission_hours: Optional[int] = None
     voting_hours: Optional[int] = None
     themes: Optional[List[str]] = None
+    is_public: bool = False
+    starts_at: Optional[datetime] = None
+    member_cap: Optional[int] = None
 
 class JoinLeagueRequest(BaseModel):
     league_code: str
@@ -671,8 +678,9 @@ class RoundResponse(BaseModel):
     round_number: int
     theme: str
     # "locked" (future, not unlocked), "ready" (unlocked, creator can
-    # start), "submission" (timer running), "voting", "completed",
-    # "skipped" (no submissions).
+    # start), "scheduled" (public league R1, auto-starts at `starts_at`),
+    # "submission" (timer running), "voting", "completed", "skipped"
+    # (no submissions).
     status: str
     submission_hours: int = 24
     voting_hours: int = 24
@@ -680,6 +688,9 @@ class RoundResponse(BaseModel):
     # Populated once the round transitions to "submission".
     submission_deadline: Optional[datetime] = None
     voting_deadline: Optional[datetime] = None
+    # Only set for "scheduled" rounds (public-league R1). The timestamp at
+    # which the scheduler flips the round into "submission".
+    starts_at: Optional[datetime] = None
     submissions_count: int
     votes_count: int = 0  # Number of users who have voted
     total_members: int = 0  # Total members in the league
@@ -1850,14 +1861,33 @@ async def update_profile(update_data: UserUpdate, current_user: dict = Depends(g
 async def create_league(league_data: LeagueCreate, current_user: dict = Depends(get_current_user)):
     league_id = str(uuid.uuid4())
     league_code = generate_league_code()
-    
+
     # Ensure unique league code
     while await db.leagues.find_one({"league_code": league_code}):
         league_code = generate_league_code()
-    
+
     has_image = league_data.league_image is not None and len(league_data.league_image or "") > 0
     print(f"[CREATE LEAGUE] name={league_data.name}, has_image={has_image}, image_len={len(league_data.league_image or '')}")
-    
+
+    # Public-league guardrails: starts_at is required and must be in the
+    # future; member_cap is fixed.
+    is_public = bool(league_data.is_public)
+    starts_at: Optional[datetime] = None
+    member_cap: Optional[int] = None
+    if is_public:
+        if not league_data.starts_at:
+            raise HTTPException(
+                status_code=400,
+                detail="Public leagues require a starts_at (Round 1 auto-start time).",
+            )
+        starts_at = ensure_utc(league_data.starts_at)
+        if starts_at <= datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=400,
+                detail="Public league starts_at must be in the future.",
+            )
+        member_cap = PUBLIC_MEMBER_CAP
+
     league = {
         "id": league_id,
         "name": league_data.name,
@@ -1873,6 +1903,9 @@ async def create_league(league_data: LeagueCreate, current_user: dict = Depends(
         "submission_hours": league_data.submission_hours,
         "voting_hours": league_data.voting_hours,
         "themes": league_data.themes,
+        "is_public": is_public,
+        "starts_at": starts_at,
+        "member_cap": member_cap,
     }
     await db.leagues.insert_one(league)
     league.pop("_id", None)
@@ -1881,16 +1914,17 @@ async def create_league(league_data: LeagueCreate, current_user: dict = Depends(
     # league even after it's been deleted.
     await _upsert_league_snapshot(league_id, league_data.name, league_data.league_image if has_image else None)
 
-    # Pre-generate every round up-front. R1 starts active (submission phase)
-    # so the creator doesn't have to hit "Start Round"; R2..RN start locked
-    # and get unlocked when the previous round finishes (see the server-side
-    # auto-advance job).
+    # Pre-generate every round up-front. For private leagues R1 is "ready" —
+    # creator taps Start; R2..RN are "locked". For public leagues R1 is
+    # "scheduled" with starts_at set — the auto-advance scheduler flips it
+    # to submission once starts_at passes; R2..RN stay locked as usual.
     await _pregenerate_rounds(
         league_id=league_id,
         total_rounds=league_data.total_rounds,
         submission_hours=league_data.submission_hours or 24,
         voting_hours=league_data.voting_hours or 24,
         themes=league_data.themes or [],
+        r1_scheduled_starts_at=starts_at if is_public else None,
     )
     # Round 1 is live — reflect that in current_round.
     if league_data.total_rounds > 0:
@@ -1909,6 +1943,9 @@ async def create_league(league_data: LeagueCreate, current_user: dict = Depends(
 # deadline is recomputed.
 _LOCKED_PLACEHOLDER_DT = datetime(9999, 1, 1, tzinfo=timezone.utc)
 
+# Public leagues have a fixed capacity. Private leagues are uncapped.
+PUBLIC_MEMBER_CAP = 50
+
 
 async def _pregenerate_rounds(
     *,
@@ -1918,12 +1955,16 @@ async def _pregenerate_rounds(
     voting_hours: int,
     themes: list[str],
     start_round: int = 1,
+    r1_scheduled_starts_at: Optional[datetime] = None,
 ) -> None:
     """Create round docs for rounds `start_round`..`total_rounds`. Round 1
-    is created in "ready" state — the creator can start it with a button
-    tap; no timer runs until they do. Rounds 2..N are created in "locked"
-    state and get unlocked by the transition helper when the previous
-    round finishes. Idempotent — skips round numbers that already exist."""
+    is created in "ready" state for private leagues (creator taps Start);
+    for public leagues it's created in "scheduled" state with a
+    `starts_at` timestamp — the auto-advance scheduler flips it to
+    "submission" once the timer hits zero. Rounds 2..N are created in
+    "locked" state and get unlocked by the transition helper when the
+    previous round finishes. Idempotent — skips round numbers that
+    already exist."""
     if total_rounds <= 0:
         return
     existing = await db.rounds.find(
@@ -1940,31 +1981,37 @@ async def _pregenerate_rounds(
         theme = ""
         if rn - 1 < len(themes):
             theme = (themes[rn - 1] or "").strip()
+        doc: dict = {
+            "id": str(uuid.uuid4()),
+            "league_id": league_id,
+            "round_number": rn,
+            "theme": theme,
+            "submission_hours": submission_hours,
+            "voting_hours": voting_hours,
+            "created_at": now,
+        }
         if rn == 1 and not existing:
-            # R1 starts ready — waiting for the creator to hit Start.
-            sub_deadline = None
-            vote_deadline = None
-            status = "ready"
+            if r1_scheduled_starts_at is not None:
+                # Public R1: scheduled to auto-start at `starts_at`.
+                # Submission/voting deadlines get computed at start time.
+                doc["status"] = "scheduled"
+                doc["starts_at"] = r1_scheduled_starts_at
+                doc["submission_deadline"] = None
+                doc["voting_deadline"] = None
+            else:
+                # Private R1: ready — waiting for the creator to hit Start.
+                doc["status"] = "ready"
+                doc["submission_deadline"] = None
+                doc["voting_deadline"] = None
         else:
             # Future rounds stay locked until their predecessor finishes.
             # Use the placeholder so legacy queries that assume the field
             # is a datetime keep working — the "locked" status is the
             # authoritative gate.
-            sub_deadline = _LOCKED_PLACEHOLDER_DT
-            vote_deadline = _LOCKED_PLACEHOLDER_DT
-            status = "locked"
-        docs.append({
-            "id": str(uuid.uuid4()),
-            "league_id": league_id,
-            "round_number": rn,
-            "theme": theme,
-            "status": status,
-            "submission_hours": submission_hours,
-            "voting_hours": voting_hours,
-            "submission_deadline": sub_deadline,
-            "voting_deadline": vote_deadline,
-            "created_at": now,
-        })
+            doc["status"] = "locked"
+            doc["submission_deadline"] = _LOCKED_PLACEHOLDER_DT
+            doc["voting_deadline"] = _LOCKED_PLACEHOLDER_DT
+        docs.append(doc)
 
     if docs:
         await db.rounds.insert_many(docs)
@@ -2010,6 +2057,9 @@ def add_league_defaults(league: dict) -> dict:
     league.setdefault("submission_hours", None)
     league.setdefault("voting_hours", None)
     league.setdefault("themes", None)
+    league.setdefault("is_public", False)
+    league.setdefault("starts_at", None)
+    league.setdefault("member_cap", None)
     # Remove old fields if they exist (migration)
     league.pop("theme", None)
     league.pop("theme_mode", None)
@@ -2037,6 +2087,67 @@ async def get_user_leagues(current_user: dict = Depends(get_current_user)):
             member["profile_photo"] = user_data.get("profile_photo")
     
     return [LeagueResponse(**add_league_defaults(league)) for league in leagues]
+
+
+# ==================== DISCOVER (PUBLIC LEAGUES) =========================
+# Surfaces public leagues whose Round 1 hasn't auto-started yet. Results
+# are sorted by starts_at ascending so the soonest-to-start leagues appear
+# first. Private leagues and already-started/completed/deleted public
+# leagues are excluded.
+
+@api_router.get("/leagues/discover")
+async def discover_public_leagues(
+    q: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+    current_user: dict = Depends(get_current_user),
+):
+    # Clamp inputs to defensive bounds.
+    try:
+        limit = max(1, min(int(limit), 50))
+    except (TypeError, ValueError):
+        limit = 50
+    try:
+        offset = max(0, int(offset))
+    except (TypeError, ValueError):
+        offset = 0
+
+    now = datetime.now(timezone.utc)
+    filt: dict = {
+        "is_public": True,
+        "starts_at": {"$gt": now},
+        "status": {"$nin": ["deleted", "completed"]},
+        "$or": [{"deleted_at": {"$exists": False}}, {"deleted_at": None}],
+    }
+    if q:
+        # Case-insensitive partial match on name. Escape user input so it
+        # can't inject regex operators.
+        filt["name"] = {"$regex": re.escape(q.strip()), "$options": "i"}
+
+    cursor = db.leagues.find(filt, {"_id": 0}).sort("starts_at", 1)
+    # With a search query, ignore offset and return the top 50 matches.
+    effective_offset = 0 if q else offset
+    if effective_offset:
+        cursor = cursor.skip(effective_offset)
+    cursor = cursor.limit(limit)
+    leagues = await cursor.to_list(limit)
+
+    results = []
+    user_id = current_user["id"]
+    for l in leagues:
+        members = l.get("members", [])
+        results.append({
+            "id": l["id"],
+            "name": l.get("name"),
+            "total_rounds": l.get("total_rounds", 0) or 0,
+            "starts_at": l.get("starts_at"),
+            "member_count": len(members),
+            "member_cap": l.get("member_cap") or PUBLIC_MEMBER_CAP,
+            "has_current_user_joined": any(m.get("id") == user_id for m in members),
+            "league_image": l.get("league_image"),
+            "creator_username": l.get("creator_username"),
+        })
+    return {"leagues": results, "count": len(results)}
 
 
 # ==================== PAST LEAGUES ====================
@@ -2222,26 +2333,59 @@ async def join_league(request: JoinLeagueRequest, current_user: dict = Depends(g
     league = await db.leagues.find_one({"league_code": request.league_code.upper()})
     if not league:
         raise HTTPException(status_code=404, detail="League not found with this code")
-    
+
     # Check if already member
     is_member = any(m["id"] == current_user["id"] for m in league["members"])
     if is_member:
         raise HTTPException(status_code=400, detail="You are already a member of this league")
-    
+
     # Check if league has started (has any rounds)
     has_rounds = await db.rounds.find_one({"league_id": league["id"]}, {"_id": 0, "id": 1})
     if has_rounds:
         raise HTTPException(status_code=400, detail="This league has already started. New members cannot join once rounds have begun.")
-    
+
     # Add user to members
     await db.leagues.update_one(
         {"id": league["id"]},
         {"$push": {"members": {"id": current_user["id"], "username": current_user["username"]}}}
     )
-    
+
     # Fetch updated league
     league = await db.leagues.find_one({"id": league["id"]}, {"_id": 0})
-    return LeagueResponse(**league)
+    return LeagueResponse(**add_league_defaults(league))
+
+
+@api_router.post("/leagues/{league_id}/join-public", response_model=LeagueResponse)
+async def join_public_league(league_id: str, current_user: dict = Depends(get_current_user)):
+    """Join a public league by id. Enforces is_public, not-yet-started, under
+    member cap, and non-duplicate membership. Returns the updated league."""
+    league = await db.leagues.find_one({"id": league_id})
+    if not league:
+        raise HTTPException(status_code=404, detail="League not found")
+    if league.get("deleted_at"):
+        raise HTTPException(status_code=404, detail="League not found")
+    if not league.get("is_public"):
+        raise HTTPException(status_code=400, detail="This league is not public.")
+
+    starts_at = ensure_utc(league.get("starts_at")) if league.get("starts_at") else None
+    if not starts_at or starts_at <= datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="League has already started.")
+
+    members = league.get("members", [])
+    if any(m.get("id") == current_user["id"] for m in members):
+        raise HTTPException(status_code=400, detail="You have already joined this league.")
+
+    cap = league.get("member_cap") or PUBLIC_MEMBER_CAP
+    if len(members) >= cap:
+        raise HTTPException(status_code=400, detail="League is full.")
+
+    await db.leagues.update_one(
+        {"id": league_id},
+        {"$push": {"members": {"id": current_user["id"], "username": current_user["username"]}}},
+    )
+    updated = await db.leagues.find_one({"id": league_id}, {"_id": 0})
+    return LeagueResponse(**add_league_defaults(updated))
+
 
 @api_router.delete("/leagues/{league_id}")
 async def delete_league(league_id: str, current_user: dict = Depends(get_current_user)):
@@ -2252,6 +2396,21 @@ async def delete_league(league_id: str, current_user: dict = Depends(get_current
     # Only creator can delete
     if league["creator_id"] != current_user["id"]:
         raise HTTPException(status_code=403, detail="Only the league creator can delete the league")
+
+    # Public leagues: creator can only delete if they're the sole member.
+    # With other members present, the creator must leave instead —
+    # deleting would orphan players who joined on the expectation the
+    # league would run.
+    if league.get("is_public"):
+        other_members = [
+            m for m in league.get("members", [])
+            if m.get("id") != current_user["id"]
+        ]
+        if other_members:
+            raise HTTPException(
+                status_code=400,
+                detail="You can't delete a public league with other members. Leave the league instead.",
+            )
 
     # Soft-delete: the creator gets a 7-day grace window to restore the
     # league with all its rounds/submissions/votes intact. A background
@@ -2761,25 +2920,79 @@ async def update_league(league_id: str, update_data: LeagueUpdate, current_user:
 
 @api_router.post("/leagues/{league_id}/leave")
 async def leave_league(league_id: str, current_user: dict = Depends(get_current_user)):
+    """Leave a league. Public leagues can only be left before they start —
+    public members who joined are committing to play. Private leagues
+    keep their existing behavior (members can leave at any time). In
+    either case, if the caller is the creator and other members remain,
+    creatorship transfers to the oldest remaining member; if the caller
+    was the sole member, the league and its pre-generated rounds are
+    hard-deleted."""
     league = await db.leagues.find_one({"id": league_id})
     if not league:
         raise HTTPException(status_code=404, detail="League not found")
-    
-    # Check if user is member
-    is_member = any(m["id"] == current_user["id"] for m in league["members"])
-    if not is_member:
-        raise HTTPException(status_code=400, detail="You are not a member of this league")
-    
-    # Creator cannot leave - they must delete the league
-    if league["creator_id"] == current_user["id"]:
-        raise HTTPException(status_code=400, detail="As the creator, you cannot leave. Delete the league instead.")
-    
-    # Remove user from members
+    if league.get("deleted_at"):
+        raise HTTPException(status_code=404, detail="League not found")
+
+    user_id = current_user["id"]
+    members = league.get("members", [])
+    if not any(m.get("id") == user_id for m in members):
+        raise HTTPException(status_code=400, detail="You are not a member of this league.")
+
+    # Public leagues: can only be left before they start. "Started" means
+    # any round has moved past the pre-start states — i.e. a round is in
+    # submission, voting, completed, or skipped. Private leagues keep
+    # their existing behavior (members can leave at any time).
+    if league.get("is_public"):
+        started_round = await db.rounds.find_one(
+            {
+                "league_id": league_id,
+                "status": {"$in": ["submission", "voting", "completed", "skipped"]},
+            },
+            {"_id": 0, "id": 1},
+        )
+        if started_round:
+            raise HTTPException(
+                status_code=400,
+                detail="You can't leave once rounds have started — your songs are part of the game now.",
+            )
+
+    remaining = [m for m in members if m.get("id") != user_id]
+
+    # Sole member leaving: hard-delete the league and its pre-generated
+    # rounds so we don't leave empty zombies behind.
+    if not remaining:
+        round_docs = await db.rounds.find(
+            {"league_id": league_id}, {"_id": 0, "id": 1},
+        ).to_list(5000)
+        round_ids = [r["id"] for r in round_docs]
+        if round_ids:
+            await db.submissions.delete_many({"round_id": {"$in": round_ids}})
+            await db.votes.delete_many({"round_id": {"$in": round_ids}})
+            await db.round_results.delete_many({"round_id": {"$in": round_ids}})
+        await db.rounds.delete_many({"league_id": league_id})
+        await db.messages.delete_many({"league_id": league_id})
+        await db.chat_reads.delete_many({"league_id": league_id})
+        await db.league_snapshots.delete_many({"league_id": league_id})
+        await db.past_leagues.delete_many({"id": league_id})
+        await db.leagues.delete_many({"id": league_id})
+        return {"message": "Left league successfully", "league_deleted": True}
+
+    # Creator leaving but others remain: transfer creatorship to the
+    # first remaining member (mirrors the users_me_delete transfer).
+    if league.get("creator_id") == user_id:
+        heir = remaining[0]
+        await db.leagues.update_one(
+            {"id": league_id},
+            {"$set": {
+                "creator_id": heir["id"],
+                "creator_username": heir.get("username", ""),
+            }},
+        )
+
     await db.leagues.update_one(
         {"id": league_id},
-        {"$pull": {"members": {"id": current_user["id"]}}}
+        {"$pull": {"members": {"id": user_id}}},
     )
-    
     return {"message": "Left league successfully"}
 
 # ==================== ROUND ENDPOINTS ====================
@@ -4295,7 +4508,7 @@ async def start_genre_reclassifier():
 # and the status guards ensure we only advance a round once.
 
 async def _run_round_auto_advance_tick() -> None:
-    """Run three independent passes:
+    """Run four independent passes:
       1. Submission deadlines that have passed → move to voting (or skip
          if no submissions).
       2. Voting deadlines that have passed → complete + unlock next.
@@ -4304,9 +4517,13 @@ async def _run_round_auto_advance_tick() -> None:
          helper. This cleans up leagues that went stale before this patch
          shipped, and backstops any future code path that forgets to
          call the helper.
+      4. Scheduled public R1 rounds whose `starts_at` has passed → flip
+         to "submission" with real deadlines. Only Round 1 of public
+         leagues auto-starts on a timer; subsequent rounds still require
+         the creator to tap Start (same as private leagues).
 
     Each pass is wrapped in its own try/except so a failure in one
-    doesn't block the other two.
+    doesn't block the others.
     """
     now = datetime.now(timezone.utc)
 
@@ -4384,6 +4601,64 @@ async def _run_round_auto_advance_tick() -> None:
                 )
     except Exception as e:
         logger.exception(f"auto-advance: self-heal query failed: {e}")
+
+    # --- Pass 4: scheduled public R1 rounds whose timer has fired ----
+    try:
+        await _start_scheduled_public_rounds(now)
+    except Exception as e:
+        logger.exception(f"auto-advance: scheduled-round pass failed: {e}")
+
+
+async def _start_scheduled_public_rounds(now: datetime) -> None:
+    """Public-league Round 1 auto-start. Finds every round in "scheduled"
+    state whose `starts_at` has passed and flips it to "submission" using
+    the league's configured submission/voting hours. Idempotent — the
+    status guard in the query ensures each round transitions once."""
+    due = await db.rounds.find(
+        {"status": "scheduled", "starts_at": {"$lte": now}},
+        {"_id": 0},
+    ).to_list(500)
+    for r in due:
+        try:
+            league = await db.leagues.find_one({"id": r["league_id"]})
+            if not league:
+                continue
+            sub_hours = (
+                r.get("submission_hours")
+                or league.get("submission_hours")
+                or 24
+            )
+            vote_hours = (
+                r.get("voting_hours") or league.get("voting_hours") or 24
+            )
+            new_sub_deadline = now + timedelta(hours=sub_hours)
+            new_vote_deadline = new_sub_deadline + timedelta(hours=vote_hours)
+            # Guarded update — if another worker already started the round,
+            # the status filter fails and we skip the rest of the block.
+            res = await db.rounds.update_one(
+                {"id": r["id"], "status": "scheduled"},
+                {"$set": {
+                    "status": "submission",
+                    "submission_deadline": new_sub_deadline,
+                    "voting_deadline": new_vote_deadline,
+                }},
+            )
+            if res.modified_count == 0:
+                continue
+            round_number = r.get("round_number", 1)
+            if (league.get("current_round") or 0) < round_number:
+                await db.leagues.update_one(
+                    {"id": r["league_id"]},
+                    {"$set": {"current_round": round_number}},
+                )
+            logger.info(
+                f"scheduled_round_started: league={r['league_id']} "
+                f"round={round_number}"
+            )
+        except Exception as e:
+            logger.exception(
+                f"auto-advance: scheduled-start handler failed for round {r.get('id')}: {e}"
+            )
 
 
 async def _advance_submission_expired(round_doc: dict, now: datetime) -> None:
@@ -4648,6 +4923,12 @@ async def past_leagues_startup_maintenance():
         await _backfill_past_league_finished_dates()
     except Exception as e:
         logger.warning(f"past_leagues backfill failed: {e}")
+    # Public-league discovery queries filter on starts_at; index it so the
+    # Discover page stays fast as the leagues collection grows.
+    try:
+        await db.leagues.create_index("starts_at")
+    except Exception as e:
+        logger.warning(f"leagues starts_at index creation failed: {e}")
 
 
 @api_router.post("/auth/reclassify-genres")

@@ -53,15 +53,23 @@ export default function LeagueCreatedSuccess({
         </View>
         <Text style={styles.successTitle}>LEAGUE CREATED</Text>
         <Text style={styles.successName}>{league.name}</Text>
-        <Text style={styles.successPrompt}>
-          Share this code with friends to invite them:
-        </Text>
-        <View style={styles.codeBox}>
-          <Text style={styles.codeText}>{code}</Text>
-        </View>
-        <TouchableOpacity style={styles.shareBtn} onPress={handleCopy} activeOpacity={0.85}>
-          <Text style={styles.shareBtnText}>{copied ? 'COPIED!' : 'COPY CODE'}</Text>
-        </TouchableOpacity>
+        {league.is_public ? (
+          <Text style={styles.successPrompt}>
+            Your league is now listed on Discover. Round 1 will start automatically when the timer hits zero.
+          </Text>
+        ) : (
+          <>
+            <Text style={styles.successPrompt}>
+              Share this code with friends to invite them:
+            </Text>
+            <View style={styles.codeBox}>
+              <Text style={styles.codeText}>{code}</Text>
+            </View>
+            <TouchableOpacity style={styles.shareBtn} onPress={handleCopy} activeOpacity={0.85}>
+              <Text style={styles.shareBtnText}>{copied ? 'COPIED!' : 'COPY CODE'}</Text>
+            </TouchableOpacity>
+          </>
+        )}
         <TouchableOpacity style={styles.goBtn} onPress={onGo} activeOpacity={0.85}>
           <Text style={styles.goBtnText}>Go to my league</Text>
         </TouchableOpacity>
