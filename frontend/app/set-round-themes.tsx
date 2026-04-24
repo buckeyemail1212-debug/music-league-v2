@@ -54,11 +54,13 @@ export default function SetRoundThemesPage() {
         themes: themes.map((t) => t.trim()),
       };
       if (draft.photo) payload.league_image = draft.photo;
+      if (draft.genre && draft.genre.trim()) payload.genre = draft.genre.trim();
       if (draft.isPublic && draft.startsInHours) {
         payload.is_public = true;
         payload.starts_at = new Date(
           Date.now() + draft.startsInHours * 3600 * 1000,
         ).toISOString();
+        if (draft.memberCap) payload.member_cap = draft.memberCap;
       }
       const res = await createLeague(payload);
       leagueEvents.emit();

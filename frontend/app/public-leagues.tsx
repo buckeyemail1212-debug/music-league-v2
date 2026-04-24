@@ -179,6 +179,11 @@ export default function PublicLeaguesPage() {
           <Text style={styles.name} numberOfLines={1}>
             {item.name}
           </Text>
+          {item.genre ? (
+            <Text style={styles.genre} numberOfLines={1}>
+              {item.genre}
+            </Text>
+          ) : null}
           <Text style={styles.meta} numberOfLines={1}>
             {rounds} {rounds === 1 ? 'round' : 'rounds'} · Starts in {countdown}
           </Text>
@@ -243,7 +248,7 @@ export default function PublicLeaguesPage() {
           style={styles.searchInput}
           value={query}
           onChangeText={setQuery}
-          placeholder="Search leagues"
+          placeholder="Search by name or genre"
           placeholderTextColor="#6A6A6A"
           autoCapitalize="none"
           autoCorrect={false}
@@ -353,6 +358,14 @@ const styles = StyleSheet.create({
   },
   middle: { flex: 1, marginHorizontal: 14 },
   name: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
+  genre: {
+    color: '#8B8B8B',
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+    marginTop: 3,
+  },
   meta: { color: '#B3B3B3', fontSize: 12, marginTop: 4 },
   actionWrap: { alignItems: 'flex-end', minWidth: 92 },
   joinBtn: {

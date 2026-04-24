@@ -598,20 +598,48 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     user: UserResponse
 
+# Allowed submission/voting durations for league creation (and any other
+# place that accepts a user-chosen phase length). In hours:
+#   12h, 1d, 2d, 3d, 7d.
+ALLOWED_PHASE_HOURS: tuple[int, ...] = (12, 24, 48, 72, 168)
+
+
+def _validate_phase_hours(field: str, value: Optional[int]) -> None:
+    """Raise HTTPException(400) if `value` is set but isn't one of the
+    allowed choices. Used by league-create and round-level endpoints so
+    the validation lives in one place."""
+    if value is not None and value not in ALLOWED_PHASE_HOURS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid {field}. Allowed values: {list(ALLOWED_PHASE_HOURS)}.",
+        )
+
+# Genre strings shown on public leagues are capped here. Matches the
+# frontend's maxLength on the Genre input.
+GENRE_MAX_LENGTH: int = 50
+
+
 class LeagueCreate(BaseModel):
     name: str
-    total_rounds: int = 1  # Number of rounds (1-10)
+    total_rounds: int = 3  # Number of rounds (1-10)
     league_image: Optional[str] = None  # Custom league image URL
     # Preferred default hours for each phase of each round in this league.
+    # Must be one of ALLOWED_PHASE_HOURS when provided.
     submission_hours: Optional[int] = None
     voting_hours: Optional[int] = None
     # Optional per-round themes entered at league creation. Length should be
     # total_rounds when provided; entries may be blank strings when the creator
     # opted out of themes for a specific round.
     themes: Optional[List[str]] = None
+    # Genre tag — optional for private leagues, required for public leagues.
+    # Trimmed on the server; max 50 chars.
+    genre: Optional[str] = None
     # Public-league fields. Private leagues ignore these.
     is_public: bool = False
     starts_at: Optional[datetime] = None  # When Round 1 auto-starts (public only)
+    # Optional override for the public league member cap. When omitted we
+    # use PUBLIC_MEMBER_CAP_DEFAULT. Validated to be within [10, PUBLIC_MEMBER_CAP_MAX].
+    member_cap: Optional[int] = None
 
 class LeagueResponse(BaseModel):
     id: str
@@ -628,6 +656,7 @@ class LeagueResponse(BaseModel):
     submission_hours: Optional[int] = None
     voting_hours: Optional[int] = None
     themes: Optional[List[str]] = None
+    genre: Optional[str] = None
     is_public: bool = False
     starts_at: Optional[datetime] = None
     member_cap: Optional[int] = None
@@ -637,8 +666,10 @@ class JoinLeagueRequest(BaseModel):
 
 class StartRoundRequest(BaseModel):
     theme: str = ""  # Theme/prompt for this round
-    submission_hours: int = 24  # Hours for submission phase
-    voting_hours: int = 24  # Hours for voting phase
+    # Fallback defaults mirror the Create League screen. Hours must be one
+    # of ALLOWED_PHASE_HOURS — validated at the endpoint.
+    submission_hours: int = 48
+    voting_hours: int = 72
     timezone: str = "EST"  # User's timezone for "same time tomorrow" calculations
 
 class SongData(BaseModel):
@@ -688,8 +719,11 @@ class RoundResponse(BaseModel):
     # "submission" (timer running), "voting", "completed", "skipped"
     # (no submissions).
     status: str
-    submission_hours: int = 24
-    voting_hours: int = 24
+    # Fallback defaults kick in only for legacy docs missing the field;
+    # every round created after these fields were introduced stores its
+    # actual hours. Mirrors the Create League screen defaults.
+    submission_hours: int = 48
+    voting_hours: int = 72
     # Null for "locked" and "ready" rounds — no timer has been set.
     # Populated once the round transitions to "submission".
     submission_deadline: Optional[datetime] = None
@@ -1922,8 +1956,23 @@ async def create_league(league_data: LeagueCreate, current_user: dict = Depends(
     has_image = league_data.league_image is not None and len(league_data.league_image or "") > 0
     print(f"[CREATE LEAGUE] name={league_data.name}, has_image={has_image}, image_len={len(league_data.league_image or '')}")
 
+    # Validate submission/voting durations. None means "use fallback" —
+    # any other value must be one of the allowed choices.
+    _validate_phase_hours("submission_hours", league_data.submission_hours)
+    _validate_phase_hours("voting_hours", league_data.voting_hours)
+
+    # Genre: trim to None if blank, truncate enforcement via max length check.
+    genre = (league_data.genre or "").strip()
+    if genre and len(genre) > GENRE_MAX_LENGTH:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Genre must be {GENRE_MAX_LENGTH} characters or fewer.",
+        )
+
     # Public-league guardrails: starts_at is required and must be in the
-    # future; member_cap is fixed.
+    # future; member_cap defaults to PUBLIC_MEMBER_CAP_DEFAULT but can be
+    # overridden within [PUBLIC_MEMBER_CAP_MIN, PUBLIC_MEMBER_CAP_MAX];
+    # genre is required.
     is_public = bool(league_data.is_public)
     starts_at: Optional[datetime] = None
     member_cap: Optional[int] = None
@@ -1939,7 +1988,26 @@ async def create_league(league_data: LeagueCreate, current_user: dict = Depends(
                 status_code=400,
                 detail="Public league starts_at must be in the future.",
             )
-        member_cap = PUBLIC_MEMBER_CAP
+        if not genre:
+            raise HTTPException(
+                status_code=400,
+                detail="Genre is required for public leagues",
+            )
+        if league_data.member_cap is not None:
+            if (
+                league_data.member_cap < PUBLIC_MEMBER_CAP_MIN
+                or league_data.member_cap > PUBLIC_MEMBER_CAP_MAX
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"member_cap must be between {PUBLIC_MEMBER_CAP_MIN} "
+                        f"and {PUBLIC_MEMBER_CAP_MAX}."
+                    ),
+                )
+            member_cap = league_data.member_cap
+        else:
+            member_cap = PUBLIC_MEMBER_CAP_DEFAULT
 
     league = {
         "id": league_id,
@@ -1956,6 +2024,7 @@ async def create_league(league_data: LeagueCreate, current_user: dict = Depends(
         "submission_hours": league_data.submission_hours,
         "voting_hours": league_data.voting_hours,
         "themes": league_data.themes,
+        "genre": genre or None,
         "is_public": is_public,
         "starts_at": starts_at,
         "member_cap": member_cap,
@@ -1974,8 +2043,8 @@ async def create_league(league_data: LeagueCreate, current_user: dict = Depends(
     await _pregenerate_rounds(
         league_id=league_id,
         total_rounds=league_data.total_rounds,
-        submission_hours=league_data.submission_hours or 24,
-        voting_hours=league_data.voting_hours or 24,
+        submission_hours=league_data.submission_hours or 48,
+        voting_hours=league_data.voting_hours or 72,
         themes=league_data.themes or [],
         r1_scheduled_starts_at=starts_at if is_public else None,
     )
@@ -1996,8 +2065,12 @@ async def create_league(league_data: LeagueCreate, current_user: dict = Depends(
 # deadline is recomputed.
 _LOCKED_PLACEHOLDER_DT = datetime(9999, 1, 1, tzinfo=timezone.utc)
 
-# Public leagues have a fixed capacity. Private leagues are uncapped.
-PUBLIC_MEMBER_CAP = 50
+# Public leagues are capacity-capped. Creators may pick a cap between
+# PUBLIC_MEMBER_CAP_MIN and PUBLIC_MEMBER_CAP_MAX; when they don't pick,
+# we use PUBLIC_MEMBER_CAP_DEFAULT. Private leagues are uncapped.
+PUBLIC_MEMBER_CAP_MIN = 10
+PUBLIC_MEMBER_CAP_MAX = 100
+PUBLIC_MEMBER_CAP_DEFAULT = 50
 
 
 async def _pregenerate_rounds(
@@ -2110,6 +2183,7 @@ def add_league_defaults(league: dict) -> dict:
     league.setdefault("submission_hours", None)
     league.setdefault("voting_hours", None)
     league.setdefault("themes", None)
+    league.setdefault("genre", None)
     league.setdefault("is_public", False)
     league.setdefault("starts_at", None)
     league.setdefault("member_cap", None)
@@ -2170,12 +2244,17 @@ async def list_public_leagues(
         "is_public": True,
         "starts_at": {"$gt": now},
         "status": {"$nin": ["deleted", "completed"]},
-        "$or": [{"deleted_at": {"$exists": False}}, {"deleted_at": None}],
+        "$and": [
+            {"$or": [{"deleted_at": {"$exists": False}}, {"deleted_at": None}]},
+        ],
     }
     if q:
-        # Case-insensitive partial match on name. Escape user input so it
-        # can't inject regex operators.
-        filt["name"] = {"$regex": re.escape(q.strip()), "$options": "i"}
+        # Case-insensitive partial match on name OR genre. Input is
+        # regex-escaped so users can't inject regex operators. Nested
+        # under $and alongside the deleted_at guard so the two $or
+        # clauses don't clobber each other.
+        pattern = {"$regex": re.escape(q.strip()), "$options": "i"}
+        filt["$and"].append({"$or": [{"name": pattern}, {"genre": pattern}]})
 
     cursor = db.leagues.find(filt, {"_id": 0}).sort("starts_at", 1)
     # With a search query, ignore offset and return the top 50 matches.
@@ -2195,7 +2274,8 @@ async def list_public_leagues(
             "total_rounds": l.get("total_rounds", 0) or 0,
             "starts_at": l.get("starts_at"),
             "member_count": len(members),
-            "member_cap": l.get("member_cap") or PUBLIC_MEMBER_CAP,
+            "member_cap": l.get("member_cap") or PUBLIC_MEMBER_CAP_DEFAULT,
+            "genre": l.get("genre"),
             "has_current_user_joined": any(m.get("id") == user_id for m in members),
             "league_image": l.get("league_image"),
             "creator_username": l.get("creator_username"),
@@ -2447,7 +2527,7 @@ async def join_public_league(league_id: str, current_user: dict = Depends(get_cu
     if any(m.get("id") == current_user["id"] for m in members):
         raise HTTPException(status_code=400, detail="You have already joined this league.")
 
-    cap = league.get("member_cap") or PUBLIC_MEMBER_CAP
+    cap = league.get("member_cap") or PUBLIC_MEMBER_CAP_DEFAULT
     if len(members) >= cap:
         raise HTTPException(status_code=400, detail="League is full.")
 
@@ -3098,11 +3178,16 @@ async def create_round(league_id: str, round_data: StartRoundRequest = None, cur
     # Require round_data for theme and times
     if not round_data:
         raise HTTPException(status_code=400, detail="Round configuration required (theme, submission_hours, voting_hours)")
-    
+
+    # Defense in depth: custom per-round durations must land in the
+    # allowed set, same as league-create.
+    _validate_phase_hours("submission_hours", round_data.submission_hours)
+    _validate_phase_hours("voting_hours", round_data.voting_hours)
+
     round_number = league["current_round"] + 1
     round_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc)
-    
+
     # Use theme and times from round_data
     submission_hours = round_data.submission_hours
     voting_hours = round_data.voting_hours
@@ -3163,8 +3248,8 @@ async def get_rounds(league_id: str, current_user: dict = Depends(get_current_us
             await _pregenerate_rounds(
                 league_id=league_id,
                 total_rounds=planned_total,
-                submission_hours=league_full.get("submission_hours") or 24,
-                voting_hours=league_full.get("voting_hours") or 24,
+                submission_hours=league_full.get("submission_hours") or 48,
+                voting_hours=league_full.get("voting_hours") or 72,
                 themes=league_full.get("themes") or [],
             )
         except Exception as e:
@@ -3224,7 +3309,7 @@ async def get_rounds(league_id: str, current_user: dict = Depends(get_current_us
                 {"round_id": round_id, "locked": {"$ne": True}},
                 {"$set": {"locked": True}}
             )
-            voting_hours = round_doc.get("voting_hours", 24)
+            voting_hours = round_doc.get("voting_hours", 72)
             new_voting_deadline = now + timedelta(hours=voting_hours)
             await db.rounds.update_one(
                 {"id": round_id},
@@ -3281,7 +3366,7 @@ async def get_round(round_id: str, current_user: dict = Depends(get_current_user
             {"round_id": round_id, "locked": {"$ne": True}},
             {"$set": {"locked": True}}
         )
-        voting_hours = round_doc.get("voting_hours", 24)
+        voting_hours = round_doc.get("voting_hours", 72)
         new_voting_deadline = now + timedelta(hours=voting_hours)
         await db.rounds.update_one(
             {"id": round_id},
@@ -3364,10 +3449,10 @@ async def start_round(
     sub_hours = (
         round_doc.get("submission_hours")
         or league.get("submission_hours")
-        or 24
+        or 48
     )
     vote_hours = (
-        round_doc.get("voting_hours") or league.get("voting_hours") or 24
+        round_doc.get("voting_hours") or league.get("voting_hours") or 72
     )
     new_sub_deadline = now + timedelta(hours=sub_hours)
     new_vote_deadline = new_sub_deadline + timedelta(hours=vote_hours)
@@ -3425,7 +3510,7 @@ async def advance_round(round_id: str, current_user: dict = Depends(get_current_
         # Reset voting deadline to start from NOW when advancing to voting
         # Use the round's voting_hours (set when round was created)
         now = datetime.now(timezone.utc)
-        voting_hours = round_doc.get("voting_hours", 24)
+        voting_hours = round_doc.get("voting_hours", 72)
         new_voting_deadline = now + timedelta(hours=voting_hours)
         await db.rounds.update_one(
             {"id": round_id},
@@ -4745,10 +4830,10 @@ async def _start_scheduled_public_rounds(now: datetime) -> None:
             sub_hours = (
                 r.get("submission_hours")
                 or league.get("submission_hours")
-                or 24
+                or 48
             )
             vote_hours = (
-                r.get("voting_hours") or league.get("voting_hours") or 24
+                r.get("voting_hours") or league.get("voting_hours") or 72
             )
             new_sub_deadline = now + timedelta(hours=sub_hours)
             new_vote_deadline = new_sub_deadline + timedelta(hours=vote_hours)
@@ -4801,7 +4886,7 @@ async def _advance_submission_expired(round_doc: dict, now: datetime) -> None:
         {"round_id": round_id, "locked": {"$ne": True}},
         {"$set": {"locked": True}},
     )
-    voting_hours = round_doc.get("voting_hours", 24)
+    voting_hours = round_doc.get("voting_hours", 72)
     new_voting_deadline = now + timedelta(hours=voting_hours)
     await db.rounds.update_one(
         {"id": round_id},
@@ -5028,6 +5113,31 @@ async def _backfill_past_league_finished_dates() -> int:
     return updated
 
 
+async def _backfill_public_league_genres() -> int:
+    """One-time backfill: every public league missing a genre (missing
+    field, null, or empty string after strip) gets genre="General".
+    Private leagues are left untouched — only public leagues surface on
+    the public directory and need the field for filtering/display.
+
+    Idempotent: subsequent runs are no-ops because qualifying docs no
+    longer match the filter.
+    """
+    result = await db.leagues.update_many(
+        {
+            "is_public": True,
+            "$or": [
+                {"genre": {"$exists": False}},
+                {"genre": None},
+                {"genre": ""},
+            ],
+        },
+        {"$set": {"genre": "General"}},
+    )
+    count = result.modified_count or 0
+    logger.info(f"leagues genre backfill: updated={count}")
+    return count
+
+
 @app.on_event("startup")
 async def past_leagues_startup_maintenance():
     """Creates the indexes the read-paths rely on (member_ids for the
@@ -5052,6 +5162,13 @@ async def past_leagues_startup_maintenance():
         await db.leagues.create_index("starts_at")
     except Exception as e:
         logger.warning(f"leagues starts_at index creation failed: {e}")
+    # One-time genre backfill for public leagues created before the field
+    # existed. Writes "General" for any public league missing or with a
+    # blank genre; leaves private leagues alone.
+    try:
+        await _backfill_public_league_genres()
+    except Exception as e:
+        logger.warning(f"leagues genre backfill failed: {e}")
 
 
 @api_router.post("/auth/reclassify-genres")

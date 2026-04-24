@@ -8,11 +8,14 @@ export interface LeagueDraft {
   totalRounds: number;
   submissionHours: number;
   votingHours: number;
+  genre?: string;
   isPublic?: boolean;
   // Hours until Round 1 auto-starts, for public leagues. Converted to an
   // absolute starts_at timestamp at create time so the server doesn't
   // have to second-guess relative values.
   startsInHours?: number;
+  // Public-only member cap; omitted = server default (50).
+  memberCap?: number;
 }
 
 let current: LeagueDraft | null = null;

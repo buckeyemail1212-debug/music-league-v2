@@ -47,6 +47,7 @@ export interface League {
   submission_hours?: number | null;
   voting_hours?: number | null;
   themes?: string[] | null;
+  genre?: string | null;
   is_public?: boolean;
   starts_at?: string | null;
   member_cap?: number | null;
@@ -219,8 +220,10 @@ export const createLeague = (data: {
   submission_hours?: number | null;
   voting_hours?: number | null;
   themes?: string[] | null;
+  genre?: string | null;
   is_public?: boolean;
   starts_at?: string | null;
+  member_cap?: number | null;
 }) => api.post<League>('/leagues', data);
 
 export const updateLeague = (id: string, data: {
@@ -349,6 +352,7 @@ export interface PublicLeagueSummary {
   has_current_user_joined: boolean;
   league_image?: string | null;
   creator_username?: string | null;
+  genre?: string | null;
 }
 
 export const getPublicLeagues = (params?: { q?: string; limit?: number; offset?: number }) =>

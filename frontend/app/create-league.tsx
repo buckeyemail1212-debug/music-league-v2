@@ -12,6 +12,8 @@ import {
   Switch,
   Alert,
   ActionSheetIOS,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,9 +26,9 @@ import LeagueCreatedSuccess from '../src/components/LeagueCreatedSuccess';
 import { leagueDraft } from '../src/utils/leagueDraft';
 
 const ROUND_CHOICES = [2, 3, 4, 5, 6, 7, 8, 9, 10];
+// Time choices must match the backend's ALLOWED_PHASE_HOURS (12, 24, 48,
+// 72, 168). Anything outside this set is rejected server-side.
 const TIME_CHOICES: { label: string; hours: number }[] = [
-  { label: '1 hr', hours: 1 },
-  { label: '6 hrs', hours: 6 },
   { label: '12 hrs', hours: 12 },
   { label: '1 day', hours: 24 },
   { label: '2 days', hours: 48 },
@@ -42,18 +44,26 @@ const STARTS_IN_CHOICES: { label: string; hours: number }[] = [
   { label: '3 days', hours: 72 },
   { label: '7 days', hours: 168 },
 ];
+// Public-league member cap picker: 10..100 in steps of 10. Default 50.
+const MEMBER_CAP_CHOICES: number[] = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+const DEFAULT_MEMBER_CAP = 50;
+const GENRE_MAX_LENGTH = 50;
 
 export default function CreateLeaguePage() {
   const router = useRouter();
   const [name, setName] = useState('');
+  const [genre, setGenre] = useState('');
   const [photo, setPhoto] = useState<string | null>(null);
-  const [rounds, setRounds] = useState(6);
-  const [submissionHours, setSubmissionHours] = useState(24);
-  const [votingHours, setVotingHours] = useState(24);
+  const [rounds, setRounds] = useState(3);
+  const [submissionHours, setSubmissionHours] = useState(48);
+  const [votingHours, setVotingHours] = useState(72);
   const [themesOn, setThemesOn] = useState(true);
   const [isPublic, setIsPublic] = useState(false);
   const [startsInHours, setStartsInHours] = useState(24);
+  const [memberCap, setMemberCap] = useState<number>(DEFAULT_MEMBER_CAP);
+  const [memberCapPickerOpen, setMemberCapPickerOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [genreError, setGenreError] = useState<string | null>(null);
   const [createdLeague, setCreatedLeague] = useState<League | null>(null);
 
   const pickFromLibrary = async () => {
@@ -120,9 +130,19 @@ export default function CreateLeaguePage() {
     }
   };
 
-  const canSubmit = name.trim().length > 0 && !submitting;
+  const trimmedGenre = genre.trim();
+  const genreRequiredMissing = isPublic && trimmedGenre.length === 0;
+  const canSubmit =
+    name.trim().length > 0 && !submitting && !genreRequiredMissing;
 
   const handleCreate = async () => {
+    // Public leagues require a non-empty genre. Surface the error inline
+    // rather than silently disabling submission.
+    if (isPublic && trimmedGenre.length === 0) {
+      setGenreError('Genre is required for public leagues');
+      return;
+    }
+    setGenreError(null);
     if (!canSubmit) return;
 
     // Themes ON → hand off to the Set Round Themes screen. It owns the
@@ -135,8 +155,10 @@ export default function CreateLeaguePage() {
         totalRounds: rounds,
         submissionHours,
         votingHours,
+        genre: trimmedGenre || undefined,
         isPublic,
         startsInHours: isPublic ? startsInHours : undefined,
+        memberCap: isPublic ? memberCap : undefined,
       });
       router.push('/set-round-themes' as any);
       return;
@@ -151,11 +173,13 @@ export default function CreateLeaguePage() {
         voting_hours: votingHours,
       };
       if (photo) payload.league_image = photo;
+      if (trimmedGenre) payload.genre = trimmedGenre;
       if (isPublic) {
         payload.is_public = true;
         payload.starts_at = new Date(
           Date.now() + startsInHours * 3600 * 1000,
         ).toISOString();
+        payload.member_cap = memberCap;
       }
       const res = await createLeague(payload);
       leagueEvents.emit();
@@ -237,6 +261,29 @@ export default function CreateLeaguePage() {
             returnKeyType="done"
           />
 
+          {/* Genre */}
+          <View style={styles.labelRow}>
+            <Text style={styles.label}>
+              Genre{isPublic ? '' : ' (optional)'}
+            </Text>
+            <Text style={styles.counter}>
+              {genre.length} / {GENRE_MAX_LENGTH}
+            </Text>
+          </View>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g., Indie Rock, 90s Hip-Hop, Chill Vibes"
+            placeholderTextColor="#6A6A6A"
+            value={genre}
+            onChangeText={(v) => {
+              setGenre(v);
+              if (genreError) setGenreError(null);
+            }}
+            maxLength={GENRE_MAX_LENGTH}
+            returnKeyType="done"
+          />
+          {genreError && <Text style={styles.inlineError}>{genreError}</Text>}
+
           {/* Rounds */}
           <Text style={styles.label}>Number of Rounds</Text>
           <ChipRow
@@ -260,6 +307,9 @@ export default function CreateLeaguePage() {
             value={votingHours}
             onChange={setVotingHours}
           />
+          <Text style={styles.helperNote}>
+            Suggested: 2 days for submission, 3 days for voting.
+          </Text>
 
           {/* Themes toggle */}
           <View style={styles.themeToggleRow}>
@@ -301,8 +351,73 @@ export default function CreateLeaguePage() {
                 value={startsInHours}
                 onChange={setStartsInHours}
               />
+
+              <Text style={styles.label}>Max members</Text>
+              <TouchableOpacity
+                style={styles.pickerField}
+                activeOpacity={0.8}
+                onPress={() => setMemberCapPickerOpen(true)}
+              >
+                <Text style={styles.pickerFieldText}>{memberCap}</Text>
+                <Ionicons name="chevron-down" size={18} color="#B3B3B3" />
+              </TouchableOpacity>
             </>
           )}
+
+          {/* Member cap picker modal — scrollable list of 10..100 in 10s. */}
+          <Modal
+            visible={memberCapPickerOpen}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setMemberCapPickerOpen(false)}
+          >
+            <TouchableOpacity
+              style={styles.pickerBackdrop}
+              activeOpacity={1}
+              onPress={() => setMemberCapPickerOpen(false)}
+            >
+              <View style={styles.pickerSheet}>
+                <Text style={styles.pickerHeader}>Max members</Text>
+                <FlatList
+                  data={MEMBER_CAP_CHOICES}
+                  keyExtractor={(n) => String(n)}
+                  renderItem={({ item }) => {
+                    const selected = item === memberCap;
+                    return (
+                      <TouchableOpacity
+                        style={[
+                          styles.pickerRow,
+                          selected && styles.pickerRowSelected,
+                        ]}
+                        onPress={() => {
+                          setMemberCap(item);
+                          setMemberCapPickerOpen(false);
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Text
+                          style={[
+                            styles.pickerRowText,
+                            selected && styles.pickerRowTextSelected,
+                          ]}
+                        >
+                          {item}
+                        </Text>
+                        {selected && (
+                          <Ionicons
+                            name="checkmark"
+                            size={18}
+                            color="#FFFFFF"
+                          />
+                        )}
+                      </TouchableOpacity>
+                    );
+                  }}
+                  showsVerticalScrollIndicator
+                />
+              </View>
+            </TouchableOpacity>
+          </Modal>
 
           <TouchableOpacity
             style={[styles.cta, !canSubmit && styles.ctaDisabled]}
@@ -410,6 +525,75 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     textTransform: 'uppercase',
   },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+  },
+  counter: {
+    fontSize: 11,
+    color: '#6A6A6A',
+    marginBottom: 10,
+    marginTop: 22,
+  },
+  inlineError: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#EF4444',
+    fontWeight: '600',
+  },
+  helperNote: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#6A6A6A',
+    fontStyle: 'italic',
+  },
+  pickerField: {
+    backgroundColor: '#181818',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  pickerFieldText: { color: '#FFFFFF', fontSize: 15, fontWeight: '600' },
+  pickerBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pickerSheet: {
+    width: '72%',
+    maxHeight: '60%',
+    backgroundColor: '#1E1E1E',
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+  },
+  pickerHeader: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    color: '#B3B3B3',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    textTransform: 'uppercase',
+  },
+  pickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+  },
+  pickerRowSelected: {
+    backgroundColor: 'rgba(124,58,237,0.18)',
+  },
+  pickerRowText: { color: '#FFFFFF', fontSize: 15, fontWeight: '600' },
+  pickerRowTextSelected: { color: '#FFFFFF' },
   input: {
     backgroundColor: '#181818',
     borderRadius: 10,

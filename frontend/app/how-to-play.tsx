@@ -49,7 +49,7 @@ export default function HowToPlayPage() {
           <StepCard
             number={1}
             title="Create a league"
-            body="Set up a new league, pick the number of rounds, choose how long each phase lasts, and optionally add a theme for every round. You can also make your league public. Public leagues are listed on the Public Leagues page where anyone can join — up to 50 members — until Round 1 auto-starts on a timer you set."
+            body="Set up a new league, pick the number of rounds, choose how long each phase lasts, and optionally add a theme for every round. You can also make your league public. Public leagues are listed on the Public Leagues page where anyone can join — up to 100 members — until Round 1 auto-starts on a timer you set."
           />
           <StepCard
             number={2}
