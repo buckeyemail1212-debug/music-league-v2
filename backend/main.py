@@ -499,20 +499,26 @@ async def _finalize_round_lifetime(round_id: str):
             if sid in points:
                 points[sid] += (num_to_rank - idx)
 
-    submitter_ids = set(sub_owners.values())
-    non_voters = submitter_ids - voters_who_voted
-    if non_voters and num_submissions > 1:
-        total_per_voter = sum(range(1, num_to_rank + 1))
-        for nv_id in non_voters:
-            nv_sub_id = next((s["id"] for s in submissions if s["user_id"] == nv_id), None)
-            other_subs = [s["id"] for s in submissions if s["id"] != nv_sub_id]
-            if other_subs:
-                base = total_per_voter // len(other_subs)
-                rem = total_per_voter % len(other_subs)
-                for sid in other_subs:
-                    points[sid] += base
-                for i in range(rem):
-                    points[other_subs[i]] += 1
+    # Legacy rule: when a submitter didn't vote, redistribute their point
+    # pool evenly across the other submissions. We only still apply this
+    # for rounds that entered voting BEFORE the forfeit-pools change —
+    # rounds stamped with `forfeit_missing_voter_pools` just drop the
+    # missing voter's pool (per-spec, points are simply forfeit).
+    if not round_doc.get("forfeit_missing_voter_pools"):
+        submitter_ids = set(sub_owners.values())
+        non_voters = submitter_ids - voters_who_voted
+        if non_voters and num_submissions > 1:
+            total_per_voter = sum(range(1, num_to_rank + 1))
+            for nv_id in non_voters:
+                nv_sub_id = next((s["id"] for s in submissions if s["user_id"] == nv_id), None)
+                other_subs = [s["id"] for s in submissions if s["id"] != nv_sub_id]
+                if other_subs:
+                    base = total_per_voter // len(other_subs)
+                    rem = total_per_voter % len(other_subs)
+                    for sid in other_subs:
+                        points[sid] += base
+                    for i in range(rem):
+                        points[other_subs[i]] += 1
 
     max_points = max(points.values()) if points else 0
     league_doc = await db.leagues.find_one({"id": round_doc["league_id"]})
@@ -713,6 +719,9 @@ class RoundResultResponse(BaseModel):
     is_tie: bool
     total_voters: int
     votes: List[dict] = []  # [{voter_id, voter_username, voter_profile_photo, rankings}]
+    # League members who didn't submit this round. Shown on the results
+    # screen as "X (no submission) — 0 pts" rows.
+    non_submitters: List[dict] = []  # [{user_id, username, profile_photo}]
 
 class LeagueStandingsResponse(BaseModel):
     league_id: str
@@ -2372,6 +2381,22 @@ async def get_league(league_id: str, current_user: dict = Depends(get_current_us
     
     return LeagueResponse(**add_league_defaults(league))
 
+# Round statuses that mean a league has actually begun. Ready / locked /
+# scheduled rounds don't count — those are pre-play states (creator hasn't
+# pressed Start, or the scheduled public-R1 timer hasn't fired yet).
+_STARTED_ROUND_STATUSES = ("submission", "voting", "completed", "skipped")
+
+
+async def _league_has_started(league_id: str) -> bool:
+    """A league is "started" once at least one of its rounds has ever
+    entered submission status. Used to gate join requests."""
+    started = await db.rounds.find_one(
+        {"league_id": league_id, "status": {"$in": list(_STARTED_ROUND_STATUSES)}},
+        {"_id": 0, "id": 1},
+    )
+    return started is not None
+
+
 @api_router.post("/leagues/join", response_model=LeagueResponse)
 async def join_league(request: JoinLeagueRequest, current_user: dict = Depends(get_current_user)):
     league = await db.leagues.find_one({"league_code": request.league_code.upper()})
@@ -2383,10 +2408,11 @@ async def join_league(request: JoinLeagueRequest, current_user: dict = Depends(g
     if is_member:
         raise HTTPException(status_code=400, detail="You are already a member of this league")
 
-    # Check if league has started (has any rounds)
-    has_rounds = await db.rounds.find_one({"league_id": league["id"]}, {"_id": 0, "id": 1})
-    if has_rounds:
-        raise HTTPException(status_code=400, detail="This league has already started. New members cannot join once rounds have begun.")
+    if await _league_has_started(league["id"]):
+        raise HTTPException(
+            status_code=400,
+            detail="This league has already started. New members can only join before the first round begins.",
+        )
 
     # Add user to members
     await db.leagues.update_one(
@@ -2411,9 +2437,11 @@ async def join_public_league(league_id: str, current_user: dict = Depends(get_cu
     if not league.get("is_public"):
         raise HTTPException(status_code=400, detail="This league is not public.")
 
-    starts_at = ensure_utc(league.get("starts_at")) if league.get("starts_at") else None
-    if not starts_at or starts_at <= datetime.now(timezone.utc):
-        raise HTTPException(status_code=400, detail="League has already started.")
+    if await _league_has_started(league_id):
+        raise HTTPException(
+            status_code=400,
+            detail="This league has already started. New members can only join before the first round begins.",
+        )
 
     members = league.get("members", [])
     if any(m.get("id") == current_user["id"] for m in members):
@@ -2669,21 +2697,24 @@ async def _build_past_league_snapshot(
                 pts = num_to_rank - idx
                 if sid in points:
                     points[sid] += pts
-        submitter_user_ids = set(submitter_ids.values())
-        non_voters = submitter_user_ids - voters_who_voted
-        if non_voters and num_subs > 1:
-            total_pts_per_voter = sum(range(1, num_to_rank + 1))
-            for nv_id in non_voters:
-                nv_sub_id = next((s["id"] for s in subs if s["user_id"] == nv_id), None)
-                others = [s["id"] for s in subs if s["id"] != nv_sub_id]
-                num_other = len(others)
-                if num_other > 0:
-                    per = total_pts_per_voter // num_other
-                    rem = total_pts_per_voter % num_other
-                    for sid in others:
-                        points[sid] += per
-                    for i in range(rem):
-                        points[others[i]] += 1
+        # See _finalize_round_lifetime: only pre-flag rounds still get the
+        # redistribute-missing-voter treatment. New rounds forfeit the pool.
+        if not r.get("forfeit_missing_voter_pools"):
+            submitter_user_ids = set(submitter_ids.values())
+            non_voters = submitter_user_ids - voters_who_voted
+            if non_voters and num_subs > 1:
+                total_pts_per_voter = sum(range(1, num_to_rank + 1))
+                for nv_id in non_voters:
+                    nv_sub_id = next((s["id"] for s in subs if s["user_id"] == nv_id), None)
+                    others = [s["id"] for s in subs if s["id"] != nv_sub_id]
+                    num_other = len(others)
+                    if num_other > 0:
+                        per = total_pts_per_voter // num_other
+                        rem = total_pts_per_voter % num_other
+                        for sid in others:
+                            points[sid] += per
+                        for i in range(rem):
+                            points[others[i]] += 1
         max_pts = max(points.values()) if points else 0
         for s in subs:
             uid = s["user_id"]
@@ -3197,12 +3228,17 @@ async def get_rounds(league_id: str, current_user: dict = Depends(get_current_us
             new_voting_deadline = now + timedelta(hours=voting_hours)
             await db.rounds.update_one(
                 {"id": round_id},
-                {"$set": {"status": "voting", "voting_deadline": new_voting_deadline}}
+                {"$set": {
+                    "status": "voting",
+                    "voting_deadline": new_voting_deadline,
+                    "forfeit_missing_voter_pools": True,
+                }}
             )
             status = "voting"
             round_doc["status"] = status
             round_doc["voting_deadline"] = new_voting_deadline
-            
+            round_doc["forfeit_missing_voter_pools"] = True
+
         elif status == "voting" and voting_deadline_dt < now:
             # Same transition as the scheduler — delegate to the helper so
             # the unlock step can't get skipped on the read path.
@@ -3249,12 +3285,17 @@ async def get_round(round_id: str, current_user: dict = Depends(get_current_user
         new_voting_deadline = now + timedelta(hours=voting_hours)
         await db.rounds.update_one(
             {"id": round_id},
-            {"$set": {"status": "voting", "voting_deadline": new_voting_deadline}}
+            {"$set": {
+                "status": "voting",
+                "voting_deadline": new_voting_deadline,
+                "forfeit_missing_voter_pools": True,
+            }}
         )
         status = "voting"
         round_doc["status"] = status
         round_doc["voting_deadline"] = new_voting_deadline
-        
+        round_doc["forfeit_missing_voter_pools"] = True
+
     elif status == "voting" and voting_deadline < now:
         # Shared voting → completed transition. The helper also unlocks
         # the next round so the single-round fetch path doesn't leak a
@@ -3387,8 +3428,12 @@ async def advance_round(round_id: str, current_user: dict = Depends(get_current_
         voting_hours = round_doc.get("voting_hours", 24)
         new_voting_deadline = now + timedelta(hours=voting_hours)
         await db.rounds.update_one(
-            {"id": round_id}, 
-            {"$set": {"status": "voting", "voting_deadline": new_voting_deadline}}
+            {"id": round_id},
+            {"$set": {
+                "status": "voting",
+                "voting_deadline": new_voting_deadline,
+                "forfeit_missing_voter_pools": True,
+            }}
         )
         return {"message": "Round advanced to voting phase"}
     elif round_doc["status"] == "voting":
@@ -3614,13 +3659,17 @@ async def submit_vote(round_id: str, request: VoteRequest, current_user: dict = 
     if round_doc["status"] != "voting":
         raise HTTPException(status_code=400, detail="Voting is not open for this round")
     
-    # Check if user submitted a song - only submitters can vote
+    # Only users who submitted in this round may vote — missing submitters
+    # forfeit their vote (and their point pool is forfeit at finalize time).
     user_submission = await db.submissions.find_one({
         "round_id": round_id,
         "user_id": current_user["id"]
     })
     if not user_submission:
-        raise HTTPException(status_code=403, detail="You must submit a song before you can vote")
+        raise HTTPException(
+            status_code=403,
+            detail="You didn't submit this round, so you can't vote on it.",
+        )
     
     # Check if user already voted
     existing = await db.votes.find_one({
@@ -3776,27 +3825,29 @@ async def get_league_standings(league_id: str, current_user: dict = Depends(get_
                 pts = num_songs_to_rank - rank_index
                 points[sub_id] = points.get(sub_id, 0) + pts
         
-        # Auto-distribute points for non-voters who submitted
-        submitter_user_ids = set(submitter_ids.values())
-        non_voters = submitter_user_ids - voters_who_voted
-        
-        if non_voters and num_submissions > 1:
-            total_points_per_voter = sum(range(1, num_songs_to_rank + 1))
-            for non_voter_id in non_voters:
-                non_voter_sub_id = None
-                for sub in submissions:
-                    if sub["user_id"] == non_voter_id:
-                        non_voter_sub_id = sub["id"]
-                        break
-                other_subs = [sub["id"] for sub in submissions if sub["id"] != non_voter_sub_id]
-                num_other = len(other_subs)
-                if num_other > 0:
-                    pts_per_song = total_points_per_voter // num_other
-                    remainder = total_points_per_voter % num_other
-                    for sub_id in other_subs:
-                        points[sub_id] += pts_per_song
-                    for i in range(remainder):
-                        points[other_subs[i]] += 1
+        # Legacy rule: auto-distribute non-voter pools. New rounds
+        # (forfeit_missing_voter_pools) drop the missing voter's pool.
+        if not round_doc.get("forfeit_missing_voter_pools"):
+            submitter_user_ids = set(submitter_ids.values())
+            non_voters = submitter_user_ids - voters_who_voted
+
+            if non_voters and num_submissions > 1:
+                total_points_per_voter = sum(range(1, num_songs_to_rank + 1))
+                for non_voter_id in non_voters:
+                    non_voter_sub_id = None
+                    for sub in submissions:
+                        if sub["user_id"] == non_voter_id:
+                            non_voter_sub_id = sub["id"]
+                            break
+                    other_subs = [sub["id"] for sub in submissions if sub["id"] != non_voter_sub_id]
+                    num_other = len(other_subs)
+                    if num_other > 0:
+                        pts_per_song = total_points_per_voter // num_other
+                        remainder = total_points_per_voter % num_other
+                        for sub_id in other_subs:
+                            points[sub_id] += pts_per_song
+                        for i in range(remainder):
+                            points[other_subs[i]] += 1
         
         # Find winner(s) and update stats
         max_points = max(points.values()) if points else 0
@@ -3867,40 +3918,36 @@ async def get_results(round_id: str, current_user: dict = Depends(get_current_us
             points = num_songs_to_rank - rank_index
             submission_scores[sub_id] += points
     
-    # Auto-distribute missing votes
-    # Find users who submitted but didn't vote
-    submitter_user_ids = set(submitter_ids.values())
-    non_voters = submitter_user_ids - voters_who_voted
-    
-    if non_voters and len(submissions) > 1:
-        # Calculate total points that would be given by a non-voter
-        # They would rank all submissions except their own
-        total_points_per_voter = sum(range(1, num_songs_to_rank + 1))  # 1+2+3+...+N
-        
-        for non_voter_id in non_voters:
-            # Find this non-voter's submission ID
-            non_voter_sub_id = None
-            for sub in submissions:
-                if sub["user_id"] == non_voter_id:
-                    non_voter_sub_id = sub["id"]
-                    break
-            
-            # Get submissions they would have ranked (all except their own)
-            other_subs = [sub["id"] for sub in submissions if sub["id"] != non_voter_sub_id]
-            num_other = len(other_subs)
-            
-            if num_other > 0:
-                # Distribute points evenly as whole numbers
-                points_per_song = total_points_per_voter // num_other
-                remainder = total_points_per_voter % num_other
-                
-                # Distribute base points to all
-                for sub_id in other_subs:
-                    submission_scores[sub_id] += points_per_song
-                
-                # Distribute remainder points one by one (give to first N songs)
-                for i in range(remainder):
-                    submission_scores[other_subs[i]] += 1
+    # Legacy rule: non-voters' point pools get redistributed evenly
+    # across the other songs. Rounds that entered voting after the
+    # forfeit-pools change skip this — missing voters' pools are simply
+    # forfeit.
+    if not round_doc.get("forfeit_missing_voter_pools"):
+        submitter_user_ids = set(submitter_ids.values())
+        non_voters = submitter_user_ids - voters_who_voted
+
+        if non_voters and len(submissions) > 1:
+            total_points_per_voter = sum(range(1, num_songs_to_rank + 1))
+
+            for non_voter_id in non_voters:
+                non_voter_sub_id = None
+                for sub in submissions:
+                    if sub["user_id"] == non_voter_id:
+                        non_voter_sub_id = sub["id"]
+                        break
+
+                other_subs = [sub["id"] for sub in submissions if sub["id"] != non_voter_sub_id]
+                num_other = len(other_subs)
+
+                if num_other > 0:
+                    points_per_song = total_points_per_voter // num_other
+                    remainder = total_points_per_voter % num_other
+
+                    for sub_id in other_subs:
+                        submission_scores[sub_id] += points_per_song
+
+                    for i in range(remainder):
+                        submission_scores[other_subs[i]] += 1
     
     # Sort by total points (descending)
     sorted_subs = sorted(submissions, key=lambda s: -submission_scores[s["id"]])
@@ -3953,6 +4000,33 @@ async def get_results(round_id: str, current_user: dict = Depends(get_current_us
             "rankings": v.get("rankings", []),
         })
 
+    # League members who didn't submit this round. Only populated for
+    # rounds that follow the forfeit-pools rule so the UI doesn't surface
+    # "(no submission)" rows for legacy rounds where those members'
+    # points were still auto-distributed.
+    non_submitters: list[dict] = []
+    if round_doc.get("forfeit_missing_voter_pools") and league:
+        submitter_user_ids = {s["user_id"] for s in submissions}
+        member_ids_missing = [
+            m["id"] for m in league.get("members", [])
+            if m["id"] not in submitter_user_ids
+        ]
+        if member_ids_missing:
+            user_docs = await db.users.find(
+                {"id": {"$in": member_ids_missing}},
+                {"_id": 0, "id": 1, "username": 1, "profile_photo": 1},
+            ).to_list(500)
+            doc_by_id = {u["id"]: u for u in user_docs}
+            for m in league.get("members", []):
+                if m["id"] in submitter_user_ids:
+                    continue
+                u = doc_by_id.get(m["id"], {})
+                non_submitters.append({
+                    "user_id": m["id"],
+                    "username": u.get("username") or m.get("username", ""),
+                    "profile_photo": u.get("profile_photo"),
+                })
+
     return RoundResultResponse(
         id=str(uuid.uuid4()),
         round_id=round_id,
@@ -3960,7 +4034,8 @@ async def get_results(round_id: str, current_user: dict = Depends(get_current_us
         winners=winners,
         is_tie=is_tie,
         total_voters=len(votes),
-        votes=votes_payload
+        votes=votes_payload,
+        non_submitters=non_submitters,
     )
 
 # ==================== SONG SEARCH (DEEZER PROXY) ====================
@@ -4730,7 +4805,11 @@ async def _advance_submission_expired(round_doc: dict, now: datetime) -> None:
     new_voting_deadline = now + timedelta(hours=voting_hours)
     await db.rounds.update_one(
         {"id": round_id},
-        {"$set": {"status": "voting", "voting_deadline": new_voting_deadline}},
+        {"$set": {
+            "status": "voting",
+            "voting_deadline": new_voting_deadline,
+            "forfeit_missing_voter_pools": True,
+        }},
     )
 
 

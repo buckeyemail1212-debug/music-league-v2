@@ -122,6 +122,11 @@ export interface RoundResult {
     voter_profile_photo?: string | null;
     rankings: string[];
   }[];
+  non_submitters?: {
+    user_id: string;
+    username: string;
+    profile_photo?: string | null;
+  }[];
 }
 
 export interface LeagueStandings {

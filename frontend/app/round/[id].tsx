@@ -567,6 +567,10 @@ export default function RoundScreen() {
     const numSongs = otherSubs.length;
     const currentRank = rankingSelections[submission.id];
     const isDropdownOpen = rankDropdownOpen === submission.id;
+    // User who didn't submit: keep the whole list visible + playable, but
+    // render the rank dropdown visually disabled so they see the UI that
+    // voters see (with tooltip-style alert on tap).
+    const votingLocked = !round?.has_user_submitted;
 
     return (
       <View style={[styles.votingCard, { zIndex: isDropdownOpen ? 999 : 1 }]}>
@@ -593,7 +597,21 @@ export default function RoundScreen() {
             songId={`vote-${submission.song.deezer_id}`}
           />
         </View>
-        {!round?.has_user_voted && (
+        {votingLocked && (
+          <View style={styles.rankDropdownContainer}>
+            <TouchableOpacity
+              style={[styles.rankDropdownButton, styles.rankDropdownButtonDisabled]}
+              onPress={() => Alert.alert('Voting locked', 'Voting is locked for this round.')}
+              activeOpacity={0.9}
+            >
+              <Text style={[styles.rankDropdownButtonText, styles.rankDropdownButtonTextDisabled]}>
+                Rank
+              </Text>
+              <Ionicons name="lock-closed" size={12} color="#6A6A6A" />
+            </TouchableOpacity>
+          </View>
+        )}
+        {!votingLocked && !round?.has_user_voted && (
           <View style={styles.rankDropdownContainer}>
             <TouchableOpacity
               style={[styles.rankDropdownButton, currentRank ? styles.rankDropdownButtonSelected : null]}
@@ -910,23 +928,13 @@ export default function RoundScreen() {
       {/* VOTING PHASE */}
       {round.status === 'voting' && (
         <>
-          {/* Check if user hasn't submitted - they can't vote */}
+          {/* Missing submitter: informational (not error) banner + view-only list */}
           {!round.has_user_submitted ? (
-            <View style={styles.noSubmissionContainer}>
-              <Ionicons name="ban-outline" size={48} color="#7C3AED" />
-              <Text style={styles.noSubmissionTitle}>You Cannot Vote</Text>
-              <Text style={styles.noSubmissionText}>
-                You did not submit a song during the submission phase.
+            <View style={styles.forfeitBanner}>
+              <Ionicons name="alert-circle-outline" size={20} color="#D97706" />
+              <Text style={styles.forfeitBannerText}>
+                You didn't submit this round, so you can't vote. Your points for this round are forfeit.
               </Text>
-              <Text style={styles.noSubmissionText}>
-                Only members who submitted can participate in voting.
-              </Text>
-              <View style={styles.noSubmissionWarning}>
-                <Ionicons name="alert-circle" size={16} color="#7C3AED" />
-                <Text style={styles.noSubmissionWarningText}>
-                  You will receive 0 points for this round
-                </Text>
-              </View>
             </View>
           ) : round.user_vote_locked ? (
             // Vote is locked
@@ -974,8 +982,9 @@ export default function RoundScreen() {
             </>
           )}
 
-          {/* Show voting list if user has submitted and not locked */}
-          {round.has_user_submitted && !round.user_vote_locked && (
+          {/* Show voting list. Non-submitters see the same list but the
+              rank dropdowns render disabled (handled in renderVotingItem). */}
+          {!round.user_vote_locked && (
             <FlatList
               data={submissions.filter(s => s.user_id !== user?.id)}
               keyExtractor={(item) => item.id}
@@ -996,14 +1005,16 @@ export default function RoundScreen() {
                   const rankA = rankingSelections[a.id] ?? 999;
                   const rankB = rankingSelections[b.id] ?? 999;
                   return rankA - rankB;
-                }).map((item, index) => 
+                }).map((item, index) =>
                   renderLockedRankItem(item, rankingSelections[item.id] ?? (index + 1))
                 )}
               </View>
             </View>
           )}
 
-          {/* Save vote button - only show when actively ranking and user has submitted */}
+          {/* Submit vote button.
+              - Submitters who haven't locked/saved see the normal flow.
+              - Missing submitters see a disabled button that explains why. */}
           {round.has_user_submitted && !voteSaved && !round.user_vote_locked && (
             <View style={styles.submitVoteContainer}>
               <TouchableOpacity
@@ -1018,6 +1029,17 @@ export default function RoundScreen() {
                     {allRanksSelected() ? 'Save Vote' : 'Rank All Songs'}
                   </Text>
                 )}
+              </TouchableOpacity>
+            </View>
+          )}
+          {!round.has_user_submitted && (
+            <View style={styles.submitVoteContainer}>
+              <TouchableOpacity
+                style={[styles.submitVoteButton, styles.buttonDisabled]}
+                onPress={() => Alert.alert('Voting locked', 'Voting is locked for this round.')}
+                activeOpacity={0.9}
+              >
+                <Text style={styles.submitVoteText}>Submit Vote</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -1234,30 +1256,45 @@ export default function RoundScreen() {
                   />
                 }
                 ListFooterComponent={
-                  <View style={styles.shareResultsFooter}>
-                    <TouchableOpacity
-                      style={[
-                        styles.shareResultsButton,
-                        isSharing && styles.buttonDisabled,
-                      ]}
-                      onPress={handleShareResults}
-                      disabled={isSharing}
-                      activeOpacity={0.8}
-                    >
-                      {isSharing ? (
-                        <ActivityIndicator color="#FFFFFF" />
-                      ) : (
-                        <Text style={styles.shareResultsText}>Share Results</Text>
-                      )}
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.expandResultsButton}
-                      onPress={() => setShowExpandModal(true)}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={styles.shareResultsText}>Expand Results</Text>
-                    </TouchableOpacity>
-                  </View>
+                  <>
+                    {results.non_submitters && results.non_submitters.length > 0 && (
+                      <View style={styles.nonSubmittersSection}>
+                        <Text style={styles.nonSubmittersHeading}>NO SUBMISSION</Text>
+                        {results.non_submitters.map((ns) => (
+                          <View key={ns.user_id} style={styles.nonSubmitterRow}>
+                            <Text style={styles.nonSubmitterName} numberOfLines={1}>
+                              {ns.username} <Text style={styles.nonSubmitterMeta}>(no submission)</Text>
+                            </Text>
+                            <Text style={styles.nonSubmitterPoints}>0 pts</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                    <View style={styles.shareResultsFooter}>
+                      <TouchableOpacity
+                        style={[
+                          styles.shareResultsButton,
+                          isSharing && styles.buttonDisabled,
+                        ]}
+                        onPress={handleShareResults}
+                        disabled={isSharing}
+                        activeOpacity={0.8}
+                      >
+                        {isSharing ? (
+                          <ActivityIndicator color="#FFFFFF" />
+                        ) : (
+                          <Text style={styles.shareResultsText}>Share Results</Text>
+                        )}
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.expandResultsButton}
+                        onPress={() => setShowExpandModal(true)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.shareResultsText}>Expand Results</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </>
                 }
               />
             );
@@ -2542,6 +2579,73 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6A6A6A',
     textAlign: 'center',
+  },
+  nonSubmittersSection: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+  },
+  nonSubmittersHeading: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1,
+    color: '#6A6A6A',
+    marginBottom: 8,
+  },
+  nonSubmitterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+  },
+  nonSubmitterName: {
+    flex: 1,
+    fontSize: 14,
+    color: '#B3B3B3',
+    fontWeight: '500',
+  },
+  nonSubmitterMeta: {
+    color: '#6A6A6A',
+    fontWeight: '400',
+  },
+  nonSubmitterPoints: {
+    fontSize: 13,
+    color: '#6A6A6A',
+    fontWeight: '600',
+  },
+  forfeitBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: 'rgba(217,119,6,0.12)',
+    borderLeftWidth: 3,
+    borderLeftColor: '#D97706',
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  forfeitBannerText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#F5D48A',
+    lineHeight: 18,
+  },
+  rankDropdownButtonDisabled: {
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderColor: 'rgba(255,255,255,0.10)',
+    opacity: 0.55,
+  },
+  rankDropdownButtonTextDisabled: {
+    color: '#6A6A6A',
   },
   noSubmissionContainer: {
     flex: 1,
