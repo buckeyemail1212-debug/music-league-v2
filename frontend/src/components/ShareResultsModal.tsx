@@ -8,7 +8,6 @@ import {
   Image,
   ActivityIndicator,
   Alert,
-  Share as RNShare,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -57,20 +56,18 @@ type Props = {
   data: ShareResultsData;
 };
 
-// One source of truth for the SHARE TO grid. The first row is reserved
-// for social-network deep links; row 2 is utility.
+// SHARE TO grid: a single row of three utility actions. Social-network
+// deep links (Instagram Story, TikTok) and Messages were removed — users
+// can still surface them through the iOS share sheet via "More".
 const SHARE_BUTTONS: {
-  key: 'instagram' | 'tiktok' | 'messages' | 'copy' | 'save' | 'more';
+  key: 'save' | 'copy' | 'more';
   label: string;
   icon: React.ComponentProps<typeof Ionicons>['name'];
   iconColor?: string;
   iconBg?: string;
 }[] = [
-  { key: 'instagram', label: 'Instagram\nStory', icon: 'logo-instagram', iconColor: '#FFFFFF', iconBg: '#E1306C' },
-  { key: 'tiktok', label: 'TikTok', icon: 'logo-tiktok', iconColor: '#FFFFFF', iconBg: '#000000' },
-  { key: 'messages', label: 'Messages', icon: 'chatbubble', iconColor: '#FFFFFF', iconBg: '#34C759' },
-  { key: 'copy', label: 'Copy link', icon: 'link', iconColor: '#FFFFFF', iconBg: '#4B5563' },
   { key: 'save', label: 'Save image', icon: 'download', iconColor: '#FFFFFF', iconBg: '#7C3AED' },
+  { key: 'copy', label: 'Copy link', icon: 'link', iconColor: '#FFFFFF', iconBg: '#4B5563' },
   { key: 'more', label: 'More', icon: 'ellipsis-horizontal', iconColor: '#FFFFFF', iconBg: '#3A3A3A' },
 ];
 
@@ -79,8 +76,20 @@ export default function ShareResultsModal({ visible, onClose, data }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
   const cardRef = useRef<ViewShot>(null);
 
+  // Tie detection: the "winner" is everyone tied at the highest point
+  // total — that's `tiedWinners`, and `tiedWinnerCount >= 2` flips the
+  // card layouts into multi-winner mode (no giant "1" square, equal
+  // visual weight per winner). Runners-up are everything below the top
+  // group. This relies on `data.entries` being sorted by points
+  // descending, which the callers do.
+  const maxPoints = data.entries.length > 0 ? data.entries[0].points : 0;
+  const tiedWinners = data.entries.filter((e) => e.points === maxPoints);
+  const tiedWinnerCount = tiedWinners.length;
+  const isTopTie = tiedWinnerCount >= 2;
+  const nonWinners = data.entries.filter((e) => e.points !== maxPoints);
+  // Single-winner anchor for the legacy non-tied layout paths.
   const winner = data.entries[0];
-  const others = data.entries.slice(1, 4);
+  const others = nonWinners.slice(0, 3);
 
   const captureCard = async (): Promise<string | null> => {
     try {
@@ -128,26 +137,21 @@ export default function ShareResultsModal({ visible, onClose, data }: Props) {
     }
   };
 
-  const onShareSheet = async (label: 'messages' | 'more') => {
+  const onShareSheet = async () => {
     if (busy) return;
-    setBusy(label);
+    setBusy('more');
     try {
       const uri = await captureCard();
       if (!uri) throw new Error('capture failed');
       const available = await Sharing.isAvailableAsync();
-      if (available) {
-        await Sharing.shareAsync(uri, {
-          mimeType: 'image/png',
-          dialogTitle: 'Share results',
-        });
-      } else {
-        // expo-sharing isn't available (rare, mostly web). Fall back to
-        // RN Share API with a text-only message — the iOS share sheet
-        // will still surface Messages.
-        await RNShare.share({
-          message: `${data.leagueName} — ${data.shareLink}`,
-        });
+      if (!available) {
+        Alert.alert('Sharing unavailable', "This device doesn't support the system share sheet.");
+        return;
       }
+      await Sharing.shareAsync(uri, {
+        mimeType: 'image/png',
+        dialogTitle: 'Share results',
+      });
     } catch (e) {
       Alert.alert('Error', 'Failed to share.');
     } finally {
@@ -156,14 +160,9 @@ export default function ShareResultsModal({ visible, onClose, data }: Props) {
   };
 
   const onPressShareButton = (key: typeof SHARE_BUTTONS[number]['key']) => {
-    if (key === 'instagram' || key === 'tiktok') {
-      Alert.alert('Coming soon', `Direct ${key === 'instagram' ? 'Instagram Story' : 'TikTok'} sharing isn't ready yet — try Save image and post manually for now.`);
-      return;
-    }
     if (key === 'save') return onSaveImage();
     if (key === 'copy') return onCopyLink();
-    if (key === 'messages') return onShareSheet('messages');
-    if (key === 'more') return onShareSheet('more');
+    if (key === 'more') return onShareSheet();
   };
 
   const headerLabel = (() => {
@@ -211,6 +210,8 @@ export default function ShareResultsModal({ visible, onClose, data }: Props) {
                   headerLabel={headerLabel}
                   winner={winner}
                   others={others}
+                  tiedWinners={tiedWinners}
+                  isTopTie={isTopTie}
                   variant={data.variant}
                 />
               )}
@@ -218,6 +219,8 @@ export default function ShareResultsModal({ visible, onClose, data }: Props) {
                 <SquareCard
                   headerLabel={headerLabel}
                   winner={winner}
+                  tiedWinners={tiedWinners}
+                  isTopTie={isTopTie}
                   variant={data.variant}
                   viewerPlace={viewerPlace}
                 />
@@ -284,17 +287,24 @@ export default function ShareResultsModal({ visible, onClose, data }: Props) {
 }
 
 // ──────────────────────────────────────────────────────────────────────
-// Story view — tall portrait, ~9:16. Big winner block + 2/3/4 list.
+// Story view — tall portrait, ~9:16. Single winner gets the big "1"
+// placement square; ties stack the tied winners with equal weight and
+// drop the placement square (a single number can't represent N people).
+// Runner-up rows render below the divider in either case.
 // ──────────────────────────────────────────────────────────────────────
 function StoryCard({
   headerLabel,
   winner,
   others,
+  tiedWinners,
+  isTopTie,
   variant,
 }: {
   headerLabel: string;
   winner?: ShareEntry;
   others: ShareEntry[];
+  tiedWinners: ShareEntry[];
+  isTopTie: boolean;
   variant: 'round' | 'standings';
 }) {
   if (!winner) return <View style={[storyStyles.card, storyStyles.cardEmpty]} />;
@@ -309,49 +319,79 @@ function StoryCard({
         </View>
       </View>
 
-      <View style={storyStyles.winnerRow}>
-        <View style={{ flex: 1 }}>
-          <Text style={storyStyles.winnerLabel}>WINNER</Text>
-          <Text style={storyStyles.winnerHero} numberOfLines={2}>
-            {variant === 'round'
-              ? winner.songTitle || winner.username
-              : winner.username}
-          </Text>
-          {variant === 'round' && winner.songArtist ? (
-            <Text style={storyStyles.winnerArtist} numberOfLines={1}>
-              {winner.songArtist}
-            </Text>
-          ) : null}
-        </View>
-        <View style={storyStyles.placementWrap}>
-          <View style={storyStyles.placementSquare}>
-            <Text style={storyStyles.placementNum}>{winner.rank}</Text>
-          </View>
-          <View style={storyStyles.pointsPill}>
-            <Text style={storyStyles.pointsPillText}>{winner.points} PTS</Text>
-          </View>
-        </View>
-      </View>
-
-      {variant === 'round' && (
-        <View style={storyStyles.submittedRow}>
-          <Text style={storyStyles.submittedLabel}>SUBMITTED BY</Text>
-          <View style={storyStyles.submittedNameRow}>
-            <View style={storyStyles.avatarSm}>
-              <Text style={storyStyles.avatarSmLetter}>
-                {winner.username.charAt(0).toUpperCase()}
-              </Text>
-            </View>
-            <Text style={storyStyles.submittedName} numberOfLines={1}>
-              @{winner.username}
-            </Text>
-            {winner.isViewer && (
-              <View style={storyStyles.youTag}>
-                <Text style={storyStyles.youTagText}>YOU</Text>
+      {isTopTie ? (
+        <View style={storyStyles.tieBlock}>
+          <Text style={storyStyles.tieBanner}>{`TIE · ${tiedWinners.length} WINNERS`}</Text>
+          {tiedWinners.map((w) => (
+            <View
+              key={`tied-${w.user_id ?? w.username}`}
+              style={storyStyles.tieWinnerRow}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={storyStyles.tieWinnerHero} numberOfLines={2}>
+                  {variant === 'round'
+                    ? w.songTitle || w.username
+                    : w.username}
+                </Text>
+                {variant === 'round' && w.songArtist ? (
+                  <Text style={storyStyles.tieWinnerArtist} numberOfLines={1}>
+                    {w.songArtist}
+                  </Text>
+                ) : null}
+                {variant === 'round' ? (
+                  <Text style={storyStyles.tieWinnerSubmitter} numberOfLines={1}>
+                    @{w.username}
+                  </Text>
+                ) : null}
               </View>
-            )}
-          </View>
+              <View style={storyStyles.pointsPill}>
+                <Text style={storyStyles.pointsPillText}>{w.points} PTS</Text>
+              </View>
+            </View>
+          ))}
         </View>
+      ) : (
+        <>
+          <View style={storyStyles.winnerRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={storyStyles.winnerLabel}>WINNER</Text>
+              <Text style={storyStyles.winnerHero} numberOfLines={2}>
+                {variant === 'round'
+                  ? winner.songTitle || winner.username
+                  : winner.username}
+              </Text>
+              {variant === 'round' && winner.songArtist ? (
+                <Text style={storyStyles.winnerArtist} numberOfLines={1}>
+                  {winner.songArtist}
+                </Text>
+              ) : null}
+            </View>
+            <View style={storyStyles.placementWrap}>
+              <View style={storyStyles.placementSquare}>
+                <Text style={storyStyles.placementNum}>{winner.rank}</Text>
+              </View>
+              <View style={storyStyles.pointsPill}>
+                <Text style={storyStyles.pointsPillText}>{winner.points} PTS</Text>
+              </View>
+            </View>
+          </View>
+
+          {variant === 'round' && (
+            <View style={storyStyles.submittedRow}>
+              <Text style={storyStyles.submittedLabel}>SUBMITTED BY</Text>
+              <View style={storyStyles.submittedNameRow}>
+                <View style={storyStyles.avatarSm}>
+                  <Text style={storyStyles.avatarSmLetter}>
+                    {winner.username.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+                <Text style={storyStyles.submittedName} numberOfLines={1}>
+                  @{winner.username}
+                </Text>
+              </View>
+            </View>
+          )}
+        </>
       )}
 
       <View style={storyStyles.divider} />
@@ -373,11 +413,6 @@ function StoryCard({
             <View style={storyStyles.miniPts}>
               <Text style={storyStyles.miniPtsText}>{o.points}</Text>
             </View>
-            {o.isViewer && (
-              <View style={storyStyles.youTag}>
-                <Text style={storyStyles.youTagText}>YOU</Text>
-              </View>
-            )}
           </View>
         ))}
       </View>
@@ -390,46 +425,86 @@ function StoryCard({
 }
 
 // ──────────────────────────────────────────────────────────────────────
-// Square view — 1:1, big number on left, winner info right, viewer line.
+// Square view — 1:1. Solo winner gets the big "1" placement square on
+// the left and the song hero on the right. Ties drop the square and
+// stack the tied winners with equal weight (smaller per-row hero so
+// they fit). The bottom personalization line stays for both modes.
 // ──────────────────────────────────────────────────────────────────────
 function SquareCard({
   headerLabel,
   winner,
+  tiedWinners,
+  isTopTie,
   variant,
   viewerPlace,
 }: {
   headerLabel: string;
   winner?: ShareEntry;
+  tiedWinners: ShareEntry[];
+  isTopTie: boolean;
   variant: 'round' | 'standings';
   viewerPlace: number | null;
 }) {
   if (!winner) return <View style={[squareStyles.card, squareStyles.cardEmpty]} />;
+
+  // Anchor for the bottom personalization line. For ties we pick the
+  // first tied winner — which winner's name appears there is largely
+  // arbitrary, but it matches the existing single-winner convention.
+  const bottomAnchor = isTopTie ? tiedWinners[0] : winner;
+
   return (
     <View style={squareStyles.card}>
       <Text style={squareStyles.topLabel} numberOfLines={1}>{headerLabel}</Text>
-      <View style={squareStyles.body}>
-        <View style={squareStyles.placementSquareLg}>
-          <Text style={squareStyles.placementNumLg}>{winner.rank}</Text>
-        </View>
-        <View style={{ flex: 1, marginLeft: 18 }}>
-          <Text style={squareStyles.winnerLabel}>WINNER</Text>
-          <Text style={squareStyles.winnerHero} numberOfLines={2}>
-            {variant === 'round'
-              ? winner.songTitle || winner.username
-              : winner.username}
-          </Text>
-          {variant === 'round' && winner.songArtist ? (
-            <Text style={squareStyles.winnerArtist} numberOfLines={1}>
-              {winner.songArtist}
-            </Text>
-          ) : null}
-          <View style={squareStyles.pointsPill}>
-            <Text style={squareStyles.pointsPillText}>{winner.points} PTS</Text>
+      {isTopTie ? (
+        <View style={squareStyles.tieBody}>
+          <Text style={squareStyles.winnerLabel}>{`TIE · ${tiedWinners.length} WINNERS`}</Text>
+          <View style={squareStyles.tieList}>
+            {tiedWinners.map((w) => (
+              <View key={`tied-${w.user_id ?? w.username}`} style={squareStyles.tieWinnerRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={squareStyles.tieWinnerHero} numberOfLines={1}>
+                    {variant === 'round' ? w.songTitle || w.username : w.username}
+                  </Text>
+                  {variant === 'round' && w.songArtist ? (
+                    <Text style={squareStyles.winnerArtist} numberOfLines={1}>
+                      {w.songArtist}
+                    </Text>
+                  ) : null}
+                </View>
+                <View style={squareStyles.pointsPill}>
+                  <Text style={squareStyles.pointsPillText}>{w.points} PTS</Text>
+                </View>
+              </View>
+            ))}
           </View>
         </View>
-      </View>
+      ) : (
+        <View style={squareStyles.body}>
+          <View style={squareStyles.placementSquareLg}>
+            <Text style={squareStyles.placementNumLg}>{winner.rank}</Text>
+          </View>
+          <View style={{ flex: 1, marginLeft: 18 }}>
+            <Text style={squareStyles.winnerLabel}>WINNER</Text>
+            <Text style={squareStyles.winnerHero} numberOfLines={2}>
+              {variant === 'round'
+                ? winner.songTitle || winner.username
+                : winner.username}
+            </Text>
+            {variant === 'round' && winner.songArtist ? (
+              <Text style={squareStyles.winnerArtist} numberOfLines={1}>
+                {winner.songArtist}
+              </Text>
+            ) : null}
+            <View style={squareStyles.pointsPill}>
+              <Text style={squareStyles.pointsPillText}>{winner.points} PTS</Text>
+            </View>
+          </View>
+        </View>
+      )}
       <Text style={squareStyles.bottomLine} numberOfLines={1}>
-        {variant === 'round' ? `Submitted by @${winner.username}` : `Won by @${winner.username}`}
+        {variant === 'round'
+          ? `Submitted by @${bottomAnchor.username}`
+          : `Won by @${bottomAnchor.username}`}
         {viewerPlace ? ` · You finished #${viewerPlace}` : ''}
       </Text>
     </View>
@@ -437,7 +512,11 @@ function SquareCard({
 }
 
 // ──────────────────────────────────────────────────────────────────────
-// Top 3 view — three card-style rows for ranks 1–3.
+// Top 3 view — three card-style rows for ranks 1–3. When two or more
+// of the top 3 share a rank, the header gains a "TIE FOR Nth"
+// suffix and the tied rows get a small "TIE" pill next to their points.
+// All rows render with equal visual weight regardless of whose card
+// is being shared.
 // ──────────────────────────────────────────────────────────────────────
 function Top3Card({
   headerLabel,
@@ -446,47 +525,82 @@ function Top3Card({
   headerLabel: string;
   entries: ShareEntry[];
 }) {
+  // Group by rank to detect tied positions among the top-3 rows.
+  // A rank with 2+ rows is a tie; we use the LOWEST tied rank for the
+  // header suffix ("TIE FOR 1ST" beats "TIE FOR 3RD" when both exist).
+  const rankCounts: Record<number, number> = {};
+  for (const e of entries) rankCounts[e.rank] = (rankCounts[e.rank] || 0) + 1;
+  const tiedRanks = Object.keys(rankCounts)
+    .map((r) => Number(r))
+    .filter((r) => rankCounts[r] >= 2)
+    .sort((a, b) => a - b);
+  const headerSuffix =
+    tiedRanks.length > 0 ? ` · TIE FOR ${getOrdinalUpper(tiedRanks[0])}` : '';
   return (
     <View style={top3Styles.card}>
       <Text style={top3Styles.topLabel} numberOfLines={1}>{headerLabel}</Text>
-      <Text style={top3Styles.bigHeader}>TOP THREE</Text>
+      <Text style={top3Styles.bigHeader}>{`TOP THREE${headerSuffix}`}</Text>
       <View style={{ gap: 10 }}>
-        {entries.map((e) => (
-          <View
-            key={`${e.rank}-${e.user_id ?? e.username}`}
-            style={[
-              top3Styles.row,
-              e.isViewer && top3Styles.rowViewer,
-            ]}
-          >
-            <Text style={top3Styles.rank}>{e.rank}</Text>
-            {e.songCover ? (
-              <Image source={{ uri: e.songCover }} style={top3Styles.cover} />
-            ) : (
-              <View style={top3Styles.coverFallback}>
-                <Text style={top3Styles.coverFallbackText}>
-                  {(e.songTitle || e.username).charAt(0).toUpperCase()}
+        {entries.map((e) => {
+          const rowIsTied = (rankCounts[e.rank] || 0) >= 2;
+          return (
+            <View
+              key={`${e.rank}-${e.user_id ?? e.username}`}
+              style={top3Styles.row}
+            >
+              <Text style={top3Styles.rank}>{e.rank}</Text>
+              {e.songCover ? (
+                <Image source={{ uri: e.songCover }} style={top3Styles.cover} />
+              ) : (
+                <View style={top3Styles.coverFallback}>
+                  <Text style={top3Styles.coverFallbackText}>
+                    {(e.songTitle || e.username).charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+              )}
+              <View style={{ flex: 1 }}>
+                <Text style={top3Styles.title} numberOfLines={1}>
+                  {e.songTitle || e.username}
+                </Text>
+                <Text style={top3Styles.sub} numberOfLines={1}>
+                  @{e.username}
                 </Text>
               </View>
-            )}
-            <View style={{ flex: 1 }}>
-              <Text style={top3Styles.title} numberOfLines={1}>
-                {e.songTitle || e.username}
-              </Text>
-              <Text style={top3Styles.sub} numberOfLines={1}>
-                @{e.username}
-                {e.isViewer ? ' · YOU' : ''}
-              </Text>
+              <Text style={top3Styles.pts}>{e.points}</Text>
+              {rowIsTied && (
+                <View style={top3Styles.tiePill}>
+                  <Text style={top3Styles.tiePillText}>TIE</Text>
+                </View>
+              )}
             </View>
-            <Text style={top3Styles.pts}>{e.points}</Text>
-          </View>
-        ))}
+          );
+        })}
       </View>
       <View style={top3Styles.footer}>
         <Text style={top3Styles.footerText}>music leeg</Text>
       </View>
     </View>
   );
+}
+
+// Uppercase ordinal helper for header copy ("1ST", "2ND", "3RD", etc).
+// Mirrors `getOrdinalSuffix` from the shared util but without the
+// number prefix and forced to uppercase to match the surrounding
+// "TOP THREE · TIE FOR …" header style.
+function getOrdinalUpper(n: number): string {
+  const abs = Math.abs(Math.trunc(n));
+  const lastTwo = abs % 100;
+  if (lastTwo >= 11 && lastTwo <= 13) return `${n}TH`;
+  switch (abs % 10) {
+    case 1:
+      return `${n}ST`;
+    case 2:
+      return `${n}ND`;
+    case 3:
+      return `${n}RD`;
+    default:
+      return `${n}TH`;
+  }
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -563,12 +677,14 @@ const styles = StyleSheet.create({
   },
   shareGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    gap: 24,
   },
   shareBtn: {
-    width: '33.333%',
     paddingVertical: 10,
     alignItems: 'center',
+    width: 86,
   },
   shareBtnIcon: {
     width: 52,
@@ -756,18 +872,44 @@ const storyStyles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
   },
-  youTag: {
-    marginLeft: 6,
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    borderRadius: 4,
-    backgroundColor: '#FFFFFF',
+  // Tied-winner block: replaces the single hero+square layout with a
+  // stacked, equal-weight list of tied winners. Used by StoryCard when
+  // tiedWinnerCount >= 2.
+  tieBlock: {
+    marginTop: 14,
   },
-  youTagText: {
-    color: PURPLE,
-    fontSize: 8,
+  tieBanner: {
+    color: '#FFFFFF',
+    fontSize: 11,
     fontWeight: '900',
-    letterSpacing: 0.4,
+    letterSpacing: 1,
+    marginBottom: 10,
+  },
+  tieWinnerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: 6,
+  },
+  tieWinnerHero: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '900',
+    lineHeight: 18,
+  },
+  tieWinnerArtist: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 11,
+    marginTop: 1,
+  },
+  tieWinnerSubmitter: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 11,
+    marginTop: 2,
+    fontWeight: '700',
   },
   footer: {
     position: 'absolute',
@@ -865,6 +1007,32 @@ const squareStyles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
   },
+  // Tie variant: stacks the tied winners vertically in the body slot,
+  // dropping the giant placement square so no single number stands in
+  // for multiple winners.
+  tieBody: {
+    flex: 1,
+    marginTop: 10,
+    justifyContent: 'flex-start',
+  },
+  tieList: {
+    marginTop: 8,
+    gap: 6,
+  },
+  tieWinnerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  tieWinnerHero: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '900',
+    lineHeight: 17,
+  },
 });
 
 const TOP3_W = 230;
@@ -908,16 +1076,26 @@ const top3Styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 10,
   },
-  rowViewer: {
-    borderWidth: 1.5,
-    borderColor: '#FFFFFF',
-    backgroundColor: 'rgba(255,255,255,0.18)',
-  },
   rank: {
     color: '#FFFFFF',
     fontWeight: '900',
     fontSize: 16,
     width: 18,
+  },
+  // "TIE" pill rendered next to the points on tied rows. Semi-
+  // transparent white background, small uppercase label.
+  tiePill: {
+    marginLeft: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+  },
+  tiePillText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.6,
   },
   cover: {
     width: 38,

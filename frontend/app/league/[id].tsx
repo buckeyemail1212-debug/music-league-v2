@@ -103,17 +103,18 @@ export default function LeagueDetailScreen() {
   const [showShareModal, setShowShareModal] = useState(false);
   const dataLoaded   = useRef(false);
 
-  // Time options for scrollable dropdown
+  // Time options for the (currently dead-UI) Start Round modal. MUST
+  // mirror the backend's ALLOWED_PHASE_HOURS = (12, 24, 48, 72, 168) —
+  // anything outside that set is rejected by `_validate_phase_hours`.
+  // The previous list (1, 3, 6, 24, 48, 72, 96, 120, 144, 168) included
+  // values that are no longer valid; even though `handleStartRound`
+  // currently ignores this state, leaving the stale list here is a
+  // foot-gun for anyone who re-wires the modal.
   const timeOptions = [
-    { label: '1 hour', value: '1' },
-    { label: '3 hours', value: '3' },
-    { label: '6 hours', value: '6' },
+    { label: '12 hrs', value: '12' },
     { label: '1 day', value: '24' },
     { label: '2 days', value: '48' },
     { label: '3 days', value: '72' },
-    { label: '4 days', value: '96' },
-    { label: '5 days', value: '120' },
-    { label: '6 days', value: '144' },
     { label: '7 days', value: '168' },
   ];
 

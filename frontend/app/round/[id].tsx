@@ -1209,23 +1209,28 @@ export default function RoundScreen() {
           })()}
 
           {(() => {
-            // Build the "full results" list: everyone who isn't in the
-            // winner hero. For ties we still hide the tied top-rank rows;
-            // everything else (rank > 1, or non-winner rank-1 entries)
-            // appears here. `maxPoints` drives bar widths.
-            const winnerIds = new Set(
-              (results.winners ?? []).map((w) => w.submission_id),
-            );
-            const rest = (results.rankings ?? []).filter(
-              (r) => !winnerIds.has(r.submission_id),
-            );
+            // FULL RESULTS = every submission in the round, ranked
+            // top-to-bottom by points. Winners are NOT excluded — they
+            // appear at the top; the tie banner above already calls
+            // them out, and removing them here meant a 2-submission tie
+            // collapsed the section to "no other submissions". Within
+            // a tie, secondary sort is alphabetical by song title to
+            // keep ordering stable (the backend just sorts by points).
+            const fullList = [...(results.rankings ?? [])].sort((a, b) => {
+              if (b.points !== a.points) return b.points - a.points;
+              const at = (a.song?.title || '').toLowerCase();
+              const bt = (b.song?.title || '').toLowerCase();
+              if (at < bt) return -1;
+              if (at > bt) return 1;
+              return 0;
+            });
             const maxPoints = Math.max(
               1,
               ...(results.rankings ?? []).map((r) => r.points || 0),
             );
             return (
               <FlatList
-                data={rest}
+                data={fullList}
                 keyExtractor={(item) => item.submission_id}
                 renderItem={({ item, index }) => (
                   <ResultsRankRow
@@ -1242,8 +1247,13 @@ export default function RoundScreen() {
                   <Text style={styles.fullResultsLabel}>FULL RESULTS</Text>
                 }
                 ListEmptyComponent={
+                  // Only fires when literally zero submissions exist.
+                  // The hosting branch already gates on
+                  // `results.winners.length > 0`, so the only way to
+                  // hit this path is a results payload with rankings=[],
+                  // which shouldn't happen in practice.
                   <Text style={styles.emptyRestText}>
-                    No other submissions in this round.
+                    No submissions in this round.
                   </Text>
                 }
                 contentContainerStyle={styles.listContent}

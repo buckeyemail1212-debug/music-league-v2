@@ -27,6 +27,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { leagueEvents } from '../../src/utils/leagueEvents';
 import { pluralize } from '../../src/utils/pluralize';
+import { getOrdinalSuffix } from '../../src/utils/ordinal';
 import { pastLeaguesCache } from '../../src/utils/pastLeaguesCache';
 import { publicLeaguesCache } from '../../src/utils/publicLeaguesCache';
 import LeagueAvatar from '../../src/components/LeagueAvatar';
@@ -232,14 +233,30 @@ export default function HomeScreen() {
     const activeRound = activeRounds[item.id];
     const displayImage = item.league_image || cachedImages[item.id];
     const standings = leagueStandings[item.id];
-    const sorted = standings?.standings ?? [];
-    const mineIdx = sorted.findIndex((s) => s.user_id === user?.id);
-    const mine = mineIdx >= 0 ? sorted[mineIdx] : null;
-    const leader = sorted[0];
-    const rank = mineIdx >= 0 ? mineIdx + 1 : null;
+    // Tie detection compares against ACTIVE members only — users who
+    // hit "Leave" mid-league shouldn't drag the viewer's rank up or
+    // create phantom ties, since they're frozen at points_at_leave.
+    const activeOnly = (standings?.standings ?? []).filter((s) => !s.left);
+    const mine = activeOnly.find((s) => s.user_id === user?.id) ?? null;
+    const leader = activeOnly[0];
     const myPoints = mine?.total_points ?? 0;
     const leaderPoints = leader?.total_points ?? 0;
-    const isLeading = rank === 1 && myPoints > 0;
+    // Tie-aware rank: position equals the count of active players with
+    // strictly more points, plus one. Mirrors the computation used in
+    // the standings tab, the league snapshot builder, and the standings
+    // endpoint, so rank 1 means "no one above you".
+    const rank = mine
+      ? activeOnly.filter((s) => s.total_points > myPoints).length + 1
+      : null;
+    // Tied iff at least one OTHER active member has the exact same
+    // total — the same vs total_points check the standings list uses
+    // when grouping rows by rank.
+    const tiedAtRank =
+      mine != null &&
+      activeOnly.some(
+        (s) => s.user_id !== user?.id && s.total_points === myPoints,
+      );
+    const isLeading = rank === 1 && myPoints > 0 && !tiedAtRank;
     const progressPct = leaderPoints > 0 ? Math.min(1, myPoints / leaderPoints) : 0;
 
     // Status pill: state-aware, with a live countdown when the user still
@@ -307,7 +324,7 @@ export default function HomeScreen() {
     // not-yet-started for UI purposes.
     const isScheduledR1 = activeRound?.status === 'scheduled';
     const hasStarted = item.current_round > 0 && !isScheduledR1;
-    const hasAnyPoints = sorted.some((p) => (p.total_points || 0) > 0);
+    const hasAnyPoints = activeOnly.some((p) => (p.total_points || 0) > 0);
 
     return (
       <TouchableOpacity
@@ -350,11 +367,18 @@ export default function HomeScreen() {
             <Text style={styles.leagueCardRank}>#{rank}</Text>
             <View style={styles.leagueCardMiddle}>
               <Text style={[styles.leagueCardGap, isLeading && { color: '#10B981' }]}>
-                {isLeading
-                  ? 'LEADING'
-                  : leaderPoints > myPoints
-                    ? `${pluralize(leaderPoints - myPoints, 'PT', 'PTS')} BEHIND`
-                    : 'TIED FOR 1ST'}
+                {tiedAtRank
+                  ? `Tied for ${getOrdinalSuffix(rank)}`
+                  : isLeading
+                    ? 'Leading'
+                    : (() => {
+                        // Solo non-1st: render the gap to the highest-
+                        // scoring ACTIVE member. Left users are already
+                        // filtered out of `activeOnly`, so `leaderPoints`
+                        // is the right comparison anchor.
+                        const behind = Math.max(0, leaderPoints - myPoints);
+                        return `${behind} ${behind === 1 ? 'pt' : 'pts'} behind`;
+                      })()}
               </Text>
               <View style={styles.progressBarTrack}>
                 <View
