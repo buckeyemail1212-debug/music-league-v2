@@ -17,14 +17,14 @@ import {
   Keyboard,
   Platform,
   Pressable,
-  Share,
   Image,
   Animated,
   Easing,
 } from 'react-native';
-import ViewShot from 'react-native-view-shot';
-import * as Sharing from 'expo-sharing';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import ShareResultsModal, {
+  ShareResultsData,
+} from '../../src/components/ShareResultsModal';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
@@ -90,9 +90,9 @@ export default function RoundScreen() {
   // Timer
   const [timeRemaining, setTimeRemaining] = useState<string>('');
 
-  // Share results card
-  const [isSharing, setIsSharing] = useState(false);
-  const shareCardRef = useRef<ViewShot>(null);
+  // Share results modal — opens the redesigned share UI with view
+  // toggles (Story / Square / Top 3) and the SHARE TO grid.
+  const [showShareModal, setShowShareModal] = useState(false);
 
   // Expand results modal
   const [showExpandModal, setShowExpandModal] = useState(false);
@@ -724,33 +724,32 @@ export default function RoundScreen() {
     );
   }
 
-  // Share round results as image
-  const handleShareResults = async () => {
-    if (!shareCardRef.current || isSharing) return;
-    setIsSharing(true);
-    try {
-      const uri = await shareCardRef.current.capture?.();
-      if (uri) {
-        const available = await Sharing.isAvailableAsync();
-        if (available) {
-          await Sharing.shareAsync(uri, {
-            mimeType: 'image/png',
-            dialogTitle: 'Share Round Results',
-          });
-        } else {
-          const winner = results?.winners?.[0];
-          const msg = winner
-            ? `${round?.theme ?? 'Round'} winner: ${winner.song.title} by ${winner.song.artist} — submitted by ${winner.username}`
-            : 'Round results';
-          await Share.share({ message: msg });
-        }
-      }
-    } catch (err) {
-      console.error('Share round results failed:', err);
-      Alert.alert('Error', 'Failed to share results');
-    } finally {
-      setIsSharing(false);
-    }
+  // Build the share-modal payload from the loaded round results.
+  // entries[0] is the winner; subsequent entries fill out the
+  // Story/Top 3 lists. Personalization marks the viewer's row.
+  const buildShareData = (): ShareResultsData | null => {
+    if (!round || !results) return null;
+    const rankings = results.rankings || [];
+    const entries = rankings.slice(0, 5).map((r) => ({
+      rank: r.rank,
+      username: r.username,
+      user_id: r.user_id,
+      songTitle: r.song?.title ?? null,
+      songArtist: r.song?.artist ?? null,
+      songCover: r.song?.cover_url ?? null,
+      points: r.points,
+      isViewer: !!user?.id && r.user_id === user.id,
+    }));
+    const viewerEntry = entries.find((e) => e.isViewer);
+    return {
+      variant: 'round',
+      leagueName: '',
+      roundNumber: round.round_number,
+      theme: round.theme,
+      entries,
+      shareLink: `https://musicleeg.com/round/${round.id}`,
+      viewerPlace: viewerEntry?.rank ?? null,
+    };
   };
 
   if (error || !round) {
@@ -1272,19 +1271,11 @@ export default function RoundScreen() {
                     )}
                     <View style={styles.shareResultsFooter}>
                       <TouchableOpacity
-                        style={[
-                          styles.shareResultsButton,
-                          isSharing && styles.buttonDisabled,
-                        ]}
-                        onPress={handleShareResults}
-                        disabled={isSharing}
+                        style={styles.shareResultsButton}
+                        onPress={() => setShowShareModal(true)}
                         activeOpacity={0.8}
                       >
-                        {isSharing ? (
-                          <ActivityIndicator color="#FFFFFF" />
-                        ) : (
-                          <Text style={styles.shareResultsText}>Share Results</Text>
-                        )}
+                        <Text style={styles.shareResultsText}>Share Results</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={styles.expandResultsButton}
@@ -1300,53 +1291,14 @@ export default function RoundScreen() {
             );
           })()}
 
-          {/* Off-screen share card — rendered for capture only */}
-          <View style={styles.shareCardOffscreen} pointerEvents="none">
-            <ViewShot ref={shareCardRef} options={{ format: 'png', quality: 1 }}>
-              <View style={styles.shareCard}>
-                <Text style={styles.shareCardAppName}>Music Leeg</Text>
-                <Text style={styles.shareCardRoundName}>Round {round.round_number}</Text>
-                <Text style={styles.shareCardTheme}>{round.theme}</Text>
-
-                {results.winners && results.winners.length > 0 && (
-                  <View style={styles.shareCardWinnerBlock}>
-                    <Text style={styles.shareCardWinnerLabel}>
-                      {results.is_tie ? 'Winners' : 'Winner'}
-                    </Text>
-                    <Text style={styles.shareCardWinnerSong} numberOfLines={2}>
-                      {results.winners[0].song.title}
-                    </Text>
-                    <Text style={styles.shareCardWinnerArtist} numberOfLines={1}>
-                      {results.winners[0].song.artist}
-                    </Text>
-                    <Text style={styles.shareCardSubmittedBy} numberOfLines={1}>
-                      submitted by {results.winners[0].username}
-                    </Text>
-                  </View>
-                )}
-
-                <View style={styles.shareCardDivider} />
-
-                <Text style={styles.shareCardRankingsLabel}>Final Rankings</Text>
-                {results.rankings.slice(0, 3).map((r, i) => (
-                  <View key={r.submission_id} style={styles.shareCardRankingRow}>
-                    <Text style={styles.shareCardRankNum}>{i + 1}</Text>
-                    <View style={styles.shareCardRankInfo}>
-                      <Text style={styles.shareCardRankSong} numberOfLines={1}>
-                        {r.song.title}
-                      </Text>
-                      <Text style={styles.shareCardRankArtist} numberOfLines={1}>
-                        {r.song.artist}
-                      </Text>
-                      <Text style={styles.shareCardRankUser} numberOfLines={1}>
-                        {r.username}
-                      </Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            </ViewShot>
-          </View>
+          {/* Redesigned share modal — Story / Square / Top 3 views */}
+          {showShareModal && buildShareData() && (
+            <ShareResultsModal
+              visible={showShareModal}
+              onClose={() => setShowShareModal(false)}
+              data={buildShareData()!}
+            />
+          )}
         </>
       )}
 

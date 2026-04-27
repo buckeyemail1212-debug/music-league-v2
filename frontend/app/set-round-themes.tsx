@@ -130,8 +130,6 @@ export default function SetRoundThemesPage() {
               </View>
               <TextInput
                 style={styles.themeInput}
-                placeholder="e.g., Songs about fire"
-                placeholderTextColor="#6A6A6A"
                 value={theme}
                 onChangeText={(txt) => {
                   setThemes((prev) => {

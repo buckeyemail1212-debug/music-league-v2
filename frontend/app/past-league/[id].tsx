@@ -87,6 +87,11 @@ export default function PastLeaguePage() {
   }
 
   const finishedAt = formatDate(league.finished_at);
+  const isNotFinished = league.ended_status === 'not_finished';
+  // Active players competed for placement; left users render at the
+  // bottom but not in the rank column.
+  const activeStandings = league.standings.filter((s) => !s.left);
+  const leftStandings = league.standings.filter((s) => s.left);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -111,9 +116,9 @@ export default function PastLeaguePage() {
           </View>
           <Text style={styles.leagueName}>{league.name}</Text>
           <View style={styles.metaRow}>
-            {league.is_deleted && (
-              <View style={[styles.pill, { backgroundColor: 'rgba(239,68,68,0.15)' }]}>
-                <Text style={[styles.pillText, { color: '#EF4444' }]}>DELETED</Text>
+            {isNotFinished && (
+              <View style={styles.notFinishedPill}>
+                <Text style={styles.notFinishedText}>NOT FINISHED</Text>
               </View>
             )}
             <View style={styles.pill}>
@@ -125,7 +130,7 @@ export default function PastLeaguePage() {
               <Text style={styles.metaDate}>{finishedAt}</Text>
             ) : null}
           </View>
-          {league.my_place != null && (
+          {!isNotFinished && league.my_place != null && (
             <View style={styles.placeWrap}>
               <Text style={styles.placeLabel}>YOUR FINAL PLACE</Text>
               <Text style={styles.placeValue}>{ordinal(league.my_place)}</Text>
@@ -133,51 +138,111 @@ export default function PastLeaguePage() {
           )}
         </View>
 
+        {isNotFinished && (
+          <View style={styles.bannerCard}>
+            <Ionicons name="alert-circle" size={18} color="#B3B3B3" style={{ marginRight: 8 }} />
+            <Text style={styles.bannerText}>
+              League ended early
+              {league.creator_username ? ` by ${league.creator_username}` : ''}.
+              Final results not available.
+            </Text>
+          </View>
+        )}
+
         {/* Final standings */}
-        <Text style={styles.sectionLabel}>FINAL STANDINGS</Text>
+        <Text style={styles.sectionLabel}>
+          {isNotFinished ? 'STANDINGS WHEN LEAGUE ENDED' : 'FINAL STANDINGS'}
+        </Text>
         <View style={styles.card}>
           {league.standings.length === 0 ? (
             <Text style={styles.emptyText}>No standings recorded.</Text>
           ) : (
-            league.standings.map((s, i) => {
-              const isMe = s.user_id === user?.id;
-              return (
-                <View
-                  key={s.user_id}
-                  style={[
-                    styles.standingRow,
-                    i !== league.standings.length - 1 && styles.rowBorder,
-                  ]}
-                >
-                  <Text style={[styles.rank, i === 0 && styles.rankGold]}>
-                    #{i + 1}
-                  </Text>
-                  <View style={styles.memberAvatar}>
-                    {s.profile_photo ? (
-                      <Image source={{ uri: s.profile_photo }} style={styles.memberAvatarImg} />
-                    ) : (
-                      <Text style={styles.memberAvatarLetter}>
-                        {s.username.charAt(0).toUpperCase()}
-                      </Text>
-                    )}
+            <>
+              {activeStandings.map((s, i) => {
+                const isMe = s.user_id === user?.id;
+                const isLast =
+                  i === activeStandings.length - 1 && leftStandings.length === 0;
+                return (
+                  <View
+                    key={s.user_id}
+                    style={[styles.standingRow, !isLast && styles.rowBorder]}
+                  >
+                    <Text
+                      style={[
+                        styles.rank,
+                        i === 0 && !isNotFinished && styles.rankGold,
+                      ]}
+                    >
+                      #{i + 1}
+                    </Text>
+                    <View style={styles.memberAvatar}>
+                      {s.profile_photo ? (
+                        <Image source={{ uri: s.profile_photo }} style={styles.memberAvatarImg} />
+                      ) : (
+                        <Text style={styles.memberAvatarLetter}>
+                          {s.username.charAt(0).toUpperCase()}
+                        </Text>
+                      )}
+                    </View>
+                    <Text style={[styles.memberName, isMe && styles.me]} numberOfLines={1}>
+                      {s.username}
+                      {isMe ? '  (you)' : ''}
+                    </Text>
+                    <Text style={styles.memberPoints}>{s.total_points}</Text>
                   </View>
-                  <Text style={[styles.memberName, isMe && styles.me]} numberOfLines={1}>
-                    {s.username}
-                    {isMe ? '  (you)' : ''}
-                  </Text>
-                  <Text style={styles.memberPoints}>{s.total_points}</Text>
-                </View>
-              );
-            })
+                );
+              })}
+              {leftStandings.map((s, i) => {
+                const isMe = s.user_id === user?.id;
+                const isLast = i === leftStandings.length - 1;
+                return (
+                  <View
+                    key={`left-${s.user_id}`}
+                    style={[
+                      styles.standingRow,
+                      styles.standingRowLeft,
+                      !isLast && styles.rowBorder,
+                    ]}
+                  >
+                    <Text style={[styles.rank, styles.rankMuted]}>—</Text>
+                    <View style={[styles.memberAvatar, { opacity: 0.55 }]}>
+                      {s.profile_photo ? (
+                        <Image source={{ uri: s.profile_photo }} style={styles.memberAvatarImg} />
+                      ) : (
+                        <Text style={styles.memberAvatarLetter}>
+                          {s.username.charAt(0).toUpperCase()}
+                        </Text>
+                      )}
+                    </View>
+                    <View style={styles.memberLeftWrap}>
+                      <Text
+                        style={[styles.memberName, styles.memberNameLeft, isMe && styles.me]}
+                        numberOfLines={1}
+                      >
+                        {s.username}
+                        {isMe ? '  (you)' : ''}
+                      </Text>
+                      <View style={styles.leftBadge}>
+                        <Text style={styles.leftBadgeText}>LEFT</Text>
+                      </View>
+                    </View>
+                    <Text style={[styles.memberPoints, styles.memberPointsLeft]}>
+                      {s.total_points}
+                    </Text>
+                  </View>
+                );
+              })}
+            </>
           )}
         </View>
 
         {/* My submissions */}
+        {league.my_submissions.length > 0 && (
         <Text style={styles.sectionLabel}>SONGS YOU SUBMITTED</Text>
+        )}
+        {league.my_submissions.length > 0 && (
         <View style={styles.card}>
-          {league.my_submissions.length === 0 ? (
-            <Text style={styles.emptyText}>No submissions from you in this league.</Text>
-          ) : (
+          {(
             league.my_submissions.map((s, i) => (
               <View
                 key={s.submission_id}
@@ -214,6 +279,7 @@ export default function PastLeaguePage() {
             ))
           )}
         </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -333,6 +399,68 @@ const styles = StyleSheet.create({
   },
   rankGold: {
     color: '#F59E0B',
+  },
+  rankMuted: {
+    color: '#6A6A6A',
+  },
+  standingRowLeft: {
+    opacity: 0.7,
+  },
+  memberLeftWrap: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  memberNameLeft: {
+    color: '#B3B3B3',
+    flexShrink: 1,
+  },
+  memberPointsLeft: {
+    color: '#B3B3B3',
+  },
+  leftBadge: {
+    marginLeft: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+  },
+  leftBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#B3B3B3',
+    letterSpacing: 0.5,
+  },
+  notFinishedPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderRadius: 4,
+  },
+  notFinishedText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#B3B3B3',
+    letterSpacing: 0.5,
+  },
+  bannerCard: {
+    marginHorizontal: 20,
+    marginBottom: 8,
+    marginTop: -8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
+  },
+  bannerText: {
+    flex: 1,
+    color: '#D9D9D9',
+    fontSize: 13,
+    lineHeight: 18,
   },
   memberAvatar: {
     width: 32,

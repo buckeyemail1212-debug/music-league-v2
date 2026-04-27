@@ -41,6 +41,15 @@ export interface League {
   total_rounds: number;
   league_image?: string | null;
   members: { id: string; username: string; profile_photo?: string }[];
+  // Users who left the league mid-flight. Their existing
+  // submissions/votes are preserved as historical record but they
+  // can't participate further.
+  left_members?: {
+    user_id: string;
+    username: string;
+    points_at_leave: number;
+    left_at?: string | null;
+  }[];
   current_round: number;
   status: string;
   created_at: string;
@@ -138,6 +147,9 @@ export interface LeagueStandings {
     total_points: number;
     wins: number;
     rounds_played: number;
+    // True if the user has left the league. Left users always render
+    // below all active rows regardless of point totals.
+    left?: boolean;
   }[];
   rounds_completed: number;
   total_rounds: number;
@@ -273,6 +285,9 @@ export interface PastLeagueStanding {
   total_points: number;
   wins: number;
   rounds_played: number;
+  // True if this row represents a user who left the league before it
+  // ended. Left users render below all active rows regardless of points.
+  left?: boolean;
 }
 
 export interface PastLeagueSubmission {
@@ -284,17 +299,30 @@ export interface PastLeagueSubmission {
   submitted_at: string | null;
 }
 
+export interface PastLeagueRoundSummary {
+  round_id: string;
+  round_number: number | null;
+  theme: string | null;
+  status: string | null;
+}
+
 export interface PastLeague {
   id: string;
   name: string;
   league_code?: string | null;
   league_image?: string | null;
+  creator_id?: string | null;
+  creator_username?: string | null;
   total_rounds: number;
   rounds_completed: number;
   members_count: number;
   is_deleted: boolean;
   deleted_at: string | null;
   finished_at: string | null;
+  // "completed" for normal end-of-rounds finish, "not_finished" when the
+  // creator deleted the league mid-flight. Legacy snapshots default to
+  // "completed".
+  ended_status: 'completed' | 'not_finished';
   my_place: number | null;
   winner: {
     user_id: string;
@@ -303,7 +331,14 @@ export interface PastLeague {
     total_points: number;
   } | null;
   standings: PastLeagueStanding[];
+  left_members?: {
+    user_id: string;
+    username: string;
+    points_at_leave: number;
+    left_at?: string | null;
+  }[];
   my_submissions: PastLeagueSubmission[];
+  rounds?: PastLeagueRoundSummary[];
 }
 
 export const getPastLeagues = () =>
@@ -339,7 +374,15 @@ export const deleteAccountFull = () =>
   }>('/users/me');
 
 export const leaveLeague = (id: string) =>
-  api.post<{ message: string; league_deleted?: boolean }>(`/leagues/${id}/leave`);
+  api.post<{
+    message: string;
+    league_deleted?: boolean;
+    // Set when the caller left an already-active league. Their points
+    // are frozen at this value and they no longer appear as an active
+    // member in standings.
+    left_active_league?: boolean;
+    points_at_leave?: number;
+  }>(`/leagues/${id}/leave`);
 
 // Summary rows for the Public Leagues page (GET /leagues/public).
 export interface PublicLeagueSummary {

@@ -650,6 +650,9 @@ class LeagueResponse(BaseModel):
     total_rounds: int
     league_image: Optional[str] = None
     members: List[dict]
+    # Users who hit "Leave" mid-league. Their submissions/votes from
+    # before they left stay in place; they're blocked from new ones.
+    left_members: List[dict] = []
     current_round: int
     status: str
     created_at: datetime
@@ -2187,6 +2190,7 @@ def add_league_defaults(league: dict) -> dict:
     league.setdefault("is_public", False)
     league.setdefault("starts_at", None)
     league.setdefault("member_cap", None)
+    league.setdefault("left_members", [])
     # Remove old fields if they exist (migration)
     league.pop("theme", None)
     league.pop("theme_mode", None)
@@ -2313,11 +2317,25 @@ async def get_past_leagues(current_user: dict = Depends(get_current_user)):
     ).to_list(500)
 
     entries = []
+    excluded_left = 0
+    excluded_hidden = 0
+    excluded_cleared = 0
     for d in docs:
+        # Users who left a league before it ended don't see it in their
+        # Past Leagues — they didn't finish it. The snapshot still exists
+        # for the remaining members.
+        left_ids = {
+            (lm.get("user_id") if isinstance(lm, dict) else None)
+            for lm in (d.get("left_members") or [])
+        }
+        if user_id in left_ids:
+            excluded_left += 1
+            continue
         # Individually-hidden past leagues (swipe-to-delete) stay out of
         # the list even if the user is still in member_ids for some
         # reason (e.g. snapshot re-written after they hid it).
         if d.get("id") in hidden_ids:
+            excluded_hidden += 1
             continue
         # Respect the per-user "clear history" cutoff.
         if cleared_at and d.get("finished_at"):
@@ -2328,12 +2346,18 @@ async def get_past_leagues(current_user: dict = Depends(get_current_user)):
                     else datetime.fromisoformat(str(finished_raw).replace("Z", "+00:00"))
                 )
                 if ensure_utc(finished_dt) <= cleared_at:
+                    excluded_cleared += 1
                     continue
             except Exception:
                 pass
         entries.append(_view_past_league_for_user(d, user_id))
 
     entries.sort(key=lambda e: e.get("finished_at") or "", reverse=True)
+    logger.info(
+        f"past_leagues_get: user={user_id} returned={len(entries)} "
+        f"matched={len(docs)} excluded_left={excluded_left} "
+        f"excluded_hidden={excluded_hidden} excluded_cleared={excluded_cleared}"
+    )
     return {"leagues": entries}
 
 
@@ -2541,6 +2565,18 @@ async def join_public_league(league_id: str, current_user: dict = Depends(get_cu
 
 @api_router.delete("/leagues/{league_id}")
 async def delete_league(league_id: str, current_user: dict = Depends(get_current_user)):
+    """Creator-initiated league deletion. The behavior depends on whether
+    the league has had any activity:
+
+    - **No activity yet** (no round has reached submission state, even if
+      pre-generated rounds exist in `ready` or `locked` status): the league
+      and its pre-generated rounds are hard-deleted. Nothing to preserve.
+    - **Has activity** (any round in submission/voting/completed/skipped):
+      the league is marked `status=completed_early`, soft-deleted, and a
+      past-league snapshot is written with `ended_status=not_finished`.
+      Members and left users keep their accumulated points exactly as they
+      stood at the moment of deletion.
+    """
     league = await db.leagues.find_one({"id": league_id})
     if not league:
         raise HTTPException(status_code=404, detail="League not found")
@@ -2548,44 +2584,71 @@ async def delete_league(league_id: str, current_user: dict = Depends(get_current
     # Only creator can delete
     if league["creator_id"] != current_user["id"]:
         raise HTTPException(status_code=403, detail="Only the league creator can delete the league")
+    if league.get("deleted_at"):
+        raise HTTPException(status_code=400, detail="This league has already been deleted.")
+    # Already completed leagues already have a past_leagues snapshot
+    # with the authoritative final standings; we don't want a delete to
+    # overwrite that as not_finished.
+    if league.get("status") == "completed":
+        raise HTTPException(
+            status_code=400,
+            detail="This league is already finished. Use Past Leagues to remove it from your archive.",
+        )
 
-    # Public leagues: creator can only delete if they're the sole member.
-    # With other members present, the creator must leave instead —
-    # deleting would orphan players who joined on the expectation the
-    # league would run.
-    if league.get("is_public"):
-        other_members = [
-            m for m in league.get("members", [])
-            if m.get("id") != current_user["id"]
-        ]
-        if other_members:
-            raise HTTPException(
-                status_code=400,
-                detail="You can't delete a public league with other members. Leave the league instead.",
-            )
-
-    # Soft-delete: the creator gets a 7-day grace window to restore the
-    # league with all its rounds/submissions/votes intact. A background
-    # purge elsewhere can permanently remove docs whose deleted_at is older
-    # than 7 days.
     now = datetime.now(timezone.utc)
 
-    # Snapshot to past_leagues BEFORE we set deleted_at so any reads while
-    # the soft-delete window is open still have the source data. The snapshot
-    # is the durable home for this league from now on.
+    # "Has activity" → any round has progressed past pre-start.
+    has_activity = await db.rounds.find_one(
+        {
+            "league_id": league_id,
+            "status": {"$in": list(_STARTED_ROUND_STATUSES)},
+        },
+        {"_id": 0, "id": 1},
+    ) is not None
+
+    if not has_activity:
+        # Nothing meaningful to preserve — hard-delete the league plus
+        # all pre-generated round/submission/vote/messages docs.
+        round_docs = await db.rounds.find(
+            {"league_id": league_id}, {"_id": 0, "id": 1},
+        ).to_list(5000)
+        round_ids = [r["id"] for r in round_docs]
+        if round_ids:
+            await db.submissions.delete_many({"round_id": {"$in": round_ids}})
+            await db.votes.delete_many({"round_id": {"$in": round_ids}})
+            await db.round_results.delete_many({"round_id": {"$in": round_ids}})
+        await db.rounds.delete_many({"league_id": league_id})
+        await db.messages.delete_many({"league_id": league_id})
+        await db.chat_reads.delete_many({"league_id": league_id})
+        await db.league_snapshots.delete_many({"league_id": league_id})
+        await db.past_leagues.delete_many({"id": league_id})
+        await db.leagues.delete_one({"id": league_id})
+        logger.info(f"league_hard_deleted: league={league_id} reason=no_activity")
+        return {"message": "League deleted successfully", "hard_deleted": True}
+
+    # League has activity: soft-delete + snapshot as not_finished. The
+    # snapshot is the durable home for this league going forward; the
+    # source league doc stays around for the 7-day restore window.
+    await db.leagues.update_one(
+        {"id": league_id},
+        {
+            "$set": {
+                "status": "completed_early",
+                "deleted_at": now,
+                "deleted_by": current_user["id"],
+            }
+        },
+    )
+
     try:
         await _save_past_league_snapshot(
             league_id,
             is_deleted=True,
             deleted_at=now,
+            ended_status="not_finished",
         )
     except Exception as e:
         logger.warning(f"past_leagues snapshot failed for deleted {league_id}: {e}")
-
-    await db.leagues.update_one(
-        {"id": league_id},
-        {"$set": {"deleted_at": now}},
-    )
 
     # Clear the league's chat so members stop seeing messages for a league
     # that's been deleted. Notifications live client-side (AsyncStorage) and
@@ -2596,7 +2659,16 @@ async def delete_league(league_id: str, current_user: dict = Depends(get_current
     except Exception as e:
         logger.warning(f"Failed to purge messages for deleted league {league_id}: {e}")
 
-    return {"message": "League deleted successfully"}
+    logger.info(
+        f"league_completed_early: league={league_id} "
+        f"deleted_by={current_user['id']} had_activity=True"
+    )
+
+    return {
+        "message": "League ended early",
+        "hard_deleted": False,
+        "ended_status": "not_finished",
+    }
 
 
 @api_router.get("/leagues/deleted")
@@ -2655,7 +2727,13 @@ async def restore_deleted_league(league_id: str, current_user: dict = Depends(ge
 
     await db.leagues.update_one(
         {"id": league_id},
-        {"$unset": {"deleted_at": ""}},
+        {
+            "$unset": {"deleted_at": "", "deleted_by": ""},
+            # Clear the `completed_early` marker so the league plays as
+            # active again. The auto-advance + read-path handlers
+            # recompute the real status from round states.
+            "$set": {"status": "active"},
+        },
     )
 
     # The league is active again — drop its past_leagues snapshot so it
@@ -2805,15 +2883,43 @@ async def _build_past_league_snapshot(
                 if p == max_pts and max_pts > 0:
                     user_stats[uid]["wins"] += 1
 
-    standings = sorted(
+    active_standings = sorted(
         user_stats.values(),
         key=lambda x: (-x["total_points"], -x["wins"]),
     )
 
+    # Users who left mid-league: render at the bottom of standings,
+    # ranked among themselves by points_at_leave but always below all
+    # active members regardless of point totals.
+    raw_left = league.get("left_members") or []
+    left_rows = []
+    for lm in raw_left:
+        uid = lm.get("user_id")
+        if not uid:
+            continue
+        left_rows.append({
+            "user_id": uid,
+            "username": lm.get("username", ""),
+            "total_points": int(lm.get("points_at_leave") or 0),
+            "wins": 0,
+            "rounds_played": 0,
+            "left": True,
+            "left_at": _iso(lm.get("left_at")),
+        })
+    left_rows.sort(key=lambda x: -x["total_points"])
+
+    # Mark active rows so the frontend can filter / style consistently.
+    for s in active_standings:
+        s["left"] = False
+
+    standings = active_standings + left_rows
+
     # Enrich members/standings with profile photos.
     member_ids = [m["id"] for m in members_input]
+    left_user_ids = [r["user_id"] for r in left_rows]
+    photo_lookup_ids = list({*member_ids, *left_user_ids})
     users = await db.users.find(
-        {"id": {"$in": member_ids}},
+        {"id": {"$in": photo_lookup_ids}},
         {"_id": 0, "id": 1, "username": 1, "profile_photo": 1},
     ).to_list(500)
     photo_by_id = {u["id"]: u.get("profile_photo") for u in users}
@@ -2829,9 +2935,12 @@ async def _build_past_league_snapshot(
         for m in members_input
     ]
 
+    # Winner is taken from active standings only — a user who left
+    # before the league finished can never win the league overall, even
+    # if their frozen point total tops the active set.
     winner = None
-    if standings and standings[0]["total_points"] > 0:
-        w = standings[0]
+    if active_standings and active_standings[0]["total_points"] > 0:
+        w = active_standings[0]
         winner = {
             "user_id": w["user_id"],
             "username": w["username"],
@@ -2888,6 +2997,7 @@ async def _build_past_league_snapshot(
         "members_count": len(members_input),
         "member_ids": member_ids,
         "members": members,
+        "left_members": left_rows,
         "is_deleted": is_deleted,
         "deleted_at": _iso(ensure_utc(deleted_at)) if is_deleted and deleted_at else None,
         "completed_at": _iso(finish_dt) if not is_deleted else None,
@@ -2905,47 +3015,111 @@ async def _save_past_league_snapshot(
     *,
     is_deleted: bool,
     deleted_at: Optional[datetime] = None,
+    ended_status: Optional[str] = None,
 ) -> Optional[dict]:
     """Build and upsert a snapshot for the given league. Safe to call
-    multiple times — re-snapshots update the existing document."""
+    multiple times — re-snapshots update the existing document.
+
+    `ended_status` is stored as a top-level field on the snapshot so the
+    UI can distinguish between completed and not_finished snapshots.
+    Pass "completed" for leagues that finished all rounds, or
+    "not_finished" for admin-deleted mid-flight leagues. Legacy
+    snapshots without this field are treated as "completed" by readers."""
     league = await db.leagues.find_one({"id": league_id})
     if not league:
+        logger.warning(f"snapshot_save_fail: league={league_id} reason=not_found")
         return None
     league.pop("_id", None)
-    snapshot = await _build_past_league_snapshot(
-        league, is_deleted=is_deleted, deleted_at=deleted_at,
-    )
+    try:
+        snapshot = await _build_past_league_snapshot(
+            league, is_deleted=is_deleted, deleted_at=deleted_at,
+        )
+    except Exception as e:
+        logger.warning(f"snapshot_build_fail: league={league_id} error={e}")
+        raise
+    if ended_status:
+        snapshot["ended_status"] = ended_status
+    elif is_deleted:
+        # No explicit status passed for a deleted snapshot: assume the
+        # caller meant the early-termination flow.
+        snapshot["ended_status"] = "not_finished"
+    else:
+        snapshot["ended_status"] = "completed"
+    if league.get("creator_username") is not None:
+        snapshot["deleted_by_username"] = league.get("creator_username") if is_deleted else None
     await db.past_leagues.update_one(
         {"id": league_id},
         {"$set": snapshot},
         upsert=True,
     )
+    logger.info(
+        f"snapshot_saved: league={league_id} "
+        f"ended_status={snapshot['ended_status']} "
+        f"members={len(snapshot.get('member_ids') or [])} "
+        f"left_members={len(snapshot.get('left_members') or [])}"
+    )
     return snapshot
 
 
+# A round is in a "terminal" state once its lifecycle is over and it
+# can't progress any further. "completed" is the normal end; "skipped"
+# means the submission window expired with no songs and the round was
+# auto-skipped. Both are valid end-states for the purpose of deciding
+# whether a league as a whole has finished playing.
+_TERMINAL_ROUND_STATUSES = ("completed", "skipped")
+
+
 async def _maybe_snapshot_completed_league(league_id: str) -> None:
-    """Snapshot to past_leagues if every planned round is completed."""
+    """Snapshot to past_leagues if every planned round has reached a
+    terminal state (completed or skipped). Returns silently if the
+    league isn't ready yet, but logs every decision so a missing snapshot
+    is diagnosable from the server log alone."""
     league = await db.leagues.find_one(
         {"id": league_id, "$or": [{"deleted_at": {"$exists": False}}, {"deleted_at": None}]},
     )
     if not league:
+        logger.info(f"snapshot_skip: league={league_id} reason=not_found_or_deleted")
         return
     total = league.get("total_rounds", 0) or 0
     if total <= 0:
+        logger.info(f"snapshot_skip: league={league_id} reason=total_rounds_zero")
         return
-    # All rounds must exist AND be status=completed.
     all_rounds = await db.rounds.find(
         {"league_id": league_id},
         {"_id": 0, "status": 1, "round_number": 1},
     ).to_list(200)
     if len(all_rounds) < total:
+        logger.info(
+            f"snapshot_skip: league={league_id} reason=rounds_missing "
+            f"have={len(all_rounds)} want={total}"
+        )
         return
-    if not all(r.get("status") == "completed" for r in all_rounds):
+    not_terminal = [
+        r for r in all_rounds
+        if r.get("status") not in _TERMINAL_ROUND_STATUSES
+    ]
+    if not_terminal:
+        logger.info(
+            f"snapshot_skip: league={league_id} reason=rounds_not_terminal "
+            f"pending={[r.get('round_number') for r in not_terminal]}"
+        )
         return
     try:
+        logger.info(f"snapshot_attempt: league={league_id} total_rounds={total}")
+        # Mirror the league.status flip the auto-advance helper would do —
+        # if every round is terminal but the league doc hasn't been
+        # marked "completed" yet, do it here so /leagues/past callers
+        # and the self-heal sweep see consistent state.
+        if league.get("status") != "completed":
+            await db.leagues.update_one(
+                {"id": league_id},
+                {"$set": {"status": "completed", "current_round": total}},
+            )
+            logger.info(f"league_status_completed: league={league_id}")
         await _save_past_league_snapshot(league_id, is_deleted=False)
+        logger.info(f"snapshot_success: league={league_id}")
     except Exception as e:
-        logger.warning(f"past_leagues snapshot failed for {league_id}: {e}")
+        logger.warning(f"snapshot_fail: league={league_id} error={e}")
 
 
 async def _backfill_past_leagues_for_user(user_id: str) -> None:
@@ -3001,7 +3175,7 @@ async def _backfill_past_leagues_for_user(user_id: str) -> None:
         ).to_list(500)
         if not rounds or len(rounds) < total:
             continue
-        if not all(r.get("status") == "completed" for r in rounds):
+        if not all(r.get("status") in _TERMINAL_ROUND_STATUSES for r in rounds):
             continue
         if cleared_at:
             # A completed league's "finished at" is the latest
@@ -3020,10 +3194,17 @@ async def _backfill_past_leagues_for_user(user_id: str) -> None:
 
 
 def _view_past_league_for_user(doc: dict, user_id: str) -> dict:
-    """Project a past_leagues document into the API response for viewer."""
+    """Project a past_leagues document into the API response for viewer.
+
+    `my_place` is computed against active rows only — a user in
+    `left_members` would never see this view (the GET filter excludes
+    them), so the rank we surface here is always the viewer's position
+    among players who finished the league."""
     standings = doc.get("standings") or []
+    # Rank only among active rows (left users don't compete for placement).
+    active_rows = [s for s in standings if not s.get("left")]
     my_place = None
-    for i, s in enumerate(standings):
+    for i, s in enumerate(active_rows):
         if s.get("user_id") == user_id:
             my_place = i + 1
             break
@@ -3034,16 +3215,27 @@ def _view_past_league_for_user(doc: dict, user_id: str) -> dict:
         "name": doc.get("name"),
         "league_code": doc.get("league_code"),
         "league_image": doc.get("league_image"),
+        "creator_id": doc.get("creator_id"),
+        "creator_username": doc.get("creator_username"),
         "total_rounds": doc.get("total_rounds", 0),
         "rounds_completed": doc.get("rounds_completed", 0),
         "members_count": doc.get("members_count", len(doc.get("members") or [])),
         "is_deleted": doc.get("is_deleted", False),
         "deleted_at": doc.get("deleted_at"),
         "finished_at": doc.get("finished_at"),
+        # Resolve ended_status with legacy back-compat: docs predating
+        # this field that were soft-deleted should still surface as
+        # "not_finished" so the frontend NOT FINISHED treatment fires.
+        # Cleanly-completed legacy snapshots default to "completed".
+        "ended_status": doc.get("ended_status") or (
+            "not_finished" if doc.get("is_deleted") else "completed"
+        ),
         "my_place": my_place,
         "winner": doc.get("winner"),
         "standings": standings,
+        "left_members": doc.get("left_members") or [],
         "my_submissions": my_subs,
+        "rounds": doc.get("rounds") or [],
     }
 
 
@@ -3073,43 +3265,165 @@ async def update_league(league_id: str, update_data: LeagueUpdate, current_user:
     await _upsert_league_snapshot(league_id, league.get("name"), league.get("league_image"))
     return LeagueResponse(**add_league_defaults(league))
 
+async def _compute_points_for_user(league_id: str, user_id: str) -> int:
+    """Compute the user's accumulated points across every completed
+    round of the league, using the same N-1 system as the standings
+    endpoint. Used to freeze a leaving user's points_at_leave.
+    Implementation mirrors get_league_standings."""
+    completed_rounds = await db.rounds.find(
+        {"league_id": league_id, "status": "completed"},
+        {"_id": 0, "id": 1, "forfeit_missing_voter_pools": 1},
+    ).to_list(200)
+    if not completed_rounds:
+        return 0
+
+    round_ids = [r["id"] for r in completed_rounds]
+    all_subs = await db.submissions.find(
+        {"round_id": {"$in": round_ids}},
+        {"_id": 0, "id": 1, "round_id": 1, "user_id": 1},
+    ).to_list(2000)
+    all_votes = await db.votes.find(
+        {"round_id": {"$in": round_ids}},
+        {"_id": 0, "round_id": 1, "voter_id": 1, "rankings": 1},
+    ).to_list(2000)
+
+    subs_by_round: dict[str, list] = {}
+    votes_by_round: dict[str, list] = {}
+    for s in all_subs:
+        subs_by_round.setdefault(s["round_id"], []).append(s)
+    for v in all_votes:
+        votes_by_round.setdefault(v["round_id"], []).append(v)
+
+    total = 0
+    for r in completed_rounds:
+        subs = subs_by_round.get(r["id"], [])
+        votes = votes_by_round.get(r["id"], [])
+        if not subs:
+            continue
+        num_subs = len(subs)
+        num_to_rank = max(0, num_subs - 1)
+        points: dict[str, int] = {s["id"]: 0 for s in subs}
+        submitter_ids = {s["id"]: s["user_id"] for s in subs}
+        voters_who_voted: set[str] = set()
+        for v in votes:
+            voters_who_voted.add(v.get("voter_id"))
+            for idx, sid in enumerate(v.get("rankings", [])):
+                if sid in points:
+                    points[sid] += (num_to_rank - idx)
+        if not r.get("forfeit_missing_voter_pools"):
+            submitter_user_ids = set(submitter_ids.values())
+            non_voters = submitter_user_ids - voters_who_voted
+            if non_voters and num_subs > 1:
+                total_pts_per_voter = sum(range(1, num_to_rank + 1))
+                for nv_id in non_voters:
+                    nv_sub_id = next(
+                        (s["id"] for s in subs if s["user_id"] == nv_id), None
+                    )
+                    others = [s["id"] for s in subs if s["id"] != nv_sub_id]
+                    if others:
+                        per = total_pts_per_voter // len(others)
+                        rem = total_pts_per_voter % len(others)
+                        for sid in others:
+                            points[sid] += per
+                        for i in range(rem):
+                            points[others[i]] += 1
+        for s in subs:
+            if s["user_id"] == user_id:
+                total += points.get(s["id"], 0)
+    return int(total)
+
+
 @api_router.post("/leagues/{league_id}/leave")
 async def leave_league(league_id: str, current_user: dict = Depends(get_current_user)):
-    """Leave a league. Public leagues can only be left before they start —
-    public members who joined are committing to play. Private leagues
-    keep their existing behavior (members can leave at any time). In
-    either case, if the caller is the creator and other members remain,
-    creatorship transfers to the oldest remaining member; if the caller
-    was the sole member, the league and its pre-generated rounds are
-    hard-deleted."""
+    """Leave a league.
+
+    Two distinct flows depending on whether the league has started:
+
+    - **Not started** (no round has ever entered submission/voting/etc): the
+      caller is removed from `members` outright. Creator transfer or
+      hard-delete-if-sole-member apply, as before.
+    - **Active** (at least one round is in or past submission): the caller
+      is moved into `left_members` instead of being removed from `members`.
+      Their accumulated points freeze at the moment of leaving and they're
+      blocked from submitting/voting going forward, but their existing
+      submissions and votes stay in place as historical record. The user
+      will not see this league in their Past Leagues — they didn't finish.
+
+    Creators can never use this endpoint to abandon an active league —
+    they should delete it (which now creates a `not_finished` snapshot)
+    or transfer creatorship by leaving before the league starts."""
     league = await db.leagues.find_one({"id": league_id})
     if not league:
         raise HTTPException(status_code=404, detail="League not found")
     if league.get("deleted_at"):
         raise HTTPException(status_code=404, detail="League not found")
+    if league.get("status") == "completed":
+        raise HTTPException(status_code=400, detail="This league has already ended.")
 
     user_id = current_user["id"]
     members = league.get("members", [])
     if not any(m.get("id") == user_id for m in members):
         raise HTTPException(status_code=400, detail="You are not a member of this league.")
 
-    # Public leagues: can only be left before they start. "Started" means
-    # any round has moved past the pre-start states — i.e. a round is in
-    # submission, voting, completed, or skipped. Private leagues keep
-    # their existing behavior (members can leave at any time).
-    if league.get("is_public"):
-        started_round = await db.rounds.find_one(
-            {
-                "league_id": league_id,
-                "status": {"$in": ["submission", "voting", "completed", "skipped"]},
-            },
-            {"_id": 0, "id": 1},
+    # Has the league actually started playing? "Started" means any round
+    # has moved past the pre-start states.
+    started_round = await db.rounds.find_one(
+        {
+            "league_id": league_id,
+            "status": {"$in": ["submission", "voting", "completed", "skipped"]},
+        },
+        {"_id": 0, "id": 1},
+    )
+    league_active = started_round is not None
+    is_creator = league.get("creator_id") == user_id
+
+    # Active league + non-creator: this is the new "Leave" flow. The user
+    # surrenders future participation but keeps their accrued points
+    # frozen at points_at_leave.
+    if league_active and not is_creator:
+        # Don't double-record someone who already left.
+        existing_left = league.get("left_members") or []
+        if any(lm.get("user_id") == user_id for lm in existing_left):
+            raise HTTPException(status_code=400, detail="You have already left this league.")
+        # Compute points at leave from completed-round results, mirroring
+        # the standings endpoint's N-1 system.
+        points_at_leave = await _compute_points_for_user(league_id, user_id)
+        username = next(
+            (m.get("username") for m in members if m.get("id") == user_id),
+            current_user.get("username", ""),
         )
-        if started_round:
-            raise HTTPException(
-                status_code=400,
-                detail="You can't leave once rounds have started — your songs are part of the game now.",
-            )
+        now = datetime.now(timezone.utc)
+        await db.leagues.update_one(
+            {"id": league_id},
+            {
+                "$pull": {"members": {"id": user_id}},
+                "$push": {
+                    "left_members": {
+                        "user_id": user_id,
+                        "username": username,
+                        "points_at_leave": int(points_at_leave),
+                        "left_at": now,
+                    }
+                },
+            },
+        )
+        logger.info(
+            f"league_leave_active: league={league_id} user={user_id} "
+            f"points_at_leave={points_at_leave}"
+        )
+        return {
+            "message": "Left league successfully",
+            "left_active_league": True,
+            "points_at_leave": int(points_at_leave),
+        }
+
+    if league_active and is_creator:
+        # Creators can't leave an active league — they must delete it,
+        # which now snapshots the league as not_finished.
+        raise HTTPException(
+            status_code=400,
+            detail="Creators can't leave an active league. Delete the league instead.",
+        )
 
     remaining = [m for m in members if m.get("id") != user_id]
 
@@ -3632,12 +3946,34 @@ async def get_missing_submissions(round_id: str, current_user: dict = Depends(ge
 
 # ==================== SUBMISSION ENDPOINTS ====================
 
+async def _ensure_caller_is_active_member(round_doc: dict, user_id: str) -> None:
+    """Reject submission/vote attempts from users who left the league.
+
+    A user in `league.left_members` is no longer eligible to participate —
+    their existing submissions/votes from before they left stay intact,
+    but they can't add new ones. Raises 403 if the caller has left."""
+    league = await db.leagues.find_one(
+        {"id": round_doc["league_id"]},
+        {"_id": 0, "left_members": 1},
+    )
+    if not league:
+        return
+    left_members = league.get("left_members") or []
+    if any(lm.get("user_id") == user_id for lm in left_members):
+        raise HTTPException(
+            status_code=403,
+            detail="You left this league and can no longer participate.",
+        )
+
+
 @api_router.post("/rounds/{round_id}/submit", response_model=SubmissionResponse)
 async def submit_song(round_id: str, request: SubmitSongRequest, current_user: dict = Depends(get_current_user)):
     round_doc = await db.rounds.find_one({"id": round_id})
     if not round_doc:
         raise HTTPException(status_code=404, detail="Round not found")
-    
+
+    await _ensure_caller_is_active_member(round_doc, current_user["id"])
+
     # Check if user has an extended submission window (during voting phase)
     has_extension = False
     if round_doc["status"] == "voting":
@@ -3740,7 +4076,9 @@ async def submit_vote(round_id: str, request: VoteRequest, current_user: dict = 
     round_doc = await db.rounds.find_one({"id": round_id})
     if not round_doc:
         raise HTTPException(status_code=404, detail="Round not found")
-    
+
+    await _ensure_caller_is_active_member(round_doc, current_user["id"])
+
     if round_doc["status"] != "voting":
         raise HTTPException(status_code=400, detail="Voting is not open for this round")
     
@@ -3835,17 +4173,22 @@ async def get_my_vote(round_id: str, current_user: dict = Depends(get_current_us
 
 @api_router.get("/leagues/{league_id}/standings", response_model=LeagueStandingsResponse)
 async def get_league_standings(league_id: str, current_user: dict = Depends(get_current_user)):
-    """Get accumulated standings for all members in a league"""
+    """Get accumulated standings for all members in a league.
+
+    Active members are ranked normally by points (descending). Users in
+    `left_members` always render below all active members, regardless of
+    their points_at_leave totals — they're frozen at the moment they
+    left and shouldn't compete with people who are still playing."""
     league = await db.leagues.find_one({"id": league_id})
     if not league:
         raise HTTPException(status_code=404, detail="League not found")
-    
+
     # Get all completed rounds
     completed_rounds = await db.rounds.find({
         "league_id": league_id,
         "status": "completed"
     }).to_list(100)
-    
+
     # Calculate accumulated points and wins for each user
     user_stats = {}
     for member in league["members"]:
@@ -3854,18 +4197,44 @@ async def get_league_standings(league_id: str, current_user: dict = Depends(get_
             "username": member["username"],
             "total_points": 0,
             "wins": 0,
-            "rounds_played": 0
+            "rounds_played": 0,
+            "left": False,
         }
-    
-    if not completed_rounds:
-        # No completed rounds, return empty standings
-        standings = sorted(user_stats.values(), key=lambda x: (-x["total_points"], -x["wins"]))
+
+    left_members = league.get("left_members") or []
+
+    def _build_response(active_stats: dict) -> LeagueStandingsResponse:
+        active_sorted = sorted(
+            active_stats.values(),
+            key=lambda x: (-x["total_points"], -x["wins"]),
+        )
+        # Left members always render below active members. Sort among
+        # themselves by points_at_leave descending so the listing has
+        # some predictable order.
+        left_rows = sorted(
+            (
+                {
+                    "user_id": lm.get("user_id"),
+                    "username": lm.get("username", ""),
+                    "total_points": int(lm.get("points_at_leave") or 0),
+                    "wins": 0,
+                    "rounds_played": 0,
+                    "left": True,
+                }
+                for lm in left_members
+                if lm.get("user_id")
+            ),
+            key=lambda x: -x["total_points"],
+        )
         return LeagueStandingsResponse(
             league_id=league_id,
-            standings=standings,
-            rounds_completed=0,
-            total_rounds=league.get("total_rounds", 0)
+            standings=active_sorted + left_rows,
+            rounds_completed=len(completed_rounds),
+            total_rounds=league.get("total_rounds", 0),
         )
+
+    if not completed_rounds:
+        return _build_response(user_stats)
     
     # Batch fetch all submissions and votes for completed rounds
     round_ids = [r["id"] for r in completed_rounds]
@@ -3945,15 +4314,7 @@ async def get_league_standings(league_id: str, current_user: dict = Depends(get_
                 if sub_points == max_points and max_points > 0:
                     user_stats[uid]["wins"] += 1
     
-    # Sort by total points descending
-    standings = sorted(user_stats.values(), key=lambda x: (-x["total_points"], -x["wins"]))
-    
-    return LeagueStandingsResponse(
-        league_id=league_id,
-        standings=standings,
-        rounds_completed=len(completed_rounds),
-        total_rounds=league.get("total_rounds", 0)
-    )
+    return _build_response(user_stats)
 
 @api_router.get("/rounds/{round_id}/results", response_model=RoundResultResponse)
 async def get_results(round_id: str, current_user: dict = Depends(get_current_user)):
@@ -4923,6 +5284,10 @@ async def _unlock_next_round_or_complete_league(
             {"id": league_id},
             {"$set": {"current_round": total_rounds, "status": "completed"}},
         )
+        logger.info(
+            f"league_status_completed: league={league_id} "
+            f"after_round={just_finished_number} total_rounds={total_rounds}"
+        )
         try:
             await _maybe_snapshot_completed_league(league_id)
         except Exception as e:
@@ -4964,6 +5329,11 @@ async def _complete_round_and_unlock_next(round_doc: dict, now: datetime) -> Non
     league_id = round_doc["league_id"]
     round_number = round_doc.get("round_number", 0)
     already_completed = round_doc.get("status") == "completed"
+
+    logger.info(
+        f"round_complete_begin: league={league_id} round={round_number} "
+        f"already_completed={already_completed}"
+    )
 
     if not already_completed:
         # 1. Lock any stragglers.
@@ -5138,6 +5508,82 @@ async def _backfill_public_league_genres() -> int:
     return count
 
 
+async def _self_heal_orphan_completed_snapshots() -> int:
+    """Find leagues whose every round is in a terminal state (completed
+    or skipped) but which don't have a corresponding past_leagues entry,
+    and create one. Also catches the inverse symptom: league.status is
+    already "completed" but the snapshot was never written. Both paths
+    end with the same _save_past_league_snapshot call, so a second run is
+    a no-op. Returns the number of orphans repaired."""
+    healed = 0
+
+    # Pass 1: leagues marked completed in the docs but missing a snapshot.
+    completed_leagues = await db.leagues.find(
+        {
+            "status": "completed",
+            "$or": [{"deleted_at": {"$exists": False}}, {"deleted_at": None}],
+        },
+        {"_id": 0, "id": 1},
+    ).to_list(2000)
+    for l in completed_leagues:
+        lid = l.get("id")
+        if not lid:
+            continue
+        existing = await db.past_leagues.find_one({"id": lid}, {"_id": 0, "id": 1})
+        if existing:
+            continue
+        try:
+            logger.info(f"self_heal_snapshot: league={lid} reason=status_completed_no_snapshot")
+            await _save_past_league_snapshot(lid, is_deleted=False, ended_status="completed")
+            healed += 1
+        except Exception as e:
+            logger.warning(f"self_heal_snapshot_failed: league={lid} error={e}")
+
+    # Pass 2: leagues whose rounds are all terminal but league.status
+    # was never flipped to "completed" (transition dropped halfway).
+    candidates = await db.leagues.find(
+        {
+            "status": {"$ne": "completed"},
+            "total_rounds": {"$gt": 0},
+            "$or": [{"deleted_at": {"$exists": False}}, {"deleted_at": None}],
+        },
+        {"_id": 0, "id": 1, "total_rounds": 1},
+    ).to_list(2000)
+    for l in candidates:
+        lid = l.get("id")
+        total = l.get("total_rounds", 0) or 0
+        if not lid or total <= 0:
+            continue
+        rounds = await db.rounds.find(
+            {"league_id": lid},
+            {"_id": 0, "status": 1},
+        ).to_list(500)
+        if len(rounds) < total:
+            continue
+        if not all(r.get("status") in _TERMINAL_ROUND_STATUSES for r in rounds):
+            continue
+        existing = await db.past_leagues.find_one({"id": lid}, {"_id": 0, "id": 1})
+        if existing:
+            # Snapshot already exists; just sync the league.status flag.
+            await db.leagues.update_one(
+                {"id": lid},
+                {"$set": {"status": "completed", "current_round": total}},
+            )
+            continue
+        try:
+            logger.info(f"self_heal_snapshot: league={lid} reason=all_rounds_terminal_status_stale")
+            await db.leagues.update_one(
+                {"id": lid},
+                {"$set": {"status": "completed", "current_round": total}},
+            )
+            await _save_past_league_snapshot(lid, is_deleted=False, ended_status="completed")
+            healed += 1
+        except Exception as e:
+            logger.warning(f"self_heal_snapshot_failed: league={lid} error={e}")
+
+    return healed
+
+
 @app.on_event("startup")
 async def past_leagues_startup_maintenance():
     """Creates the indexes the read-paths rely on (member_ids for the
@@ -5169,6 +5615,16 @@ async def past_leagues_startup_maintenance():
         await _backfill_public_league_genres()
     except Exception as e:
         logger.warning(f"leagues genre backfill failed: {e}")
+    # Self-heal pass: any league whose rounds all reached a terminal
+    # state but which doesn't have a past_leagues entry yet — create
+    # one. Catches partial-failure paths where _maybe_snapshot ran but
+    # the upsert never landed.
+    try:
+        healed = await _self_heal_orphan_completed_snapshots()
+        if healed:
+            logger.info(f"self_heal_snapshot: healed_count={healed}")
+    except Exception as e:
+        logger.warning(f"self_heal_snapshot pass failed: {e}")
 
 
 @api_router.post("/auth/reclassify-genres")

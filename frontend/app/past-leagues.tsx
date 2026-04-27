@@ -158,6 +158,7 @@ export default function PastLeaguesPage() {
   };
 
   const renderRow = ({ item }: { item: PastLeague }) => {
+    const isNotFinished = item.ended_status === 'not_finished';
     const winner = item.winner;
     const winnerIsMe = !!winner && winner.user_id === user?.id;
     const mePlace = item.my_place;
@@ -192,16 +193,11 @@ export default function PastLeaguesPage() {
               <Text style={styles.name} numberOfLines={1}>
                 {item.name}
               </Text>
-              {item.is_deleted && (
-                <View style={styles.deletedTag}>
-                  <Text style={styles.deletedTagText}>DELETED</Text>
-                </View>
-              )}
             </View>
             <Text style={styles.meta} numberOfLines={1}>
               {formatFinishShort(item.finished_at)} · {rounds} rounds
-              {winner ? ' · ' : ''}
-              {winner ? (
+              {!isNotFinished && winner ? ' · ' : ''}
+              {!isNotFinished && winner ? (
                 winnerIsMe ? (
                   <>
                     won by <Text style={styles.wonByYou}>you</Text>
@@ -213,7 +209,11 @@ export default function PastLeaguesPage() {
             </Text>
           </View>
           <View style={styles.placeWrap}>
-            {place ? (
+            {isNotFinished ? (
+              <View style={styles.notFinishedPill}>
+                <Text style={styles.notFinishedText}>NOT FINISHED</Text>
+              </View>
+            ) : place ? (
               <>
                 <View style={styles.placeRow}>
                   <Text style={[styles.placeNum, { color: placeColor }]}>{place.num}</Text>
@@ -399,6 +399,18 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '800',
     letterSpacing: 0.5,
+  },
+  notFinishedPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  notFinishedText: {
+    color: '#B3B3B3',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.6,
   },
   placeWrap: {
     alignItems: 'flex-end',

@@ -24,11 +24,11 @@ import * as Linking from 'expo-linking';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import ViewShot from 'react-native-view-shot';
-import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system';
 import { useAuth } from '../../src/context/AuthContext';
 import { SharedChat } from '../../src/components/SharedChat';
+import ShareResultsModal, {
+  ShareResultsData,
+} from '../../src/components/ShareResultsModal';
 import { leagueEvents } from '../../src/utils/leagueEvents';
 import {
   getLeague,
@@ -98,9 +98,9 @@ export default function LeagueDetailScreen() {
   // Members modal state
   const [showMembersModal, setShowMembersModal] = useState(false);
 
-  // Share card state
-  const [isSharing, setIsSharing] = useState(false);
-  const shareCardRef = useRef<ViewShot>(null);
+  // Share modal state — opens the redesigned share UI with view
+  // toggles (Story / Square / Top 3) and the SHARE TO grid.
+  const [showShareModal, setShowShareModal] = useState(false);
   const dataLoaded   = useRef(false);
 
   // Time options for scrollable dropdown
@@ -255,35 +255,33 @@ export default function LeagueDetailScreen() {
     }
   };
 
-  // Share results card as image — mirrors the round results share flow.
-  const handleShareResults = async () => {
-    if (!shareCardRef.current || isSharing) return;
-
-    setIsSharing(true);
-    try {
-      const uri = await shareCardRef.current.capture?.();
-      if (uri) {
-        const isAvailable = await Sharing.isAvailableAsync();
-        if (isAvailable) {
-          await Sharing.shareAsync(uri, {
-            mimeType: 'image/png',
-            dialogTitle: 'Share League Results',
-          });
-        } else {
-          const top = standings?.standings.slice(0, 3)
-            .map((p, i) => `${i + 1}. ${p.username}: ${p.total_points} pts`)
-            .join('\n');
-          await Share.share({
-            message: `${league?.name} Final Results\n\n${top}\n\nPlayed on Music Leeg`,
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Share failed:', error);
-      Alert.alert('Error', 'Failed to share results');
-    } finally {
-      setIsSharing(false);
-    }
+  // Build the share-modal payload from current standings. Only active
+  // members can win the league — left users are filtered before ranking.
+  const buildShareData = (): ShareResultsData | null => {
+    if (!league || !standings) return null;
+    const ranked = standings.standings.filter((p) => !p.left);
+    if (ranked.length === 0) return null;
+    let currentRank = 1;
+    let prev: number | null = null;
+    const entries = ranked.slice(0, 5).map((p, i) => {
+      if (prev !== null && p.total_points < prev) currentRank = i + 1;
+      prev = p.total_points;
+      return {
+        rank: currentRank,
+        username: p.username,
+        user_id: p.user_id,
+        points: p.total_points,
+        isViewer: !!user?.id && p.user_id === user.id,
+      };
+    });
+    const viewerEntry = entries.find((e) => e.isViewer);
+    return {
+      variant: 'standings',
+      leagueName: league.name,
+      entries,
+      shareLink: `https://musicleeg.com/league/${league.id}`,
+      viewerPlace: viewerEntry?.rank ?? null,
+    };
   };
 
   const handleStartRound = async () => {
@@ -339,46 +337,62 @@ export default function LeagueDetailScreen() {
   };
 
   const handleDeleteLeague = () => {
-    Alert.alert(
-      'Delete League',
-      'This will permanently delete the league and all its rounds. This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteLeague(id!);
-              // Fan out to the home / past-leagues / profile subscribers
-              // so they refetch before/as the user lands back there. Without
-              // this, the active-league count and the past-league row
-              // stay stale until the next app focus.
-              leagueEvents.emit();
-              router.back();
-            } catch (error: any) {
-              Alert.alert('Error', error.response?.data?.detail || 'Failed to delete league');
-            }
-          },
-        },
-      ]
+    if (!league) return;
+    // Once any round has reached the submission phase, deleting ends the
+    // league early and writes a "NOT FINISHED" past-league snapshot
+    // instead of hard-deleting. Match the copy to that behavior.
+    const startedRound = rounds.some(
+      (r) =>
+        r.status === 'submission' ||
+        r.status === 'voting' ||
+        r.status === 'completed' ||
+        r.status === 'skipped',
     );
+    const title = startedRound ? 'End League Early?' : 'Delete League?';
+    const body = startedRound
+      ? 'This will end the league immediately. Members will see it in Past Leagues marked as "NOT FINISHED". Final results will not be calculated. This cannot be undone.'
+      : 'This will permanently delete the league and all its rounds. This cannot be undone.';
+    const confirmLabel = startedRound ? 'End League' : 'Delete';
+    Alert.alert(title, body, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: confirmLabel,
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteLeague(id!);
+            // Fan out to the home / past-leagues / profile subscribers
+            // so they refetch before/as the user lands back there. Without
+            // this, the active-league count and the past-league row
+            // stay stale until the next app focus.
+            leagueEvents.emit();
+            router.replace('/(tabs)/home' as any);
+          } catch (error: any) {
+            Alert.alert(
+              'Error',
+              error.response?.data?.detail || 'Failed to delete league',
+            );
+          }
+        },
+      },
+    ]);
   };
 
   const handleLeaveLeague = () => {
+    if (!league) return;
     Alert.alert(
-      'Leave League',
-      'Are you sure you want to leave this league?',
+      `Leave ${league.name}?`,
+      "You can't rejoin this league once you leave. You'll keep any points you've earned, but you can't participate in future rounds. Are you sure?",
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Leave',
+          text: 'Leave League',
           style: 'destructive',
           onPress: async () => {
             try {
               await leaveLeague(id!);
               leagueEvents.emit();
-              router.back();
+              router.replace('/(tabs)/home' as any);
             } catch (error: any) {
               Alert.alert('Error', error.response?.data?.detail || 'Failed to leave league');
             }
@@ -629,19 +643,33 @@ export default function LeagueDetailScreen() {
             {hasUnread && <View style={styles.unreadBadge} />}
           </TouchableOpacity>
           {(() => {
-            // Public-league creators surface the Leave affordance (backend
-            // only allows a public creator to *delete* when they're the
-            // sole member, so Leave is the right default — it handles
-            // creator transfer or hard-delete-if-sole automatically).
-            // Private-league creators keep the Delete affordance.
-            const showLeave = !isCreator || !!league?.is_public;
+            // Creators always get the Delete affordance — admin can
+            // delete at any point in the league's lifecycle, with
+            // mid-flight deletions becoming "NOT FINISHED" past leagues.
+            // Non-creators get the Leave icon, which freezes their
+            // points and removes them from active play.
+            if (isCreator) {
+              return (
+                <TouchableOpacity
+                  style={styles.headerButton}
+                  onPress={handleDeleteLeague}
+                >
+                  <Ionicons
+                    name="trash-outline"
+                    size={22}
+                    color="rgba(255,255,255,0.60)"
+                  />
+                </TouchableOpacity>
+              );
+            }
             return (
               <TouchableOpacity
                 style={styles.headerButton}
-                onPress={showLeave ? handleLeaveLeague : handleDeleteLeague}
+                onPress={handleLeaveLeague}
+                accessibilityLabel="Leave league"
               >
                 <Ionicons
-                  name={showLeave ? 'exit-outline' : 'trash-outline'}
+                  name="log-out-outline"
                   size={22}
                   color="rgba(255,255,255,0.60)"
                 />
@@ -700,17 +728,24 @@ export default function LeagueDetailScreen() {
         >
           {standings && standings.standings.length > 0 && standings.standings.some(p => p.total_points > 0) ? (
             (() => {
-              // Tie-aware current ranks
+              // Active members are ranked normally. Users who left the
+              // league (left=true) always render below all active rows
+              // regardless of point totals — they don't compete for
+              // placement, and we don't want them on the podium.
+              const activePlayers = standings.standings.filter(p => !p.left);
+              const leftPlayers = standings.standings.filter(p => p.left);
+
+              // Tie-aware current ranks across active members only.
               let currentRank = 1;
               let prevPoints: number | null = null;
-              const rankedPlayers = standings.standings.map((p, i) => {
+              const rankedPlayers = activePlayers.map((p, i) => {
                 if (prevPoints !== null && p.total_points < prevPoints) currentRank = i + 1;
                 prevPoints = p.total_points;
                 return { ...p, rank: currentRank };
               });
 
               // Previous-round ranks (subtract last round points, then re-rank)
-              const prevSorted = standings.standings
+              const prevSorted = activePlayers
                 .map(p => ({
                   user_id: p.user_id,
                   prevTotal: p.total_points - (lastRoundPoints[p.user_id] || 0),
@@ -942,6 +977,54 @@ export default function LeagueDetailScreen() {
                       </View>
                     );
                   })}
+                  {leftPlayers.length > 0 && leftPlayers.map((player) => {
+                    const isMe = !!user?.id && player.user_id === user.id;
+                    const color = avatarColor(player.username);
+                    return (
+                      <View
+                        key={`left-${player.user_id}`}
+                        style={[
+                          standingStyles.listRow,
+                          standingStyles.listRowLeft,
+                          isMe && standingStyles.listRowMe,
+                        ]}
+                      >
+                        <Text
+                          style={[standingStyles.listRank, standingStyles.listRankMuted]}
+                        >
+                          —
+                        </Text>
+                        <View
+                          style={[
+                            standingStyles.listAvatar,
+                            { backgroundColor: color, opacity: 0.55 },
+                          ]}
+                        >
+                          <Text style={standingStyles.listAvatarInitial}>
+                            {player.username.charAt(0).toUpperCase()}
+                          </Text>
+                        </View>
+                        <View style={standingStyles.listNameWrap}>
+                          <Text
+                            style={[standingStyles.listName, standingStyles.listNameLeft]}
+                            numberOfLines={1}
+                          >
+                            {player.username}
+                          </Text>
+                          <View style={standingStyles.leftBadge}>
+                            <Text style={standingStyles.leftBadgeText}>LEFT</Text>
+                          </View>
+                        </View>
+                        <View style={standingStyles.listPtsWrap}>
+                          <Text
+                            style={[standingStyles.listPts, standingStyles.listPtsLeft]}
+                          >
+                            {player.total_points}
+                          </Text>
+                        </View>
+                      </View>
+                    );
+                  })}
                 </>
               );
             })()
@@ -953,70 +1036,24 @@ export default function LeagueDetailScreen() {
             </View>
           )}
 
-          {/* Share Results Button — one-tap, identical flow to round results */}
+          {/* Share Results Button — opens the redesigned share modal */}
           {standings && standings.standings.length > 0 && standings.standings.some(p => p.total_points > 0) && (
             <TouchableOpacity
-              style={[styles.shareResultsButton, isSharing && styles.buttonDisabled]}
-              onPress={handleShareResults}
-              disabled={isSharing}
+              style={styles.shareResultsButton}
+              onPress={() => setShowShareModal(true)}
               activeOpacity={0.8}
             >
-              {isSharing
-                ? <ActivityIndicator color="#FFFFFF" />
-                : <Text style={styles.shareResultsText}>Share Results</Text>}
+              <Text style={styles.shareResultsText}>Share Results</Text>
             </TouchableOpacity>
           )}
 
-          {/* Off-screen share card — rendered for capture only */}
-          <View style={styles.shareCardOffscreen} pointerEvents="none">
-            <ViewShot ref={shareCardRef} options={{ format: 'png', quality: 1 }}>
-              <View style={styles.shareCard}>
-                <View style={styles.shareCardGradient}>
-                  <View style={styles.shareCardHeader}>
-                    <Text style={styles.shareCardTitle}>{league?.name}</Text>
-                    <Text style={styles.shareCardSubtitle}>Final Results</Text>
-                  </View>
-
-                  <View style={styles.shareCardStandings}>
-                    {(() => {
-                      let currentRank = 1;
-                      let prevPoints: number | null = null;
-                      const rankedPlayers = (standings?.standings ?? []).slice(0, 5).map((player, index) => {
-                        if (prevPoints !== null && player.total_points < prevPoints) {
-                          currentRank = index + 1;
-                        }
-                        prevPoints = player.total_points;
-                        return { ...player, rank: currentRank };
-                      });
-                      return rankedPlayers.map((player) => {
-                        const rank = player.rank;
-                        const isWinner = rank === 1;
-                        return (
-                          <View
-                            key={player.user_id}
-                            style={[styles.shareCardRow, isWinner && styles.shareCardWinnerRow]}
-                          >
-                            <Text style={styles.shareCardRankEmoji}>{`${rank}.`}</Text>
-                            <Text style={[styles.shareCardUsername, isWinner && styles.shareCardWinnerText]}>
-                              {player.username}
-                            </Text>
-                            <Text style={[styles.shareCardPoints, isWinner && styles.shareCardWinnerText]}>
-                              {player.total_points} pts
-                            </Text>
-                          </View>
-                        );
-                      });
-                    })()}
-                  </View>
-
-                  <View style={styles.shareCardFooter}>
-                    <Text style={styles.shareCardBranding}>Music Leeg</Text>
-                    <Text style={styles.shareCardCTA}>Create your own league!</Text>
-                  </View>
-                </View>
-              </View>
-            </ViewShot>
-          </View>
+          {showShareModal && buildShareData() && (
+            <ShareResultsModal
+              visible={showShareModal}
+              onClose={() => setShowShareModal(false)}
+              data={buildShareData()!}
+            />
+          )}
         </ScrollView>
       )}
 
@@ -2379,6 +2416,33 @@ const standingStyles = StyleSheet.create({
   },
   listRowMe: {
     backgroundColor: 'rgba(124,58,237,0.12)',
+  },
+  // Visual treatment for users who left mid-league: muted text/avatar
+  // and a "LEFT" pill in place of the rank.
+  listRowLeft: {
+    opacity: 0.7,
+  },
+  listRankMuted: {
+    color: '#6A6A6A',
+  },
+  listNameLeft: {
+    color: '#B3B3B3',
+  },
+  listPtsLeft: {
+    color: '#B3B3B3',
+  },
+  leftBadge: {
+    marginLeft: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+  },
+  leftBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#B3B3B3',
+    letterSpacing: 0.5,
   },
   listRank: {
     width: 28,
