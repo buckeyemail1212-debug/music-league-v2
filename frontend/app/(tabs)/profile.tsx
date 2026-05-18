@@ -630,7 +630,7 @@ const styles = StyleSheet.create({
   // 4 × 64 + 3 × 12 = 292 — fits with a few pixels of slack.
   topVotersRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-start',
+    justifyContent: 'center',
     gap: 12,
   },
   topVoterItem: {

@@ -14,6 +14,7 @@ import {
   ActivityIndicator,
   Animated,
   RefreshControl,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
@@ -26,8 +27,11 @@ import { Song, API_URL, searchSongs } from '../../src/services/api';
 import { stopAllPreviews, registerStopHandler } from '../../src/components/PreviewPlayButton';
 import { useAuth } from '../../src/context/AuthContext';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const ART_SIZE              = SCREEN_WIDTH - 60;
+// Screen-width-dependent sizes (album art, card width, progress track) are
+// computed from `useWindowDimensions()` inside the components below so they
+// update on rotation and split-view. cardHeight is still seeded from
+// Dimensions.get('window').height for a fast first-paint value, then
+// corrected by the container's onLayout once measured.
 const getLikedKey = (userId: string) => `liked_songs_${userId}`;
 const PAGE_SIZE = 30;
 
@@ -168,6 +172,11 @@ const SongCard = React.memo(({
   const iconOpacity                   = useRef(new Animated.Value(0)).current;
   const [overlayIcon, setOverlayIcon] = useState<'play' | 'pause'>('pause');
 
+  // Live screen width — re-renders on rotation / split-view.
+  const { width: screenWidth } = useWindowDimensions();
+  const artSize = screenWidth - 60;
+  const progressTrackWidth = screenWidth - 48;
+
   const handleArtTap = () => {
     const newIcon = isPaused ? 'play' : 'pause';
     setOverlayIcon(newIcon);
@@ -182,19 +191,25 @@ const SongCard = React.memo(({
   const coverUri = song.cover_url ?? '';
 
   return (
-    <View style={[styles.card, { height: cardHeight }]}>
+    <View style={[styles.card, { width: screenWidth, height: cardHeight }]}>
 
       {/* ── Album art — fills remaining space, tappable for play/pause ── */}
       <TouchableWithoutFeedback onPress={handleArtTap}>
         <View style={styles.artContainer}>
           {coverUri ? (
-            <Image source={{ uri: coverUri }} style={styles.artImage} resizeMode="cover" />
+            <Image
+              source={{ uri: coverUri }}
+              style={[styles.artImage, { width: artSize, height: artSize }]}
+              resizeMode="cover"
+            />
           ) : (
-            <View style={[styles.artImage, styles.artPlaceholder]}>
+            <View style={[styles.artImage, styles.artPlaceholder, { width: artSize, height: artSize }]}>
               <Ionicons name="musical-note" size={72} color="rgba(255,255,255,0.15)" />
             </View>
           )}
-          <Animated.View style={[styles.iconOverlay, { opacity: iconOpacity }]}>
+          <Animated.View
+            style={[styles.iconOverlay, { width: artSize, height: artSize, opacity: iconOpacity }]}
+          >
             <Ionicons name={overlayIcon} size={64} color="rgba(255,255,255,0.9)" />
           </Animated.View>
         </View>
@@ -222,12 +237,12 @@ const SongCard = React.memo(({
         <Text style={styles.artistName} numberOfLines={1}>{song.artist}</Text>
 
         {/* Row 3: progress bar */}
-        <View style={styles.progressTrack}>
+        <View style={[styles.progressTrack, { width: progressTrackWidth }]}>
           <Animated.View
             style={[styles.progressFill, {
               width: progressAnim.interpolate({
                 inputRange: [0, 1],
-                outputRange: [0, SCREEN_WIDTH - 48],
+                outputRange: [0, progressTrackWidth],
                 extrapolate: 'clamp',
               }),
             }]}
@@ -267,6 +282,10 @@ const SongCard = React.memo(({
 
 export default function DiscoverScreen() {
   const { user } = useAuth();
+  // Live width drives the skeleton placeholder sizing — keeps the loading
+  // state visually centered after rotation / split-view changes.
+  const { width: screenWidth } = useWindowDimensions();
+  const skeletonArtSize = screenWidth - 60;
   const [selectedFilter, setSelectedFilter] = useState(0);
   const [songs, setSongs]                   = useState<Song[]>([]);
   // isFetching drives the inline loader — never blocks chips or the whole screen
@@ -891,8 +910,8 @@ export default function DiscoverScreen() {
       {/* Skeleton placeholder — only while waiting with no songs loaded */}
       {isFetching && songs.length === 0 && !chartError && (
         <View style={[styles.inlineLoader, { height: cardHeight }]} pointerEvents="none">
-          <View style={styles.skeletonArt} />
-          <View style={styles.skeletonBottom}>
+          <View style={[styles.skeletonArt, { width: skeletonArtSize, height: skeletonArtSize }]} />
+          <View style={[styles.skeletonBottom, { width: screenWidth }]}>
             <View style={styles.skeletonTitle} />
             <View style={styles.skeletonArtist} />
             <View style={styles.skeletonProgress} />
@@ -1033,13 +1052,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   skeletonArt: {
-    width: ART_SIZE,
-    height: ART_SIZE,
+    // width/height set inline from useWindowDimensions
     borderRadius: 12,
     backgroundColor: '#282828',
   },
   skeletonBottom: {
-    width: SCREEN_WIDTH,
+    // width set inline from useWindowDimensions
     paddingHorizontal: 24,
     paddingTop: 20,
     paddingBottom: 24,
@@ -1077,7 +1095,7 @@ const styles = StyleSheet.create({
 
   // ── Card ──────────────────────────────────────────────────────────────────
   card: {
-    width: SCREEN_WIDTH,
+    // width set inline from useWindowDimensions; height from cardHeight prop
     backgroundColor: '#121212',
     flexDirection: 'column',
   },
@@ -1089,8 +1107,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   artImage: {
-    width: ART_SIZE,
-    height: ART_SIZE,
+    // width/height set inline from useWindowDimensions
     borderRadius: 12,
   },
   artPlaceholder: {
@@ -1100,8 +1117,7 @@ const styles = StyleSheet.create({
   },
   iconOverlay: {
     position: 'absolute',
-    width: ART_SIZE,
-    height: ART_SIZE,
+    // width/height set inline from useWindowDimensions
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1140,7 +1156,7 @@ const styles = StyleSheet.create({
 
   // Row 3: progress bar — full width minus 24px each side
   progressTrack: {
-    width: SCREEN_WIDTH - 48,
+    // width set inline from useWindowDimensions (screen width − 48)
     height: 3,
     borderRadius: 2,
     backgroundColor: 'rgba(255,255,255,0.1)',
