@@ -326,6 +326,14 @@ export default function DiscoverScreen() {
   // Track the deezer_id of the currently playing song to prevent audio overlap
   const currentlyPlayingRef = useRef<string | null>(null);
 
+  // Monotonic counter incremented every time we INTEND to stop audio. Each
+  // playPreview call captures the value at start and re-checks after every
+  // await; if it changes, the in-flight play silently bails and unloads the
+  // sound it just created. This closes the createAsync race where blur /
+  // chip-tap / fast-scroll ran their stop logic before soundRef was assigned,
+  // letting a fresh sound start playing after the cleanup.
+  const playGenerationRef = useRef(0);
+
   // Search mode
   const isSearchModeRef  = useRef(false);
   const searchQueryRef   = useRef('');
@@ -374,12 +382,23 @@ export default function DiscoverScreen() {
   const fetchSongsRef     = useRef<(reset: boolean, isRefresh?: boolean, silent?: boolean) => Promise<void>>(async () => {});
 
   const playPreview = useCallback(async (song: Song) => {
+    // Capture the generation at start. If anything bumps the counter before
+    // we finish setting up, abandon — including unloading the freshly-created
+    // sound so it never plays.
+    const gen = ++playGenerationRef.current;
+    const isStale = () => gen !== playGenerationRef.current || !isFocusedRef.current;
+
     await stopAllPreviews();
     await stopSound();
+    if (isStale()) return;
+    // Claim this song as "currently playing" before we start the slow loads,
+    // so the scroll-out check in onViewableItemsChanged can detect when the
+    // user scrolls past this card during the createAsync wait.
+    currentlyPlayingRef.current = String(song.deezer_id);
     setIsPaused(false);
 
     const url = await getFreshUrl(song);
-    if (!url) return;
+    if (!url || isStale()) return;
 
     try {
       await Audio.setAudioModeAsync({
@@ -387,10 +406,21 @@ export default function DiscoverScreen() {
         playsInSilentModeIOS: true,
         staysActiveInBackground: false,
       });
+      if (isStale()) return;
+
       const { sound } = await Audio.Sound.createAsync(
         { uri: url },
         { shouldPlay: true, positionMillis: 0, volume: 1.0 }
       );
+
+      // The createAsync await is the longest one — it's where blur / chip-tap
+      // races used to leak audio. If we're stale by the time it resolves,
+      // throw the sound away immediately.
+      if (isStale()) {
+        sound.stopAsync().catch(() => {});
+        sound.unloadAsync().catch(() => {});
+        return;
+      }
       soundRef.current = sound;
 
       timerRef.current = setInterval(async () => {
@@ -415,6 +445,17 @@ export default function DiscoverScreen() {
   useEffect(() => {
     const unregister = registerStopHandler(stopSound);
     return unregister;
+  }, [stopSound]);
+
+  // Synchronous "stop everything and invalidate in-flight plays". Bumping the
+  // generation counter first is the critical step — even if the async stops
+  // below race against a createAsync that's already mid-await, the captured
+  // generation inside playPreview won't match and the new sound gets unloaded
+  // instead of playing.
+  const haltAudio = useCallback(() => {
+    playGenerationRef.current++;
+    stopAllPreviews();
+    stopSound();
   }, [stopSound]);
 
   // ── Toggle play / pause on tap ────────────────────────────────────────────
@@ -450,11 +491,10 @@ export default function DiscoverScreen() {
       isFocusedRef.current = false;
       currentlyPlayingRef.current = null;
 
-      // (2) Synchronously stop audio on BOTH the shared registry and this
-      //     screen's own sound — don't await, don't queue — before we go
-      //     through the cleanup steps that could race with a new play call.
-      stopAllPreviews();
-      stopSound();
+      // (2) Halt — bumps the play-generation counter so any in-flight
+      //     playPreview bails after its next await instead of assigning a
+      //     fresh sound after our stop ran.
+      haltAudio();
 
       // (3) Cancel every pending setTimeout we've registered. This covers
       //     the autoplay-after-fetch, the viewability-triggered preview, and
@@ -465,13 +505,14 @@ export default function DiscoverScreen() {
       }
       autoplayTimeoutRef.current = null;
     };
-  }, [stopSound, loadLikedSongs]));
+  }, [haltAudio, loadLikedSongs]));
 
 
   useEffect(() => {
     return () => {
       isFocusedRef.current = false;
       currentlyPlayingRef.current = null;
+      playGenerationRef.current++;
       stopAllPreviews();
       clearAllPendingTimeouts();
       if (timerRef.current) clearInterval(timerRef.current);
@@ -604,12 +645,11 @@ export default function DiscoverScreen() {
     const unsubBlur = (navigation as any).addListener?.('blur', () => {
       isFocusedRef.current = false;
       currentlyPlayingRef.current = null;
-      stopAllPreviews();
-      stopSound();
+      haltAudio();
       clearAllPendingTimeouts();
     });
     return () => unsubBlur?.();
-  }, [navigation, stopSound]);
+  }, [navigation, haltAudio]);
 
   const onRefresh = useCallback(() => {
     seenSongIdsRef.current.clear();
@@ -690,6 +730,21 @@ export default function DiscoverScreen() {
   // ── FlatList helpers ──────────────────────────────────────────────────────
 
   const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
+    // First: if the song we're currently playing has dropped out of the
+    // viewable set (user scrolled it off-screen but the next card hasn't yet
+    // hit the 80% threshold, or list went momentarily empty mid-scroll),
+    // stop audio. Per UX spec: audio dies when its card leaves the viewport.
+    const playingId = currentlyPlayingRef.current;
+    if (playingId) {
+      const stillVisible = viewableItems.some(
+        (v: any) => String(v.item?.deezer_id ?? '') === playingId
+      );
+      if (!stillVisible) {
+        currentlyPlayingRef.current = null;
+        haltAudio();
+      }
+    }
+
     if (!viewableItems.length) return;
     const idx: number = viewableItems[0].index ?? 0;
     if (idx === currentIdxRef.current) return;
@@ -700,8 +755,10 @@ export default function DiscoverScreen() {
     const songId = String(song.deezer_id);
     currentlyPlayingRef.current = songId;
 
-    // Stop any playing audio immediately, then start the new song after a short gap
-    stopAllPreviews();
+    // Stop any playing audio immediately, then start the new song after a
+    // short gap. haltAudio bumps the generation counter so a stale in-flight
+    // play (from the previous card) won't override this one.
+    haltAudio();
     if ((onViewableItemsChanged as any)._timer) {
       clearTimeout((onViewableItemsChanged as any)._timer);
     }
@@ -736,8 +793,7 @@ export default function DiscoverScreen() {
     // Stop the currently playing song immediately so audio never lingers while
     // the list animates to the next card.
     currentlyPlayingRef.current = null;
-    stopAllPreviews();
-    stopSound();
+    haltAudio();
     const next = currentIdxRef.current + 1;
     if (next < songsRef.current.length) {
       flatListRef.current?.scrollToOffset({
@@ -745,7 +801,7 @@ export default function DiscoverScreen() {
         animated: true,
       });
     }
-  }, [stopSound]);
+  }, [haltAudio]);
 
   const toggleLike = useCallback(async (song: Song) => {
     if (!user?.id) return;
@@ -879,7 +935,10 @@ export default function DiscoverScreen() {
                     key={f.label}
                     style={[styles.chip, i === selectedFilter && styles.chipActive]}
                     onPress={() => {
-                      stopAllPreviews();
+                      // Bump the generation FIRST so any preview currently
+                      // mid-createAsync silently unloads its sound rather
+                      // than overriding the new fetch's auto-play.
+                      haltAudio();
                       setSelectedFilter(i);
                       selectedFilterRef.current = i;
                       seenSongIdsRef.current.clear();
