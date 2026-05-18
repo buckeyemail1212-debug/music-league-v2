@@ -454,7 +454,6 @@ export default function HomeScreen() {
 
         <TouchableOpacity
           style={styles.headerIconBtn}
-          hitSlop={10}
           onPress={() => router.push('/how-to-play' as any)}
         >
           <Ionicons name="help-circle-outline" size={24} color="#FFFFFF" />
@@ -464,7 +463,6 @@ export default function HomeScreen() {
             a dashed purple circle with a small "+" badge. */}
         <TouchableOpacity
           style={styles.headerIconBtn}
-          hitSlop={10}
           onPress={goToSettings}
           activeOpacity={0.75}
         >
@@ -608,12 +606,12 @@ const styles = StyleSheet.create({
   greeting: { fontSize: 14, color: '#B3B3B3', fontWeight: '400' },
   username: { fontSize: 26, fontWeight: '700', color: '#FFFFFF', marginTop: 2 },
   headerIconBtn: {
-    width: 38,
-    height: 38,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // Avatar image — fills the same 38×38 slot as ? and gear.
+  // Avatar image — fills the 44×44 slot as ? and gear.
   headerAvatarImage: {
     width: 32,
     height: 32,
