@@ -24,7 +24,6 @@ import requests as _requests
 import billboard
 import random
 import string
-from spotify_client import get_spotify_client, map_spotify_track, search_tracks as spotify_search_tracks
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -4485,58 +4484,141 @@ async def get_results(round_id: str, current_user: dict = Depends(get_current_us
         non_submitters=non_submitters,
     )
 
-# ==================== SONG SEARCH (SPOTIFY, DEEZER FALLBACK) ====================
+# ==================== SONG SEARCH (DEEZER, TWO-PASS) ====================
+#
+# Deezer's plain-text search has catalog gaps: some tracks live in the catalog
+# but the bag-of-words search ranks them so low (or omits them entirely) that
+# they never surface. Example: "Verisimilitude" by Teenage Fanclub — neither
+# the title alone nor "Verisimilitude Teenage Fanclub" returns it from plain
+# search, but the field-operator query  artist:"Teenage Fanclub" track:"Verisimilitude"
+# does. Pass 1 is the normal plain-text search; if it returns nothing (or
+# nothing whose title overlaps the query) we reinterpret the query as
+# "artist title" / "title artist" and retry each split with field operators,
+# stopping at the first non-empty split. Results are merged and deduped by ID.
 
-async def _deezer_search_fallback(q: str, limit: int) -> list[dict]:
-    """Deezer search used as a backup when Spotify is unavailable or errors out."""
-    async with httpx.AsyncClient(verify=False, timeout=30.0) as client:
-        response = await client.get(
-            "https://api.deezer.com/search",
-            params={"q": q, "limit": limit},
-        )
-        response.raise_for_status()
-        data = response.json()
-        return [
-            {
-                "deezer_id":   track["id"],
-                "title":       track["title"],
-                "artist":      track["artist"]["name"],
-                "album":       track["album"]["title"],
-                "preview_url": track["preview"],
-                "cover_url":   track["album"]["cover_medium"],
-                "duration":    track["duration"],
-            }
-            for track in data.get("data", [])
-        ]
+_QUERY_TOKEN_RE = re.compile(r'"([^"]+)"|(\S+)')
+
+
+def _tokenize_query(q: str) -> list[str]:
+    """Split a query into tokens, treating double-quoted spans as one token."""
+    return [m.group(1) or m.group(2) for m in _QUERY_TOKEN_RE.finditer(q)]
+
+
+def _deezer_search_has_title_overlap(tracks: list[dict], query: str) -> bool:
+    """Did pass-1 return any track whose title overlaps the user's query?"""
+    if not tracks:
+        return False
+    q_lower = query.lower()
+    for t in tracks:
+        title = (t.get("title") or "").lower().strip()
+        if title and (title in q_lower or q_lower in title):
+            return True
+    return False
+
+
+def _map_deezer_search_track(track: dict) -> dict:
+    return {
+        "deezer_id":   track["id"],
+        "title":       track["title"],
+        "artist":      track["artist"]["name"],
+        "album":       track["album"]["title"],
+        "preview_url": track["preview"],
+        "cover_url":   track["album"]["cover_medium"],
+        "duration":    track["duration"],
+    }
+
+
+async def _deezer_plain_search(
+    client: httpx.AsyncClient, q: str, limit: int
+) -> list[dict]:
+    resp = await client.get(
+        "https://api.deezer.com/search",
+        params={"q": q, "limit": limit},
+    )
+    resp.raise_for_status()
+    data = resp.json() or {}
+    return [_map_deezer_search_track(t) for t in data.get("data", [])]
+
+
+async def _deezer_field_search(
+    client: httpx.AsyncClient, tokens: list[str], limit: int
+) -> list[dict]:
+    """
+    Re-interpret `tokens` as (artist, title) and (title, artist) at every
+    split position. Issue an artist:"X" track:"Y" Deezer query for each;
+    return on the first split that yields any results.
+    """
+    if len(tokens) < 2:
+        return []
+    for i in range(1, len(tokens)):
+        left = " ".join(tokens[:i])
+        right = " ".join(tokens[i:])
+        for artist, title in ((left, right), (right, left)):
+            # Strip stray double quotes — they'd break field-operator syntax.
+            a = artist.replace('"', "").strip()
+            t = title.replace('"', "").strip()
+            if not a or not t:
+                continue
+            q_op = f'artist:"{a}" track:"{t}"'
+            try:
+                results = await _deezer_plain_search(client, q_op, limit)
+            except Exception:
+                continue
+            if results:
+                return results
+    return []
 
 
 @api_router.get("/songs/search")
 async def search_songs(q: str, limit: int = 20):
-    """Search songs via Spotify Web API; fall back to Deezer on failure."""
+    """Search songs using Deezer API with a field-operator fallback pass."""
     if not q or len(q) < 2:
         return {"data": []}
 
-    if get_spotify_client() is not None:
-        try:
-            # spotipy is synchronous; offload so we don't block the event loop.
-            tracks = await asyncio.to_thread(spotify_search_tracks, q, limit)
-            return {"data": [map_spotify_track(t) for t in tracks]}
-        except Exception as e:
-            logger.error(
-                f"Spotify search failed for q={q!r}: {type(e).__name__}: {e}; "
-                f"falling back to Deezer"
-            )
-
     try:
-        return {"data": await _deezer_search_fallback(q, limit)}
+        async with httpx.AsyncClient(verify=False, timeout=30.0) as client:
+            pass1 = await _deezer_plain_search(client, q, limit)
+
+            tokens = _tokenize_query(q)
+            need_pass2 = (
+                len(tokens) >= 2
+                and (not pass1 or not _deezer_search_has_title_overlap(pass1, q))
+            )
+            pass2: list[dict] = []
+            if need_pass2:
+                try:
+                    pass2 = await _deezer_field_search(client, tokens, limit)
+                except Exception as e:
+                    logger.warning(
+                        f"Deezer pass-2 field search failed for q={q!r}: "
+                        f"{type(e).__name__}: {e}"
+                    )
+
+            # Merge pass-2 first (it specifically targets the catalog gap),
+            # then pass-1, deduped by track ID, capped at `limit`.
+            seen: set = set()
+            merged: list[dict] = []
+            for src in (pass2, pass1):
+                for song in src:
+                    tid = song.get("deezer_id")
+                    if tid in seen:
+                        continue
+                    seen.add(tid)
+                    merged.append(song)
+                    if len(merged) >= limit:
+                        break
+                if len(merged) >= limit:
+                    break
+
+            return {"data": merged}
     except httpx.TimeoutException:
-        logger.error("Deezer fallback timeout")
+        logger.error("Deezer API timeout")
         raise HTTPException(status_code=504, detail="Song search timed out. Please try again.")
     except httpx.HTTPError as e:
-        logger.error(f"Deezer fallback HTTP error: {e}")
+        logger.error(f"Deezer HTTP error: {e}")
         raise HTTPException(status_code=502, detail="Could not connect to song service")
     except Exception as e:
-        logger.error(f"Deezer fallback error: {type(e).__name__}: {e}")
+        logger.error(f"Deezer API error: {type(e).__name__}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to search songs: {type(e).__name__}")
 
 # ==================== SONG CHART / GENRE (DEEZER PROXY) ====================
