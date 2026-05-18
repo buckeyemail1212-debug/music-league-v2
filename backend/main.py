@@ -4491,10 +4491,15 @@ async def get_results(round_id: str, current_user: dict = Depends(get_current_us
 # they never surface. Example: "Verisimilitude" by Teenage Fanclub — neither
 # the title alone nor "Verisimilitude Teenage Fanclub" returns it from plain
 # search, but the field-operator query  artist:"Teenage Fanclub" track:"Verisimilitude"
-# does. Pass 1 is the normal plain-text search; if it returns nothing (or
-# nothing whose title overlaps the query) we reinterpret the query as
-# "artist title" / "title artist" and retry each split with field operators,
-# stopping at the first non-empty split. Results are merged and deduped by ID.
+# does. Strategy:
+#   - Pass 1: plain-text /search?q=<query>.
+#   - Multi-word query (≥2 tokens): if pass-1 has no title-overlap match, try
+#     each (artist,title)/(title,artist) split with field operators and stop
+#     at the first non-empty split.
+#   - Single-word unquoted query: also run track:"<word>" AND artist:"<word>"
+#     in parallel — the word might be the title (catalog gap) or an artist
+#     name with songs Deezer's plain ranking buries.
+# Results are merged and deduped by deezer_id, capped at 40 items overall.
 
 _QUERY_TOKEN_RE = re.compile(r'"([^"]+)"|(\S+)')
 
@@ -4569,46 +4574,106 @@ async def _deezer_field_search(
     return []
 
 
+async def _deezer_single_word_field_searches(
+    client: httpx.AsyncClient, word: str, limit: int
+) -> tuple[list[dict], list[dict]]:
+    """
+    Run track:"<word>" and artist:"<word>" Deezer searches in parallel.
+    Returns (track_results, artist_results); each is [] on individual failure
+    so a single bad pass doesn't take down the other.
+    """
+    w = word.replace('"', "").strip()
+    if not w:
+        return [], []
+    track_res, artist_res = await asyncio.gather(
+        _deezer_plain_search(client, f'track:"{w}"', limit),
+        _deezer_plain_search(client, f'artist:"{w}"', limit),
+        return_exceptions=True,
+    )
+    if isinstance(track_res, Exception):
+        logger.warning(
+            f"Deezer track:\"{w}\" search failed: "
+            f"{type(track_res).__name__}: {track_res}"
+        )
+        track_res = []
+    if isinstance(artist_res, Exception):
+        logger.warning(
+            f"Deezer artist:\"{w}\" search failed: "
+            f"{type(artist_res).__name__}: {artist_res}"
+        )
+        artist_res = []
+    return track_res, artist_res
+
+
+def _merge_dedupe_songs(sources, cap: int) -> list[dict]:
+    """Concat song lists in order, dedupe by deezer_id, cap at `cap` items."""
+    seen: set = set()
+    merged: list[dict] = []
+    for src in sources:
+        for song in src:
+            tid = song.get("deezer_id")
+            if tid in seen:
+                continue
+            seen.add(tid)
+            merged.append(song)
+            if len(merged) >= cap:
+                return merged
+    return merged
+
+
+# Final response cap. Per-pass Deezer queries stay at 20 each; the cap of 40
+# gives single-word queries (up to 3 passes = 60 candidate rows) enough room
+# to surface both plain-text hits and field-operator hits.
+_SEARCH_RESPONSE_CAP = 40
+_DEEZER_PER_PASS_LIMIT = 20
+
+
 @api_router.get("/songs/search")
-async def search_songs(q: str, limit: int = 20):
-    """Search songs using Deezer API with a field-operator fallback pass."""
-    if not q or len(q) < 2:
+async def search_songs(q: str, limit: int = 40):
+    """Search songs using Deezer API with field-operator fallback passes."""
+    if not q or not q.strip() or len(q) < 2:
         return {"data": []}
+
+    response_cap = max(1, min(limit, _SEARCH_RESPONSE_CAP))
 
     try:
         async with httpx.AsyncClient(verify=False, timeout=30.0) as client:
-            pass1 = await _deezer_plain_search(client, q, limit)
-
+            pass1 = await _deezer_plain_search(client, q, _DEEZER_PER_PASS_LIMIT)
             tokens = _tokenize_query(q)
-            need_pass2 = (
-                len(tokens) >= 2
-                and (not pass1 or not _deezer_search_has_title_overlap(pass1, q))
-            )
-            pass2: list[dict] = []
-            if need_pass2:
-                try:
-                    pass2 = await _deezer_field_search(client, tokens, limit)
-                except Exception as e:
-                    logger.warning(
-                        f"Deezer pass-2 field search failed for q={q!r}: "
-                        f"{type(e).__name__}: {e}"
-                    )
 
-            # Merge pass-2 first (it specifically targets the catalog gap),
-            # then pass-1, deduped by track ID, capped at `limit`.
-            seen: set = set()
-            merged: list[dict] = []
-            for src in (pass2, pass1):
-                for song in src:
-                    tid = song.get("deezer_id")
-                    if tid in seen:
-                        continue
-                    seen.add(tid)
-                    merged.append(song)
-                    if len(merged) >= limit:
-                        break
-                if len(merged) >= limit:
-                    break
+            if len(tokens) == 1 and '"' not in q:
+                # Single-word, unquoted: parallel track-op + artist-op searches.
+                word = tokens[0]
+                track_results, artist_results = await _deezer_single_word_field_searches(
+                    client, word, _DEEZER_PER_PASS_LIMIT
+                )
+                # pass-1 first (plain-text relevance), then track-op,
+                # then artist-op — matches the spec for single-word queries.
+                merged = _merge_dedupe_songs(
+                    (pass1, track_results, artist_results), response_cap
+                )
+            elif len(tokens) >= 2:
+                need_pass2 = (
+                    not pass1 or not _deezer_search_has_title_overlap(pass1, q)
+                )
+                pass2: list[dict] = []
+                if need_pass2:
+                    try:
+                        pass2 = await _deezer_field_search(
+                            client, tokens, _DEEZER_PER_PASS_LIMIT
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            f"Deezer pass-2 field search failed for q={q!r}: "
+                            f"{type(e).__name__}: {e}"
+                        )
+                # pass-2 first when it ran (it targets the catalog gap),
+                # then pass-1.
+                merged = _merge_dedupe_songs((pass2, pass1), response_cap)
+            else:
+                # Quoted single-word ("verisimilitude") — user was explicit,
+                # don't second-guess with field operators.
+                merged = _merge_dedupe_songs((pass1,), response_cap)
 
             return {"data": merged}
     except httpx.TimeoutException:
