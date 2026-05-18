@@ -2159,9 +2159,94 @@ async def get_my_submissions(current_user: dict = Depends(get_current_user)):
         })
     return {"submissions": result}
 
+async def _propagate_username_change(user_id: str, new_username: str) -> None:
+    """
+    Fan out a username change to every denormalized snapshot of it elsewhere
+    in the schema. The codebase intentionally snapshots usernames into
+    league/past_league/message/submission documents so deletions of a user
+    don't orphan their historical activity; the cost of that pattern is that
+    a rename has to update every copy. Called from PUT /auth/me on username
+    change. Updates run concurrently — failures on any one collection are
+    logged but don't roll back the others (best-effort fanout; the source
+    of truth is db.users).
+    """
+    tasks = [
+        # Active leagues — creator name on the league doc.
+        db.leagues.update_many(
+            {"creator_id": user_id},
+            {"$set": {"creator_username": new_username}},
+        ),
+        # Active leagues — member entry (uses .id inside members array).
+        db.leagues.update_many(
+            {"members.id": user_id},
+            {"$set": {"members.$[m].username": new_username}},
+            array_filters=[{"m.id": user_id}],
+        ),
+        # Active leagues — left_members entry (uses .user_id).
+        db.leagues.update_many(
+            {"left_members.user_id": user_id},
+            {"$set": {"left_members.$[lm].username": new_username}},
+            array_filters=[{"lm.user_id": user_id}],
+        ),
+        # Past leagues — creator_username on the snapshot.
+        db.past_leagues.update_many(
+            {"creator_id": user_id},
+            {"$set": {"creator_username": new_username}},
+        ),
+        # Past leagues — deleted_by_username (only set for leagues this
+        # user creator-deleted; it's a copy of creator_username at the
+        # time, so we propagate the same way).
+        db.past_leagues.update_many(
+            {"creator_id": user_id, "deleted_by_username": {"$exists": True, "$ne": None}},
+            {"$set": {"deleted_by_username": new_username}},
+        ),
+        # Past leagues — members array (uses .user_id in snapshots).
+        db.past_leagues.update_many(
+            {"members.user_id": user_id},
+            {"$set": {"members.$[m].username": new_username}},
+            array_filters=[{"m.user_id": user_id}],
+        ),
+        # Past leagues — standings array.
+        db.past_leagues.update_many(
+            {"standings.user_id": user_id},
+            {"$set": {"standings.$[s].username": new_username}},
+            array_filters=[{"s.user_id": user_id}],
+        ),
+        # Past leagues — left_members array.
+        db.past_leagues.update_many(
+            {"left_members.user_id": user_id},
+            {"$set": {"left_members.$[lm].username": new_username}},
+            array_filters=[{"lm.user_id": user_id}],
+        ),
+        # Past leagues — winner (single dict, not an array).
+        db.past_leagues.update_many(
+            {"winner.user_id": user_id},
+            {"$set": {"winner.username": new_username}},
+        ),
+        # Chat history.
+        db.messages.update_many(
+            {"user_id": user_id},
+            {"$set": {"username": new_username}},
+        ),
+        # Submissions — denormalized at submit time.
+        db.submissions.update_many(
+            {"user_id": user_id},
+            {"$set": {"username": new_username}},
+        ),
+    ]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    for i, r in enumerate(results):
+        if isinstance(r, Exception):
+            logger.warning(
+                f"username_propagate_fail: user={user_id} task_index={i} "
+                f"err={type(r).__name__}: {r}"
+            )
+
+
 @api_router.put("/auth/me", response_model=UserResponse)
 async def update_profile(update_data: UserUpdate, current_user: dict = Depends(get_current_user)):
     update_fields = {}
+    username_changed = False
 
     if update_data.username is not None:
         new_name = update_data.username.strip()
@@ -2172,7 +2257,9 @@ async def update_profile(update_data: UserUpdate, current_user: dict = Depends(g
         existing = await db.users.find_one({"username": new_name, "id": {"$ne": current_user["id"]}})
         if existing:
             raise HTTPException(status_code=409, detail="Username already taken")
-        update_fields["username"] = new_name
+        if new_name != current_user.get("username"):
+            update_fields["username"] = new_name
+            username_changed = True
 
     if update_data.display_name is not None:
         update_fields["display_name"] = update_data.display_name
@@ -2182,6 +2269,11 @@ async def update_profile(update_data: UserUpdate, current_user: dict = Depends(g
 
     if update_fields:
         await db.users.update_one({"id": current_user["id"]}, {"$set": update_fields})
+
+    # Push the new username to every denormalized copy. Best-effort; the
+    # users row is already updated and is the source of truth.
+    if username_changed:
+        await _propagate_username_change(current_user["id"], update_fields["username"])
 
     # Fetch updated user and return the full record so the client can replace
     # its cached copy in AsyncStorage / AuthContext wholesale.
