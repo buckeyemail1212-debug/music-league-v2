@@ -571,7 +571,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   statTileLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '800',
     color: '#B3B3B3',
     letterSpacing: 1,
@@ -649,7 +649,7 @@ const styles = StyleSheet.create({
     marginTop: 6, textAlign: 'center',
   },
   topVoterCount: {
-    fontSize: 10, fontWeight: '700', color: '#B3B3B3',
+    fontSize: 11, fontWeight: '700', color: '#B3B3B3',
     marginTop: 2, letterSpacing: 0.4,
   },
   likedSubtitle: { fontSize: 13, color: '#B3B3B3', marginTop: 2 },
@@ -699,9 +699,9 @@ const styles = StyleSheet.create({
   },
   placeCol: { alignItems: 'center', minWidth: 56 },
   placeOrdinal: { color: '#FFFFFF', fontWeight: '800', fontSize: 15 },
-  placeOf: { color: '#B3B3B3', fontSize: 10, letterSpacing: 0.5, marginTop: 2 },
+  placeOf: { color: '#B3B3B3', fontSize: 11, letterSpacing: 0.5, marginTop: 2 },
   submissionPending: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '800',
     color: '#F59E0B',
     letterSpacing: 0.6,

@@ -396,7 +396,7 @@ const styles = StyleSheet.create({
   },
   deletedTagText: {
     color: '#EF4444',
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: '800',
     letterSpacing: 0.5,
   },
@@ -433,7 +433,7 @@ const styles = StyleSheet.create({
   },
   placeOf: {
     color: '#6A6A6A',
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.8,
     marginTop: 2,

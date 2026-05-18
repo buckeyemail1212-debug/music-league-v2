@@ -85,12 +85,14 @@ export default function TabLayout() {
             paddingHorizontal: 2,
           },
           tabBarLabelStyle: {
-            // Slightly smaller + tighter spacing so "MY GAME" and
-            // "DISCOVER" fit comfortably at ~390pt viewport widths.
-            fontSize: 9.5,
+            // 10.5pt is the readability floor we can hit while keeping
+            // "DISCOVER" / "MY GAME" inside the iPhone SE (375pt) tab
+            // slot — letterSpacing dropped from 0.4 → 0.2 to reclaim
+            // the width the larger font costs.
+            fontSize: 10.5,
             fontWeight: '700',
             marginTop: 4,
-            letterSpacing: 0.4,
+            letterSpacing: 0.2,
             textTransform: 'uppercase',
             includeFontPadding: false,
           },

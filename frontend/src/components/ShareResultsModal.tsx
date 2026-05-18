@@ -733,7 +733,7 @@ const storyStyles = StyleSheet.create({
   headerLabel: {
     flex: 1,
     color: 'rgba(255,255,255,0.85)',
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: '800',
     letterSpacing: 0.8,
   },
@@ -745,7 +745,7 @@ const storyStyles = StyleSheet.create({
   },
   finalPillText: {
     color: '#FFFFFF',
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: '800',
     letterSpacing: 0.8,
   },
@@ -756,7 +756,7 @@ const storyStyles = StyleSheet.create({
   },
   winnerLabel: {
     color: 'rgba(255,255,255,0.75)',
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1,
     marginBottom: 4,
@@ -807,7 +807,7 @@ const storyStyles = StyleSheet.create({
   },
   submittedLabel: {
     color: 'rgba(255,255,255,0.75)',
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1,
     marginBottom: 4,

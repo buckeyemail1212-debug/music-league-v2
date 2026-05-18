@@ -1442,7 +1442,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   memberMoreText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '500',
     color: '#B3B3B3',
   },

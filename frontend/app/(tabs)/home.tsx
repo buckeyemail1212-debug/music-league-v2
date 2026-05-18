@@ -718,7 +718,7 @@ const styles = StyleSheet.create({
   leagueCardRank: { fontSize: 18, fontWeight: '700', color: '#7C3AED', width: 44 },
   leagueCardMiddle: { flex: 1, marginHorizontal: 8 },
   leagueCardGap: {
-    fontSize: 10, fontWeight: '700', color: '#B3B3B3',
+    fontSize: 11, fontWeight: '700', color: '#B3B3B3',
     letterSpacing: 0.8, marginBottom: 6,
   },
   progressBarTrack: {
@@ -736,9 +736,9 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: '#181818', overflow: 'hidden',
   },
   memberAvatarInlineImage: { width: 24, height: 24, borderRadius: 12 },
-  memberAvatarInlineText: { fontSize: 10, fontWeight: '600', color: '#FFFFFF' },
+  memberAvatarInlineText: { fontSize: 11, fontWeight: '600', color: '#FFFFFF' },
   memberAvatarInlineMore: { backgroundColor: '#3A3A3A' },
-  memberAvatarInlineMoreText: { fontSize: 9, fontWeight: '600', color: '#B3B3B3' },
+  memberAvatarInlineMoreText: { fontSize: 11, fontWeight: '600', color: '#B3B3B3' },
 
   // Past leagues entry row (taps through to /past-leagues)
   pastEntry: {

@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#181818',
   },
   placeLabel: {
-    fontSize: 10,
+    fontSize: 11,
     color: '#B3B3B3',
     fontWeight: '700',
     letterSpacing: 1,
