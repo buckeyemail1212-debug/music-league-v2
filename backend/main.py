@@ -24,7 +24,7 @@ import requests as _requests
 import billboard
 import random
 import string
-from spotify_client import get_spotify_client, map_spotify_track
+from spotify_client import get_spotify_client, map_spotify_track, search_tracks as spotify_search_tracks
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -4516,14 +4516,10 @@ async def search_songs(q: str, limit: int = 20):
     if not q or len(q) < 2:
         return {"data": []}
 
-    sp = get_spotify_client()
-    if sp is not None:
+    if get_spotify_client() is not None:
         try:
             # spotipy is synchronous; offload so we don't block the event loop.
-            result = await asyncio.to_thread(
-                sp.search, q=q, type="track", limit=min(max(limit, 1), 50)
-            )
-            tracks = (result or {}).get("tracks", {}).get("items", []) or []
+            tracks = await asyncio.to_thread(spotify_search_tracks, q, limit)
             return {"data": [map_spotify_track(t) for t in tracks]}
         except Exception as e:
             logger.error(

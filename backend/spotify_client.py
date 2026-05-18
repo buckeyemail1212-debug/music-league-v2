@@ -73,6 +73,23 @@ def get_spotify_client() -> Optional["spotipy.Spotify"]:
         return _client
 
 
+def search_tracks(q: str, limit: int = 20) -> list[dict]:
+    """
+    Search Spotify for tracks. Returns the raw `tracks.items` list (empty if
+    no client or no results). Always passes market='US' — Spotify's search
+    rejects market=None (returns 400 "Invalid limit", confusingly) and US is
+    our primary user base; this also filters out tracks unplayable in-market.
+    Limit is clamped to Spotify's accepted range [1, 50] and forced to int
+    in case it arrives from a query string as a numeric str.
+    """
+    sp = get_spotify_client()
+    if sp is None:
+        return []
+    safe_limit = max(1, min(int(limit), 50))
+    result = sp.search(q=q, type="track", limit=safe_limit, market="US")
+    return ((result or {}).get("tracks", {}) or {}).get("items", []) or []
+
+
 def map_spotify_track(track: dict) -> dict:
     """
     Map a Spotify track object to the existing search response shape.
