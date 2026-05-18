@@ -1696,11 +1696,11 @@ async def get_weekly_points(current_user: dict = Depends(get_current_user)):
 # collections, no caching. If this gets slow we add caching later.
 #
 # Soft-delete handling:
-#   - Round-level stats (round-wins, average-placement, top-voters) include
-#     completed rounds even if their league was later soft-deleted. A round
-#     result is permanent.
-#   - League-level stats (league-wins, highest-league-score) only count
-#     leagues that fully completed (past_leagues.ended_status == "completed").
+#   - Round-level stats (round-wins, rounds-played, top-voters) include
+#     rounds/submissions/votes from soft-deleted leagues — those records
+#     persist and the user's history shouldn't disappear with the league.
+#   - League-level stats (league-wins) only count leagues that fully
+#     completed (past_leagues.ended_status == "completed").
 
 
 def _round_points(round_doc: dict, submissions: list[dict], votes: list[dict]) -> dict[str, int]:
@@ -1741,20 +1741,6 @@ def _round_points(round_doc: dict, submissions: list[dict], votes: list[dict]) -
                     for i in range(rem):
                         points[others[i]] += 1
     return points
-
-
-def _competition_ranks(points: dict[str, int]) -> dict[str, int]:
-    """Standard competition ranking: ties share a rank; the next rank skips."""
-    ordered = sorted(points.items(), key=lambda kv: -kv[1])
-    ranks: dict[str, int] = {}
-    cur_rank = 0
-    last_pts = None
-    for i, (sub_id, pts) in enumerate(ordered):
-        if pts != last_pts:
-            cur_rank = i + 1
-            last_pts = pts
-        ranks[sub_id] = cur_rank
-    return ranks
 
 
 async def _load_my_completed_round_context(
@@ -1856,153 +1842,29 @@ async def get_league_wins_stat(current_user: dict = Depends(get_current_user)):
     return {"data": {"count": count}}
 
 
-@api_router.get("/users/me/stats/highest-league-score")
-async def get_highest_league_score_stat(current_user: dict = Depends(get_current_user)):
-    """The completed league where this user posted their highest final score,
-    with drill-down data for the detail screen."""
+@api_router.get("/users/me/stats/rounds-played")
+async def get_rounds_played_stat(current_user: dict = Depends(get_current_user)):
+    """Count of distinct rounds this user has submitted to. Includes rounds
+    from soft-deleted leagues (the submission record persists). One submission
+    per round is enforced upstream, so this is effectively the user's
+    submission count post-clear-cutoff — the set() guards against legacy
+    duplicates."""
     user_id = current_user["id"]
     cleared_at = _effective_cleared_at(current_user)
 
-    query: dict = {
-        "ended_status": "completed",
-        "standings": {"$elemMatch": {"user_id": user_id}},
-    }
+    sub_query: dict = {"user_id": user_id}
     if cleared_at:
-        query["finished_at"] = {"$gt": _iso(cleared_at)}
-
-    candidates = await db.past_leagues.find(query, {"_id": 0}).to_list(5000)
-    if not candidates:
-        return {"data": None}
-
-    def my_score(snap: dict) -> int:
-        for s in snap.get("standings") or []:
-            if s.get("user_id") == user_id:
-                return int(s.get("total_points") or 0)
-        return -1
-
-    best = max(candidates, key=my_score)
-    score = my_score(best)
-    if score < 0:
-        return {"data": None}
-
-    # Members usernames in the order they appear on the snapshot.
-    member_usernames = [m.get("username", "") for m in (best.get("members") or [])]
-
-    # User's submissions: recompute round points so we can attach round_points
-    # to each row (the snapshot stores the song + round, but not per-round pts).
-    my_snap_subs = (best.get("submissions_by_user") or {}).get(user_id) or []
-    round_ids_for_pts = [
-        s.get("round_id") for s in my_snap_subs if s.get("round_id")
-    ]
-    points_by_sub_id: dict[str, int] = {}
-    if round_ids_for_pts:
-        rounds_meta = await db.rounds.find(
-            {"id": {"$in": round_ids_for_pts}},
-            {"_id": 0},
-        ).to_list(500)
-        rounds_meta_by_id = {r["id"]: r for r in rounds_meta}
-        all_subs = await db.submissions.find(
-            {"round_id": {"$in": round_ids_for_pts}},
-            {"_id": 0, "id": 1, "round_id": 1, "user_id": 1},
-        ).to_list(5000)
-        all_votes = await db.votes.find(
-            {"round_id": {"$in": round_ids_for_pts}},
-            {"_id": 0, "round_id": 1, "voter_id": 1, "rankings": 1},
-        ).to_list(5000)
-        subs_by_round: dict[str, list] = {}
-        votes_by_round: dict[str, list] = {}
-        for s in all_subs:
-            subs_by_round.setdefault(s["round_id"], []).append(s)
-        for v in all_votes:
-            votes_by_round.setdefault(v["round_id"], []).append(v)
-        for rid in round_ids_for_pts:
-            rd = rounds_meta_by_id.get(rid) or {}
-            pts = _round_points(rd, subs_by_round.get(rid, []), votes_by_round.get(rid, []))
-            points_by_sub_id.update(pts)
-
-    user_submissions = []
-    for s in my_snap_subs:
-        song = s.get("song") or {}
-        user_submissions.append({
-            "song_title": song.get("title", ""),
-            "artist": song.get("artist", ""),
-            "round_number": s.get("round_number"),
-            "round_points": int(points_by_sub_id.get(s.get("submission_id"), 0) or 0),
-        })
-    user_submissions.sort(key=lambda x: x.get("round_number") or 0)
-
-    # Final standings — competition ranking (ties share rank). Snapshot
-    # standings array is already sorted by total_points desc.
-    active_standings = [s for s in (best.get("standings") or []) if not s.get("left")]
-    final_standings = []
-    cur_rank = 0
-    last_pts = None
-    for i, s in enumerate(active_standings):
-        pts = int(s.get("total_points") or 0)
-        if pts != last_pts:
-            cur_rank = i + 1
-            last_pts = pts
-        final_standings.append({
-            "username": s.get("username", ""),
-            "score": pts,
-            "rank": cur_rank,
-        })
-
-    return {
-        "data": {
-            "league_id": best.get("id"),
-            "league_name": best.get("name"),
-            "user_final_score": score,
-            "finished_at": best.get("finished_at"),
-            "total_rounds": int(best.get("total_rounds") or 0),
-            "member_usernames": member_usernames,
-            "user_submissions": user_submissions,
-            "final_standings": final_standings,
-        }
-    }
-
-
-@api_router.get("/users/me/stats/average-placement")
-async def get_average_placement_stat(current_user: dict = Depends(get_current_user)):
-    """Average competition-rank placement across all completed rounds this
-    user participated in (includes rounds from soft-deleted leagues)."""
-    user_id = current_user["id"]
-    cleared_at = _effective_cleared_at(current_user)
-
-    my_subs, rounds_by_id, subs_by_round, votes_by_round = (
-        await _load_my_completed_round_context(user_id, cleared_at)
-    )
-    if not rounds_by_id:
-        return {"data": {"average": None, "rounds_counted": 0}}
-
-    my_sub_id_by_round: dict[str, str] = {}
-    for s in my_subs:
-        if s["round_id"] in rounds_by_id:
-            my_sub_id_by_round[s["round_id"]] = s["id"]
-
-    total_placement = 0
-    rounds_counted = 0
-    for round_id, my_sub_id in my_sub_id_by_round.items():
-        points = _round_points(
-            rounds_by_id[round_id],
-            subs_by_round.get(round_id, []),
-            votes_by_round.get(round_id, []),
-        )
-        if not points or my_sub_id not in points:
-            continue
-        ranks = _competition_ranks(points)
-        total_placement += ranks[my_sub_id]
-        rounds_counted += 1
-
-    if rounds_counted == 0:
-        return {"data": {"average": None, "rounds_counted": 0}}
-    avg = round(total_placement / rounds_counted, 1)
-    return {"data": {"average": avg, "rounds_counted": rounds_counted}}
+        sub_query["submitted_at"] = {"$gt": cleared_at}
+    rows = await db.submissions.find(
+        sub_query, {"_id": 0, "round_id": 1},
+    ).to_list(20000)
+    count = len({r["round_id"] for r in rows if r.get("round_id")})
+    return {"data": {"count": count}}
 
 
 @api_router.get("/users/me/stats/top-voters")
 async def get_top_voters_stat(current_user: dict = Depends(get_current_user)):
-    """Top 3 voters who placed this user's submissions at #1 most often,
+    """Top 4 voters who placed this user's submissions at #1 most often,
     across all rounds (including soft-deleted leagues). Ties broken by most
     recent vote."""
     user_id = current_user["id"]
@@ -2055,7 +1917,7 @@ async def get_top_voters_stat(current_user: dict = Depends(get_current_user)):
     ranked = sorted(
         counts.items(),
         key=lambda kv: (-kv[1], -(latest_ts[kv[0]].timestamp())),
-    )[:3]
+    )[:4]
     top_ids = [vid for vid, _ in ranked]
 
     user_docs = await db.users.find(

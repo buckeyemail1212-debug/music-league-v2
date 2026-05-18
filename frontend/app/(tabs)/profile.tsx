@@ -24,14 +24,12 @@ import {
   getUserTaste,
   getRoundWins,
   getLeagueWins,
-  getHighestLeagueScore,
-  getAveragePlacement,
+  getRoundsPlayed,
   getTopVoters,
   MySubmission,
   UserStats,
   LifetimeStats,
   TasteBreakdown,
-  HighestLeagueScore,
   TopVoter,
 } from '../../src/services/api';
 import { leagueEvents } from '../../src/utils/leagueEvents';
@@ -132,9 +130,7 @@ export default function MyGameScreen() {
   // "still loading" from "loaded with no data".
   const [roundWins, setRoundWins] = useState<number | null>(null);
   const [leagueWins, setLeagueWins] = useState<number | null>(null);
-  const [avgPlacement, setAvgPlacement] = useState<{ avg: number | null; rounds: number } | null>(null);
-  const [highestLeague, setHighestLeague] = useState<HighestLeagueScore | null>(null);
-  const [hasCheckedHighestLeague, setHasCheckedHighestLeague] = useState(false);
+  const [roundsPlayed, setRoundsPlayed] = useState<number | null>(null);
   const [topVoters, setTopVoters] = useState<TopVoter[]>([]);
 
   const [likedSongs, setLikedSongs] = useState<LikedSong[]>([]);
@@ -155,8 +151,7 @@ export default function MyGameScreen() {
         tasteRes,
         roundWinsRes,
         leagueWinsRes,
-        avgPlaceRes,
-        highestLeagueRes,
+        roundsPlayedRes,
         topVotersRes,
       ] = await Promise.all([
         getLeagues(),
@@ -166,8 +161,7 @@ export default function MyGameScreen() {
         getUserTaste().catch(() => null),
         getRoundWins().catch(() => null),
         getLeagueWins().catch(() => null),
-        getAveragePlacement().catch(() => null),
-        getHighestLeagueScore().catch(() => null),
+        getRoundsPlayed().catch(() => null),
         getTopVoters().catch(() => null),
       ]);
       setLeaguesCount(leaguesRes.data.length);
@@ -177,18 +171,7 @@ export default function MyGameScreen() {
       setTaste(tasteRes?.data ?? null);
       setRoundWins(roundWinsRes?.data?.data?.count ?? null);
       setLeagueWins(leagueWinsRes?.data?.data?.count ?? null);
-      setAvgPlacement(
-        avgPlaceRes
-          ? {
-              avg: avgPlaceRes.data?.data?.average ?? null,
-              rounds: avgPlaceRes.data?.data?.rounds_counted ?? 0,
-            }
-          : null,
-      );
-      // `data: null` is a valid empty state (user has no completed leagues),
-      // distinct from a network failure — track both via this flag.
-      setHasCheckedHighestLeague(highestLeagueRes !== null);
-      setHighestLeague(highestLeagueRes?.data?.data ?? null);
+      setRoundsPlayed(roundsPlayedRes?.data?.data?.count ?? null);
       setTopVoters(topVotersRes?.data?.data ?? []);
     } catch {}
   }, []);
@@ -252,7 +235,6 @@ export default function MyGameScreen() {
         {/* Header */}
         <View style={styles.headerRow}>
           <Text style={styles.pageTitle}>MY GAME</Text>
-          <Text style={styles.pageSubtitle}>Your taste, your stats, your songs.</Text>
         </View>
 
         {/* Stats grid — backed solely by lifetime/aggregate endpoints so
@@ -282,87 +264,9 @@ export default function MyGameScreen() {
             value={leagueWins ?? 0}
           />
           <StatTile
-            label="AVG PLACEMENT"
-            display={
-              avgPlacement?.avg != null
-                ? avgPlacement.avg.toFixed(1)
-                : 'N/A'
-            }
+            label="ROUNDS PLAYED"
+            value={roundsPlayed ?? 0}
           />
-        </View>
-
-        {/* Highest League Score — tap to drill into the league detail. */}
-        <Text style={styles.sectionLabel}>HIGHEST LEAGUE SCORE</Text>
-        <View style={styles.group}>
-          {!hasCheckedHighestLeague ? (
-            <Text style={styles.emptyBlurb}>—</Text>
-          ) : highestLeague ? (
-            <TouchableOpacity
-              style={[styles.row, styles.rowLast]}
-              onPress={() => router.push('/highest-league-score' as any)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.rowLeft}>
-                <View style={styles.highScoreIconBox}>
-                  <Ionicons name="trophy" size={20} color="#FFFFFF" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.rowLabel} numberOfLines={1}>
-                    {highestLeague.league_name}
-                  </Text>
-                  <Text style={styles.highScoreSubtitle}>
-                    {highestLeague.user_final_score} pts
-                  </Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#B3B3B3" />
-            </TouchableOpacity>
-          ) : (
-            <Text style={styles.emptyBlurb}>
-              No completed leagues yet.
-            </Text>
-          )}
-        </View>
-
-        {/* Top Voters — three biggest fans of your songs (rank-1 picks). */}
-        <Text style={styles.sectionLabel}>TOP VOTERS</Text>
-        <View style={[styles.group, styles.topVotersCard]}>
-          {topVoters.length === 0 ? (
-            <Text style={styles.emptyBlurb}>
-              Once others vote your songs to the top of their rankings, they'll show up here.
-            </Text>
-          ) : (
-            <View style={styles.topVotersRow}>
-              {topVoters.map((v) => (
-                // TODO: Navigate to user profile when social graph is implemented
-                <View key={v.user_id} style={styles.topVoterItem}>
-                  <View
-                    style={[
-                      styles.topVoterAvatar,
-                      { backgroundColor: pickColor(v.user_id) },
-                    ]}
-                  >
-                    {v.avatar_url ? (
-                      <Image
-                        source={{ uri: v.avatar_url }}
-                        style={styles.topVoterAvatarImg}
-                      />
-                    ) : (
-                      <Text style={styles.topVoterInitial}>
-                        {(v.username || '?').charAt(0).toUpperCase()}
-                      </Text>
-                    )}
-                  </View>
-                  <Text style={styles.topVoterName} numberOfLines={1}>
-                    {(v.username || '').slice(0, 8)}
-                  </Text>
-                  <Text style={styles.topVoterCount}>
-                    {v.vote_count} {v.vote_count === 1 ? 'vote' : 'votes'}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          )}
         </View>
 
         {/* Your Taste · All-Time */}
@@ -410,6 +314,48 @@ export default function MyGameScreen() {
               <Text style={styles.emptyBlurb}>
                 Submit songs in your leagues and we'll build your taste profile here.
               </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Top Voters — biggest fans of your songs (rank-1 picks). Lives
+            between Taste and Recent Submissions per the spec. */}
+        <Text style={styles.sectionLabel}>TOP VOTERS</Text>
+        <View style={[styles.group, styles.topVotersCard]}>
+          {topVoters.length === 0 ? (
+            <Text style={styles.emptyBlurb}>
+              Once others vote your songs to the top of their rankings, they'll show up here.
+            </Text>
+          ) : (
+            <View style={styles.topVotersRow}>
+              {topVoters.map((v) => (
+                // TODO: Navigate to user profile when social graph is implemented
+                <View key={v.user_id} style={styles.topVoterItem}>
+                  <View
+                    style={[
+                      styles.topVoterAvatar,
+                      { backgroundColor: pickColor(v.user_id) },
+                    ]}
+                  >
+                    {v.avatar_url ? (
+                      <Image
+                        source={{ uri: v.avatar_url }}
+                        style={styles.topVoterAvatarImg}
+                      />
+                    ) : (
+                      <Text style={styles.topVoterInitial}>
+                        {(v.username || '?').charAt(0).toUpperCase()}
+                      </Text>
+                    )}
+                  </View>
+                  <Text style={styles.topVoterName} numberOfLines={1}>
+                    {(v.username || '').slice(0, 8)}
+                  </Text>
+                  <Text style={styles.topVoterCount}>
+                    {v.vote_count} {v.vote_count === 1 ? 'vote' : 'votes'}
+                  </Text>
+                </View>
+              ))}
             </View>
           )}
         </View>
@@ -581,24 +527,10 @@ export default function MyGameScreen() {
   );
 }
 
-function StatTile({
-  label,
-  value,
-  display,
-}: {
-  label: string;
-  value?: number;
-  display?: string;
-}) {
-  // `display` wins when the caller wants a non-numeric value (e.g. "2.3"
-  // for avg placement, or "N/A"). Otherwise format the number.
-  const text =
-    display !== undefined
-      ? display
-      : (value ?? 0).toLocaleString();
+function StatTile({ label, value }: { label: string; value: number }) {
   return (
     <View style={styles.statTile}>
-      <Text style={styles.statTileValue}>{text}</Text>
+      <Text style={styles.statTileValue}>{value.toLocaleString()}</Text>
       <Text style={styles.statTileLabel}>{label}</Text>
     </View>
   );
@@ -619,12 +551,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: 1,
   },
-  pageSubtitle: {
-    fontSize: 14,
-    color: '#B3B3B3',
-    marginTop: 4,
-  },
-
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -696,33 +622,28 @@ const styles = StyleSheet.create({
     width: 44, height: 44, borderRadius: 8,
     backgroundColor: '#7C3AED', alignItems: 'center', justifyContent: 'center',
   },
-  highScoreIconBox: {
-    width: 44, height: 44, borderRadius: 8,
-    backgroundColor: '#F59E0B', alignItems: 'center', justifyContent: 'center',
-  },
-  highScoreSubtitle: {
-    fontSize: 13, color: '#B3B3B3', marginTop: 2,
-  },
-
   topVotersCard: {
     padding: 16,
   },
+  // Sized to fit up to 4 items in a single row on iPhone SE-class widths
+  // (375px screen − 40px screen margin − 32px card padding ≈ 303px usable).
+  // 4 × 64 + 3 × 12 = 292 — fits with a few pixels of slack.
   topVotersRow: {
     flexDirection: 'row',
     justifyContent: 'flex-start',
-    gap: 20,
+    gap: 12,
   },
   topVoterItem: {
     alignItems: 'center',
-    width: 76,
+    width: 64,
   },
   topVoterAvatar: {
-    width: 56, height: 56, borderRadius: 28,
+    width: 52, height: 52, borderRadius: 26,
     alignItems: 'center', justifyContent: 'center',
     overflow: 'hidden',
   },
-  topVoterAvatarImg: { width: 56, height: 56, borderRadius: 28 },
-  topVoterInitial: { fontSize: 22, fontWeight: '800', color: '#FFFFFF' },
+  topVoterAvatarImg: { width: 52, height: 52, borderRadius: 26 },
+  topVoterInitial: { fontSize: 20, fontWeight: '800', color: '#FFFFFF' },
   topVoterName: {
     fontSize: 12, fontWeight: '700', color: '#FFFFFF',
     marginTop: 6, textAlign: 'center',
