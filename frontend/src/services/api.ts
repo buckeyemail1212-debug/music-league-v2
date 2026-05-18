@@ -197,6 +197,52 @@ export const getUserTaste = () =>
 export const getWeeklyPoints = () =>
   api.get<{ weekly_points: number }>('/auth/weekly-points');
 
+// ── My Game: detailed stats (round-wins, league-wins, etc.) ──────────────────
+
+export interface CountStat { count: number }
+export interface AveragePlacementStat {
+  average: number | null;
+  rounds_counted: number;
+}
+export interface HighestLeagueScoreSubmission {
+  song_title: string;
+  artist: string;
+  round_number: number | null;
+  round_points: number;
+}
+export interface HighestLeagueScoreStanding {
+  username: string;
+  score: number;
+  rank: number;
+}
+export interface HighestLeagueScore {
+  league_id: string;
+  league_name: string;
+  user_final_score: number;
+  finished_at: string | null;
+  total_rounds: number;
+  member_usernames: string[];
+  user_submissions: HighestLeagueScoreSubmission[];
+  final_standings: HighestLeagueScoreStanding[];
+}
+export interface TopVoter {
+  user_id: string;
+  username: string;
+  avatar_url: string | null;
+  vote_count: number;
+}
+
+export const getRoundWins = () =>
+  api.get<{ data: CountStat }>('/users/me/stats/round-wins');
+export const getLeagueWins = () =>
+  api.get<{ data: CountStat }>('/users/me/stats/league-wins');
+export const getHighestLeagueScore = () =>
+  api.get<{ data: HighestLeagueScore | null }>('/users/me/stats/highest-league-score');
+export const getAveragePlacement = () =>
+  api.get<{ data: AveragePlacementStat }>('/users/me/stats/average-placement');
+export const getTopVoters = () =>
+  api.get<{ data: TopVoter[] }>('/users/me/stats/top-voters');
+
 export interface MySubmission {
   submission_id: string;
   song: Song;

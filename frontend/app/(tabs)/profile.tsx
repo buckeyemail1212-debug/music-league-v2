@@ -22,10 +22,17 @@ import {
   getMySubmissions,
   getLifetimeStats,
   getUserTaste,
+  getRoundWins,
+  getLeagueWins,
+  getHighestLeagueScore,
+  getAveragePlacement,
+  getTopVoters,
   MySubmission,
   UserStats,
   LifetimeStats,
   TasteBreakdown,
+  HighestLeagueScore,
+  TopVoter,
 } from '../../src/services/api';
 import { leagueEvents } from '../../src/utils/leagueEvents';
 import AlbumArt from '../../src/components/AlbumArt';
@@ -121,6 +128,15 @@ export default function MyGameScreen() {
   const [lifetimeStats, setLifetimeStats] = useState<LifetimeStats | null>(null);
   const [taste, setTaste] = useState<TasteBreakdown | null>(null);
 
+  // Detailed stats — each loads independently. `null` distinguishes
+  // "still loading" from "loaded with no data".
+  const [roundWins, setRoundWins] = useState<number | null>(null);
+  const [leagueWins, setLeagueWins] = useState<number | null>(null);
+  const [avgPlacement, setAvgPlacement] = useState<{ avg: number | null; rounds: number } | null>(null);
+  const [highestLeague, setHighestLeague] = useState<HighestLeagueScore | null>(null);
+  const [hasCheckedHighestLeague, setHasCheckedHighestLeague] = useState(false);
+  const [topVoters, setTopVoters] = useState<TopVoter[]>([]);
+
   const [likedSongs, setLikedSongs] = useState<LikedSong[]>([]);
   const [showLiked, setShowLiked] = useState(false);
 
@@ -131,18 +147,49 @@ export default function MyGameScreen() {
       // Math.max(lifetime, active-league-sum) tile so Clear Account Data
       // actually shows zeros post-clear — the lifetime endpoints are the
       // sole source of truth for the aggregate view.
-      const [leaguesRes, statsRes, subsRes, lifetimeRes, tasteRes] = await Promise.all([
+      const [
+        leaguesRes,
+        statsRes,
+        subsRes,
+        lifetimeRes,
+        tasteRes,
+        roundWinsRes,
+        leagueWinsRes,
+        avgPlaceRes,
+        highestLeagueRes,
+        topVotersRes,
+      ] = await Promise.all([
         getLeagues(),
         getUserStats().catch(() => null),
         getMySubmissions().catch(() => null),
         getLifetimeStats().catch(() => null),
         getUserTaste().catch(() => null),
+        getRoundWins().catch(() => null),
+        getLeagueWins().catch(() => null),
+        getAveragePlacement().catch(() => null),
+        getHighestLeagueScore().catch(() => null),
+        getTopVoters().catch(() => null),
       ]);
       setLeaguesCount(leaguesRes.data.length);
       setUserStats(statsRes?.data ?? null);
       setMySubmissions(subsRes?.data?.submissions ?? []);
       setLifetimeStats(lifetimeRes?.data ?? null);
       setTaste(tasteRes?.data ?? null);
+      setRoundWins(roundWinsRes?.data?.data?.count ?? null);
+      setLeagueWins(leagueWinsRes?.data?.data?.count ?? null);
+      setAvgPlacement(
+        avgPlaceRes
+          ? {
+              avg: avgPlaceRes.data?.data?.average ?? null,
+              rounds: avgPlaceRes.data?.data?.rounds_counted ?? 0,
+            }
+          : null,
+      );
+      // `data: null` is a valid empty state (user has no completed leagues),
+      // distinct from a network failure — track both via this flag.
+      setHasCheckedHighestLeague(highestLeagueRes !== null);
+      setHighestLeague(highestLeagueRes?.data?.data ?? null);
+      setTopVoters(topVotersRes?.data?.data ?? []);
     } catch {}
   }, []);
 
@@ -208,9 +255,11 @@ export default function MyGameScreen() {
           <Text style={styles.pageSubtitle}>Your taste, your stats, your songs.</Text>
         </View>
 
-        {/* 2x2 Stats grid — backed solely by lifetime stats so Clear
-            Account Data actually zeros the tiles. Per-league standings
-            remain visible on each league's own detail page. */}
+        {/* Stats grid — backed solely by lifetime/aggregate endpoints so
+            Clear Account Data actually zeros the tiles. Per-league
+            standings remain visible on each league's own detail page.
+            "ROUND WINS" used to be just "WINS"; it's per-round, distinct
+            from the new "LEAGUE WINS" (overall league wins) below. */}
         <View style={styles.statsGrid}>
           <StatTile
             label="LEAGUES PLAYED"
@@ -221,13 +270,99 @@ export default function MyGameScreen() {
             value={lifetimeStats?.all_time_points ?? 0}
           />
           <StatTile
-            label="WINS"
-            value={lifetimeStats?.total_wins ?? 0}
+            label="ROUND WINS"
+            value={roundWins ?? lifetimeStats?.total_wins ?? 0}
           />
           <StatTile
             label="SUBMISSIONS"
             value={lifetimeStats?.total_submissions ?? 0}
           />
+          <StatTile
+            label="LEAGUE WINS"
+            value={leagueWins ?? 0}
+          />
+          <StatTile
+            label="AVG PLACEMENT"
+            display={
+              avgPlacement?.avg != null
+                ? avgPlacement.avg.toFixed(1)
+                : 'N/A'
+            }
+          />
+        </View>
+
+        {/* Highest League Score — tap to drill into the league detail. */}
+        <Text style={styles.sectionLabel}>HIGHEST LEAGUE SCORE</Text>
+        <View style={styles.group}>
+          {!hasCheckedHighestLeague ? (
+            <Text style={styles.emptyBlurb}>—</Text>
+          ) : highestLeague ? (
+            <TouchableOpacity
+              style={[styles.row, styles.rowLast]}
+              onPress={() => router.push('/highest-league-score' as any)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.rowLeft}>
+                <View style={styles.highScoreIconBox}>
+                  <Ionicons name="trophy" size={20} color="#FFFFFF" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.rowLabel} numberOfLines={1}>
+                    {highestLeague.league_name}
+                  </Text>
+                  <Text style={styles.highScoreSubtitle}>
+                    {highestLeague.user_final_score} pts
+                  </Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#B3B3B3" />
+            </TouchableOpacity>
+          ) : (
+            <Text style={styles.emptyBlurb}>
+              No completed leagues yet.
+            </Text>
+          )}
+        </View>
+
+        {/* Top Voters — three biggest fans of your songs (rank-1 picks). */}
+        <Text style={styles.sectionLabel}>TOP VOTERS</Text>
+        <View style={[styles.group, styles.topVotersCard]}>
+          {topVoters.length === 0 ? (
+            <Text style={styles.emptyBlurb}>
+              Once others vote your songs to the top of their rankings, they'll show up here.
+            </Text>
+          ) : (
+            <View style={styles.topVotersRow}>
+              {topVoters.map((v) => (
+                // TODO: Navigate to user profile when social graph is implemented
+                <View key={v.user_id} style={styles.topVoterItem}>
+                  <View
+                    style={[
+                      styles.topVoterAvatar,
+                      { backgroundColor: pickColor(v.user_id) },
+                    ]}
+                  >
+                    {v.avatar_url ? (
+                      <Image
+                        source={{ uri: v.avatar_url }}
+                        style={styles.topVoterAvatarImg}
+                      />
+                    ) : (
+                      <Text style={styles.topVoterInitial}>
+                        {(v.username || '?').charAt(0).toUpperCase()}
+                      </Text>
+                    )}
+                  </View>
+                  <Text style={styles.topVoterName} numberOfLines={1}>
+                    {(v.username || '').slice(0, 8)}
+                  </Text>
+                  <Text style={styles.topVoterCount}>
+                    {v.vote_count} {v.vote_count === 1 ? 'vote' : 'votes'}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* Your Taste · All-Time */}
@@ -446,10 +581,24 @@ export default function MyGameScreen() {
   );
 }
 
-function StatTile({ label, value }: { label: string; value: number }) {
+function StatTile({
+  label,
+  value,
+  display,
+}: {
+  label: string;
+  value?: number;
+  display?: string;
+}) {
+  // `display` wins when the caller wants a non-numeric value (e.g. "2.3"
+  // for avg placement, or "N/A"). Otherwise format the number.
+  const text =
+    display !== undefined
+      ? display
+      : (value ?? 0).toLocaleString();
   return (
     <View style={styles.statTile}>
-      <Text style={styles.statTileValue}>{value.toLocaleString()}</Text>
+      <Text style={styles.statTileValue}>{text}</Text>
       <Text style={styles.statTileLabel}>{label}</Text>
     </View>
   );
@@ -546,6 +695,41 @@ const styles = StyleSheet.create({
   likedIconBox: {
     width: 44, height: 44, borderRadius: 8,
     backgroundColor: '#7C3AED', alignItems: 'center', justifyContent: 'center',
+  },
+  highScoreIconBox: {
+    width: 44, height: 44, borderRadius: 8,
+    backgroundColor: '#F59E0B', alignItems: 'center', justifyContent: 'center',
+  },
+  highScoreSubtitle: {
+    fontSize: 13, color: '#B3B3B3', marginTop: 2,
+  },
+
+  topVotersCard: {
+    padding: 16,
+  },
+  topVotersRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    gap: 20,
+  },
+  topVoterItem: {
+    alignItems: 'center',
+    width: 76,
+  },
+  topVoterAvatar: {
+    width: 56, height: 56, borderRadius: 28,
+    alignItems: 'center', justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  topVoterAvatarImg: { width: 56, height: 56, borderRadius: 28 },
+  topVoterInitial: { fontSize: 22, fontWeight: '800', color: '#FFFFFF' },
+  topVoterName: {
+    fontSize: 12, fontWeight: '700', color: '#FFFFFF',
+    marginTop: 6, textAlign: 'center',
+  },
+  topVoterCount: {
+    fontSize: 10, fontWeight: '700', color: '#B3B3B3',
+    marginTop: 2, letterSpacing: 0.4,
   },
   likedSubtitle: { fontSize: 13, color: '#B3B3B3', marginTop: 2 },
 
