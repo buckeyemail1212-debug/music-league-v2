@@ -22,7 +22,6 @@ import {
   getMySubmissions,
   getLifetimeStats,
   getUserTaste,
-  getRoundWins,
   getLeagueWins,
   getRoundsPlayed,
   getTopVoters,
@@ -128,7 +127,6 @@ export default function MyGameScreen() {
 
   // Detailed stats — each loads independently. `null` distinguishes
   // "still loading" from "loaded with no data".
-  const [roundWins, setRoundWins] = useState<number | null>(null);
   const [leagueWins, setLeagueWins] = useState<number | null>(null);
   const [roundsPlayed, setRoundsPlayed] = useState<number | null>(null);
   const [topVoters, setTopVoters] = useState<TopVoter[]>([]);
@@ -149,7 +147,6 @@ export default function MyGameScreen() {
         subsRes,
         lifetimeRes,
         tasteRes,
-        roundWinsRes,
         leagueWinsRes,
         roundsPlayedRes,
         topVotersRes,
@@ -159,7 +156,6 @@ export default function MyGameScreen() {
         getMySubmissions().catch(() => null),
         getLifetimeStats().catch(() => null),
         getUserTaste().catch(() => null),
-        getRoundWins().catch(() => null),
         getLeagueWins().catch(() => null),
         getRoundsPlayed().catch(() => null),
         getTopVoters().catch(() => null),
@@ -169,7 +165,6 @@ export default function MyGameScreen() {
       setMySubmissions(subsRes?.data?.submissions ?? []);
       setLifetimeStats(lifetimeRes?.data ?? null);
       setTaste(tasteRes?.data ?? null);
-      setRoundWins(roundWinsRes?.data?.data?.count ?? null);
       setLeagueWins(leagueWinsRes?.data?.data?.count ?? null);
       setRoundsPlayed(roundsPlayedRes?.data?.data?.count ?? null);
       setTopVoters(topVotersRes?.data?.data ?? []);
@@ -228,6 +223,11 @@ export default function MyGameScreen() {
   };
 
   const displayedSubmissions = mySubmissions.slice(0, 5);
+  // Derived from /auth/submissions — each completed submission carries
+  // its own placement, so we can count 1st-place finishes without a
+  // dedicated endpoint. Submissions without a placement (open rounds,
+  // deleted-league mid-flight) are excluded by strict equality.
+  const roundWinsCount = mySubmissions.filter((s) => s.placement === 1).length;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -253,7 +253,7 @@ export default function MyGameScreen() {
           />
           <StatTile
             label="ROUND WINS"
-            value={roundWins ?? lifetimeStats?.total_wins ?? 0}
+            value={roundWinsCount}
           />
           <StatTile
             label="SUBMISSIONS"

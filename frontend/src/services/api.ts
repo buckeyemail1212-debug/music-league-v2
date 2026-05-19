@@ -197,7 +197,7 @@ export const getUserTaste = () =>
 export const getWeeklyPoints = () =>
   api.get<{ weekly_points: number }>('/auth/weekly-points');
 
-// ── My Game: detailed stats (round-wins, league-wins, etc.) ──────────────────
+// ── My Game: detailed stats (league-wins, etc.) ──────────────────────────────
 
 export interface CountStat { count: number }
 export interface TopVoter {
@@ -207,8 +207,6 @@ export interface TopVoter {
   vote_count: number;
 }
 
-export const getRoundWins = () =>
-  api.get<{ data: CountStat }>('/users/me/stats/round-wins');
 export const getLeagueWins = () =>
   api.get<{ data: CountStat }>('/users/me/stats/league-wins');
 export const getRoundsPlayed = () =>
