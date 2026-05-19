@@ -3,6 +3,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { API_URL } from '../services/api';
 import { apiCache } from '../services/apiCache';
+import { prefetchProfileData } from '../services/prefetch';
+
+// Warm the Profile screen's cache the moment we have a userId. Always
+// fire-and-forget so a slow prefetch never blocks navigation; failures
+// fall back to Profile's own on-mount fetch.
+const warmProfileCache = (userId: string | undefined) => {
+  if (!userId) return;
+  prefetchProfileData(userId).catch((err) => {
+    console.warn('[AuthContext] profile prefetch failed:', err);
+  });
+};
 
 interface User {
   id: string;
@@ -50,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             headers: { Authorization: `Bearer ${storedToken}` }
           });
           setUser(response.data);
+          warmProfileCache(response.data?.id);
         } catch {
           // Token invalid, clear auth
           await AsyncStorage.multiRemove(['token', 'user']);
@@ -75,9 +87,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     await AsyncStorage.setItem('token', access_token);
     await AsyncStorage.setItem('user', JSON.stringify(userData));
-    
+
     setToken(access_token);
     setUser(userData);
+    warmProfileCache(userData?.id);
   };
 
   const register = async (email: string, username: string, password: string, phone_number: string = '', display_name: string = '') => {
@@ -93,9 +106,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     await AsyncStorage.setItem('token', access_token);
     await AsyncStorage.setItem('user', JSON.stringify(userData));
-    
+
     setToken(access_token);
     setUser(userData);
+    warmProfileCache(userData?.id);
   };
 
   const logout = async () => {
@@ -110,6 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await AsyncStorage.setItem('user', JSON.stringify(newUser));
     setToken(newToken);
     setUser(newUser);
+    warmProfileCache(newUser?.id);
   };
 
   const updateUser = async (data: Partial<User>) => {
