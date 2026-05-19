@@ -6111,6 +6111,20 @@ async def past_leagues_startup_maintenance():
         await db.leagues.create_index("starts_at")
     except Exception as e:
         logger.warning(f"leagues starts_at index creation failed: {e}")
+    # Top-voters stat queries votes by rankings[0] (the voter's #1 pick);
+    # without this index it's a full collection scan of every vote.
+    try:
+        await db.votes.create_index("rankings.0")
+    except Exception as e:
+        logger.warning(f"votes rankings.0 index creation failed: {e}")
+    try:
+        await db.submissions.create_index("user_id")
+    except Exception as e:
+        logger.warning(f"submissions user_id index creation failed: {e}")
+    try:
+        await db.submissions.create_index("round_id")
+    except Exception as e:
+        logger.warning(f"submissions round_id index creation failed: {e}")
     # One-time genre backfill for public leagues created before the field
     # existed. Writes "General" for any public league missing or with a
     # blank genre; leaves private leagues alone.
