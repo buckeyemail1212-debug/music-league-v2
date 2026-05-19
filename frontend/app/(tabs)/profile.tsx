@@ -121,14 +121,17 @@ export default function MyGameScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const [leaguesCount, setLeaguesCount] = useState(0);
+  // `null` initial values distinguish "unloaded" from "loaded as zero/empty"
+  // so the stat tiles can render an em-dash while waiting on a cold-cache
+  // fetch instead of flashing a misleading "0". Once data arrives, the
+  // setter pushes the real value and the tile updates independently of
+  // every other tile (Scenario A — each SWR call resolves on its own
+  // microtask, so React doesn't batch them).
+  const [leaguesCount, setLeaguesCount] = useState<number | null>(null);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
-  const [mySubmissions, setMySubmissions] = useState<MySubmission[]>([]);
+  const [mySubmissions, setMySubmissions] = useState<MySubmission[] | null>(null);
   const [lifetimeStats, setLifetimeStats] = useState<LifetimeStats | null>(null);
   const [taste, setTaste] = useState<TasteBreakdown | null>(null);
-
-  // Detailed stats — each loads independently. `null` distinguishes
-  // "still loading" from "loaded with no data".
   const [leagueWins, setLeagueWins] = useState<number | null>(null);
   const [roundsPlayed, setRoundsPlayed] = useState<number | null>(null);
   const [topVoters, setTopVoters] = useState<TopVoter[]>([]);
@@ -261,12 +264,17 @@ export default function MyGameScreen() {
     await AsyncStorage.setItem(getLikedKey(user.id), JSON.stringify(next)).catch(() => {});
   };
 
-  const displayedSubmissions = mySubmissions.slice(0, 5);
+  const displayedSubmissions = (mySubmissions ?? []).slice(0, 5);
   // Derived from /auth/submissions — each completed submission carries
   // its own placement, so we can count 1st-place finishes without a
   // dedicated endpoint. Submissions without a placement (open rounds,
-  // deleted-league mid-flight) are excluded by strict equality.
-  const roundWinsCount = mySubmissions.filter((s) => s.placement === 1).length;
+  // deleted-league mid-flight) are excluded by strict equality. Stays
+  // null until the underlying fetch resolves so the tile renders "—"
+  // instead of a misleading 0.
+  const roundWinsCount =
+    mySubmissions === null
+      ? null
+      : mySubmissions.filter((s) => s.placement === 1).length;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -288,7 +296,7 @@ export default function MyGameScreen() {
           />
           <StatTile
             label="TOTAL PTS"
-            value={lifetimeStats?.all_time_points ?? 0}
+            value={lifetimeStats?.all_time_points ?? null}
           />
           <StatTile
             label="ROUND WINS"
@@ -296,15 +304,15 @@ export default function MyGameScreen() {
           />
           <StatTile
             label="SUBMISSIONS"
-            value={lifetimeStats?.total_submissions ?? 0}
+            value={lifetimeStats?.total_submissions ?? null}
           />
           <StatTile
             label="LEAGUE WINS"
-            value={leagueWins ?? 0}
+            value={leagueWins}
           />
           <StatTile
             label="ROUNDS PLAYED"
-            value={roundsPlayed ?? 0}
+            value={roundsPlayed}
           />
         </View>
 
@@ -566,10 +574,14 @@ export default function MyGameScreen() {
   );
 }
 
-function StatTile({ label, value }: { label: string; value: number }) {
+function StatTile({ label, value }: { label: string; value: number | null }) {
+  // Strict null check — a real zero ("0 wins") still renders as "0".
+  // Only the pre-load state (null) shows the em-dash placeholder.
   return (
     <View style={styles.statTile}>
-      <Text style={styles.statTileValue}>{value.toLocaleString()}</Text>
+      <Text style={styles.statTileValue}>
+        {value === null ? '—' : value.toLocaleString()}
+      </Text>
       <Text style={styles.statTileLabel}>{label}</Text>
     </View>
   );
