@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { API_URL } from '../services/api';
+import { apiCache } from '../services/apiCache';
 
 interface User {
   id: string;
@@ -52,6 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch {
           // Token invalid, clear auth
           await AsyncStorage.multiRemove(['token', 'user']);
+          apiCache.clear();
           setToken(null);
           setUser(null);
         }
@@ -98,6 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     await AsyncStorage.multiRemove(['token', 'user']);
+    apiCache.clear();
     setToken(null);
     setUser(null);
   };

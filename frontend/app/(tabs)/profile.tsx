@@ -25,12 +25,14 @@ import {
   getLeagueWins,
   getRoundsPlayed,
   getTopVoters,
+  League,
   MySubmission,
   UserStats,
   LifetimeStats,
   TasteBreakdown,
   TopVoter,
 } from '../../src/services/api';
+import { apiCache } from '../../src/services/apiCache';
 import { leagueEvents } from '../../src/utils/leagueEvents';
 import AlbumArt from '../../src/components/AlbumArt';
 
@@ -134,42 +136,74 @@ export default function MyGameScreen() {
   const [likedSongs, setLikedSongs] = useState<LikedSong[]>([]);
   const [showLiked, setShowLiked] = useState(false);
 
-  const loadStats = useCallback(async () => {
-    try {
-      // The My Game tiles read from lifetime endpoints only. We skip the
-      // per-league standings fan-out that used to feed a
-      // Math.max(lifetime, active-league-sum) tile so Clear Account Data
-      // actually shows zeros post-clear — the lifetime endpoints are the
-      // sole source of truth for the aggregate view.
-      const [
-        leaguesRes,
-        statsRes,
-        subsRes,
-        lifetimeRes,
-        tasteRes,
-        leagueWinsRes,
-        roundsPlayedRes,
-        topVotersRes,
-      ] = await Promise.all([
-        getLeagues(),
-        getUserStats().catch(() => null),
-        getMySubmissions().catch(() => null),
-        getLifetimeStats().catch(() => null),
-        getUserTaste().catch(() => null),
-        getLeagueWins().catch(() => null),
-        getRoundsPlayed().catch(() => null),
-        getTopVoters().catch(() => null),
-      ]);
-      setLeaguesCount(leaguesRes.data.length);
-      setUserStats(statsRes?.data ?? null);
-      setMySubmissions(subsRes?.data?.submissions ?? []);
-      setLifetimeStats(lifetimeRes?.data ?? null);
-      setTaste(tasteRes?.data ?? null);
-      setLeagueWins(leagueWinsRes?.data?.data?.count ?? null);
-      setRoundsPlayed(roundsPlayedRes?.data?.data?.count ?? null);
-      setTopVoters(topVotersRes?.data?.data ?? []);
-    } catch {}
-  }, []);
+  const loadStats = useCallback(() => {
+    const userId = user?.id;
+
+    // Each endpoint runs independently through the SWR cache: cached value
+    // (fresh or stale) paints immediately, a background refetch keeps it
+    // current, and one slow/failing call no longer gates the others.
+    //
+    // The My Game tiles read from lifetime endpoints only. We skip the
+    // per-league standings fan-out that used to feed a
+    // Math.max(lifetime, active-league-sum) tile so Clear Account Data
+    // actually shows zeros post-clear — the lifetime endpoints are the
+    // sole source of truth for the aggregate view.
+    const run = <T,>(
+      key: string,
+      fetcher: () => Promise<T>,
+      onUpdate: (data: T) => void,
+    ) => {
+      // Edge case: during the logout transition `user` is briefly null.
+      // Skip the cache entirely so we don't poison entries with an
+      // `undefined` user id — the call just hits the network directly.
+      if (!userId) {
+        fetcher().then(onUpdate).catch(() => {});
+        return;
+      }
+      apiCache.swr(key, fetcher, onUpdate).catch(() => {});
+    };
+
+    run(
+      `leagues:${userId}`,
+      () => getLeagues().then((r) => r.data),
+      (data: League[]) => setLeaguesCount(data.length),
+    );
+    run(
+      `auth-stats:${userId}`,
+      () => getUserStats().then((r) => r.data),
+      setUserStats,
+    );
+    run(
+      `auth-submissions:${userId}`,
+      () => getMySubmissions().then((r) => r.data.submissions),
+      setMySubmissions,
+    );
+    run(
+      `auth-lifetime-stats:${userId}`,
+      () => getLifetimeStats().then((r) => r.data),
+      setLifetimeStats,
+    );
+    run(
+      `auth-taste:${userId}`,
+      () => getUserTaste().then((r) => r.data),
+      setTaste,
+    );
+    run(
+      `users-me-stats-league-wins:${userId}`,
+      () => getLeagueWins().then((r) => r.data.data.count),
+      setLeagueWins,
+    );
+    run(
+      `users-me-stats-rounds-played:${userId}`,
+      () => getRoundsPlayed().then((r) => r.data.data.count),
+      setRoundsPlayed,
+    );
+    run(
+      `users-me-stats-top-voters:${userId}`,
+      () => getTopVoters().then((r) => r.data.data),
+      setTopVoters,
+    );
+  }, [user?.id]);
 
   // Placement + total_submissions_in_round now arrive inline with each
   // submission from /auth/submissions, so the per-row getResults fan-out
@@ -207,9 +241,14 @@ export default function MyGameScreen() {
 
   // Also refresh when a league is created / deleted anywhere in the app,
   // so the "Leagues" stat on this tab stays in sync without waiting for
-  // a re-focus.
+  // a re-focus. Invalidate first or loadStats will just re-read cache.
   useEffect(() => {
-    const unsub = leagueEvents.subscribe(loadStats);
+    const unsub = leagueEvents.subscribe(() => {
+      apiCache.invalidate('leagues:');
+      apiCache.invalidate('auth-');
+      apiCache.invalidate('users-me-stats-');
+      loadStats();
+    });
     return () => {
       unsub();
     };

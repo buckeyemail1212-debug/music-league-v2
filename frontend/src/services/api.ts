@@ -1,5 +1,14 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { apiCache } from './apiCache';
+
+// User-stat caches go stale when the user submits or votes. Wipe both
+// prefixes (auth-* covers stats/submissions/lifetime/taste; users-me-stats-*
+// covers the dedicated My Game endpoints).
+const invalidateMyStats = () => {
+  apiCache.invalidate('auth-');
+  apiCache.invalidate('users-me-stats-');
+};
 
 export const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'https://music-league-v2-production.up.railway.app';
 
@@ -466,15 +475,21 @@ export const getMissingSubmissions = (roundId: string) =>
   }>(`/rounds/${roundId}/missing-submissions`);
 
 // Submission APIs
-export const submitSong = (roundId: string, song: Song, locked: boolean = false) => 
-  api.post<Submission>(`/rounds/${roundId}/submit`, { song, locked });
+export const submitSong = async (roundId: string, song: Song, locked: boolean = false) => {
+  const res = await api.post<Submission>(`/rounds/${roundId}/submit`, { song, locked });
+  invalidateMyStats();
+  return res;
+};
 
-export const getSubmissions = (roundId: string) => 
+export const getSubmissions = (roundId: string) =>
   api.get<Submission[]>(`/rounds/${roundId}/submissions`);
 
 // Vote APIs
-export const submitVote = (roundId: string, rankings: string[], locked: boolean = false) => 
-  api.post<Vote>(`/rounds/${roundId}/vote`, { rankings, locked });
+export const submitVote = async (roundId: string, rankings: string[], locked: boolean = false) => {
+  const res = await api.post<Vote>(`/rounds/${roundId}/vote`, { rankings, locked });
+  invalidateMyStats();
+  return res;
+};
 
 export const getMyVote = (roundId: string) => 
   api.get<Vote>(`/rounds/${roundId}/my-vote`);
