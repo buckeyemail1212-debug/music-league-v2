@@ -302,15 +302,23 @@ export default function UserProfileScreen() {
           {followBtn}
 
           <View style={styles.countsRow}>
-            <View style={styles.countItem}>
+            <TouchableOpacity
+              style={styles.countItem}
+              activeOpacity={0.7}
+              onPress={() => router.push(`/user/${profile.user_id}/followers` as any)}
+            >
               <Text style={styles.countValue}>{profile.follower_count.toLocaleString()}</Text>
               <Text style={styles.countLabel}>Followers</Text>
-            </View>
+            </TouchableOpacity>
             <View style={styles.countDivider} />
-            <View style={styles.countItem}>
+            <TouchableOpacity
+              style={styles.countItem}
+              activeOpacity={0.7}
+              onPress={() => router.push(`/user/${profile.user_id}/following` as any)}
+            >
               <Text style={styles.countValue}>{profile.following_count.toLocaleString()}</Text>
               <Text style={styles.countLabel}>Following</Text>
-            </View>
+            </TouchableOpacity>
           </View>
         </View>
 

@@ -2372,6 +2372,146 @@ async def get_my_following(
     )
 
 
+async def _list_follow_edges_for_target(
+    *,
+    target_id: str,
+    viewer_id: str,
+    kind: str,  # "followers" or "following"
+    limit: int,
+    offset: int,
+) -> dict:
+    """Same shape as _list_follow_edges but decouples list owner (target)
+    from the viewer who drives the reciprocity flag.
+
+    kind="followers" → users where followed_id=target, reciprocity =
+        "does viewer follow this row's user?" → is_following_me_back
+        (the original /users/me/followers semantic was viewer==target,
+        so "me" in the flag name is the viewer).
+
+    kind="following" → users where follower_id=target, reciprocity =
+        "does this row's user follow the viewer?" → follows_me_back.
+    """
+    if kind == "followers":
+        list_filter = {"followed_id": target_id, "status": "approved"}
+        other_field = "follower_id"
+    else:
+        list_filter = {"follower_id": target_id, "status": "approved"}
+        other_field = "followed_id"
+
+    cursor = (
+        db.follows.find(list_filter, {"_id": 0, other_field: 1, "created_at": 1})
+        .sort("created_at", -1)
+        .skip(offset)
+        .limit(limit)
+    )
+    edges = await cursor.to_list(length=limit)
+    other_ids = [e[other_field] for e in edges]
+    total = await db.follows.count_documents(list_filter)
+
+    if not other_ids:
+        return {"data": {"users": [], "total": total}}
+
+    users = await db.users.find(
+        {"id": {"$in": other_ids}},
+        {"_id": 0, "id": 1, "username": 1, "profile_photo": 1},
+    ).to_list(length=len(other_ids))
+    users_by_id = {u["id"]: u for u in users}
+
+    # Per the spec's explicit comment on the per-user endpoints:
+    #   is_following_me_back // is THIS user following the VIEWER
+    #   follows_me_back      // does THIS user follow the VIEWER back
+    # Both flags carry the same semantic — row_user follows viewer —
+    # so the reciprocal query is identical for both kinds; only the
+    # JSON key differs. NOTE: this is the opposite direction from the
+    # original /users/me/followers semantic (viewer→row); see the
+    # judgment-call notes for this prompt.
+    rec_filter = {
+        "follower_id": {"$in": other_ids},
+        "followed_id": viewer_id,
+        "status": "approved",
+    }
+    reciprocal = await db.follows.find(
+        rec_filter, {"_id": 0, "follower_id": 1},
+    ).to_list(length=len(other_ids))
+    reciprocal_ids = {r["follower_id"] for r in reciprocal}
+
+    flag_name = "is_following_me_back" if kind == "followers" else "follows_me_back"
+    out = []
+    for oid in other_ids:
+        u = users_by_id.get(oid)
+        if not u:
+            # User row was hard-deleted but the follow edge outlived them.
+            continue
+        summary = _user_summary(u)
+        summary[flag_name] = oid in reciprocal_ids
+        out.append(summary)
+
+    return {"data": {"users": out, "total": total}}
+
+
+async def _privacy_gate_or_403(target_id: str, viewer_id: str) -> dict:
+    """Resolves the target user doc and 403s when the viewer isn't
+    allowed to see their lists. Returns the target doc on success.
+    404 if the user doesn't exist (kept distinct from the gated 403
+    so an unknown id doesn't silently look like a private one)."""
+    target = await db.users.find_one(
+        {"id": target_id},
+        {"_id": 0, "id": 1, "is_private": 1},
+    )
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not bool(target.get("is_private")):
+        return target
+    if viewer_id == target_id:
+        return target
+    if await _is_approved_follower(viewer_id, target_id):
+        return target
+    raise HTTPException(status_code=403, detail="This account is private")
+
+
+@api_router.get("/users/{user_id}/followers")
+async def get_user_followers(
+    user_id: str,
+    limit: int = 50,
+    offset: int = 0,
+    current_user: dict = Depends(get_current_user),
+):
+    target_id = _validate_uuid(user_id)
+    viewer_id = current_user["id"]
+    await _privacy_gate_or_403(target_id, viewer_id)
+    limit = max(1, min(limit, 100))
+    offset = max(0, offset)
+    return await _list_follow_edges_for_target(
+        target_id=target_id,
+        viewer_id=viewer_id,
+        kind="followers",
+        limit=limit,
+        offset=offset,
+    )
+
+
+@api_router.get("/users/{user_id}/following")
+async def get_user_following(
+    user_id: str,
+    limit: int = 50,
+    offset: int = 0,
+    current_user: dict = Depends(get_current_user),
+):
+    target_id = _validate_uuid(user_id)
+    viewer_id = current_user["id"]
+    await _privacy_gate_or_403(target_id, viewer_id)
+    limit = max(1, min(limit, 100))
+    offset = max(0, offset)
+    return await _list_follow_edges_for_target(
+        target_id=target_id,
+        viewer_id=viewer_id,
+        kind="following",
+        limit=limit,
+        offset=offset,
+    )
+
+
 @api_router.get("/users/{user_id}/follow-status")
 async def get_follow_status(user_id: str, current_user: dict = Depends(get_current_user)):
     target_id = _validate_uuid(user_id)

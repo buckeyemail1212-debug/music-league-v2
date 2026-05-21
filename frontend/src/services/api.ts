@@ -586,4 +586,33 @@ export const unfollowUser = (userId: string) =>
 export const getUserProfile = (userId: string) =>
   api.get<{ data: UserProfileResponse }>(`/users/${userId}/profile`);
 
+// Common shape for both list responses. The reciprocity flag's key
+// differs between followers (is_following_me_back) and following
+// (follows_me_back), so both keys are optional on this row type and
+// the screens read whichever one is set.
+export interface FollowListUser {
+  user_id: string;
+  username: string;
+  avatar_url: string | null;
+  is_following_me_back?: boolean;
+  follows_me_back?: boolean;
+}
+
+export interface FollowListResponse {
+  users: FollowListUser[];
+  total: number;
+}
+
+export const getUserFollowers = (
+  userId: string,
+  params?: { limit?: number; offset?: number },
+) =>
+  api.get<{ data: FollowListResponse }>(`/users/${userId}/followers`, { params });
+
+export const getUserFollowing = (
+  userId: string,
+  params?: { limit?: number; offset?: number },
+) =>
+  api.get<{ data: FollowListResponse }>(`/users/${userId}/following`, { params });
+
 export default api;
