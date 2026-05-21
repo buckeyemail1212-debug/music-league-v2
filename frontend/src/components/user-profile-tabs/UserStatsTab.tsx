@@ -9,6 +9,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { UserProfileResponse } from '../../services/api';
+import ExpandableImage from '../ExpandableImage';
 
 const TASTE_COLORS: Record<string, string> = {
   Indie: '#7C3AED',
@@ -113,15 +114,17 @@ export default function UserStatsTab({ profile }: { profile: UserProfileResponse
                 activeOpacity={0.7}
                 onPress={() => router.push(`/user/${v.user_id}` as any)}
               >
-                <View style={[styles.topVoterAvatar, { backgroundColor: pickColor(v.user_id) }]}>
-                  {v.avatar_url ? (
-                    <Image source={{ uri: v.avatar_url }} style={styles.topVoterAvatarImg} />
-                  ) : (
-                    <Text style={styles.topVoterInitial}>
-                      {(v.username || '?').charAt(0).toUpperCase()}
-                    </Text>
-                  )}
-                </View>
+                <ExpandableImage source={v.avatar_url ? { uri: v.avatar_url } : null}>
+                  <View style={[styles.topVoterAvatar, { backgroundColor: pickColor(v.user_id) }]}>
+                    {v.avatar_url ? (
+                      <Image source={{ uri: v.avatar_url }} style={styles.topVoterAvatarImg} />
+                    ) : (
+                      <Text style={styles.topVoterInitial}>
+                        {(v.username || '?').charAt(0).toUpperCase()}
+                      </Text>
+                    )}
+                  </View>
+                </ExpandableImage>
                 <Text style={styles.topVoterName} numberOfLines={1}>
                   {(v.username || '').slice(0, 8)}
                 </Text>

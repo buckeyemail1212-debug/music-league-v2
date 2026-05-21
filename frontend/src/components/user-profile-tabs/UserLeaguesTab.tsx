@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import ExpandableImage from '../ExpandableImage';
 import { getUserLeagues, UserLeagueSummary } from '../../services/api';
 import { apiCache } from '../../services/apiCache';
 
@@ -78,13 +79,15 @@ export default function UserLeaguesTab({
             activeOpacity={0.75}
             onPress={() => router.push(`/league/${l.id}` as any)}
           >
-            <View style={[styles.thumb, { backgroundColor: pickColor(l.id) }]}>
-              {l.image_url ? (
-                <Image source={{ uri: l.image_url }} style={styles.thumbImg} />
-              ) : (
-                <Ionicons name="trophy" size={22} color="#FFFFFF" />
-              )}
-            </View>
+            <ExpandableImage source={l.image_url ? { uri: l.image_url } : null}>
+              <View style={[styles.thumb, { backgroundColor: pickColor(l.id) }]}>
+                {l.image_url ? (
+                  <Image source={{ uri: l.image_url }} style={styles.thumbImg} />
+                ) : (
+                  <Ionicons name="trophy" size={22} color="#FFFFFF" />
+                )}
+              </View>
+            </ExpandableImage>
             <View style={styles.rowInfo}>
               <View style={styles.rowTitleRow}>
                 <Text style={styles.rowTitle} numberOfLines={1}>{l.name}</Text>

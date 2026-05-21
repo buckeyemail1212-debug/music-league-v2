@@ -16,6 +16,7 @@ import { apiCache } from '../../src/services/apiCache';
 import StatsTab from '../../src/components/profile-tabs/StatsTab';
 import LeaguesTab from '../../src/components/profile-tabs/LeaguesTab';
 import LikedSongsTab from '../../src/components/profile-tabs/LikedSongsTab';
+import ExpandableImage from '../../src/components/ExpandableImage';
 
 type TabKey = 'stats' | 'leagues' | 'liked';
 
@@ -67,13 +68,15 @@ export default function ProfileScreen() {
             and bio render only when set; the block collapses cleanly
             without them. */}
         <View style={styles.identity}>
-          <View style={styles.avatar}>
-            {user?.profile_photo ? (
-              <Image source={{ uri: user.profile_photo }} style={styles.avatarImg} />
-            ) : (
-              <Ionicons name="person" size={52} color="#7C3AED" />
-            )}
-          </View>
+          <ExpandableImage source={user?.profile_photo ? { uri: user.profile_photo } : null}>
+            <View style={styles.avatar}>
+              {user?.profile_photo ? (
+                <Image source={{ uri: user.profile_photo }} style={styles.avatarImg} />
+              ) : (
+                <Ionicons name="person" size={52} color="#7C3AED" />
+              )}
+            </View>
+          </ExpandableImage>
           <Text style={styles.username}>@{displayName}</Text>
           {user?.pronouns ? (
             <Text style={styles.pronouns}>{user.pronouns}</Text>

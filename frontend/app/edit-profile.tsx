@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../src/context/AuthContext';
+import ExpandableImage from '../src/components/ExpandableImage';
 
 const PRONOUNS_MAX = 30;
 const BIO_MAX = 75;
@@ -174,7 +175,13 @@ export default function EditProfileScreen() {
         >
           {/* Avatar block */}
           <View style={styles.avatarBlock}>
-            <TouchableOpacity onPress={handleEditPhoto} activeOpacity={0.8} style={styles.avatarWrap}>
+            {/* Short-press wires the existing photo picker; long-press
+                fires the expand modal via ExpandableImage. */}
+            <ExpandableImage
+              source={user?.profile_photo ? { uri: user.profile_photo } : null}
+              onShortPress={handleEditPhoto}
+              style={styles.avatarWrap}
+            >
               <View style={styles.avatar}>
                 {uploading ? (
                   <ActivityIndicator color="#7C3AED" />
@@ -184,7 +191,7 @@ export default function EditProfileScreen() {
                   <Ionicons name="person" size={48} color="#7C3AED" />
                 )}
               </View>
-            </TouchableOpacity>
+            </ExpandableImage>
             <TouchableOpacity onPress={handleEditPhoto} hitSlop={8}>
               <Text style={styles.editPhotoLink}>Edit photo</Text>
             </TouchableOpacity>

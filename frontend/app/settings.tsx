@@ -21,6 +21,7 @@ import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../src/context/AuthContext';
+import ExpandableImage from '../src/components/ExpandableImage';
 import {
   clearAccountData,
   deleteAccountFull,
@@ -271,9 +272,12 @@ export default function SettingsPage() {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Profile header */}
         <View style={styles.profileBlock}>
-          <TouchableOpacity
-            onPress={handleChangePhoto}
-            activeOpacity={0.8}
+          {/* Short-press: photo picker (existing). Long-press: expand
+              via ExpandableImage. Replaces the prior TouchableOpacity
+              wrapper. */}
+          <ExpandableImage
+            source={user?.profile_photo ? { uri: user.profile_photo } : null}
+            onShortPress={handleChangePhoto}
             style={styles.avatarWrap}
           >
             <View style={styles.avatar}>
@@ -288,7 +292,7 @@ export default function SettingsPage() {
             <View style={styles.cameraBadge}>
               <Ionicons name="camera" size={14} color="#FFFFFF" />
             </View>
-          </TouchableOpacity>
+          </ExpandableImage>
           <Text style={styles.profileName}>
             {user?.display_name || user?.username}
           </Text>

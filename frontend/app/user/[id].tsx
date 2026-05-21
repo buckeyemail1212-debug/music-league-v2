@@ -28,6 +28,7 @@ import { apiCache } from '../../src/services/apiCache';
 import UserStatsTab from '../../src/components/user-profile-tabs/UserStatsTab';
 import UserLeaguesTab from '../../src/components/user-profile-tabs/UserLeaguesTab';
 import UserLikedSongsTab from '../../src/components/user-profile-tabs/UserLikedSongsTab';
+import ExpandableImage from '../../src/components/ExpandableImage';
 
 type TabKey = 'stats' | 'leagues' | 'liked';
 
@@ -394,17 +395,19 @@ export default function UserProfileScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         {/* Identity block */}
         <View style={styles.identity}>
-          {/* Avatar tap deliberately a no-op for now; long-press menu
-              is on a later prompt. */}
-          <View style={[styles.bigAvatar, { backgroundColor: pickColor(profile.user_id) }]}>
-            {profile.avatar_url ? (
-              <Image source={{ uri: profile.avatar_url }} style={styles.bigAvatarImg} />
-            ) : (
-              <Text style={styles.bigAvatarInitial}>
-                {(profile.username || '?').charAt(0).toUpperCase()}
-              </Text>
-            )}
-          </View>
+          {/* Avatar tap is a no-op; long-press expands to a full-size
+              modal via ExpandableImage. */}
+          <ExpandableImage source={profile.avatar_url ? { uri: profile.avatar_url } : null}>
+            <View style={[styles.bigAvatar, { backgroundColor: pickColor(profile.user_id) }]}>
+              {profile.avatar_url ? (
+                <Image source={{ uri: profile.avatar_url }} style={styles.bigAvatarImg} />
+              ) : (
+                <Text style={styles.bigAvatarInitial}>
+                  {(profile.username || '?').charAt(0).toUpperCase()}
+                </Text>
+              )}
+            </View>
+          </ExpandableImage>
           <Text style={styles.username}>@{profile.username}</Text>
           {profile.pronouns ? (
             <Text style={styles.pronouns}>{profile.pronouns}</Text>

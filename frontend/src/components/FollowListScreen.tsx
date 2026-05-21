@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import ExpandableImage from './ExpandableImage';
 import {
   followUser,
   getFollowStatus,
@@ -231,17 +232,23 @@ function FollowRow({
 }) {
   return (
     <TouchableOpacity activeOpacity={0.7} onPress={onPress} style={styles.row}>
-      <View
-        style={[styles.avatar, { backgroundColor: pickColor(row.user_id) }]}
-      >
-        {row.avatar_url ? (
-          <Image source={{ uri: row.avatar_url }} style={styles.avatarImg} />
-        ) : (
-          <Text style={styles.avatarInitial}>
-            {(row.username || '?').charAt(0).toUpperCase()}
-          </Text>
-        )}
-      </View>
+      {/* Long-press is on the avatar only — the row's TouchableOpacity
+          still owns the tap-to-navigate gesture. The inner Pressable
+          (inside ExpandableImage) doesn't define onPress, so short
+          taps bubble up to the row handler. */}
+      <ExpandableImage source={row.avatar_url ? { uri: row.avatar_url } : null}>
+        <View
+          style={[styles.avatar, { backgroundColor: pickColor(row.user_id) }]}
+        >
+          {row.avatar_url ? (
+            <Image source={{ uri: row.avatar_url }} style={styles.avatarImg} />
+          ) : (
+            <Text style={styles.avatarInitial}>
+              {(row.username || '?').charAt(0).toUpperCase()}
+            </Text>
+          )}
+        </View>
+      </ExpandableImage>
       <View style={styles.rowInfo}>
         <Text style={styles.rowUsername} numberOfLines={1}>@{row.username}</Text>
       </View>
