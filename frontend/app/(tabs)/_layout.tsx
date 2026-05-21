@@ -78,23 +78,13 @@ export default function TabLayout() {
           },
           tabBarActiveTintColor: '#7C3AED',
           tabBarInactiveTintColor: '#B3B3B3',
+          // Icon-only bar — labels hidden globally. Active state is
+          // signalled by the active/inactive tint colors applied to
+          // the icon itself.
+          tabBarShowLabel: false,
           tabBarItemStyle: {
-            // Equal horizontal space per slot. Tight internal padding so
-            // long labels like "MY GAME" don't clip.
             paddingVertical: 2,
             paddingHorizontal: 2,
-          },
-          tabBarLabelStyle: {
-            // 10.5pt is the readability floor we can hit while keeping
-            // "DISCOVER" / "MY GAME" inside the iPhone SE (375pt) tab
-            // slot — letterSpacing dropped from 0.4 → 0.2 to reclaim
-            // the width the larger font costs.
-            fontSize: 10.5,
-            fontWeight: '700',
-            marginTop: 4,
-            letterSpacing: 0.2,
-            textTransform: 'uppercase',
-            includeFontPadding: false,
           },
         }}
       >
@@ -119,7 +109,6 @@ export default function TabLayout() {
             tabBarButton: (props) => (
               <NewTabButton {...props} onPress={() => setSheetOpen(true)} />
             ),
-            tabBarLabel: () => null,
             tabBarIcon: () => null,
           }}
         />
@@ -133,9 +122,9 @@ export default function TabLayout() {
         <Tabs.Screen
           name="profile"
           options={{
-            title: 'MY GAME',
+            title: 'Profile',
             tabBarIcon: ({ color }) => (
-              <Ionicons name="musical-note-outline" size={22} color={color} />
+              <Ionicons name="person-outline" size={22} color={color} />
             ),
           }}
         />
