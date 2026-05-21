@@ -529,4 +529,61 @@ export const deleteAccount = () =>
 export const clearAllData = () =>
   api.delete<{ message: string; leagues_deleted: number }>('/auth/data');
 
+// ── Social graph: follow / profile ─────────────────────────────────────────
+
+export type FollowStatus = 'approved' | 'pending' | 'none' | 'self';
+
+export interface FollowCounts {
+  followers: number;
+  following: number;
+}
+
+export interface UserProfileStats {
+  round_wins: number;
+  league_wins: number;
+  rounds_played: number;
+  total_points: number;
+  submissions_count: number;
+  leagues_count: number;
+}
+
+export interface UserProfileTopVoter {
+  user_id: string;
+  username: string;
+  avatar_url: string | null;
+  vote_count: number;
+}
+
+// Limited shape (when target is private and viewer isn't an approved
+// follower) drops the heavy blocks. is_limited tells the UI which
+// branch to render — both shapes share the header fields.
+export interface UserProfileResponse {
+  user_id: string;
+  username: string;
+  avatar_url: string | null;
+  is_private: boolean;
+  follower_count: number;
+  following_count: number;
+  is_limited: boolean;
+  stats?: UserProfileStats;
+  taste?: TasteBreakdown;
+  recent_submissions?: MySubmission[];
+  top_voters?: UserProfileTopVoter[];
+}
+
+export const getFollowStatus = (userId: string) =>
+  api.get<{ data: { status: FollowStatus } }>(`/users/${userId}/follow-status`);
+
+export const getFollowCounts = (userId: string) =>
+  api.get<{ data: FollowCounts }>(`/users/${userId}/follow-counts`);
+
+export const followUser = (userId: string) =>
+  api.post<{ data: { status: 'approved' | 'pending' } }>('/follow', { user_id: userId });
+
+export const unfollowUser = (userId: string) =>
+  api.delete<{ data: { removed: true } }>(`/follow/${userId}`);
+
+export const getUserProfile = (userId: string) =>
+  api.get<{ data: UserProfileResponse }>(`/users/${userId}/profile`);
+
 export default api;

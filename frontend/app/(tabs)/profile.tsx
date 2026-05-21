@@ -376,8 +376,12 @@ export default function MyGameScreen() {
           ) : (
             <View style={styles.topVotersRow}>
               {topVoters.map((v) => (
-                // TODO: Navigate to user profile when social graph is implemented
-                <View key={v.user_id} style={styles.topVoterItem}>
+                <TouchableOpacity
+                  key={v.user_id}
+                  style={styles.topVoterItem}
+                  activeOpacity={0.7}
+                  onPress={() => router.push(`/user/${v.user_id}` as any)}
+                >
                   <View
                     style={[
                       styles.topVoterAvatar,
@@ -401,7 +405,7 @@ export default function MyGameScreen() {
                   <Text style={styles.topVoterCount}>
                     {v.vote_count} {v.vote_count === 1 ? 'vote' : 'votes'}
                   </Text>
-                </View>
+                </TouchableOpacity>
               ))}
             </View>
           )}

@@ -2472,6 +2472,431 @@ async def deny_follow_request(user_id: str, current_user: dict = Depends(get_cur
     return {"data": {"denied": True}}
 
 
+# ==================== USER PROFILE (PUBLIC VIEW) ====================
+#
+# GET /api/users/{user_id}/profile returns the social-graph view of any
+# user. The privacy gate ([[follow-system]]) collapses the payload to a
+# minimal "header-only" shape when the target is private and the viewer
+# isn't an approved follower. The compute helpers below mirror the
+# logic of the existing /auth/* endpoints (stats / taste / submissions /
+# top-voters) but operate on an arbitrary user_doc instead of the
+# request-scoped current_user — we intentionally don't refactor the
+# /auth/* routes here to keep blast radius small.
+
+
+async def _compute_recent_submissions(user_doc: dict, limit: int) -> list[dict]:
+    """Port of /auth/submissions trimmed to the latest `limit` rows. Same
+    point/placement math; same league_status derivation."""
+    user_id = user_doc["id"]
+    cleared_at = _effective_cleared_at(user_doc)
+
+    sub_query: dict = {"user_id": user_id}
+    if cleared_at:
+        sub_query["submitted_at"] = {"$gt": cleared_at}
+
+    submissions = await db.submissions.find(sub_query).sort("submitted_at", -1).to_list(limit * 4 or 20)
+    if not submissions:
+        return []
+
+    round_ids = list({s["round_id"] for s in submissions})
+    rounds = await db.rounds.find({"id": {"$in": round_ids}}).to_list(500)
+    rounds_by_id = {r["id"]: r for r in rounds}
+
+    league_ids = list({r["league_id"] for r in rounds})
+    leagues = await db.leagues.find(
+        {"id": {"$in": league_ids}},
+        {"_id": 0, "id": 1, "name": 1, "league_image": 1, "status": 1, "deleted_at": 1},
+    ).to_list(500)
+    leagues_by_id = {l["id"]: l for l in leagues}
+
+    completed_round_ids = [rid for rid, r in rounds_by_id.items() if r.get("status") == "completed"]
+    points_by_sub_id: dict[str, int] = {}
+    sub_rank_by_id: dict[str, int] = {}
+    total_subs_by_round: dict[str, int] = {}
+
+    if completed_round_ids:
+        all_round_subs = await db.submissions.find(
+            {"round_id": {"$in": completed_round_ids}},
+            {"_id": 0, "id": 1, "round_id": 1, "user_id": 1},
+        ).to_list(5000)
+        all_votes = await db.votes.find(
+            {"round_id": {"$in": completed_round_ids}},
+            {"_id": 0, "round_id": 1, "voter_id": 1, "rankings": 1},
+        ).to_list(5000)
+
+        subs_by_round: dict[str, list] = {}
+        votes_by_round: dict[str, list] = {}
+        for s in all_round_subs:
+            subs_by_round.setdefault(s["round_id"], []).append(s)
+        for v in all_votes:
+            votes_by_round.setdefault(v["round_id"], []).append(v)
+
+        for rid in completed_round_ids:
+            round_subs = subs_by_round.get(rid, [])
+            votes = votes_by_round.get(rid, [])
+            if not round_subs:
+                continue
+            num_subs = len(round_subs)
+            total_subs_by_round[rid] = num_subs
+            num_to_rank = num_subs - 1
+
+            pts: dict[str, int] = {s["id"]: 0 for s in round_subs}
+            sub_owners = {s["id"]: s["user_id"] for s in round_subs}
+
+            voters_who_voted = set()
+            for v in votes:
+                voters_who_voted.add(v.get("voter_id"))
+                for idx, sid in enumerate(v.get("rankings", [])):
+                    if sid in pts:
+                        pts[sid] += (num_to_rank - idx)
+
+            submitter_ids = set(sub_owners.values())
+            non_voters = submitter_ids - voters_who_voted
+            if non_voters and num_subs > 1:
+                total_per_voter = sum(range(1, num_to_rank + 1))
+                for nv_id in non_voters:
+                    nv_sub_id = next((s["id"] for s in round_subs if s["user_id"] == nv_id), None)
+                    other_subs = [s["id"] for s in round_subs if s["id"] != nv_sub_id]
+                    if other_subs:
+                        base = total_per_voter // len(other_subs)
+                        rem = total_per_voter % len(other_subs)
+                        for sid in other_subs:
+                            pts[sid] += base
+                        for i in range(rem):
+                            pts[other_subs[i]] += 1
+
+            for sid, p in pts.items():
+                points_by_sub_id[sid] = p
+
+            ordered = sorted(pts.items(), key=lambda kv: -kv[1])
+            last_points: Optional[int] = None
+            last_rank = 0
+            for i, (sid, p) in enumerate(ordered, start=1):
+                if last_points is None or p != last_points:
+                    last_rank = i
+                    last_points = p
+                sub_rank_by_id[sid] = last_rank
+
+    result: list[dict] = []
+    for s in submissions:
+        r = rounds_by_id.get(s["round_id"])
+        if not r:
+            continue
+        league = leagues_by_id.get(r["league_id"], {})
+        if league.get("deleted_at"):
+            league_status = "deleted"
+        else:
+            league_status = league.get("status") or "active"
+        round_status = r.get("status")
+        is_round_completed = round_status == "completed"
+        points_earned = points_by_sub_id.get(s["id"]) if is_round_completed else None
+        placement = sub_rank_by_id.get(s["id"]) if is_round_completed else None
+        total_in_round = total_subs_by_round.get(r["id"]) if is_round_completed else None
+
+        result.append({
+            "submission_id": s["id"],
+            "song": s.get("song"),
+            "submitted_at": s.get("submitted_at"),
+            "round_id": r["id"],
+            "round_number": r.get("round_number"),
+            "round_theme": r.get("theme"),
+            "round_status": round_status,
+            "league_id": r["league_id"],
+            "league_name": league.get("name", ""),
+            "league_image": league.get("league_image"),
+            "league_status": league_status,
+            "points": points_earned,
+            "points_earned": points_earned,
+            "placement": placement,
+            "total_submissions_in_round": total_in_round,
+        })
+        if len(result) >= limit:
+            break
+    return result
+
+
+async def _compute_taste_for_user(user_doc: dict) -> dict:
+    """Port of /auth/taste minus the re-resolve step (which mutates rows
+    and is only meaningful for the row's owner). Returns the same shape
+    as the /auth/taste endpoint."""
+    user_id = user_doc["id"]
+    rows = await db.user_submissions.find(
+        {"user_id": user_id},
+        {"_id": 0, "genre": 1},
+    ).to_list(5000)
+
+    counts: dict[str, int] = {c: 0 for c in TASTE_CATEGORIES}
+    for r in rows:
+        cat = r.get("genre")
+        if cat not in counts:
+            cat = "Other"
+        counts[cat] += 1
+
+    total = sum(counts.values())
+    if total == 0:
+        return {"total": 0, "breakdown": []}
+
+    other_count = counts.pop("Other", 0)
+    ranked = sorted(
+        [(g, c) for g, c in counts.items() if c > 0],
+        key=lambda x: -x[1],
+    )
+    top = ranked[:5]
+    tail = ranked[5:]
+    other_total = other_count + sum(c for _, c in tail)
+
+    breakdown = [{"genre": g, "count": c, "pct": round(c * 100 / total)} for g, c in top]
+    if other_total > 0:
+        breakdown.append({
+            "genre": "Other",
+            "count": other_total,
+            "pct": round(other_total * 100 / total),
+        })
+    return {"total": total, "breakdown": breakdown}
+
+
+async def _compute_top_voters_for_user(user_doc: dict) -> list[dict]:
+    """Port of /users/me/stats/top-voters — top 4 voters who placed this
+    user's submissions at rank 1 most often."""
+    user_id = user_doc["id"]
+    cleared_at = _effective_cleared_at(user_doc)
+
+    sub_query: dict = {"user_id": user_id}
+    if cleared_at:
+        sub_query["submitted_at"] = {"$gt": cleared_at}
+    my_subs = await db.submissions.find(sub_query, {"_id": 0, "id": 1}).to_list(10000)
+    if not my_subs:
+        return []
+    my_sub_ids = [s["id"] for s in my_subs]
+
+    votes = await db.votes.find(
+        {"rankings.0": {"$in": my_sub_ids}},
+        {"_id": 0, "voter_id": 1, "voted_at": 1, "updated_at": 1, "created_at": 1},
+    ).to_list(20000)
+
+    def _ts(v: dict) -> datetime:
+        for k in ("updated_at", "voted_at", "created_at"):
+            t = v.get(k)
+            if t is None:
+                continue
+            try:
+                if isinstance(t, datetime):
+                    return ensure_utc(t)
+                return ensure_utc(datetime.fromisoformat(str(t).replace("Z", "+00:00")))
+            except Exception:
+                continue
+        return datetime.min.replace(tzinfo=timezone.utc)
+
+    counts: dict[str, int] = {}
+    latest_ts: dict[str, datetime] = {}
+    for v in votes:
+        voter = v.get("voter_id")
+        if not voter or voter == user_id:
+            continue
+        counts[voter] = counts.get(voter, 0) + 1
+        ts = _ts(v)
+        if voter not in latest_ts or ts > latest_ts[voter]:
+            latest_ts[voter] = ts
+
+    if not counts:
+        return []
+    ranked = sorted(
+        counts.items(),
+        key=lambda kv: (-kv[1], -(latest_ts[kv[0]].timestamp())),
+    )[:4]
+    top_ids = [vid for vid, _ in ranked]
+
+    user_docs = await db.users.find(
+        {"id": {"$in": top_ids}},
+        {"_id": 0, "id": 1, "username": 1, "profile_photo": 1},
+    ).to_list(10)
+    user_by_id = {u["id"]: u for u in user_docs}
+    return [
+        {
+            "user_id": vid,
+            "username": (user_by_id.get(vid) or {}).get("username", ""),
+            "avatar_url": (user_by_id.get(vid) or {}).get("profile_photo"),
+            "vote_count": counts[vid],
+        }
+        for vid in top_ids
+    ]
+
+
+async def _compute_profile_stats(user_doc: dict, recent_submissions: list[dict]) -> dict:
+    """Stats block surfaced on the public profile screen.
+
+    round_wins / submissions_count are derived from the freshly computed
+    submissions list so they agree with what's rendered on screen;
+    league_wins comes from past_leagues; total_points + lifetime
+    submission floor come from the lifetime counters on the user doc.
+    leagues_count uses the same logic as /auth/stats.
+    """
+    user_id = user_doc["id"]
+    cleared_at = _effective_cleared_at(user_doc)
+
+    # round_wins from the same submissions list the UI renders, so
+    # placement==1 rows match the "1st place" rows shown below.
+    round_wins = sum(1 for s in recent_submissions if s.get("placement") == 1)
+    # recent_submissions is capped, so for an accurate round-wins count we
+    # still need the full list. Use a dedicated lightweight query.
+    sub_query: dict = {"user_id": user_id}
+    if cleared_at:
+        sub_query["submitted_at"] = {"$gt": cleared_at}
+    submission_round_ids_rows = await db.submissions.find(
+        sub_query, {"_id": 0, "round_id": 1, "id": 1},
+    ).to_list(20000)
+    sub_round_ids = list({r["round_id"] for r in submission_round_ids_rows if r.get("round_id")})
+    rounds_played = len(sub_round_ids)
+
+    # Full round-wins recount across all of the user's completed rounds.
+    if sub_round_ids:
+        completed = await db.rounds.find(
+            {"id": {"$in": sub_round_ids}, "status": "completed"},
+            {"_id": 0, "id": 1},
+        ).to_list(20000)
+        completed_ids = [r["id"] for r in completed]
+        if completed_ids:
+            all_round_subs = await db.submissions.find(
+                {"round_id": {"$in": completed_ids}},
+                {"_id": 0, "id": 1, "round_id": 1, "user_id": 1},
+            ).to_list(20000)
+            all_votes = await db.votes.find(
+                {"round_id": {"$in": completed_ids}},
+                {"_id": 0, "round_id": 1, "voter_id": 1, "rankings": 1},
+            ).to_list(20000)
+            subs_by_round: dict[str, list] = {}
+            votes_by_round: dict[str, list] = {}
+            for s in all_round_subs:
+                subs_by_round.setdefault(s["round_id"], []).append(s)
+            for v in all_votes:
+                votes_by_round.setdefault(v["round_id"], []).append(v)
+            round_wins = 0
+            for rid in completed_ids:
+                rs = subs_by_round.get(rid, [])
+                vs = votes_by_round.get(rid, [])
+                if not rs:
+                    continue
+                n = len(rs)
+                ntr = n - 1
+                pts = {s["id"]: 0 for s in rs}
+                sub_owners = {s["id"]: s["user_id"] for s in rs}
+                voters_who_voted = set()
+                for v in vs:
+                    voters_who_voted.add(v.get("voter_id"))
+                    for idx, sid in enumerate(v.get("rankings", [])):
+                        if sid in pts:
+                            pts[sid] += (ntr - idx)
+                non_voters = set(sub_owners.values()) - voters_who_voted
+                if non_voters and n > 1:
+                    per_voter = sum(range(1, ntr + 1))
+                    for nv_id in non_voters:
+                        nv_sub_id = next((s["id"] for s in rs if s["user_id"] == nv_id), None)
+                        other = [s["id"] for s in rs if s["id"] != nv_sub_id]
+                        if other:
+                            base = per_voter // len(other)
+                            rem = per_voter % len(other)
+                            for sid in other:
+                                pts[sid] += base
+                            for i in range(rem):
+                                pts[other[i]] += 1
+                max_pts = max(pts.values()) if pts else 0
+                if max_pts > 0:
+                    my_sub_id = next((s["id"] for s in rs if s["user_id"] == user_id), None)
+                    if my_sub_id and pts.get(my_sub_id, 0) == max_pts:
+                        round_wins += 1
+
+    # league_wins — past_leagues with this user as the overall winner.
+    league_wins_query: dict = {"ended_status": "completed", "winner.user_id": user_id}
+    if cleared_at:
+        league_wins_query["finished_at"] = {"$gt": _iso(cleared_at)}
+    league_wins = await db.past_leagues.count_documents(league_wins_query)
+
+    # leagues_count — same fallback rule as /auth/stats.
+    if cleared_at:
+        if sub_round_ids:
+            round_league_rows = await db.rounds.find(
+                {"id": {"$in": sub_round_ids}},
+                {"_id": 0, "league_id": 1},
+            ).to_list(20000)
+            leagues_count = len({r["league_id"] for r in round_league_rows})
+        else:
+            leagues_count = 0
+    else:
+        leagues_count = await db.leagues.count_documents({
+            "members.id": user_id,
+            "$or": [{"deleted_at": {"$exists": False}}, {"deleted_at": None}],
+        })
+
+    total_points = int(user_doc.get("all_time_points", 0))
+    submissions_count = max(
+        int(user_doc.get("total_submissions", 0)),
+        len(submission_round_ids_rows),
+    )
+
+    return {
+        "round_wins": round_wins,
+        "league_wins": int(league_wins),
+        "rounds_played": rounds_played,
+        "total_points": total_points,
+        "submissions_count": submissions_count,
+        "leagues_count": int(leagues_count),
+    }
+
+
+@api_router.get("/users/{user_id}/profile")
+async def get_user_profile(user_id: str, current_user: dict = Depends(get_current_user)):
+    target_id = _validate_uuid(user_id)
+    viewer_id = current_user["id"]
+
+    target = await db.users.find_one(
+        {"id": target_id},
+        {"_id": 0, "password_hash": 0},
+    )
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    is_self = viewer_id == target_id
+    target_private = bool(target.get("is_private", False))
+    is_approved = is_self or await _is_approved_follower(viewer_id, target_id)
+    allow_full = is_self or not target_private or is_approved
+
+    follower_count, following_count = await asyncio.gather(
+        db.follows.count_documents({"followed_id": target_id, "status": "approved"}),
+        db.follows.count_documents({"follower_id": target_id, "status": "approved"}),
+    )
+
+    base = {
+        "user_id": target_id,
+        "username": target.get("username"),
+        "avatar_url": target.get("profile_photo"),
+        "is_private": target_private,
+        "follower_count": follower_count,
+        "following_count": following_count,
+    }
+
+    if not allow_full:
+        return {"data": {**base, "is_limited": True}}
+
+    # Full view — compute the same blocks the My Game tab shows.
+    recent = await _compute_recent_submissions(target, limit=5)
+    taste, top_voters, stats = await asyncio.gather(
+        _compute_taste_for_user(target),
+        _compute_top_voters_for_user(target),
+        _compute_profile_stats(target, recent),
+    )
+
+    return {
+        "data": {
+            **base,
+            "is_limited": False,
+            "stats": stats,
+            "taste": taste,
+            "recent_submissions": recent,
+            "top_voters": top_voters,
+        }
+    }
+
+
 # ==================== LEAGUE ENDPOINTS ====================
 
 @api_router.post("/leagues", response_model=LeagueResponse)
