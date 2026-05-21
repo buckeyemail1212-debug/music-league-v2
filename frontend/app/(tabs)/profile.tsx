@@ -150,9 +150,15 @@ export default function ProfileScreen() {
 
         {/* Tab content */}
         <View style={styles.tabContent}>
-          {tab === 'stats' ? <StatsTab /> : null}
-          {tab === 'leagues' ? <LeaguesTab /> : null}
-          {tab === 'liked' ? <LikedSongsTab /> : null}
+          <View style={{ display: tab === 'stats' ? 'flex' : 'none' }}>
+            <StatsTab />
+          </View>
+          <View style={{ display: tab === 'leagues' ? 'flex' : 'none' }}>
+            <LeaguesTab />
+          </View>
+          <View style={{ display: tab === 'liked' ? 'flex' : 'none' }}>
+            <LikedSongsTab />
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
