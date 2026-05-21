@@ -2737,6 +2737,113 @@ async def _users_share_active_league(user_a_id: str, user_b_id: str) -> bool:
     return non_completed > 0
 
 
+# ── Anti-cheat helpers ──────────────────────────────────────────────────
+#
+# While a round is open (submission phase, before voting closes), two
+# co-members in that round shouldn't see each other's songs — visibility
+# would let one strategise around the other's pick. The helpers below
+# answer the two flavors of "are these users tied to the same active
+# round?": the broad form (any non-completed round) is the conservative
+# default; the strict form (submission phase only) is the one the
+# enforcement paths actually use.
+
+
+async def _are_in_same_active_round(
+    user_a_id: str,
+    user_b_id: str,
+    round_id: Optional[str] = None,
+) -> bool:
+    """True iff both users are members of a league with at least one
+    non-completed round. Soft-deleted leagues are ignored. If
+    `round_id` is provided, the check is narrowed to that specific
+    round."""
+    if not user_a_id or not user_b_id or user_a_id == user_b_id:
+        return False
+    shared = await db.leagues.find(
+        {"members.id": {"$all": [user_a_id, user_b_id]}},
+        {"_id": 0, "id": 1, "deleted_at": 1},
+    ).to_list(500)
+    active_league_ids = [l["id"] for l in shared if not l.get("deleted_at")]
+    if not active_league_ids:
+        return False
+    round_filter: dict = {
+        "league_id": {"$in": active_league_ids},
+        "status": {"$ne": "completed"},
+    }
+    if round_id:
+        round_filter["id"] = round_id
+    exists = await db.rounds.find_one(round_filter, {"_id": 1})
+    return exists is not None
+
+
+async def _are_in_same_submission_phase_round(
+    user_a_id: str,
+    user_b_id: str,
+    round_id: str,
+) -> bool:
+    """True iff `round_id` is in submission phase and both users are
+    co-members of its league. Stricter than the broad helper — the
+    anti-cheat surfaces (other-user profile, /rounds/{id}/submissions)
+    use this one because the rule lifts the moment voting starts."""
+    if not user_a_id or not user_b_id or user_a_id == user_b_id or not round_id:
+        return False
+    r = await db.rounds.find_one(
+        {"id": round_id, "status": "submission"},
+        {"_id": 0, "league_id": 1},
+    )
+    if not r:
+        return False
+    league = await db.leagues.find_one(
+        {
+            "id": r["league_id"],
+            "members.id": {"$all": [user_a_id, user_b_id]},
+            "$or": [{"deleted_at": {"$exists": False}}, {"deleted_at": None}],
+        },
+        {"_id": 1},
+    )
+    return league is not None
+
+
+async def _filter_active_submission_round_subs(
+    viewer_id: str,
+    target_id: str,
+    subs: list[dict],
+) -> list[dict]:
+    """Drop any submission whose round is in submission phase and
+    whose league has both users as co-members. Batched — two queries
+    regardless of list size. No-op when viewer == target so the user
+    always sees their own submissions."""
+    if not subs or not viewer_id or not target_id or viewer_id == target_id:
+        return subs
+    round_ids = list({s["round_id"] for s in subs if s.get("round_id")})
+    if not round_ids:
+        return subs
+    submission_rounds = await db.rounds.find(
+        {"id": {"$in": round_ids}, "status": "submission"},
+        {"_id": 0, "id": 1, "league_id": 1},
+    ).to_list(length=len(round_ids))
+    if not submission_rounds:
+        return subs
+    league_ids = list({r["league_id"] for r in submission_rounds})
+    co_member_leagues = await db.leagues.find(
+        {
+            "id": {"$in": league_ids},
+            "members.id": viewer_id,
+            "$or": [{"deleted_at": {"$exists": False}}, {"deleted_at": None}],
+        },
+        {"_id": 0, "id": 1},
+    ).to_list(length=len(league_ids))
+    blocked_league_ids = {l["id"] for l in co_member_leagues}
+    if not blocked_league_ids:
+        return subs
+    blocked_round_ids = {
+        r["id"] for r in submission_rounds if r["league_id"] in blocked_league_ids
+    }
+    if not blocked_round_ids:
+        return subs
+    return [s for s in subs if s.get("round_id") not in blocked_round_ids]
+
+
 @api_router.post("/block")
 async def block_user(
     body: FollowRequestBody,
@@ -3276,6 +3383,12 @@ async def get_user_profile(user_id: str, current_user: dict = Depends(get_curren
         _compute_top_voters_for_user(target),
         _compute_profile_stats(target, recent),
     )
+
+    # Anti-cheat: hide any submission from a round we (viewer) and the
+    # target are co-members of while that round is still in submission
+    # phase. Stats are computed off the unfiltered list above so the
+    # aggregate counts stay accurate; only the visible song rows shrink.
+    recent = await _filter_active_submission_round_subs(viewer_id, target_id, recent)
 
     return {
         "data": {
@@ -5581,11 +5694,23 @@ async def get_submissions(round_id: str, current_user: dict = Depends(get_curren
     round_doc = await db.rounds.find_one({"id": round_id})
     if not round_doc:
         raise HTTPException(status_code=404, detail="Round not found")
-    
-    # During submission phase, only show own submission
-    # During voting/completed, show all (but hide usernames during voting)
+
     submissions = await db.submissions.find({"round_id": round_id}).to_list(100)
-    
+
+    # Anti-cheat: during the submission phase nobody who could submit
+    # gets to peek at other competitors' songs. The carve-out is the
+    # league creator who hasn't submitted themselves — keeps the
+    # existing manager-view working when they're just supervising.
+    if round_doc.get("status") == "submission":
+        league = await db.leagues.find_one(
+            {"id": round_doc.get("league_id")},
+            {"_id": 0, "creator_id": 1},
+        ) or {}
+        is_creator = league.get("creator_id") == current_user["id"]
+        has_submitted = any(s.get("user_id") == current_user["id"] for s in submissions)
+        if not (is_creator and not has_submitted):
+            submissions = [s for s in submissions if s.get("user_id") == current_user["id"]]
+
     result = []
     for sub in submissions:
         # During voting phase, hide who submitted (except own submission)
@@ -5593,7 +5718,7 @@ async def get_submissions(round_id: str, current_user: dict = Depends(get_curren
             sub["username"] = "???"
             sub["user_id"] = "hidden"
         result.append(SubmissionResponse(**sub))
-    
+
     return result
 
 # ==================== VOTING ENDPOINTS ====================
