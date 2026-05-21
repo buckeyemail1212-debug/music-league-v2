@@ -8,6 +8,7 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
@@ -17,11 +18,14 @@ import {
   followUser,
   getFollowStatus,
   getUserProfile,
+  getUserLikedSongs,
   unfollowUser,
   FollowStatus,
+  LikedSong,
   UserProfileResponse,
 } from '../../src/services/api';
 import { apiCache } from '../../src/services/apiCache';
+import LikeButton from '../../src/components/LikeButton';
 
 const TASTE_COLORS: Record<string, string> = {
   Indie: '#7C3AED',
@@ -551,6 +555,77 @@ function FullProfileBody({
           </Text>
         )}
       </View>
+
+      <OtherUserLikedSongs targetId={profile.user_id} />
+    </>
+  );
+}
+
+function OtherUserLikedSongs({ targetId }: { targetId: string }) {
+  const { user } = useAuth();
+  const viewerId = user?.id ?? '';
+
+  // null  = still loading (first paint suppresses the empty state to
+  //         avoid a flash before data lands)
+  // []    = loaded, empty
+  // [...] = loaded, populated
+  // hidden = 403 from the privacy gate; render nothing at all so the
+  // section doesn't reveal "private" twice (the limited badge at the
+  // top already communicates it).
+  const [songs, setSongs] = useState<LikedSong[] | null>(null);
+  const [hidden, setHidden] = useState(false);
+
+  useEffect(() => {
+    if (!targetId || !viewerId) return;
+    let mounted = true;
+    apiCache
+      .swr<LikedSong[]>(
+        `user-liked-songs:${targetId}:${viewerId}`,
+        () => getUserLikedSongs(targetId).then((r) => r.data.data.songs ?? []),
+        (next) => { if (mounted) setSongs(next); },
+        60 * 1000,
+      )
+      .then((next) => { if (mounted) setSongs(next); })
+      .catch((err) => {
+        if (!mounted) return;
+        if (err?.response?.status === 403) setHidden(true);
+        else setSongs([]);
+      });
+    return () => { mounted = false; };
+  }, [targetId, viewerId]);
+
+  if (hidden) return null;
+  if (songs === null) return null;
+
+  return (
+    <>
+      <Text style={styles.sectionLabel}>LIKED SONGS</Text>
+      {songs.length === 0 ? (
+        <View style={styles.group}>
+          <Text style={styles.emptyBlurb}>No liked songs yet</Text>
+        </View>
+      ) : (
+        <View style={otherLikedStyles.grid}>
+          {songs.map((s) => (
+            <View key={s.deezer_id} style={otherLikedStyles.tile}>
+              <View style={otherLikedStyles.coverWrap}>
+                {s.cover_url ? (
+                  <Image source={{ uri: s.cover_url }} style={otherLikedStyles.cover} />
+                ) : (
+                  <View style={[otherLikedStyles.cover, otherLikedStyles.coverFallback]}>
+                    <Ionicons name="musical-note" size={26} color="#FFFFFF" />
+                  </View>
+                )}
+                <View style={otherLikedStyles.heartBtn}>
+                  <LikeButton song={s} size={18} />
+                </View>
+              </View>
+              <Text style={otherLikedStyles.title} numberOfLines={1}>{s.title}</Text>
+              <Text style={otherLikedStyles.artist} numberOfLines={1}>{s.artist}</Text>
+            </View>
+          ))}
+        </View>
+      )}
     </>
   );
 }
@@ -752,5 +827,63 @@ const styles = StyleSheet.create({
   submissionContext: { color: '#B3B3B3', fontSize: 11, marginTop: 6 },
   submissionState: {
     color: '#6A6A6A', fontSize: 11, marginTop: 2, fontWeight: '600',
+  },
+});
+
+// 3-column grid sized off the screen width so the tiles edge-align
+// with the surrounding 20px horizontal padding the rest of the
+// profile uses. Mirrors the layout of LikedSongsTab on own profile
+// so the visual feels consistent across surfaces.
+const OTHER_LIKED_COLS = 3;
+const OTHER_LIKED_HORIZ_PAD = 20;
+const OTHER_LIKED_GAP = 8;
+const OTHER_LIKED_TILE_SIZE = Math.floor(
+  (Dimensions.get('window').width -
+    OTHER_LIKED_HORIZ_PAD * 2 -
+    OTHER_LIKED_GAP * (OTHER_LIKED_COLS - 1)) /
+    OTHER_LIKED_COLS,
+);
+
+const otherLikedStyles = StyleSheet.create({
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: OTHER_LIKED_HORIZ_PAD,
+    gap: OTHER_LIKED_GAP,
+    marginTop: 4,
+  },
+  tile: { width: OTHER_LIKED_TILE_SIZE, marginBottom: 12 },
+  coverWrap: { position: 'relative' },
+  cover: {
+    width: OTHER_LIKED_TILE_SIZE,
+    height: OTHER_LIKED_TILE_SIZE,
+    borderRadius: 8,
+  },
+  coverFallback: {
+    backgroundColor: '#282828',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heartBtn: {
+    position: 'absolute',
+    bottom: 6,
+    right: 6,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginTop: 6,
+  },
+  artist: {
+    fontSize: 11,
+    color: '#B3B3B3',
+    marginTop: 1,
   },
 });

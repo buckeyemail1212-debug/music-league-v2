@@ -16,7 +16,6 @@ import {
   subscribeLikedSongs,
   toggleLikedSong,
 } from '../../utils/likedSongs';
-import { apiCache } from '../../services/apiCache';
 
 const GRID_COLS = 3;
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -38,15 +37,11 @@ export default function LikedSongsTab() {
       setSongs([]);
       return;
     }
-    // SWR semantics: serve cache on warm, refresh on focus. The cache
-    // here is a no-op pass-through to AsyncStorage so writes from
-    // LikeButton land immediately on tab switch.
+    // loadLikedSongs is server-backed and SWR-cached internally; one
+    // call gets us either the warm result or a network fetch and
+    // notifies all subscribers along the way.
     try {
-      const data = await apiCache.swr<LikedSong[]>(
-        `liked-songs:${userId}`,
-        () => loadLikedSongs(userId),
-        setSongs,
-      );
+      const data = await loadLikedSongs(userId);
       setSongs(data);
     } catch {
       setSongs([]);
@@ -55,12 +50,16 @@ export default function LikedSongsTab() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  // Live updates: if a LikeButton elsewhere flips state, the tab
-  // refreshes without waiting for a re-focus.
+  // Live updates: when a LikeButton elsewhere flips state, the utility
+  // notifies subscribers with the latest id set. Pull the full song
+  // list back out of the shared cache so the grid re-renders without
+  // a redundant network call.
   useEffect(() => {
     if (!userId) return;
     const unsub = subscribeLikedSongs(userId, () => {
-      apiCache.invalidate(`liked-songs:${userId}`);
+      // Re-fetch — the cache map only stores the ids+payloads we've
+      // seen, and the in-memory copy is the same one the utility just
+      // mutated, so this call is served from cache 99% of the time.
       load();
     });
     return () => { unsub(); };

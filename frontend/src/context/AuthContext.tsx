@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { API_URL } from '../services/api';
 import { apiCache } from '../services/apiCache';
+import { clearLikedSongsCache } from '../utils/likedSongs';
 
 interface User {
   id: string;
@@ -57,6 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Token invalid, clear auth
           await AsyncStorage.multiRemove(['token', 'user']);
           apiCache.clear();
+          clearLikedSongsCache();
           setToken(null);
           setUser(null);
         }
@@ -78,9 +80,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     await AsyncStorage.setItem('token', access_token);
     await AsyncStorage.setItem('user', JSON.stringify(userData));
-    
+
     setToken(access_token);
     setUser(userData);
+    clearLikedSongsCache();
   };
 
   const register = async (email: string, username: string, password: string, phone_number: string = '', display_name: string = '') => {
@@ -96,14 +99,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     await AsyncStorage.setItem('token', access_token);
     await AsyncStorage.setItem('user', JSON.stringify(userData));
-    
+
     setToken(access_token);
     setUser(userData);
+    clearLikedSongsCache();
   };
 
   const logout = async () => {
     await AsyncStorage.multiRemove(['token', 'user']);
     apiCache.clear();
+    clearLikedSongsCache();
     setToken(null);
     setUser(null);
   };

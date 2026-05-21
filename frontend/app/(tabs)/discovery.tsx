@@ -22,17 +22,21 @@ import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useNavigation } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Song, API_URL, searchSongs } from '../../src/services/api';
+import { Song, LikedSong, API_URL, searchSongs } from '../../src/services/api';
 import { stopAllPreviews, registerStopHandler } from '../../src/components/PreviewPlayButton';
 import { useAuth } from '../../src/context/AuthContext';
+import {
+  loadLikedSongs as loadBackedLikedSongs,
+  toggleLikedSong,
+  subscribeLikedSongs,
+  getCachedLikedSongs,
+} from '../../src/utils/likedSongs';
 
 // Screen-width-dependent sizes (album art, card width, progress track) are
 // computed from `useWindowDimensions()` inside the components below so they
 // update on rotation and split-view. cardHeight is still seeded from
 // Dimensions.get('window').height for a fast first-paint value, then
 // corrected by the container's onLayout once measured.
-const getLikedKey = (userId: string) => `liked_songs_${userId}`;
 const PAGE_SIZE = 30;
 
 // ─── Genre filters ────────────────────────────────────────────────────────────
@@ -292,7 +296,7 @@ export default function DiscoverScreen() {
   const [isFetching, setIsFetching]         = useState(true);
   const [loadingMore, setLoadingMore]       = useState(false);
   const [refreshing, setRefreshing]         = useState(false);
-  const [likedSongs, setLikedSongs]         = useState<Map<string, Song>>(new Map());
+  const [likedSongs, setLikedSongs]         = useState<Map<string, LikedSong>>(new Map());
   const [isPaused, setIsPaused]             = useState(false);
   const [cardHeight, setCardHeight]         = useState(Dimensions.get('window').height);
 
@@ -365,25 +369,27 @@ export default function DiscoverScreen() {
   useEffect(() => { loadingMoreRef.current = loadingMore; }, [loadingMore]);
 
   // ── Load liked songs ──────────────────────────────────────────────────────
-  // Reload from AsyncStorage on every focus so likes persist across logout/login
-  // and reflect any edits made from the Profile screen.
+  // Backend-backed via the shared utility. On focus we trigger a refresh;
+  // the utility's SWR cache dedupes concurrent reads. A subscriber keeps
+  // this screen in sync when a LikeButton elsewhere (round screen, profile
+  // tab) flips state without forcing a full refetch.
   const loadLikedSongs = useCallback(async () => {
-    // Skip while auth is still bootstrapping — otherwise we'd briefly clear
-    // the state and it would stay empty until the next focus event.
     if (!user?.id) return;
     try {
-      const raw = await AsyncStorage.getItem(getLikedKey(user.id));
-      if (!raw) { setLikedSongs(new Map()); return; }
-      const arr: Song[] = JSON.parse(raw);
-      if (Array.isArray(arr) && arr.length > 0 && typeof arr[0] === 'object') {
-        setLikedSongs(new Map(arr.map(s => [String(s.deezer_id), s])));
-      } else {
-        setLikedSongs(new Map());
-      }
-    } catch {}
+      const songs = await loadBackedLikedSongs(user.id);
+      setLikedSongs(new Map(songs.map((s) => [String(s.deezer_id), s])));
+    } catch {
+      /* fall back to whatever's already in state */
+    }
   }, [user?.id]);
-  // Re-run the moment user?.id is available (covers post-login).
-  useEffect(() => { if (user?.id) loadLikedSongs(); }, [user?.id, loadLikedSongs]);
+  useEffect(() => {
+    if (!user?.id) return;
+    loadLikedSongs();
+    const unsub = subscribeLikedSongs(user.id, () => {
+      setLikedSongs(new Map(getCachedLikedSongs(user.id).map((s) => [String(s.deezer_id), s])));
+    });
+    return () => { unsub(); };
+  }, [user?.id, loadLikedSongs]);
 
   // ── Audio helpers ─────────────────────────────────────────────────────────
   const stopSound = useCallback(async () => {
@@ -825,28 +831,11 @@ export default function DiscoverScreen() {
   const toggleLike = useCallback(async (song: Song) => {
     if (!user?.id) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    const id = String(song.deezer_id);
-    const key = getLikedKey(user.id);
-    // Read the canonical list from AsyncStorage first so likes persist regardless
-    // of any remount that may have stale in-memory state.
-    let current: Song[] = [];
-    try {
-      const raw = await AsyncStorage.getItem(key);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) current = parsed;
-      }
-    } catch {}
-
-    const map = new Map(current.map(s => [String(s.deezer_id), s]));
-    if (map.has(id)) map.delete(id);
-    else map.set(id, song);
-
-    const nextArr = [...map.values()];
-    try {
-      await AsyncStorage.setItem(key, JSON.stringify(nextArr));
-    } catch {}
-    setLikedSongs(map);
+    // The shared utility handles optimistic flip, backend POST/DELETE,
+    // and subscriber notifications. The subscriber wired in
+    // loadLikedSongs above will push the new state into setLikedSongs
+    // so this card re-renders with the heart filled/empty.
+    await toggleLikedSong(user.id, song);
   }, [user?.id]);
 
   const handleEndReached = useCallback(() => {

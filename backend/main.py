@@ -3078,6 +3078,175 @@ async def get_user_profile(user_id: str, current_user: dict = Depends(get_curren
     }
 
 
+# ==================== LIKED SONGS ENDPOINTS ====================
+#
+# Per-user list of "hearted" songs. Persistence lives in the
+# liked_songs collection; the (user_id, deezer_id) unique index is
+# the source of truth for "one row per user per song" so the POST
+# handler can be idempotent under retries / parallel taps.
+#
+# Privacy gate on the per-user read mirrors [[follow-system]] —
+# private accounts only expose their liked list to approved
+# followers (and to themselves).
+
+
+class LikedSongBody(BaseModel):
+    deezer_id: int
+    title: str
+    artist: str
+    album: Optional[str] = None
+    cover_url: Optional[str] = None
+    preview_url: Optional[str] = None
+
+
+class LikedSongsMigrateBody(BaseModel):
+    songs: List[LikedSongBody]
+
+
+def _liked_song_doc_to_payload(doc: dict) -> dict:
+    """Strip Mongo internals and the user_id column for client return."""
+    return {
+        "deezer_id": doc["deezer_id"],
+        "title": doc.get("title", ""),
+        "artist": doc.get("artist", ""),
+        "album": doc.get("album"),
+        "cover_url": doc.get("cover_url"),
+        "preview_url": doc.get("preview_url"),
+    }
+
+
+def _validate_deezer_id(value) -> int:
+    """Reject anything that isn't a positive integer. Deezer IDs are
+    always positive ints; a malformed value is a programming error
+    on the client, so 400 is correct."""
+    try:
+        iv = int(value)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Invalid deezer_id")
+    if iv <= 0:
+        raise HTTPException(status_code=400, detail="Invalid deezer_id")
+    return iv
+
+
+async def _upsert_liked_song(user_id: str, song: LikedSongBody) -> bool:
+    """Insert a like row if missing. Returns True if newly inserted,
+    False if it already existed. Race-safe — the unique index plus
+    a re-read fallback covers concurrent inserts."""
+    deezer_id = _validate_deezer_id(song.deezer_id)
+    existing = await db.liked_songs.find_one(
+        {"user_id": user_id, "deezer_id": deezer_id}, {"_id": 1},
+    )
+    if existing:
+        return False
+    try:
+        await db.liked_songs.insert_one({
+            "user_id": user_id,
+            "deezer_id": deezer_id,
+            "title": song.title,
+            "artist": song.artist,
+            "album": song.album,
+            "cover_url": song.cover_url,
+            "preview_url": song.preview_url,
+            "created_at": datetime.now(timezone.utc),
+        })
+        return True
+    except Exception as e:
+        # Almost certainly the unique-index race: someone else (or a
+        # retried request) inserted between the find and the write.
+        # Treat it as "already existed" rather than 500.
+        logger.warning(
+            f"liked_songs insert race: user={user_id} deezer_id={deezer_id} "
+            f"err={type(e).__name__}: {e}"
+        )
+        return False
+
+
+@api_router.post("/likes")
+async def like_song(
+    song: LikedSongBody,
+    current_user: dict = Depends(get_current_user),
+):
+    deezer_id = _validate_deezer_id(song.deezer_id)
+    await _upsert_liked_song(current_user["id"], song)
+    return {"data": {"liked": True, "deezer_id": deezer_id}}
+
+
+@api_router.delete("/likes/{deezer_id}")
+async def unlike_song(
+    deezer_id: int,
+    current_user: dict = Depends(get_current_user),
+):
+    deezer_id_i = _validate_deezer_id(deezer_id)
+    # Idempotent — missing row returns 200 (not 404) so the client
+    # can fire and forget.
+    await db.liked_songs.delete_one(
+        {"user_id": current_user["id"], "deezer_id": deezer_id_i},
+    )
+    return {"data": {"liked": False, "deezer_id": deezer_id_i}}
+
+
+async def _list_liked_songs(user_id: str, limit: int, offset: int) -> dict:
+    limit = max(1, min(limit, 100))
+    offset = max(0, offset)
+    total = await db.liked_songs.count_documents({"user_id": user_id})
+    cursor = (
+        db.liked_songs.find({"user_id": user_id}, {"_id": 0})
+        .sort("created_at", -1)
+        .skip(offset)
+        .limit(limit)
+    )
+    rows = await cursor.to_list(length=limit)
+    return {"data": {"songs": [_liked_song_doc_to_payload(r) for r in rows], "total": total}}
+
+
+@api_router.get("/likes")
+async def get_my_liked_songs(
+    limit: int = 50,
+    offset: int = 0,
+    current_user: dict = Depends(get_current_user),
+):
+    return await _list_liked_songs(current_user["id"], limit, offset)
+
+
+@api_router.get("/users/{user_id}/likes")
+async def get_user_liked_songs(
+    user_id: str,
+    limit: int = 50,
+    offset: int = 0,
+    current_user: dict = Depends(get_current_user),
+):
+    target_id = _validate_uuid(user_id)
+    viewer_id = current_user["id"]
+    await _privacy_gate_or_403(target_id, viewer_id)
+    return await _list_liked_songs(target_id, limit, offset)
+
+
+@api_router.post("/likes/migrate")
+async def migrate_liked_songs(
+    body: LikedSongsMigrateBody,
+    current_user: dict = Depends(get_current_user),
+):
+    """One-time migration endpoint for clients moving their
+    AsyncStorage-backed liked-songs list into the backend store. Safe
+    to call repeatedly — every song goes through the idempotent
+    upsert path, so a re-run just returns counts of zero migrated."""
+    migrated = 0
+    already_existed = 0
+    for song in body.songs:
+        try:
+            inserted = await _upsert_liked_song(current_user["id"], song)
+        except HTTPException:
+            # Skip rows with invalid deezer_id rather than 400ing the
+            # whole batch — bad rows shouldn't strand the good ones.
+            already_existed += 0
+            continue
+        if inserted:
+            migrated += 1
+        else:
+            already_existed += 1
+    return {"data": {"migrated": migrated, "already_existed": already_existed}}
+
+
 # ==================== LEAGUE ENDPOINTS ====================
 
 @api_router.post("/leagues", response_model=LeagueResponse)
@@ -6936,6 +7105,21 @@ async def past_leagues_startup_maintenance():
         )
     except Exception as e:
         logger.warning(f"follows pair unique index creation failed: {e}")
+    # Liked songs: user_id powers the "my likes" / other-user-likes
+    # listing; the compound unique index is what makes POST /likes
+    # idempotent — duplicate inserts hit the index and we re-read.
+    try:
+        await db.liked_songs.create_index("user_id")
+    except Exception as e:
+        logger.warning(f"liked_songs user_id index creation failed: {e}")
+    try:
+        await db.liked_songs.create_index(
+            [("user_id", 1), ("deezer_id", 1)],
+            unique=True,
+            name="liked_songs_user_song_unique",
+        )
+    except Exception as e:
+        logger.warning(f"liked_songs user/deezer unique index creation failed: {e}")
     # One-time genre backfill for public leagues created before the field
     # existed. Writes "General" for any public league missing or with a
     # blank genre; leaves private leagues alone.

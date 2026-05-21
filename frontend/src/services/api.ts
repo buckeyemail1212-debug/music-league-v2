@@ -605,6 +605,46 @@ export interface FollowListResponse {
   total: number;
 }
 
+// ── Liked songs (backend-backed) ───────────────────────────────────────────
+
+export interface LikedSong {
+  deezer_id: number;
+  title: string;
+  artist: string;
+  album?: string;
+  cover_url?: string;
+  preview_url?: string;
+}
+
+export interface LikedSongsResponse {
+  songs: LikedSong[];
+  total: number;
+}
+
+export const likeSong = (song: LikedSong) =>
+  api.post<{ data: { liked: true; deezer_id: number } }>('/likes', song);
+
+export const unlikeSong = (deezerId: number) =>
+  api.delete<{ data: { liked: false; deezer_id: number } }>(`/likes/${deezerId}`);
+
+export const getLikedSongs = (limit: number = 50, offset: number = 0) =>
+  api.get<{ data: LikedSongsResponse }>('/likes', { params: { limit, offset } });
+
+export const getUserLikedSongs = (
+  userId: string,
+  limit: number = 50,
+  offset: number = 0,
+) =>
+  api.get<{ data: LikedSongsResponse }>(`/users/${userId}/likes`, {
+    params: { limit, offset },
+  });
+
+export const migrateLikedSongs = (songs: LikedSong[]) =>
+  api.post<{ data: { migrated: number; already_existed: number } }>(
+    '/likes/migrate',
+    { songs },
+  );
+
 export const getUserFollowers = (
   userId: string,
   params?: { limit?: number; offset?: number },
