@@ -45,7 +45,7 @@ export default function ProfileScreen() {
 
   useFocusEffect(useCallback(() => { loadFollowCounts(); }, [loadFollowCounts]));
 
-  const displayName = user?.username || user?.display_name || '';
+  const displayName = user?.display_name || user?.username || '';
 
   return (
     <SafeAreaView style={styles.container}>
@@ -64,20 +64,51 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Identity block — avatar, username, pronouns, bio. Pronouns
-            and bio render only when set; the block collapses cleanly
-            without them. */}
-        <View style={styles.identity}>
+        {/* Top row — avatar on the left, followers/following stats on
+            the right, vertically centered. Avatar long-press still
+            expands via ExpandableImage. */}
+        <View style={styles.topRow}>
           <ExpandableImage source={user?.profile_photo ? { uri: user.profile_photo } : null}>
             <View style={styles.avatar}>
               {user?.profile_photo ? (
                 <Image source={{ uri: user.profile_photo }} style={styles.avatarImg} />
               ) : (
-                <Ionicons name="person" size={52} color="#7C3AED" />
+                <Ionicons name="person" size={40} color="#7C3AED" />
               )}
             </View>
           </ExpandableImage>
-          <Text style={styles.username}>@{displayName}</Text>
+          {user?.id ? (
+            <View style={styles.statsRow}>
+              <TouchableOpacity
+                style={styles.statItem}
+                activeOpacity={0.7}
+                onPress={() => router.push(`/user/${user.id}/followers` as any)}
+              >
+                <Text style={styles.statValue}>
+                  {followCounts ? followCounts.followers.toLocaleString() : '—'}
+                </Text>
+                <Text style={styles.statLabel}>followers</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.statItem}
+                activeOpacity={0.7}
+                onPress={() => router.push(`/user/${user.id}/following` as any)}
+              >
+                <Text style={styles.statValue}>
+                  {followCounts ? followCounts.following.toLocaleString() : '—'}
+                </Text>
+                <Text style={styles.statLabel}>following</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+        </View>
+
+        {/* Identity — left-aligned handle + name + optional pronouns
+            + optional bio. Spacing collapses cleanly when either of
+            the optional fields is absent. */}
+        <View style={styles.identityBlock}>
+          <Text style={styles.handle}>@{user?.username ?? ''}</Text>
+          <Text style={styles.displayName}>{displayName}</Text>
           {user?.pronouns ? (
             <Text style={styles.pronouns}>{user.pronouns}</Text>
           ) : null}
@@ -86,40 +117,13 @@ export default function ProfileScreen() {
           ) : null}
         </View>
 
-        {/* Follower / following counts — tap to open list screens. */}
-        {user?.id ? (
-          <View style={styles.countsRow}>
-            <TouchableOpacity
-              style={styles.countItem}
-              activeOpacity={0.7}
-              onPress={() => router.push(`/user/${user.id}/followers` as any)}
-            >
-              <Text style={styles.countValue}>
-                {followCounts ? followCounts.followers.toLocaleString() : '—'}
-              </Text>
-              <Text style={styles.countLabel}>Followers</Text>
-            </TouchableOpacity>
-            <View style={styles.countDivider} />
-            <TouchableOpacity
-              style={styles.countItem}
-              activeOpacity={0.7}
-              onPress={() => router.push(`/user/${user.id}/following` as any)}
-            >
-              <Text style={styles.countValue}>
-                {followCounts ? followCounts.following.toLocaleString() : '—'}
-              </Text>
-              <Text style={styles.countLabel}>Following</Text>
-            </TouchableOpacity>
-          </View>
-        ) : null}
-
         {/* Edit profile CTA */}
         <TouchableOpacity
           style={styles.editBtn}
           activeOpacity={0.85}
           onPress={() => router.push('/edit-profile' as any)}
         >
-          <Text style={styles.editBtnText}>Edit profile</Text>
+          <Text style={styles.editBtnText}>Edit Profile</Text>
         </TouchableOpacity>
 
         {/* Tab switcher — bar-chart / trophy / heart. Active icon flips
@@ -211,56 +215,61 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
 
-  identity: {
+  topRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingLeft: 20,
+    paddingRight: 20,
     paddingTop: 4,
-    paddingBottom: 12,
   },
   avatar: {
-    width: 120, height: 120, borderRadius: 60,
+    width: 88, height: 88, borderRadius: 44,
     backgroundColor: '#181818',
     alignItems: 'center', justifyContent: 'center',
     overflow: 'hidden',
   },
-  avatarImg: { width: 120, height: 120, borderRadius: 60 },
-  username: {
-    fontSize: 22, fontWeight: '800', color: '#FFFFFF',
+  avatarImg: { width: 88, height: 88, borderRadius: 44 },
+
+  statsRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 32,
+  },
+  statItem: { alignItems: 'center' },
+  statValue: { fontSize: 20, fontWeight: '700', color: '#FFFFFF' },
+  statLabel: { fontSize: 13, color: '#B3B3B3', marginTop: 2 },
+
+  identityBlock: {
+    paddingHorizontal: 20,
     marginTop: 12,
+  },
+  handle: {
+    fontSize: 13, color: '#B3B3B3',
+    marginBottom: 2,
+  },
+  displayName: {
+    fontSize: 15, fontWeight: '700', color: '#FFFFFF',
+    marginBottom: 2,
   },
   pronouns: {
     fontSize: 13, color: '#B3B3B3',
-    marginTop: 4,
   },
   bio: {
-    fontSize: 13, color: '#D9D9D9',
-    marginTop: 6, textAlign: 'center', lineHeight: 18,
-    paddingHorizontal: 12,
+    fontSize: 14, color: '#FFFFFF',
+    marginTop: 4,
   },
-
-  countsRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 28, marginTop: 8, marginBottom: 12,
-  },
-  countItem: { alignItems: 'center', minWidth: 80 },
-  countValue: { fontSize: 18, fontWeight: '800', color: '#FFFFFF' },
-  countLabel: {
-    fontSize: 11, fontWeight: '700', color: '#B3B3B3',
-    letterSpacing: 0.8, marginTop: 2, textTransform: 'uppercase',
-  },
-  countDivider: { width: 1, height: 28, backgroundColor: 'rgba(255,255,255,0.1)' },
 
   editBtn: {
     marginHorizontal: 20,
-    marginTop: 4,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 999,
-    paddingVertical: 11,
+    marginTop: 12,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 8,
+    paddingVertical: 8,
     alignItems: 'center',
   },
-  editBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
+  editBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '600' },
 
   tabBar: {
     flexDirection: 'row',
@@ -268,7 +277,7 @@ const styles = StyleSheet.create({
     borderTopColor: 'rgba(255,255,255,0.08)',
     borderBottomWidth: 0.5,
     borderBottomColor: 'rgba(255,255,255,0.08)',
-    marginTop: 4,
+    marginTop: 16,
   },
   tabItem: {
     flex: 1,

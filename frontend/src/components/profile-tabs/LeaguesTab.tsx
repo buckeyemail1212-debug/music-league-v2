@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
+  Dimensions,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +20,14 @@ const pickColor = (seed: string) => {
   for (let i = 0; i < seed.length; i++) h = ((h << 5) - h + seed.charCodeAt(i)) >>> 0;
   return SUBMISSION_COLORS[h % SUBMISSION_COLORS.length];
 };
+
+const GRID_COLS = 3;
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const HORIZ_PAD = 20;
+const GAP = 8;
+const TILE_SIZE = Math.floor(
+  (SCREEN_WIDTH - HORIZ_PAD * 2 - GAP * (GRID_COLS - 1)) / GRID_COLS,
+);
 
 export default function LeaguesTab() {
   const { user } = useAuth();
@@ -63,67 +72,81 @@ export default function LeaguesTab() {
   }
 
   return (
-    <View style={styles.list}>
-      {leagues.map((l, idx) => {
-        const memberCount = (l.members?.length ?? 0);
-        const last = idx === leagues.length - 1;
-        return (
-          <TouchableOpacity
-            key={l.id}
-            style={[styles.row, last && styles.rowLast]}
-            activeOpacity={0.75}
-            onPress={() => router.push(`/league/${l.id}` as any)}
-          >
-            <ExpandableImage source={l.league_image ? { uri: l.league_image } : null}>
-              <View style={[styles.thumb, { backgroundColor: pickColor(l.id) }]}>
-                {l.league_image ? (
-                  <Image source={{ uri: l.league_image }} style={styles.thumbImg} />
-                ) : (
-                  <Ionicons name="trophy" size={22} color="#FFFFFF" />
-                )}
-              </View>
+    <View style={styles.grid}>
+      {leagues.map((l) => (
+        <TouchableOpacity
+          key={l.id}
+          style={[styles.tile, { width: TILE_SIZE }]}
+          activeOpacity={0.75}
+          onPress={() => router.push(`/league/${l.id}` as any)}
+        >
+          <View style={styles.coverWrap}>
+            <ExpandableImage
+              source={l.league_image ? { uri: l.league_image } : null}
+              onShortPress={() => router.push(`/league/${l.id}` as any)}
+            >
+              {l.league_image ? (
+                <Image
+                  source={{ uri: l.league_image }}
+                  style={[styles.cover, { width: TILE_SIZE, height: TILE_SIZE }]}
+                />
+              ) : (
+                <View
+                  style={[
+                    styles.cover,
+                    styles.coverFallback,
+                    { width: TILE_SIZE, height: TILE_SIZE, backgroundColor: pickColor(l.id) },
+                  ]}
+                >
+                  <Ionicons name="trophy" size={28} color="#FFFFFF" />
+                </View>
+              )}
             </ExpandableImage>
-            <View style={styles.rowInfo}>
-              <Text style={styles.rowTitle} numberOfLines={1}>{l.name}</Text>
-              <Text style={styles.rowSub} numberOfLines={1}>
-                {memberCount} {memberCount === 1 ? 'member' : 'members'}
-                {l.is_public ? ' · Public' : ''}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#6A6A6A" />
-          </TouchableOpacity>
-        );
-      })}
+            {!l.is_public && (
+              <View style={styles.lockBadge} pointerEvents="none">
+                <Ionicons name="lock-closed" size={14} color="#FFFFFF" />
+              </View>
+            )}
+          </View>
+          <Text style={styles.title} numberOfLines={1}>{l.name}</Text>
+        </TouchableOpacity>
+      ))}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  list: {
-    backgroundColor: '#181818',
-    marginHorizontal: 20,
-    marginTop: 4,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  row: {
+  grid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: HORIZ_PAD,
+    gap: GAP,
+    marginTop: 4,
+  },
+  tile: { marginBottom: 12 },
+  coverWrap: { position: 'relative' },
+  cover: { borderRadius: 8 },
+  coverFallback: {
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 12,
-    borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
+    justifyContent: 'center',
   },
-  rowLast: { borderBottomWidth: 0 },
-  thumb: {
-    width: 50, height: 50, borderRadius: 8,
-    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+  lockBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  thumbImg: { width: 50, height: 50, borderRadius: 8 },
-  rowInfo: { flex: 1 },
-  rowTitle: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
-  rowSub: { fontSize: 12, color: '#B3B3B3', marginTop: 3 },
+  title: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginTop: 6,
+  },
 
   empty: {
     paddingHorizontal: 24,

@@ -194,6 +194,17 @@ export default function LeagueDetailScreen() {
         // Ignore chat status errors
       }
     } catch (error: any) {
+      const status = error?.response?.status;
+      if (status === 403 || status === 404) {
+        // User no longer has access (league deleted, removed from private league, etc).
+        // Navigate away silently instead of showing an alert.
+        if (router.canGoBack()) {
+          router.back();
+        } else {
+          router.replace('/(tabs)');
+        }
+        return;
+      }
       console.error('Failed to fetch league:', error);
       Alert.alert('Error', 'Failed to load league details');
     } finally {
