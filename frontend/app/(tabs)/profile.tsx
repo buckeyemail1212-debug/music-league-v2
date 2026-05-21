@@ -25,14 +25,12 @@ import {
   getLeagueWins,
   getRoundsPlayed,
   getTopVoters,
-  getFollowCounts,
   League,
   MySubmission,
   UserStats,
   LifetimeStats,
   TasteBreakdown,
   TopVoter,
-  FollowCounts,
 } from '../../src/services/api';
 import { apiCache } from '../../src/services/apiCache';
 import { leagueEvents } from '../../src/utils/leagueEvents';
@@ -140,7 +138,6 @@ export default function MyGameScreen() {
 
   const [likedSongs, setLikedSongs] = useState<LikedSong[]>([]);
   const [showLiked, setShowLiked] = useState(false);
-  const [followCounts, setFollowCounts] = useState<FollowCounts | null>(null);
 
   const loadStats = useCallback(() => {
     const userId = user?.id;
@@ -209,16 +206,6 @@ export default function MyGameScreen() {
       () => getTopVoters().then((r) => r.data.data),
       setTopVoters,
     );
-    // Follow counts: dedicated prefix so submit/vote-driven cache wipes
-    // (auth-*, users-me-stats-*) don't churn it. Invalidated only when
-    // the user follows / unfollows from elsewhere in the app.
-    if (userId) {
-      run(
-        `follow-counts:${userId}`,
-        () => getFollowCounts(userId).then((r) => r.data.data),
-        setFollowCounts,
-      );
-    }
   }, [user?.id]);
 
   // Placement + total_submissions_in_round now arrive inline with each
@@ -296,35 +283,6 @@ export default function MyGameScreen() {
         <View style={styles.headerRow}>
           <Text style={styles.pageTitle}>MY GAME</Text>
         </View>
-
-        {/* Follower / following counts — tap to open the respective list
-            screens. Counts render an em-dash until the network resolves,
-            matching the placeholder convention of the stat tiles. */}
-        {user?.id ? (
-          <View style={styles.followCountsRow}>
-            <TouchableOpacity
-              style={styles.followCountItem}
-              activeOpacity={0.7}
-              onPress={() => router.push(`/user/${user.id}/followers` as any)}
-            >
-              <Text style={styles.followCountValue}>
-                {followCounts ? followCounts.followers.toLocaleString() : '—'}
-              </Text>
-              <Text style={styles.followCountLabel}>Followers</Text>
-            </TouchableOpacity>
-            <View style={styles.followCountDivider} />
-            <TouchableOpacity
-              style={styles.followCountItem}
-              activeOpacity={0.7}
-              onPress={() => router.push(`/user/${user.id}/following` as any)}
-            >
-              <Text style={styles.followCountValue}>
-                {followCounts ? followCounts.following.toLocaleString() : '—'}
-              </Text>
-              <Text style={styles.followCountLabel}>Following</Text>
-            </TouchableOpacity>
-          </View>
-        ) : null}
 
         {/* Stats grid — backed solely by lifetime/aggregate endpoints so
             Clear Account Data actually zeros the tiles. Per-league
@@ -647,22 +605,6 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#FFFFFF',
     letterSpacing: 1,
-  },
-  followCountsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 14,
-    gap: 24,
-  },
-  followCountItem: { alignItems: 'flex-start', minWidth: 70 },
-  followCountValue: { fontSize: 18, fontWeight: '800', color: '#FFFFFF' },
-  followCountLabel: {
-    fontSize: 11, fontWeight: '700', color: '#B3B3B3',
-    letterSpacing: 0.8, marginTop: 2, textTransform: 'uppercase',
-  },
-  followCountDivider: {
-    width: 1, height: 28, backgroundColor: 'rgba(255,255,255,0.1)',
   },
   statsGrid: {
     flexDirection: 'row',

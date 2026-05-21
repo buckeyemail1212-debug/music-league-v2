@@ -345,9 +345,6 @@ function Header({ onBack }: { onBack: () => void }) {
         <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
       </TouchableOpacity>
       <View style={styles.headerActions}>
-        <TouchableOpacity hitSlop={8} style={styles.headerBtn} onPress={() => { /* share — Tier 2 */ }}>
-          <Ionicons name="share-outline" size={22} color="#FFFFFF" />
-        </TouchableOpacity>
         <TouchableOpacity hitSlop={8} style={styles.headerBtn} onPress={() => { /* menu — Tier 2 */ }}>
           <Ionicons name="ellipsis-horizontal" size={22} color="#FFFFFF" />
         </TouchableOpacity>

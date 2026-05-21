@@ -11,6 +11,7 @@ interface User {
   display_name?: string;
   profile_photo?: string;
   created_at: string;
+  is_private?: boolean;
 }
 
 interface AuthContextType {

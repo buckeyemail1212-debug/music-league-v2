@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActionSheetIOS,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,7 +24,10 @@ import { useAuth } from '../src/context/AuthContext';
 import {
   clearAccountData,
   deleteAccountFull,
+  getFollowCounts,
+  FollowCounts,
 } from '../src/services/api';
+import { apiCache } from '../src/services/apiCache';
 import { leagueEvents } from '../src/utils/leagueEvents';
 
 export default function SettingsPage() {
@@ -42,6 +46,56 @@ export default function SettingsPage() {
   // so the two modals can differ in copy / CTA color.
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+
+  const [followCounts, setFollowCounts] = useState<FollowCounts | null>(null);
+  // Toggle state is sourced from the auth context (which already reflects
+  // is_private from the server). Local mirror lets us flip optimistically
+  // and roll back on PATCH failure without waiting for a context update.
+  const [isPrivate, setIsPrivate] = useState<boolean>(!!user?.is_private);
+  const [privacyBusy, setPrivacyBusy] = useState(false);
+
+  useEffect(() => {
+    setIsPrivate(!!user?.is_private);
+  }, [user?.is_private]);
+
+  const loadFollowCounts = useCallback(() => {
+    const userId = user?.id;
+    if (!userId) return;
+    apiCache
+      .swr(
+        `follow-counts:${userId}`,
+        () => getFollowCounts(userId).then((r) => r.data.data),
+        setFollowCounts,
+      )
+      .then(setFollowCounts)
+      .catch(() => {});
+  }, [user?.id]);
+
+  useEffect(() => {
+    loadFollowCounts();
+  }, [loadFollowCounts]);
+
+  const handleTogglePrivate = async (next: boolean) => {
+    if (privacyBusy) return;
+    const prev = isPrivate;
+    setIsPrivate(next);
+    setPrivacyBusy(true);
+    try {
+      // updateUser pushes the change to PUT /api/auth/me and refreshes
+      // both AsyncStorage and the auth context. The route accepts PATCH
+      // as well, but the existing helper uses PUT; the backend handler
+      // is shared so the wire result is identical.
+      await updateUser({ is_private: next });
+    } catch (e: any) {
+      setIsPrivate(prev);
+      Alert.alert(
+        'Could not update',
+        e?.response?.data?.detail || 'Please try again.',
+      );
+    } finally {
+      setPrivacyBusy(false);
+    }
+  };
 
   const pickFromGallery = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -248,6 +302,35 @@ export default function SettingsPage() {
           </TouchableOpacity>
         </View>
 
+        {/* Followers / Following counts — moved here from My Game; tap to
+            open the existing list screens. Em-dash placeholder while
+            follow-counts:${userId} is still in flight. */}
+        {user?.id ? (
+          <View style={styles.followCountsRow}>
+            <TouchableOpacity
+              style={styles.followCountItem}
+              activeOpacity={0.7}
+              onPress={() => router.push(`/user/${user.id}/followers` as any)}
+            >
+              <Text style={styles.followCountValue}>
+                {followCounts ? followCounts.followers.toLocaleString() : '—'}
+              </Text>
+              <Text style={styles.followCountLabel}>Followers</Text>
+            </TouchableOpacity>
+            <View style={styles.followCountDivider} />
+            <TouchableOpacity
+              style={styles.followCountItem}
+              activeOpacity={0.7}
+              onPress={() => router.push(`/user/${user.id}/following` as any)}
+            >
+              <Text style={styles.followCountValue}>
+                {followCounts ? followCounts.following.toLocaleString() : '—'}
+              </Text>
+              <Text style={styles.followCountLabel}>Following</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
         {/* How to Play */}
         <Text style={styles.sectionLabel}>How to Play</Text>
         <View style={styles.group}>
@@ -279,6 +362,14 @@ export default function SettingsPage() {
         {/* Account */}
         <Text style={styles.sectionLabel}>Account</Text>
         <View style={styles.group}>
+          <SwitchRow
+            icon="lock-closed-outline"
+            label="Private account"
+            value={isPrivate}
+            onValueChange={handleTogglePrivate}
+            disabled={privacyBusy}
+          />
+          <Separator />
           <Row
             icon="log-out-outline"
             label="Log out"
@@ -286,6 +377,9 @@ export default function SettingsPage() {
             last
           />
         </View>
+        <Text style={styles.helperCaption}>
+          Only approved followers can see your stats, leagues, and submissions when private.
+        </Text>
 
         {/* Danger */}
         <Text style={styles.sectionLabel}>Danger zone</Text>
@@ -525,6 +619,37 @@ function Row({
   );
 }
 
+function SwitchRow({
+  icon,
+  label,
+  value,
+  onValueChange,
+  disabled,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  label: string;
+  value: boolean;
+  onValueChange: (next: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <View style={styles.row}>
+      <View style={styles.rowLeft}>
+        <Ionicons name={icon} size={20} color="#B3B3B3" />
+        <Text style={styles.rowLabel}>{label}</Text>
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onValueChange}
+        disabled={disabled}
+        trackColor={{ false: '#3A3A3A', true: '#7C3AED' }}
+        thumbColor="#FFFFFF"
+        ios_backgroundColor="#3A3A3A"
+      />
+    </View>
+  );
+}
+
 function Separator() {
   return <View style={styles.separator} />;
 }
@@ -650,6 +775,35 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: 'rgba(255,255,255,0.05)',
     marginLeft: 50,
+  },
+
+  followCountsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: -8,
+    marginBottom: 8,
+    paddingHorizontal: 20,
+    gap: 28,
+  },
+  followCountItem: { alignItems: 'center', minWidth: 80 },
+  followCountValue: {
+    fontSize: 18, fontWeight: '800', color: '#FFFFFF',
+  },
+  followCountLabel: {
+    fontSize: 11, fontWeight: '700', color: '#B3B3B3',
+    letterSpacing: 0.8, marginTop: 2, textTransform: 'uppercase',
+  },
+  followCountDivider: {
+    width: 1, height: 28, backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+
+  helperCaption: {
+    fontSize: 12,
+    color: '#6A6A6A',
+    lineHeight: 17,
+    marginHorizontal: 20,
+    marginTop: 8,
   },
   version: {
     fontSize: 11,
