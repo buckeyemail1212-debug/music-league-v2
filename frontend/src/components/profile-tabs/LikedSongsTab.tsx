@@ -15,6 +15,7 @@ import {
   loadLikedSongs,
   subscribeLikedSongs,
   toggleLikedSong,
+  getCachedLikedSongs,
 } from '../../utils/likedSongs';
 
 const GRID_COLS = 3;
@@ -57,13 +58,13 @@ export default function LikedSongsTab() {
   useEffect(() => {
     if (!userId) return;
     const unsub = subscribeLikedSongs(userId, () => {
-      // Re-fetch — the cache map only stores the ids+payloads we've
-      // seen, and the in-memory copy is the same one the utility just
-      // mutated, so this call is served from cache 99% of the time.
-      load();
+      // Read directly from the in-memory cache instead of triggering a refetch
+      // via load(). load() goes through SWR which can return stale data and
+      // race with the optimistic setSongs(filter) in onUnlike.
+      setSongs(getCachedLikedSongs(userId));
     });
     return () => { unsub(); };
-  }, [userId, load]);
+  }, [userId]);
 
   const onUnlike = useCallback(
     async (song: LikedSong) => {
