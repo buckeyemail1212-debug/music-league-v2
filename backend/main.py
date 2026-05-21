@@ -587,11 +587,16 @@ class UserResponse(BaseModel):
     display_name: Optional[str] = None
     profile_photo: Optional[str] = None
     created_at: datetime
+    is_private: bool = False
 
 class UserUpdate(BaseModel):
     username: Optional[str] = None
     display_name: Optional[str] = None
     profile_photo: Optional[str] = None
+    is_private: Optional[bool] = None
+
+class FollowRequestBody(BaseModel):
+    user_id: str
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -912,7 +917,8 @@ async def register(user_data: UserCreate):
             email=user_data.email,
             username=user_data.username,
             display_name=user["display_name"],
-            created_at=user["created_at"]
+            created_at=user["created_at"],
+            is_private=bool(user.get("is_private", False)),
         )
     )
 
@@ -921,9 +927,9 @@ async def login(credentials: UserLogin):
     user = await db.users.find_one({"email": credentials.email})
     if not user or not verify_password(credentials.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
-    
+
     access_token = create_access_token({"sub": user["id"]})
-    
+
     return TokenResponse(
         access_token=access_token,
         user=UserResponse(
@@ -932,7 +938,8 @@ async def login(credentials: UserLogin):
             username=user["username"],
             display_name=user.get("display_name", user["username"]),
             profile_photo=user.get("profile_photo"),
-            created_at=user["created_at"]
+            created_at=user["created_at"],
+            is_private=bool(user.get("is_private", False)),
         )
     )
 
@@ -944,7 +951,8 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         username=current_user["username"],
         display_name=current_user.get("display_name", current_user["username"]),
         profile_photo=current_user.get("profile_photo"),
-        created_at=current_user["created_at"]
+        created_at=current_user["created_at"],
+        is_private=bool(current_user.get("is_private", False)),
     )
 
 def send_sms(to_phone: str, body: str):
@@ -2123,6 +2131,7 @@ async def _propagate_username_change(user_id: str, new_username: str) -> None:
 
 
 @api_router.put("/auth/me", response_model=UserResponse)
+@api_router.patch("/auth/me", response_model=UserResponse)
 async def update_profile(update_data: UserUpdate, current_user: dict = Depends(get_current_user)):
     update_fields = {}
     username_changed = False
@@ -2146,6 +2155,9 @@ async def update_profile(update_data: UserUpdate, current_user: dict = Depends(g
     if update_data.profile_photo is not None:
         update_fields["profile_photo"] = update_data.profile_photo
 
+    if update_data.is_private is not None:
+        update_fields["is_private"] = bool(update_data.is_private)
+
     if update_fields:
         await db.users.update_one({"id": current_user["id"]}, {"$set": update_fields})
 
@@ -2164,7 +2176,301 @@ async def update_profile(update_data: UserUpdate, current_user: dict = Depends(g
         display_name=user.get("display_name", user["username"]),
         profile_photo=user.get("profile_photo"),
         created_at=user["created_at"],
+        is_private=bool(user.get("is_private", False)),
     )
+
+# ==================== FOLLOW / SOCIAL GRAPH ENDPOINTS ====================
+
+def _validate_uuid(value: str, field: str = "user_id") -> str:
+    """Raise 400 if `value` is not a parseable UUID. Returns the normalized
+    string form so callers can use it directly as the lookup key."""
+    if not isinstance(value, str) or not value:
+        raise HTTPException(status_code=400, detail=f"Invalid {field}")
+    try:
+        return str(uuid.UUID(value))
+    except (ValueError, AttributeError, TypeError):
+        raise HTTPException(status_code=400, detail=f"Invalid {field}")
+
+
+async def _is_approved_follower(viewer_id: str, target_id: str) -> bool:
+    """True iff viewer follows target with status=approved. Used by privacy
+    gates (profile reads, etc.) — kept here as a single source of truth."""
+    if viewer_id == target_id:
+        return True
+    doc = await db.follows.find_one(
+        {"follower_id": viewer_id, "followed_id": target_id, "status": "approved"},
+        {"_id": 1},
+    )
+    return doc is not None
+
+
+def _user_summary(u: dict) -> dict:
+    """Compact public-safe user dict used in follower/following lists.
+    Mirrors the avatar_url field name the social UI expects, sourced from
+    the stored profile_photo column."""
+    return {
+        "user_id": u["id"],
+        "username": u.get("username"),
+        "avatar_url": u.get("profile_photo"),
+    }
+
+
+@api_router.post("/follow")
+async def follow_user(
+    body: FollowRequestBody,
+    current_user: dict = Depends(get_current_user),
+):
+    target_id = _validate_uuid(body.user_id)
+    me_id = current_user["id"]
+
+    if target_id == me_id:
+        raise HTTPException(status_code=400, detail="Cannot follow yourself")
+
+    target = await db.users.find_one({"id": target_id}, {"_id": 0, "id": 1, "is_private": 1})
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Idempotent: if a relationship already exists, return its current state.
+    existing = await db.follows.find_one(
+        {"follower_id": me_id, "followed_id": target_id},
+        {"_id": 0, "status": 1},
+    )
+    if existing:
+        return {"data": {"status": existing["status"]}}
+
+    new_status = "pending" if bool(target.get("is_private", False)) else "approved"
+    try:
+        await db.follows.insert_one({
+            "follower_id": me_id,
+            "followed_id": target_id,
+            "status": new_status,
+            "created_at": datetime.now(timezone.utc),
+        })
+    except Exception as e:
+        # Unique index on (follower_id, followed_id) means a parallel request
+        # may have inserted first; re-read and return whatever landed.
+        logger.warning(f"follow_insert_race: follower={me_id} followed={target_id} err={e}")
+        race = await db.follows.find_one(
+            {"follower_id": me_id, "followed_id": target_id},
+            {"_id": 0, "status": 1},
+        )
+        if race:
+            return {"data": {"status": race["status"]}}
+        raise HTTPException(status_code=500, detail="Failed to create follow")
+
+    return {"data": {"status": new_status}}
+
+
+@api_router.delete("/follow/{user_id}")
+async def unfollow_user(user_id: str, current_user: dict = Depends(get_current_user)):
+    target_id = _validate_uuid(user_id)
+    me_id = current_user["id"]
+
+    result = await db.follows.delete_one({"follower_id": me_id, "followed_id": target_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Not following this user")
+    return {"data": {"removed": True}}
+
+
+async def _list_follow_edges(
+    *,
+    me_id: str,
+    field: str,
+    other_field: str,
+    limit: int,
+    offset: int,
+) -> dict:
+    """Shared paginator for /followers and /following.
+
+    field        — column we filter on ("followed_id" → my followers, "follower_id" → who I follow)
+    other_field  — column whose value identifies the other user
+    """
+    cursor = (
+        db.follows.find({field: me_id, "status": "approved"}, {"_id": 0, other_field: 1, "created_at": 1})
+        .sort("created_at", -1)
+        .skip(offset)
+        .limit(limit)
+    )
+    edges = await cursor.to_list(length=limit)
+    other_ids = [e[other_field] for e in edges]
+    total = await db.follows.count_documents({field: me_id, "status": "approved"})
+
+    if not other_ids:
+        return {"data": {"users": [], "total": total}}
+
+    users = await db.users.find(
+        {"id": {"$in": other_ids}},
+        {"_id": 0, "id": 1, "username": 1, "profile_photo": 1},
+    ).to_list(length=len(other_ids))
+    users_by_id = {u["id"]: u for u in users}
+
+    # One query for all reciprocal edges. For /followers (field=followed_id)
+    # the reciprocal direction is me→them; for /following (field=follower_id)
+    # it's them→me. Either way the "other side" id sits opposite me_id in
+    # the returned doc, so we just extract whichever column isn't me.
+    if field == "followed_id":
+        reciprocal_filter = {"follower_id": me_id, "followed_id": {"$in": other_ids}, "status": "approved"}
+    else:
+        reciprocal_filter = {"follower_id": {"$in": other_ids}, "followed_id": me_id, "status": "approved"}
+    reciprocal = await db.follows.find(
+        reciprocal_filter,
+        {"_id": 0, "follower_id": 1, "followed_id": 1},
+    ).to_list(length=len(other_ids))
+    reciprocal_ids = {
+        r["followed_id"] if r["follower_id"] == me_id else r["follower_id"]
+        for r in reciprocal
+    }
+
+    out = []
+    for oid in other_ids:
+        u = users_by_id.get(oid)
+        if not u:
+            # User was deleted but the follow row outlived them. Skip silently.
+            continue
+        summary = _user_summary(u)
+        # Reciprocity flag name differs between the two endpoints per spec.
+        if field == "followed_id":
+            summary["is_following_me_back"] = oid in reciprocal_ids
+        else:
+            summary["follows_me_back"] = oid in reciprocal_ids
+        out.append(summary)
+
+    return {"data": {"users": out, "total": total}}
+
+
+@api_router.get("/users/me/followers")
+async def get_my_followers(
+    limit: int = 50,
+    offset: int = 0,
+    current_user: dict = Depends(get_current_user),
+):
+    limit = max(1, min(limit, 100))
+    offset = max(0, offset)
+    return await _list_follow_edges(
+        me_id=current_user["id"],
+        field="followed_id",
+        other_field="follower_id",
+        limit=limit,
+        offset=offset,
+    )
+
+
+@api_router.get("/users/me/following")
+async def get_my_following(
+    limit: int = 50,
+    offset: int = 0,
+    current_user: dict = Depends(get_current_user),
+):
+    limit = max(1, min(limit, 100))
+    offset = max(0, offset)
+    return await _list_follow_edges(
+        me_id=current_user["id"],
+        field="follower_id",
+        other_field="followed_id",
+        limit=limit,
+        offset=offset,
+    )
+
+
+@api_router.get("/users/{user_id}/follow-status")
+async def get_follow_status(user_id: str, current_user: dict = Depends(get_current_user)):
+    target_id = _validate_uuid(user_id)
+    me_id = current_user["id"]
+
+    if target_id == me_id:
+        return {"data": {"status": "self"}}
+
+    doc = await db.follows.find_one(
+        {"follower_id": me_id, "followed_id": target_id},
+        {"_id": 0, "status": 1},
+    )
+    return {"data": {"status": doc["status"] if doc else "none"}}
+
+
+@api_router.get("/users/{user_id}/follow-counts")
+async def get_follow_counts(user_id: str, current_user: dict = Depends(get_current_user)):
+    target_id = _validate_uuid(user_id)
+    # Counts are public per spec (Instagram model) — no privacy gate here.
+    followers_count, following_count = await asyncio.gather(
+        db.follows.count_documents({"followed_id": target_id, "status": "approved"}),
+        db.follows.count_documents({"follower_id": target_id, "status": "approved"}),
+    )
+    return {"data": {"followers": followers_count, "following": following_count}}
+
+
+@api_router.get("/users/me/follow-requests")
+async def get_my_follow_requests(
+    limit: int = 50,
+    offset: int = 0,
+    current_user: dict = Depends(get_current_user),
+):
+    limit = max(1, min(limit, 100))
+    offset = max(0, offset)
+    me_id = current_user["id"]
+
+    total = await db.follows.count_documents({"followed_id": me_id, "status": "pending"})
+    cursor = (
+        db.follows.find({"followed_id": me_id, "status": "pending"}, {"_id": 0, "follower_id": 1})
+        .sort("created_at", -1)
+        .skip(offset)
+        .limit(limit)
+    )
+    edges = await cursor.to_list(length=limit)
+    follower_ids = [e["follower_id"] for e in edges]
+    if not follower_ids:
+        return {"data": {"users": [], "total": total}}
+
+    users = await db.users.find(
+        {"id": {"$in": follower_ids}},
+        {"_id": 0, "id": 1, "username": 1, "profile_photo": 1},
+    ).to_list(length=len(follower_ids))
+    users_by_id = {u["id"]: u for u in users}
+
+    # Reciprocal check: do I (target of these pending requests) follow them back?
+    my_approved_following = await db.follows.find(
+        {"follower_id": me_id, "followed_id": {"$in": follower_ids}, "status": "approved"},
+        {"_id": 0, "followed_id": 1},
+    ).to_list(length=len(follower_ids))
+    following_back = {r["followed_id"] for r in my_approved_following}
+
+    out = []
+    for fid in follower_ids:
+        u = users_by_id.get(fid)
+        if not u:
+            continue
+        s = _user_summary(u)
+        s["is_following_me_back"] = fid in following_back
+        out.append(s)
+
+    return {"data": {"users": out, "total": total}}
+
+
+@api_router.post("/follow-requests/{user_id}/approve")
+async def approve_follow_request(user_id: str, current_user: dict = Depends(get_current_user)):
+    requester_id = _validate_uuid(user_id)
+    me_id = current_user["id"]
+
+    result = await db.follows.update_one(
+        {"follower_id": requester_id, "followed_id": me_id, "status": "pending"},
+        {"$set": {"status": "approved"}},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="No pending follow request from this user")
+    return {"data": {"approved": True}}
+
+
+@api_router.post("/follow-requests/{user_id}/deny")
+async def deny_follow_request(user_id: str, current_user: dict = Depends(get_current_user)):
+    requester_id = _validate_uuid(user_id)
+    me_id = current_user["id"]
+
+    result = await db.follows.delete_one(
+        {"follower_id": requester_id, "followed_id": me_id, "status": "pending"},
+    )
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="No pending follow request from this user")
+    return {"data": {"denied": True}}
+
 
 # ==================== LEAGUE ENDPOINTS ====================
 
@@ -6004,6 +6310,26 @@ async def past_leagues_startup_maintenance():
         await db.submissions.create_index("round_id")
     except Exception as e:
         logger.warning(f"submissions round_id index creation failed: {e}")
+    # Social-graph indexes. Compound (follower_id, followed_id) is unique
+    # so the database itself enforces "one relationship per pair" — the
+    # POST /follow handler also has an idempotent re-read fallback for the
+    # racing-insert case.
+    try:
+        await db.follows.create_index("follower_id")
+    except Exception as e:
+        logger.warning(f"follows follower_id index creation failed: {e}")
+    try:
+        await db.follows.create_index("followed_id")
+    except Exception as e:
+        logger.warning(f"follows followed_id index creation failed: {e}")
+    try:
+        await db.follows.create_index(
+            [("follower_id", 1), ("followed_id", 1)],
+            unique=True,
+            name="follows_pair_unique",
+        )
+    except Exception as e:
+        logger.warning(f"follows pair unique index creation failed: {e}")
     # One-time genre backfill for public leagues created before the field
     # existed. Writes "General" for any public league missing or with a
     # blank genre; leaves private leagues alone.
