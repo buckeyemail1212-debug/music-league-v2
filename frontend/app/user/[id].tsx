@@ -8,12 +8,15 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  Platform,
+  ActionSheetIOS,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
 import {
+  blockUser,
   followUser,
   getFollowStatus,
   getUserProfile,
@@ -175,6 +178,142 @@ export default function UserProfileScreen() {
     }
   };
 
+  // ── menu (3-dot) ───────────────────────────────────────────────────
+
+  const confirmBlock = () => {
+    if (!profile) return;
+    const username = profile.username;
+    Alert.alert(
+      `Block @${username}?`,
+      `They won't be able to see your profile or join leagues with you. You can unblock from Settings.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await blockUser(profile.user_id);
+            } catch (e: any) {
+              // 409 = active-shared-league rule. Surface the exact
+              // backend message so the user knows what to do.
+              if (e?.response?.status === 409 && e?.response?.data?.detail) {
+                Alert.alert('Could not block', e.response.data.detail);
+              } else {
+                Alert.alert(
+                  'Could not block',
+                  e?.response?.data?.detail || 'Please try again.',
+                );
+              }
+              return;
+            }
+            // Invalidate every cache that could be showing target's
+            // data to this viewer, plus the viewer's Settings list.
+            apiCache.invalidate(profileCacheKey(profile.user_id, viewerId));
+            apiCache.invalidate(statusCacheKey(profile.user_id, viewerId));
+            apiCache.invalidate(`user-followers:${profile.user_id}:${viewerId}`);
+            apiCache.invalidate(`user-following:${profile.user_id}:${viewerId}`);
+            apiCache.invalidate(`user-leagues:${profile.user_id}:${viewerId}`);
+            apiCache.invalidate(`user-liked-songs:${profile.user_id}:${viewerId}`);
+            apiCache.invalidate(`blocked-users:${viewerId}`);
+            Alert.alert('Blocked', `Blocked @${username}.`);
+            // Leave the now-blocked profile in place — they'd see 404
+            // on a refresh anyway, so back-out is the clean exit.
+            router.back();
+          },
+        },
+      ],
+    );
+  };
+
+  const buildMenuOptions = (): {
+    label: string;
+    onPress: () => void;
+    destructive?: boolean;
+  }[] => {
+    if (!profile) return [];
+    const username = profile.username;
+    const opts: { label: string; onPress: () => void; destructive?: boolean }[] = [];
+
+    // Order: the non-destructive follow-state action comes first
+    // (Unfollow / Cancel request), then the destructive Block. Limited
+    // view follows the same logic — 'approved' isn't possible there.
+    if (followStatus === 'approved') {
+      opts.push({
+        label: `Unfollow @${username}`,
+        onPress: () =>
+          doUnfollow({
+            title: `Unfollow @${username}?`,
+            message: 'You’ll need to follow them again to see their game.',
+          }),
+      });
+    } else if (followStatus === 'pending') {
+      opts.push({
+        label: 'Cancel request',
+        onPress: () =>
+          doUnfollow({
+            title: `Cancel follow request to @${username}?`,
+            message: '',
+          }),
+      });
+    }
+
+    opts.push({
+      label: `Block @${username}`,
+      onPress: confirmBlock,
+      destructive: true,
+    });
+
+    return opts;
+  };
+
+  const handleMenuPress = () => {
+    const options = buildMenuOptions();
+    if (options.length === 0) return;
+    const username = profile?.username ?? '';
+    if (Platform.OS === 'ios') {
+      // Native bottom sheet — matches the photo-picker pattern
+      // already used elsewhere in the app (settings.tsx).
+      const labels = [...options.map((o) => o.label), 'Cancel'];
+      const cancelButtonIndex = labels.length - 1;
+      const destructiveButtonIndex = options.findIndex((o) => o.destructive);
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          title: `@${username}`,
+          options: labels,
+          cancelButtonIndex,
+          destructiveButtonIndex: destructiveButtonIndex >= 0 ? destructiveButtonIndex : undefined,
+        },
+        (i) => {
+          if (i === cancelButtonIndex || i === undefined) return;
+          options[i]?.onPress();
+        },
+      );
+    } else {
+      // Android falls back to Alert — same pattern as the photo
+      // picker. Alert button order matches iOS sheet for parity.
+      Alert.alert(
+        `@${username}`,
+        '',
+        [
+          ...options.map((o) => ({
+            text: o.label,
+            style: o.destructive ? ('destructive' as const) : undefined,
+            onPress: o.onPress,
+          })),
+          { text: 'Cancel', style: 'cancel' as const },
+        ],
+      );
+    }
+  };
+
+  // The 3-dot menu only makes sense once we know who we're looking at
+  // AND we're not on a self view. Self never reaches this branch
+  // because of the redirect above, but the defensive guard stays.
+  // followStatus may still be null (in flight) — Block is always
+  // available, so we show the menu and let buildMenuOptions decide.
+  const menuVisible = !!profile && followStatus !== 'self';
+
   // ── render branches ────────────────────────────────────────────────
 
   if (loadError === 'notfound') {
@@ -248,7 +387,10 @@ export default function UserProfileScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Header onBack={() => router.back()} />
+      <Header
+        onBack={() => router.back()}
+        onMenu={menuVisible ? handleMenuPress : undefined}
+      />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         {/* Identity block */}
         <View style={styles.identity}>
@@ -348,16 +490,29 @@ export default function UserProfileScreen() {
   );
 }
 
-function Header({ onBack }: { onBack: () => void }) {
+function Header({
+  onBack,
+  onMenu,
+}: {
+  onBack: () => void;
+  onMenu?: () => void;
+}) {
   return (
     <View style={styles.header}>
       <TouchableOpacity onPress={onBack} hitSlop={8} style={styles.headerBtn}>
         <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
       </TouchableOpacity>
       <View style={styles.headerActions}>
-        <TouchableOpacity hitSlop={8} style={styles.headerBtn} onPress={() => { /* menu — later */ }}>
-          <Ionicons name="ellipsis-horizontal" size={22} color="#FFFFFF" />
-        </TouchableOpacity>
+        {onMenu ? (
+          <TouchableOpacity hitSlop={8} style={styles.headerBtn} onPress={onMenu}>
+            <Ionicons name="ellipsis-horizontal" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+        ) : (
+          // Preserve the header's right-side width when the menu is
+          // hidden (e.g., loading / 404) so the back chevron stays in
+          // the same visual position.
+          <View style={styles.headerBtn} />
+        )}
       </View>
     </View>
   );
