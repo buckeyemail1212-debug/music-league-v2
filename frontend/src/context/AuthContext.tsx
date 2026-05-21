@@ -12,6 +12,8 @@ interface User {
   profile_photo?: string;
   created_at: string;
   is_private?: boolean;
+  pronouns?: string | null;
+  bio?: string | null;
 }
 
 interface AuthContextType {

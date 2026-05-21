@@ -565,6 +565,8 @@ export interface UserProfileResponse {
   follower_count: number;
   following_count: number;
   is_limited: boolean;
+  pronouns?: string | null;
+  bio?: string | null;
   stats?: UserProfileStats;
   taste?: TasteBreakdown;
   recent_submissions?: MySubmission[];

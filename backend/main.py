@@ -588,12 +588,21 @@ class UserResponse(BaseModel):
     profile_photo: Optional[str] = None
     created_at: datetime
     is_private: bool = False
+    pronouns: Optional[str] = None
+    bio: Optional[str] = None
 
 class UserUpdate(BaseModel):
     username: Optional[str] = None
     display_name: Optional[str] = None
     profile_photo: Optional[str] = None
     is_private: Optional[bool] = None
+    pronouns: Optional[str] = None
+    bio: Optional[str] = None
+
+# Length caps for the new profile fields. Enforced server-side so the
+# stored data can't grow past what the UI can render.
+PRONOUNS_MAX_LENGTH: int = 30
+BIO_MAX_LENGTH: int = 75
 
 class FollowRequestBody(BaseModel):
     user_id: str
@@ -919,6 +928,8 @@ async def register(user_data: UserCreate):
             display_name=user["display_name"],
             created_at=user["created_at"],
             is_private=bool(user.get("is_private", False)),
+            pronouns=user.get("pronouns"),
+            bio=user.get("bio"),
         )
     )
 
@@ -940,6 +951,8 @@ async def login(credentials: UserLogin):
             profile_photo=user.get("profile_photo"),
             created_at=user["created_at"],
             is_private=bool(user.get("is_private", False)),
+            pronouns=user.get("pronouns"),
+            bio=user.get("bio"),
         )
     )
 
@@ -953,6 +966,8 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         profile_photo=current_user.get("profile_photo"),
         created_at=current_user["created_at"],
         is_private=bool(current_user.get("is_private", False)),
+        pronouns=current_user.get("pronouns"),
+        bio=current_user.get("bio"),
     )
 
 def send_sms(to_phone: str, body: str):
@@ -2158,6 +2173,26 @@ async def update_profile(update_data: UserUpdate, current_user: dict = Depends(g
     if update_data.is_private is not None:
         update_fields["is_private"] = bool(update_data.is_private)
 
+    if update_data.pronouns is not None:
+        # Empty string clears the field — store as None so the UI renders
+        # the placeholder branch instead of a blank line.
+        pronouns = update_data.pronouns.strip()
+        if len(pronouns) > PRONOUNS_MAX_LENGTH:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Pronouns must be {PRONOUNS_MAX_LENGTH} characters or fewer.",
+            )
+        update_fields["pronouns"] = pronouns or None
+
+    if update_data.bio is not None:
+        bio = update_data.bio.strip()
+        if len(bio) > BIO_MAX_LENGTH:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Bio must be {BIO_MAX_LENGTH} characters or fewer.",
+            )
+        update_fields["bio"] = bio or None
+
     if update_fields:
         await db.users.update_one({"id": current_user["id"]}, {"$set": update_fields})
 
@@ -2177,6 +2212,8 @@ async def update_profile(update_data: UserUpdate, current_user: dict = Depends(g
         profile_photo=user.get("profile_photo"),
         created_at=user["created_at"],
         is_private=bool(user.get("is_private", False)),
+        pronouns=user.get("pronouns"),
+        bio=user.get("bio"),
     )
 
 # ==================== FOLLOW / SOCIAL GRAPH ENDPOINTS ====================
@@ -3012,6 +3049,10 @@ async def get_user_profile(user_id: str, current_user: dict = Depends(get_curren
         "is_private": target_private,
         "follower_count": follower_count,
         "following_count": following_count,
+        # Header-display fields — surfaced even in the limited shape so
+        # private accounts still render with their bio/pronouns visible.
+        "pronouns": target.get("pronouns"),
+        "bio": target.get("bio"),
     }
 
     if not allow_full:

@@ -31,6 +31,7 @@ import { Audio } from 'expo-av';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import { useAuth } from '../../src/context/AuthContext';
 import { PreviewPlayButton, stopAllPreviews } from '../../src/components/PreviewPlayButton';
+import LikeButton from '../../src/components/LikeButton';
 import AlbumArt from '../../src/components/AlbumArt';
 import {
   getRound,
@@ -492,6 +493,7 @@ export default function RoundScreen() {
           )}
         </View>
         <View style={styles.submissionActions}>
+          <LikeButton song={item.song} size={20} style={styles.likeBtnGap} />
           <PreviewPlayButton
             previewUrl={item.song.preview_url}
             deezerId={item.song.deezer_id}
@@ -549,6 +551,7 @@ export default function RoundScreen() {
             </Pressable>
           </View>
         </View>
+        <LikeButton song={submission.song} size={22} style={styles.likeBtnGap} />
         <PreviewPlayButton
           previewUrl={submission.song.preview_url}
           deezerId={submission.song.deezer_id}
@@ -591,6 +594,7 @@ export default function RoundScreen() {
           </View>
         </View>
         <View style={styles.votingActions}>
+          <LikeButton song={submission.song} size={22} style={styles.likeBtnGap} />
           <PreviewPlayButton
             previewUrl={submission.song.preview_url}
             deezerId={submission.song.deezer_id}
@@ -701,6 +705,7 @@ export default function RoundScreen() {
             </Pressable>
           </View>
         </View>
+        <LikeButton song={item.song} size={22} style={styles.likeBtnGap} />
         <PreviewPlayButton
           previewUrl={item.song.preview_url}
           deezerId={item.song.deezer_id}
@@ -882,6 +887,7 @@ export default function RoundScreen() {
                       </Pressable>
                     </View>
                   </View>
+                  <LikeButton song={sub.song} size={20} style={styles.likeBtnGap} />
                   <PreviewPlayButton
                     previewUrl={sub.song.preview_url}
                     deezerId={sub.song.deezer_id}
@@ -1147,6 +1153,7 @@ export default function RoundScreen() {
                               </View>
                             </View>
                           </View>
+                          <LikeButton song={w.song} size={18} style={styles.likeBtnWinner} />
                           <PreviewPlayButton
                             previewUrl={w.song.preview_url}
                             deezerId={w.song.deezer_id}
@@ -1195,6 +1202,7 @@ export default function RoundScreen() {
                         </View>
                       </View>
                     </View>
+                    <LikeButton song={results.winners[0].song} size={18} style={styles.likeBtnWinner} />
                     <PreviewPlayButton
                       previewUrl={results.winners[0].song.preview_url}
                       deezerId={results.winners[0].song.deezer_id}
@@ -1737,6 +1745,7 @@ function ResultsRankRow({
             </Pressable>
           </View>
         </View>
+        <LikeButton song={item.song} size={20} style={styles.likeBtnGap} />
         <PreviewPlayButton
           previewUrl={item.song.preview_url}
           deezerId={item.song.deezer_id}
@@ -2274,6 +2283,16 @@ const styles = StyleSheet.create({
   },
   singleWinnerText: {
     flex: 1,
+  },
+  likeBtnGap: {
+    marginRight: 8,
+  },
+  likeBtnWinner: {
+    marginRight: 8,
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   playButtonWinner: {
     width: 28,
