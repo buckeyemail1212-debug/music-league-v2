@@ -79,6 +79,10 @@ export default function JoinLeaguePage() {
       const detail = e?.response?.data?.detail || '';
       if (status === 404) {
         setErrorText("That code doesn't match any league. Double-check and try again.");
+      } else if (status === 403 && /block/i.test(detail)) {
+        // Block message is intentionally generic — don't reveal which
+        // member triggered it.
+        setErrorText("You can't join this league because of a block.");
       } else if (status === 400 && /already a member/i.test(detail)) {
         setErrorText("You're already in this league.");
       } else if (status === 400) {

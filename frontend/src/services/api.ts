@@ -645,6 +645,28 @@ export const migrateLikedSongs = (songs: LikedSong[]) =>
     { songs },
   );
 
+// ── Blocking ──────────────────────────────────────────────────────────────
+
+export interface BlockedUser {
+  user_id: string;
+  username: string;
+  avatar_url?: string | null;
+}
+
+export interface BlockedUsersResponse {
+  users: BlockedUser[];
+  total: number;
+}
+
+export const blockUser = (userId: string) =>
+  api.post<{ data: { blocked: true } }>('/block', { user_id: userId });
+
+export const unblockUser = (userId: string) =>
+  api.delete<{ data: { blocked: false } }>(`/block/${userId}`);
+
+export const getBlockedUsers = (limit: number = 50, offset: number = 0) =>
+  api.get<{ data: BlockedUsersResponse }>('/blocked', { params: { limit, offset } });
+
 export const getUserFollowers = (
   userId: string,
   params?: { limit?: number; offset?: number },

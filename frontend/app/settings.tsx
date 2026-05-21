@@ -381,6 +381,19 @@ export default function SettingsPage() {
           Only approved followers can see your stats, leagues, and submissions when private.
         </Text>
 
+        {/* Blocked accounts — between Account and Danger Zone so it's
+            easy to find without sitting next to the destructive
+            actions. */}
+        <Text style={styles.sectionLabel}>Blocked accounts</Text>
+        <View style={styles.group}>
+          <Row
+            icon="ban-outline"
+            label="Blocked accounts"
+            onPress={() => router.push('/blocked-accounts' as any)}
+            last
+          />
+        </View>
+
         {/* Danger */}
         <Text style={styles.sectionLabel}>Danger zone</Text>
         <View style={styles.group}>

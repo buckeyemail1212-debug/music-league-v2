@@ -33,7 +33,15 @@ export default function JoinScreen() {
       setLeagueCode('');
       router.push(`/league/${response.data.id}`);
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.detail || 'Failed to join league');
+      const status = error?.response?.status;
+      const detail = error?.response?.data?.detail || '';
+      if (status === 403 && /block/i.test(detail)) {
+        // Block error is intentionally generic so we don't reveal
+        // which member is responsible.
+        Alert.alert('Error', "You can't join this league because of a block.");
+      } else {
+        Alert.alert('Error', detail || 'Failed to join league');
+      }
     } finally {
       setJoining(false);
     }

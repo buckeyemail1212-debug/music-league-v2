@@ -142,10 +142,14 @@ export default function PublicLeaguesPage() {
       );
       leagueEvents.emit();
     } catch (e: any) {
-      Alert.alert(
-        'Could not join',
-        e?.response?.data?.detail || 'Please try again.',
-      );
+      const status = e?.response?.status;
+      const detail = e?.response?.data?.detail || '';
+      if (status === 403 && /block/i.test(detail)) {
+        // Generic block message — never name the blocking member.
+        Alert.alert('Could not join', "You can't join this league because of a block.");
+      } else {
+        Alert.alert('Could not join', detail || 'Please try again.');
+      }
     } finally {
       setJoiningId(null);
     }

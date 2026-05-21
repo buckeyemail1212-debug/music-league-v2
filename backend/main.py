@@ -2267,6 +2267,11 @@ async def follow_user(
     if not target:
         raise HTTPException(status_code=404, detail="User not found")
 
+    # Block gate. Same 404 either direction so the response is
+    # indistinguishable from a missing-user response.
+    if await _is_blocked_either_direction(me_id, target_id):
+        raise HTTPException(status_code=404, detail="User not found")
+
     # Idempotent: if a relationship already exists, return its current state.
     existing = await db.follows.find_one(
         {"follower_id": me_id, "followed_id": target_id},
@@ -2516,6 +2521,8 @@ async def get_user_followers(
 ):
     target_id = _validate_uuid(user_id)
     viewer_id = current_user["id"]
+    if await _is_blocked_either_direction(viewer_id, target_id):
+        raise HTTPException(status_code=404, detail="User not found")
     await _privacy_gate_or_403(target_id, viewer_id)
     limit = max(1, min(limit, 100))
     offset = max(0, offset)
@@ -2537,6 +2544,8 @@ async def get_user_following(
 ):
     target_id = _validate_uuid(user_id)
     viewer_id = current_user["id"]
+    if await _is_blocked_either_direction(viewer_id, target_id):
+        raise HTTPException(status_code=404, detail="User not found")
     await _privacy_gate_or_403(target_id, viewer_id)
     limit = max(1, min(limit, 100))
     offset = max(0, offset)
@@ -2557,6 +2566,9 @@ async def get_follow_status(user_id: str, current_user: dict = Depends(get_curre
     if target_id == me_id:
         return {"data": {"status": "self"}}
 
+    if await _is_blocked_either_direction(me_id, target_id):
+        raise HTTPException(status_code=404, detail="User not found")
+
     doc = await db.follows.find_one(
         {"follower_id": me_id, "followed_id": target_id},
         {"_id": 0, "status": 1},
@@ -2567,6 +2579,8 @@ async def get_follow_status(user_id: str, current_user: dict = Depends(get_curre
 @api_router.get("/users/{user_id}/follow-counts")
 async def get_follow_counts(user_id: str, current_user: dict = Depends(get_current_user)):
     target_id = _validate_uuid(user_id)
+    if await _is_blocked_either_direction(current_user["id"], target_id):
+        raise HTTPException(status_code=404, detail="User not found")
     # Counts are public per spec (Instagram model) — no privacy gate here.
     followers_count, following_count = await asyncio.gather(
         db.follows.count_documents({"followed_id": target_id, "status": "approved"}),
@@ -2647,6 +2661,200 @@ async def deny_follow_request(user_id: str, current_user: dict = Depends(get_cur
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="No pending follow request from this user")
     return {"data": {"denied": True}}
+
+
+# ==================== BLOCKING ENDPOINTS ====================
+#
+# Blocks are directional rows in the `blocks` collection, but the
+# enforcement is symmetric: if A has blocked B or B has blocked A,
+# neither can see or interact with the other through the social
+# surfaces (profile, follow, likes, league join). Blocked users see
+# the same 404 a missing user would produce — we never confirm a
+# block exists.
+#
+# Creating a block also auto-tears down both follow directions so
+# stale relationships can't survive the block. The
+# `_users_share_active_league` check fires before any new block
+# lands; the rule is that you cannot block someone while you're
+# co-members of any league that still has unfinished rounds.
+
+
+async def _is_blocked_either_direction(user_a_id: str, user_b_id: str) -> bool:
+    """True iff A has blocked B or B has blocked A. One DB read."""
+    if not user_a_id or not user_b_id or user_a_id == user_b_id:
+        return False
+    doc = await db.blocks.find_one(
+        {
+            "$or": [
+                {"blocker_id": user_a_id, "blocked_id": user_b_id},
+                {"blocker_id": user_b_id, "blocked_id": user_a_id},
+            ]
+        },
+        {"_id": 1},
+    )
+    return doc is not None
+
+
+async def _league_has_blocked_member(viewer_id: str, members: list) -> bool:
+    """True iff the viewer has a block (in either direction) with at
+    least one user in `members`. Used by the league-join handlers to
+    refuse new shared memberships across block boundaries. Single
+    Mongo query keeps the check cheap even for full public leagues."""
+    if not viewer_id or not members:
+        return False
+    member_ids = [m.get("id") for m in members if m.get("id") and m.get("id") != viewer_id]
+    if not member_ids:
+        return False
+    doc = await db.blocks.find_one(
+        {
+            "$or": [
+                {"blocker_id": viewer_id, "blocked_id": {"$in": member_ids}},
+                {"blocker_id": {"$in": member_ids}, "blocked_id": viewer_id},
+            ]
+        },
+        {"_id": 1},
+    )
+    return doc is not None
+
+
+async def _users_share_active_league(user_a_id: str, user_b_id: str) -> bool:
+    """True iff both users are members of any non-deleted league that
+    still has at least one non-completed round. Used to gate new
+    blocks — finishing the league first is the way out."""
+    if not user_a_id or not user_b_id or user_a_id == user_b_id:
+        return False
+    shared = await db.leagues.find(
+        {"members.id": {"$all": [user_a_id, user_b_id]}},
+        {"_id": 0, "id": 1, "deleted_at": 1},
+    ).to_list(500)
+    active_league_ids = [l["id"] for l in shared if not l.get("deleted_at")]
+    if not active_league_ids:
+        return False
+    non_completed = await db.rounds.count_documents({
+        "league_id": {"$in": active_league_ids},
+        "status": {"$ne": "completed"},
+    })
+    return non_completed > 0
+
+
+@api_router.post("/block")
+async def block_user(
+    body: FollowRequestBody,
+    current_user: dict = Depends(get_current_user),
+):
+    target_id = _validate_uuid(body.user_id)
+    me_id = current_user["id"]
+
+    if target_id == me_id:
+        raise HTTPException(status_code=400, detail="Cannot block yourself")
+
+    target = await db.users.find_one({"id": target_id}, {"_id": 0, "id": 1})
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Idempotent — return existing state if already blocked.
+    existing = await db.blocks.find_one(
+        {"blocker_id": me_id, "blocked_id": target_id}, {"_id": 1},
+    )
+    if existing:
+        return {"data": {"blocked": True}}
+
+    if await _users_share_active_league(me_id, target_id):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "You cannot block this user while you're in an active league "
+                "together. Once all your shared leagues complete, blocking "
+                "will be available."
+            ),
+        )
+
+    # Tear down any existing follow edges between the two users in
+    # either direction. Best-effort — block insertion is the contract;
+    # the follow rows would be unreachable anyway once the block lands.
+    try:
+        await db.follows.delete_many({
+            "$or": [
+                {"follower_id": me_id, "followed_id": target_id},
+                {"follower_id": target_id, "followed_id": me_id},
+            ]
+        })
+    except Exception as e:
+        logger.warning(
+            f"block follows-teardown failed: blocker={me_id} blocked={target_id} "
+            f"err={type(e).__name__}: {e}"
+        )
+
+    try:
+        await db.blocks.insert_one({
+            "blocker_id": me_id,
+            "blocked_id": target_id,
+            "created_at": datetime.now(timezone.utc),
+        })
+    except Exception as e:
+        # Unique-index race: another request landed first. Treat as
+        # already-blocked rather than 500.
+        logger.warning(
+            f"block insert race: blocker={me_id} blocked={target_id} "
+            f"err={type(e).__name__}: {e}"
+        )
+
+    return {"data": {"blocked": True}}
+
+
+@api_router.delete("/block/{user_id}")
+async def unblock_user(user_id: str, current_user: dict = Depends(get_current_user)):
+    target_id = _validate_uuid(user_id)
+    me_id = current_user["id"]
+
+    # Idempotent unblock. Removing only the viewer's outbound block —
+    # if the target had blocked the viewer back, that row stays
+    # untouched.
+    await db.blocks.delete_one({"blocker_id": me_id, "blocked_id": target_id})
+    return {"data": {"blocked": False}}
+
+
+@api_router.get("/blocked")
+async def get_blocked_users(
+    limit: int = 50,
+    offset: int = 0,
+    current_user: dict = Depends(get_current_user),
+):
+    limit = max(1, min(limit, 100))
+    offset = max(0, offset)
+    me_id = current_user["id"]
+
+    total = await db.blocks.count_documents({"blocker_id": me_id})
+    edges = await (
+        db.blocks.find({"blocker_id": me_id}, {"_id": 0, "blocked_id": 1, "created_at": 1})
+        .sort("created_at", -1)
+        .skip(offset)
+        .limit(limit)
+        .to_list(length=limit)
+    )
+    blocked_ids = [e["blocked_id"] for e in edges]
+    if not blocked_ids:
+        return {"data": {"users": [], "total": total}}
+
+    users = await db.users.find(
+        {"id": {"$in": blocked_ids}},
+        {"_id": 0, "id": 1, "username": 1, "profile_photo": 1},
+    ).to_list(length=len(blocked_ids))
+    users_by_id = {u["id"]: u for u in users}
+
+    out: list[dict] = []
+    for bid in blocked_ids:
+        u = users_by_id.get(bid)
+        if not u:
+            # Blocked user was hard-deleted — skip the orphan row but
+            # leave the block in place; it's a no-op now.
+            continue
+        out.append({
+            "user_id": u["id"],
+            "username": u.get("username"),
+            "avatar_url": u.get("profile_photo"),
+        })
+    return {"data": {"users": out, "total": total}}
 
 
 # ==================== USER PROFILE (PUBLIC VIEW) ====================
@@ -3032,6 +3240,9 @@ async def get_user_profile(user_id: str, current_user: dict = Depends(get_curren
     if not target:
         raise HTTPException(status_code=404, detail="User not found")
 
+    if await _is_blocked_either_direction(viewer_id, target_id):
+        raise HTTPException(status_code=404, detail="User not found")
+
     is_self = viewer_id == target_id
     target_private = bool(target.get("is_private", False))
     is_approved = is_self or await _is_approved_follower(viewer_id, target_id)
@@ -3217,6 +3428,8 @@ async def get_user_liked_songs(
 ):
     target_id = _validate_uuid(user_id)
     viewer_id = current_user["id"]
+    if await _is_blocked_either_direction(viewer_id, target_id):
+        raise HTTPException(status_code=404, detail="User not found")
     await _privacy_gate_or_403(target_id, viewer_id)
     return await _list_liked_songs(target_id, limit, offset)
 
@@ -3820,6 +4033,12 @@ async def join_league(request: JoinLeagueRequest, current_user: dict = Depends(g
             detail="This league has already started. New members can only join before the first round begins.",
         )
 
+    if await _league_has_blocked_member(current_user["id"], league.get("members", [])):
+        raise HTTPException(
+            status_code=403,
+            detail="You can't join this league because of a block.",
+        )
+
     # Add user to members
     await db.leagues.update_one(
         {"id": league["id"]},
@@ -3856,6 +4075,12 @@ async def join_public_league(league_id: str, current_user: dict = Depends(get_cu
     cap = league.get("member_cap") or PUBLIC_MEMBER_CAP_DEFAULT
     if len(members) >= cap:
         raise HTTPException(status_code=400, detail="League is full.")
+
+    if await _league_has_blocked_member(current_user["id"], members):
+        raise HTTPException(
+            status_code=403,
+            detail="You can't join this league because of a block.",
+        )
 
     await db.leagues.update_one(
         {"id": league_id},
@@ -7120,6 +7345,25 @@ async def past_leagues_startup_maintenance():
         )
     except Exception as e:
         logger.warning(f"liked_songs user/deezer unique index creation failed: {e}")
+    # Blocking: blocker/blocked individually power the inbound/outbound
+    # lookups; the compound unique pair index is what makes POST /block
+    # idempotent and race-safe.
+    try:
+        await db.blocks.create_index("blocker_id")
+    except Exception as e:
+        logger.warning(f"blocks blocker_id index creation failed: {e}")
+    try:
+        await db.blocks.create_index("blocked_id")
+    except Exception as e:
+        logger.warning(f"blocks blocked_id index creation failed: {e}")
+    try:
+        await db.blocks.create_index(
+            [("blocker_id", 1), ("blocked_id", 1)],
+            unique=True,
+            name="blocks_pair_unique",
+        )
+    except Exception as e:
+        logger.warning(f"blocks pair unique index creation failed: {e}")
     # One-time genre backfill for public leagues created before the field
     # existed. Writes "General" for any public league missing or with a
     # blank genre; leaves private leagues alone.
