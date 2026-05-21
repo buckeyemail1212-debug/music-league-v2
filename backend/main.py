@@ -3547,6 +3547,62 @@ async def get_user_liked_songs(
     return await _list_liked_songs(target_id, limit, offset)
 
 
+@api_router.get("/users/{user_id}/leagues")
+async def get_user_leagues(
+    user_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Leagues the target user is a member of. Used by the public
+    profile screen's "Leagues" tab. Same block + privacy gates as the
+    rest of the user-scoped reads. `invite_code` is always nulled on
+    cross-user reads — non-members shouldn't discover invite codes
+    through a profile page; they join via the public-leagues flow."""
+    target_id = _validate_uuid(user_id)
+    viewer_id = current_user["id"]
+    if await _is_blocked_either_direction(viewer_id, target_id):
+        raise HTTPException(status_code=404, detail="User not found")
+    await _privacy_gate_or_403(target_id, viewer_id)
+
+    rows = await db.leagues.find(
+        {
+            "members.id": target_id,
+            "$or": [{"deleted_at": {"$exists": False}}, {"deleted_at": None}],
+        },
+        {
+            "_id": 0,
+            "id": 1,
+            "name": 1,
+            "league_image": 1,
+            "members": 1,
+            "is_public": 1,
+            "status": 1,
+            "created_at": 1,
+            "league_code": 1,
+        },
+    ).sort("created_at", -1).to_list(500)
+
+    # `is_completed` reflects the league-level status; the round-level
+    # gate the other-user league screen uses is computed client-side
+    # off the rounds list, so we don't need a per-league round scan
+    # here.
+    is_self = viewer_id == target_id
+    out = []
+    for l in rows:
+        members = l.get("members") or []
+        out.append({
+            "id": l["id"],
+            "name": l.get("name"),
+            "image_url": l.get("league_image"),
+            "member_count": len(members),
+            "is_private": not bool(l.get("is_public")),
+            "is_completed": l.get("status") == "completed",
+            # Invite code is the join-secret for private leagues; only
+            # the owner of the profile is allowed to see their own.
+            "invite_code": l.get("league_code") if is_self else None,
+        })
+    return {"data": {"leagues": out}}
+
+
 @api_router.post("/likes/migrate")
 async def migrate_liked_songs(
     body: LikedSongsMigrateBody,

@@ -639,6 +639,22 @@ export const getUserLikedSongs = (
     params: { limit, offset },
   });
 
+// Cross-user leagues read — used by the other-user profile's Leagues
+// tab. invite_code is always null for non-self viewers (backend
+// enforced); see `_users_leagues` for the redaction rule.
+export interface UserLeagueSummary {
+  id: string;
+  name: string;
+  image_url: string | null;
+  member_count: number;
+  is_private: boolean;
+  is_completed: boolean;
+  invite_code: string | null;
+}
+
+export const getUserLeagues = (userId: string) =>
+  api.get<{ data: { leagues: UserLeagueSummary[] } }>(`/users/${userId}/leagues`);
+
 export const migrateLikedSongs = (songs: LikedSong[]) =>
   api.post<{ data: { migrated: number; already_existed: number } }>(
     '/likes/migrate',

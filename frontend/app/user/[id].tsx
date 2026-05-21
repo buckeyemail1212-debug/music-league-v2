@@ -8,7 +8,6 @@ import {
   Image,
   Alert,
   ActivityIndicator,
-  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
@@ -18,25 +17,23 @@ import {
   followUser,
   getFollowStatus,
   getUserProfile,
-  getUserLikedSongs,
   unfollowUser,
   FollowStatus,
-  LikedSong,
   UserProfileResponse,
 } from '../../src/services/api';
 import { apiCache } from '../../src/services/apiCache';
-import LikeButton from '../../src/components/LikeButton';
+import UserStatsTab from '../../src/components/user-profile-tabs/UserStatsTab';
+import UserLeaguesTab from '../../src/components/user-profile-tabs/UserLeaguesTab';
+import UserLikedSongsTab from '../../src/components/user-profile-tabs/UserLikedSongsTab';
 
-const TASTE_COLORS: Record<string, string> = {
-  Indie: '#7C3AED',
-  Electronic: '#14B8A6',
-  'Hip-Hop': '#F97316',
-  'R&B': '#EC4899',
-  Pop: '#EF4444',
-  Country: '#F59E0B',
-  Rock: '#3B82F6',
-  Other: '#6A6A6A',
-};
+type TabKey = 'stats' | 'leagues' | 'liked';
+
+const PROFILE_TTL_MS = 60 * 1000;
+
+const profileCacheKey = (targetId: string, viewerId: string) =>
+  `user-profile:${targetId}:${viewerId}`;
+const statusCacheKey = (targetId: string, viewerId: string) =>
+  `user-follow-status:${targetId}:${viewerId}`;
 
 const SUBMISSION_COLORS = ['#7C3AED', '#10B981', '#F59E0B', '#EF4444', '#3B82F6', '#EC4899'];
 const pickColor = (seed: string) => {
@@ -45,25 +42,11 @@ const pickColor = (seed: string) => {
   return SUBMISSION_COLORS[h % SUBMISSION_COLORS.length];
 };
 
-const ordinal = (n: number) => {
-  const s = ['th', 'st', 'nd', 'rd'];
-  const v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
-};
-
-const PROFILE_TTL_MS = 60 * 1000;
-
-// Cache key includes viewer because the same target returns a different
-// payload depending on whether the viewer is an approved follower.
-const profileCacheKey = (targetId: string, viewerId: string) =>
-  `user-profile:${targetId}:${viewerId}`;
-const statusCacheKey = (targetId: string, viewerId: string) =>
-  `user-follow-status:${targetId}:${viewerId}`;
-
 export default function UserProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuth();
+
   const targetId = id ?? '';
   const viewerId = user?.id ?? '';
 
@@ -71,64 +54,55 @@ export default function UserProfileScreen() {
   const [followStatus, setFollowStatus] = useState<FollowStatus | null>(null);
   const [loadError, setLoadError] = useState<'notfound' | 'network' | null>(null);
   const [busy, setBusy] = useState(false);
+  const [tab, setTab] = useState<TabKey>('stats');
 
-  // Self-redirect: if the viewer landed on their own /user/{id}, bounce to
-  // the My Game tab so back-stack doesn't get weird. router.replace, not
-  // push, per the spec.
+  // Self-redirect: bounce to the own-profile tab if the viewer landed
+  // on their own /user/{id}. router.replace, not push.
   useEffect(() => {
     if (targetId && viewerId && targetId === viewerId) {
       router.replace('/(tabs)/profile' as any);
     }
   }, [targetId, viewerId, router]);
 
-  const load = useCallback(async () => {
+  const load = useCallback(() => {
     if (!targetId || !viewerId) return;
-    if (targetId === viewerId) return; // redirect effect will handle it
+    if (targetId === viewerId) return;
 
     setLoadError(null);
 
-    // Profile + follow-status load in parallel via apiCache.swr so the
-    // first paint is instant when warm and a stale entry refreshes in
-    // the background.
     apiCache
       .swr(
         profileCacheKey(targetId, viewerId),
         () => getUserProfile(targetId).then((r) => r.data.data),
-        (data) => setProfile(data),
+        setProfile,
         PROFILE_TTL_MS,
       )
-      .then((data) => setProfile(data))
+      .then(setProfile)
       .catch((err) => {
-        if (err?.response?.status === 404) {
-          setLoadError('notfound');
-        } else {
-          setLoadError((prev) => prev ?? 'network');
-        }
+        // Block-silent-404 and genuine 404 are indistinguishable from
+        // here — both land on the same "User not found" branch per spec.
+        if (err?.response?.status === 404) setLoadError('notfound');
+        else setLoadError((prev) => prev ?? 'network');
       });
 
     apiCache
       .swr(
         statusCacheKey(targetId, viewerId),
         () => getFollowStatus(targetId).then((r) => r.data.data.status),
-        (status) => setFollowStatus(status),
+        setFollowStatus,
         PROFILE_TTL_MS,
       )
-      .then((status) => setFollowStatus(status))
+      .then(setFollowStatus)
       .catch(() => {
-        // Status is a soft requirement — leave it null and the button
-        // will render a disabled placeholder.
+        // Status is best-effort; the button degrades to "Follow" if
+        // we never get it.
       });
   }, [targetId, viewerId]);
 
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load]),
-  );
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  // Backend may report status='self' when viewer == target — same redirect
-  // path as the id-equality check above, just covers the case where
-  // viewerId wasn't ready at first render.
+  // Backend follow-status returning "self" is a redundant safety net
+  // for the id-equality redirect above.
   useEffect(() => {
     if (followStatus === 'self') {
       router.replace('/(tabs)/profile' as any);
@@ -143,19 +117,14 @@ export default function UserProfileScreen() {
   const doFollow = async () => {
     if (busy) return;
     setBusy(true);
-    // Optimistic — flip to whatever the backend tells us; default to
-    // pending if the target is private, otherwise approved. The actual
-    // response wins.
     const optimistic: FollowStatus = profile?.is_private ? 'pending' : 'approved';
     setFollowStatus(optimistic);
     try {
       const res = await followUser(targetId);
       setFollowStatus(res.data.data.status);
       invalidateAfterFollowChange();
-      // Background refetch so follower_count + (if newly approved)
-      // the full payload land.
       load();
-    } catch (err) {
+    } catch {
       setFollowStatus('none');
       Alert.alert('Could not follow', 'Please try again.');
     } finally {
@@ -178,7 +147,7 @@ export default function UserProfileScreen() {
             await unfollowUser(targetId);
             invalidateAfterFollowChange();
             load();
-          } catch (err) {
+          } catch {
             setFollowStatus(prev);
             Alert.alert('Could not update', 'Please try again.');
           } finally {
@@ -206,7 +175,7 @@ export default function UserProfileScreen() {
     }
   };
 
-  // ── render branches ───────────────────────────────────────────────────
+  // ── render branches ────────────────────────────────────────────────
 
   if (loadError === 'notfound') {
     return (
@@ -251,8 +220,7 @@ export default function UserProfileScreen() {
 
   const followBtn = (() => {
     if (followStatus === null || followStatus === 'self') return null;
-    const variant =
-      followStatus === 'none' ? 'primary' : 'secondary';
+    const primary = followStatus === 'none';
     const label =
       followStatus === 'none'
         ? 'Follow'
@@ -261,7 +229,7 @@ export default function UserProfileScreen() {
           : 'Following';
     return (
       <TouchableOpacity
-        style={[styles.followBtn, variant === 'primary' ? styles.followBtnPrimary : styles.followBtnSecondary]}
+        style={[styles.followBtn, primary ? styles.followBtnPrimary : styles.followBtnSecondary]}
         onPress={onFollowButtonPress}
         activeOpacity={0.8}
         disabled={busy}
@@ -269,7 +237,7 @@ export default function UserProfileScreen() {
         <Text
           style={[
             styles.followBtnLabel,
-            variant === 'primary' ? styles.followBtnLabelPrimary : styles.followBtnLabelSecondary,
+            primary ? styles.followBtnLabelPrimary : styles.followBtnLabelSecondary,
           ]}
         >
           {label}
@@ -284,9 +252,9 @@ export default function UserProfileScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         {/* Identity block */}
         <View style={styles.identity}>
-          <View
-            style={[styles.bigAvatar, { backgroundColor: pickColor(profile.user_id) }]}
-          >
+          {/* Avatar tap deliberately a no-op for now; long-press menu
+              is on a later prompt. */}
+          <View style={[styles.bigAvatar, { backgroundColor: pickColor(profile.user_id) }]}>
             {profile.avatar_url ? (
               <Image source={{ uri: profile.avatar_url }} style={styles.bigAvatarImg} />
             ) : (
@@ -296,46 +264,84 @@ export default function UserProfileScreen() {
             )}
           </View>
           <Text style={styles.username}>@{profile.username}</Text>
-          {profile.is_private && (
-            <View style={styles.privateBadge}>
-              <Ionicons name="lock-closed" size={11} color="#B3B3B3" />
-              <Text style={styles.privateBadgeText}>Private</Text>
-            </View>
-          )}
-
-          {followBtn}
-
-          <View style={styles.countsRow}>
-            <TouchableOpacity
-              style={styles.countItem}
-              activeOpacity={0.7}
-              onPress={() => router.push(`/user/${profile.user_id}/followers` as any)}
-            >
-              <Text style={styles.countValue}>{profile.follower_count.toLocaleString()}</Text>
-              <Text style={styles.countLabel}>Followers</Text>
-            </TouchableOpacity>
-            <View style={styles.countDivider} />
-            <TouchableOpacity
-              style={styles.countItem}
-              activeOpacity={0.7}
-              onPress={() => router.push(`/user/${profile.user_id}/following` as any)}
-            >
-              <Text style={styles.countValue}>{profile.following_count.toLocaleString()}</Text>
-              <Text style={styles.countLabel}>Following</Text>
-            </TouchableOpacity>
-          </View>
+          {profile.pronouns ? (
+            <Text style={styles.pronouns}>{profile.pronouns}</Text>
+          ) : null}
+          {profile.bio ? (
+            <Text style={styles.bio}>{profile.bio}</Text>
+          ) : null}
         </View>
 
+        {/* Counts row */}
+        <View style={styles.countsRow}>
+          <TouchableOpacity
+            style={styles.countItem}
+            activeOpacity={0.7}
+            onPress={() => router.push(`/user/${profile.user_id}/followers` as any)}
+          >
+            <Text style={styles.countValue}>{profile.follower_count.toLocaleString()}</Text>
+            <Text style={styles.countLabel}>Followers</Text>
+          </TouchableOpacity>
+          <View style={styles.countDivider} />
+          <TouchableOpacity
+            style={styles.countItem}
+            activeOpacity={0.7}
+            onPress={() => router.push(`/user/${profile.user_id}/following` as any)}
+          >
+            <Text style={styles.countValue}>{profile.following_count.toLocaleString()}</Text>
+            <Text style={styles.countLabel}>Following</Text>
+          </TouchableOpacity>
+        </View>
+
+        {followBtn}
+
         {profile.is_limited ? (
-          <View style={[styles.group, styles.privateNotice]}>
-            <Ionicons name="lock-closed-outline" size={28} color="#B3B3B3" />
-            <Text style={styles.privateNoticeTitle}>This account is private</Text>
-            <Text style={styles.privateNoticeBody}>
+          /* Private + not-approved: lock surface in place of tabs.
+             Follow button above already lets the viewer send the
+             follow request. */
+          <View style={styles.lockBox}>
+            <Ionicons name="lock-closed-outline" size={48} color="#B3B3B3" />
+            <Text style={styles.lockTitle}>This account is private.</Text>
+            <Text style={styles.lockBody}>
               Follow @{profile.username} to see their game.
             </Text>
           </View>
         ) : (
-          <FullProfileBody profile={profile} router={router} />
+          <>
+            <View style={styles.tabBar}>
+              <TabIcon
+                iconActive="stats-chart"
+                iconInactive="stats-chart-outline"
+                active={tab === 'stats'}
+                onPress={() => setTab('stats')}
+                label="Stats"
+              />
+              <TabIcon
+                iconActive="trophy"
+                iconInactive="trophy-outline"
+                active={tab === 'leagues'}
+                onPress={() => setTab('leagues')}
+                label="Leagues"
+              />
+              <TabIcon
+                iconActive="heart"
+                iconInactive="heart-outline"
+                active={tab === 'liked'}
+                onPress={() => setTab('liked')}
+                label="Liked Songs"
+              />
+            </View>
+
+            <View style={styles.tabContent}>
+              {tab === 'stats' ? <UserStatsTab profile={profile} /> : null}
+              {tab === 'leagues' ? (
+                <UserLeaguesTab targetId={profile.user_id} viewerId={viewerId} />
+              ) : null}
+              {tab === 'liked' ? (
+                <UserLikedSongsTab targetId={profile.user_id} viewerId={viewerId} />
+              ) : null}
+            </View>
+          </>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -349,7 +355,7 @@ function Header({ onBack }: { onBack: () => void }) {
         <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
       </TouchableOpacity>
       <View style={styles.headerActions}>
-        <TouchableOpacity hitSlop={8} style={styles.headerBtn} onPress={() => { /* menu — Tier 2 */ }}>
+        <TouchableOpacity hitSlop={8} style={styles.headerBtn} onPress={() => { /* menu — later */ }}>
           <Ionicons name="ellipsis-horizontal" size={22} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
@@ -357,287 +363,34 @@ function Header({ onBack }: { onBack: () => void }) {
   );
 }
 
-function FullProfileBody({
-  profile,
-  router,
+function TabIcon({
+  iconActive,
+  iconInactive,
+  active,
+  onPress,
+  label,
 }: {
-  profile: UserProfileResponse;
-  router: ReturnType<typeof useRouter>;
+  iconActive: React.ComponentProps<typeof Ionicons>['name'];
+  iconInactive: React.ComponentProps<typeof Ionicons>['name'];
+  active: boolean;
+  onPress: () => void;
+  label: string;
 }) {
-  const stats = profile.stats;
-  const taste = profile.taste;
-  const topVoters = profile.top_voters ?? [];
-  const recents = (profile.recent_submissions ?? []).slice(0, 5);
-
   return (
-    <>
-      {/* Stat tiles — em-dash for null (not yet loaded) consistent with My Game. */}
-      <View style={styles.statsGrid}>
-        <StatTile label="LEAGUES PLAYED" value={stats?.leagues_count ?? null} />
-        <StatTile label="TOTAL PTS" value={stats?.total_points ?? null} />
-        <StatTile label="ROUND WINS" value={stats?.round_wins ?? null} />
-        <StatTile label="SUBMISSIONS" value={stats?.submissions_count ?? null} />
-        <StatTile label="LEAGUE WINS" value={stats?.league_wins ?? null} />
-        <StatTile label="ROUNDS PLAYED" value={stats?.rounds_played ?? null} />
-      </View>
-
-      <Text style={styles.sectionLabel}>THEIR TASTE · ALL-TIME</Text>
-      <View style={[styles.group, styles.tasteCard]}>
-        {taste && taste.total > 0 && taste.breakdown.length > 0 ? (
-          <>
-            <View style={styles.tasteBar}>
-              {taste.breakdown.map((b, i) => {
-                const color = TASTE_COLORS[b.genre] ?? '#6A6A6A';
-                const isFirst = i === 0;
-                const isLast = i === taste.breakdown.length - 1;
-                return (
-                  <View
-                    key={b.genre}
-                    style={{
-                      flex: b.pct,
-                      height: '100%',
-                      backgroundColor: color,
-                      borderTopLeftRadius: isFirst ? 6 : 0,
-                      borderBottomLeftRadius: isFirst ? 6 : 0,
-                      borderTopRightRadius: isLast ? 6 : 0,
-                      borderBottomRightRadius: isLast ? 6 : 0,
-                    }}
-                  />
-                );
-              })}
-            </View>
-            <View style={styles.tasteList}>
-              {taste.breakdown.map((b) => {
-                const color = TASTE_COLORS[b.genre] ?? '#6A6A6A';
-                return (
-                  <View key={b.genre} style={styles.tasteRow}>
-                    <View style={[styles.tasteDot, { backgroundColor: color }]} />
-                    <Text style={styles.tasteGenre}>{b.genre}</Text>
-                    <Text style={styles.tastePct}>{b.pct}%</Text>
-                  </View>
-                );
-              })}
-            </View>
-          </>
-        ) : (
-          <Text style={styles.emptyBlurb}>
-            No taste data yet — songs submitted by @{profile.username} will populate this.
-          </Text>
-        )}
-      </View>
-
-      <Text style={styles.sectionLabel}>TOP VOTERS</Text>
-      <View style={[styles.group, styles.topVotersCard]}>
-        {topVoters.length === 0 ? (
-          <Text style={styles.emptyBlurb}>
-            No top voters yet.
-          </Text>
-        ) : (
-          <View style={styles.topVotersRow}>
-            {topVoters.map((v) => (
-              <TouchableOpacity
-                key={v.user_id}
-                style={styles.topVoterItem}
-                activeOpacity={0.7}
-                onPress={() => router.push(`/user/${v.user_id}` as any)}
-              >
-                <View
-                  style={[
-                    styles.topVoterAvatar,
-                    { backgroundColor: pickColor(v.user_id) },
-                  ]}
-                >
-                  {v.avatar_url ? (
-                    <Image source={{ uri: v.avatar_url }} style={styles.topVoterAvatarImg} />
-                  ) : (
-                    <Text style={styles.topVoterInitial}>
-                      {(v.username || '?').charAt(0).toUpperCase()}
-                    </Text>
-                  )}
-                </View>
-                <Text style={styles.topVoterName} numberOfLines={1}>
-                  {(v.username || '').slice(0, 8)}
-                </Text>
-                <Text style={styles.topVoterCount}>
-                  {v.vote_count} {v.vote_count === 1 ? 'vote' : 'votes'}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-      </View>
-
-      <Text style={styles.sectionLabel}>RECENT SUBMISSIONS</Text>
-      <View style={styles.group}>
-        {recents.length > 0 ? (
-          recents.map((sub, idx, arr) => {
-            const last = idx === arr.length - 1;
-            const leagueDeleted = sub.league_status === 'deleted';
-            const roundCompleted = sub.round_status === 'completed';
-            const leagueCompleted = sub.league_status === 'completed';
-
-            let labelPrimary: string;
-            let showScored: boolean;
-            if (leagueDeleted) {
-              labelPrimary = 'League deleted';
-              showScored = roundCompleted;
-            } else if (sub.round_status === 'submission') {
-              labelPrimary = 'Open · Submission';
-              showScored = false;
-            } else if (sub.round_status === 'voting') {
-              labelPrimary = 'Open · Voting';
-              showScored = false;
-            } else if (roundCompleted && leagueCompleted) {
-              labelPrimary = 'Final result';
-              showScored = true;
-            } else if (roundCompleted) {
-              labelPrimary = 'Completed';
-              showScored = true;
-            } else {
-              labelPrimary = 'Closed';
-              showScored = false;
-            }
-
-            const points = sub.points_earned ?? sub.points;
-            const placement = sub.placement ?? null;
-            const totalInRound = sub.total_submissions_in_round ?? null;
-            const placementText =
-              showScored && placement != null && totalInRound != null
-                ? `${ordinal(placement)} of ${totalInRound}`
-                : null;
-            const pointsText =
-              showScored && points != null
-                ? `${points} ${points === 1 ? 'pt' : 'pts'}`
-                : null;
-
-            const labelParts = [labelPrimary, placementText, pointsText]
-              .filter(Boolean)
-              .join(' · ');
-            const roundContext = `Round ${sub.round_number} · ${sub.league_name || 'League'}`;
-
-            return (
-              <View
-                key={sub.submission_id}
-                style={[styles.submissionRow, last && styles.rowLast]}
-              >
-                <View
-                  style={[
-                    styles.submissionArt,
-                    { backgroundColor: pickColor(sub.song?.title || sub.submission_id) },
-                  ]}
-                >
-                  {sub.song?.cover_url ? (
-                    <Image source={{ uri: sub.song.cover_url }} style={styles.submissionArtImage} />
-                  ) : (
-                    <Ionicons name="musical-note" size={20} color="#FFFFFF" />
-                  )}
-                </View>
-                <View style={styles.submissionInfo}>
-                  <Text style={styles.submissionTitle} numberOfLines={1}>
-                    {sub.song?.title}
-                  </Text>
-                  <Text style={styles.submissionArtist} numberOfLines={1}>
-                    {sub.song?.artist}
-                  </Text>
-                  <Text style={styles.submissionContext} numberOfLines={1}>
-                    {roundContext}
-                  </Text>
-                  <Text style={styles.submissionState} numberOfLines={1}>
-                    {labelParts}
-                  </Text>
-                </View>
-              </View>
-            );
-          })
-        ) : (
-          <Text style={styles.emptyBlurb}>
-            No submissions yet.
-          </Text>
-        )}
-      </View>
-
-      <OtherUserLikedSongs targetId={profile.user_id} />
-    </>
-  );
-}
-
-function OtherUserLikedSongs({ targetId }: { targetId: string }) {
-  const { user } = useAuth();
-  const viewerId = user?.id ?? '';
-
-  // null  = still loading (first paint suppresses the empty state to
-  //         avoid a flash before data lands)
-  // []    = loaded, empty
-  // [...] = loaded, populated
-  // hidden = 403 from the privacy gate; render nothing at all so the
-  // section doesn't reveal "private" twice (the limited badge at the
-  // top already communicates it).
-  const [songs, setSongs] = useState<LikedSong[] | null>(null);
-  const [hidden, setHidden] = useState(false);
-
-  useEffect(() => {
-    if (!targetId || !viewerId) return;
-    let mounted = true;
-    apiCache
-      .swr<LikedSong[]>(
-        `user-liked-songs:${targetId}:${viewerId}`,
-        () => getUserLikedSongs(targetId).then((r) => r.data.data.songs ?? []),
-        (next) => { if (mounted) setSongs(next); },
-        60 * 1000,
-      )
-      .then((next) => { if (mounted) setSongs(next); })
-      .catch((err) => {
-        if (!mounted) return;
-        if (err?.response?.status === 403) setHidden(true);
-        else setSongs([]);
-      });
-    return () => { mounted = false; };
-  }, [targetId, viewerId]);
-
-  if (hidden) return null;
-  if (songs === null) return null;
-
-  return (
-    <>
-      <Text style={styles.sectionLabel}>LIKED SONGS</Text>
-      {songs.length === 0 ? (
-        <View style={styles.group}>
-          <Text style={styles.emptyBlurb}>No liked songs yet</Text>
-        </View>
-      ) : (
-        <View style={otherLikedStyles.grid}>
-          {songs.map((s) => (
-            <View key={s.deezer_id} style={otherLikedStyles.tile}>
-              <View style={otherLikedStyles.coverWrap}>
-                {s.cover_url ? (
-                  <Image source={{ uri: s.cover_url }} style={otherLikedStyles.cover} />
-                ) : (
-                  <View style={[otherLikedStyles.cover, otherLikedStyles.coverFallback]}>
-                    <Ionicons name="musical-note" size={26} color="#FFFFFF" />
-                  </View>
-                )}
-                <View style={otherLikedStyles.heartBtn}>
-                  <LikeButton song={s} size={18} />
-                </View>
-              </View>
-              <Text style={otherLikedStyles.title} numberOfLines={1}>{s.title}</Text>
-              <Text style={otherLikedStyles.artist} numberOfLines={1}>{s.artist}</Text>
-            </View>
-          ))}
-        </View>
-      )}
-    </>
-  );
-}
-
-function StatTile({ label, value }: { label: string; value: number | null }) {
-  return (
-    <View style={styles.statTile}>
-      <Text style={styles.statTileValue}>
-        {value === null ? '—' : value.toLocaleString()}
-      </Text>
-      <Text style={styles.statTileLabel}>{label}</Text>
-    </View>
+    <TouchableOpacity
+      style={[styles.tabItem, active && styles.tabItemActive]}
+      onPress={onPress}
+      activeOpacity={0.7}
+      accessibilityLabel={label}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: active }}
+    >
+      <Ionicons
+        name={active ? iconActive : iconInactive}
+        size={22}
+        color={active ? '#FFFFFF' : '#6A6A6A'}
+      />
+    </TouchableOpacity>
   );
 }
 
@@ -652,48 +405,46 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
-  headerBtn: {
-    minWidth: 40, minHeight: 40,
-    alignItems: 'center', justifyContent: 'center',
-  },
+  headerBtn: { minWidth: 40, minHeight: 40, alignItems: 'center', justifyContent: 'center' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
 
   identity: {
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 16,
+    paddingTop: 4,
+    paddingBottom: 12,
   },
   bigAvatar: {
-    width: 96, height: 96, borderRadius: 48,
-    alignItems: 'center', justifyContent: 'center',
-    overflow: 'hidden',
+    width: 120, height: 120, borderRadius: 60,
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
   },
-  bigAvatarImg: { width: 96, height: 96, borderRadius: 48 },
-  bigAvatarInitial: {
-    fontSize: 40, fontWeight: '800', color: '#FFFFFF',
-  },
-  username: {
-    fontSize: 20, fontWeight: '800', color: '#FFFFFF',
-    marginTop: 10,
-  },
-  privateBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    marginTop: 6,
-    paddingHorizontal: 10, paddingVertical: 4,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  privateBadgeText: {
-    fontSize: 11, fontWeight: '700', color: '#B3B3B3',
-    letterSpacing: 0.5,
+  bigAvatarImg: { width: 120, height: 120, borderRadius: 60 },
+  bigAvatarInitial: { fontSize: 48, fontWeight: '800', color: '#FFFFFF' },
+  username: { fontSize: 22, fontWeight: '800', color: '#FFFFFF', marginTop: 12 },
+  pronouns: { fontSize: 13, color: '#B3B3B3', marginTop: 4 },
+  bio: {
+    fontSize: 13, color: '#D9D9D9',
+    marginTop: 6, textAlign: 'center', lineHeight: 18,
+    paddingHorizontal: 12,
   },
 
+  countsRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 28, marginTop: 8, marginBottom: 12,
+  },
+  countItem: { alignItems: 'center', minWidth: 80 },
+  countValue: { fontSize: 18, fontWeight: '800', color: '#FFFFFF' },
+  countLabel: {
+    fontSize: 11, fontWeight: '700', color: '#B3B3B3',
+    letterSpacing: 0.8, marginTop: 2, textTransform: 'uppercase',
+  },
+  countDivider: { width: 1, height: 28, backgroundColor: 'rgba(255,255,255,0.1)' },
+
   followBtn: {
-    marginTop: 16,
-    paddingHorizontal: 32, paddingVertical: 10,
+    marginHorizontal: 20,
+    marginBottom: 14,
+    paddingVertical: 11,
     borderRadius: 999,
-    minWidth: 160,
     alignItems: 'center',
   },
   followBtnPrimary: { backgroundColor: '#7C3AED' },
@@ -701,35 +452,39 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
   },
-  followBtnLabel: { fontSize: 14, fontWeight: '800', letterSpacing: 0.5 },
+  followBtnLabel: { fontSize: 14, fontWeight: '800', letterSpacing: 0.4 },
   followBtnLabelPrimary: { color: '#FFFFFF' },
   followBtnLabelSecondary: { color: '#FFFFFF' },
 
-  countsRow: {
-    flexDirection: 'row', alignItems: 'center',
-    marginTop: 18, gap: 24,
+  tabBar: {
+    flexDirection: 'row',
+    borderTopWidth: 0.5,
+    borderTopColor: 'rgba(255,255,255,0.08)',
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
+    marginTop: 4,
   },
-  countItem: { alignItems: 'center', minWidth: 70 },
-  countValue: { fontSize: 18, fontWeight: '800', color: '#FFFFFF' },
-  countLabel: {
-    fontSize: 11, fontWeight: '700', color: '#B3B3B3',
-    letterSpacing: 0.8, marginTop: 2, textTransform: 'uppercase',
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+    marginBottom: -0.5,
   },
-  countDivider: {
-    width: 1, height: 28, backgroundColor: 'rgba(255,255,255,0.1)',
-  },
+  tabItemActive: { borderBottomColor: '#FFFFFF' },
 
-  privateNotice: {
-    marginHorizontal: 20,
-    paddingVertical: 28, paddingHorizontal: 20,
-    alignItems: 'center', gap: 8,
+  tabContent: { paddingTop: 12 },
+
+  lockBox: {
+    alignItems: 'center',
+    paddingHorizontal: 32,
+    paddingTop: 48,
+    paddingBottom: 24,
+    gap: 8,
   },
-  privateNoticeTitle: {
-    fontSize: 16, fontWeight: '800', color: '#FFFFFF',
-  },
-  privateNoticeBody: {
-    fontSize: 13, color: '#B3B3B3', textAlign: 'center',
-  },
+  lockTitle: { fontSize: 16, fontWeight: '800', color: '#FFFFFF', marginTop: 8 },
+  lockBody: { fontSize: 13, color: '#B3B3B3', textAlign: 'center' },
 
   centerPad: {
     flex: 1, alignItems: 'center', justifyContent: 'center',
@@ -743,147 +498,4 @@ const styles = StyleSheet.create({
     backgroundColor: '#7C3AED',
   },
   retryBtnText: { color: '#FFFFFF', fontWeight: '800' },
-
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 20,
-    gap: 10,
-    marginBottom: 6,
-  },
-  statTile: {
-    width: '48%',
-    backgroundColor: '#181818',
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-  },
-  statTileValue: { fontSize: 26, fontWeight: '800', color: '#FFFFFF' },
-  statTileLabel: {
-    fontSize: 11, fontWeight: '800', color: '#B3B3B3',
-    letterSpacing: 1, marginTop: 6,
-  },
-
-  sectionLabel: {
-    fontSize: 12, fontWeight: '700', color: '#B3B3B3',
-    letterSpacing: 1.2,
-    marginHorizontal: 20, marginTop: 18, marginBottom: 8,
-    textTransform: 'uppercase',
-  },
-  group: {
-    backgroundColor: '#181818',
-    marginHorizontal: 20, marginBottom: 8,
-    borderRadius: 12, overflow: 'hidden',
-  },
-  emptyBlurb: {
-    fontSize: 13, color: '#B3B3B3',
-    lineHeight: 19, padding: 16, textAlign: 'center',
-  },
-  rowLast: { borderBottomWidth: 0 },
-
-  tasteCard: { padding: 16 },
-  tasteBar: {
-    flexDirection: 'row', height: 12, borderRadius: 6, overflow: 'hidden',
-    backgroundColor: '#282828',
-  },
-  tasteList: { marginTop: 14 },
-  tasteRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6 },
-  tasteDot: { width: 10, height: 10, borderRadius: 5, marginRight: 10 },
-  tasteGenre: { flex: 1, fontSize: 14, fontWeight: '500', color: '#FFFFFF' },
-  tastePct: { fontSize: 13, fontWeight: '700', color: '#B3B3B3' },
-
-  topVotersCard: { padding: 16 },
-  topVotersRow: { flexDirection: 'row', justifyContent: 'center', gap: 12 },
-  topVoterItem: { alignItems: 'center', width: 64 },
-  topVoterAvatar: {
-    width: 52, height: 52, borderRadius: 26,
-    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-  },
-  topVoterAvatarImg: { width: 52, height: 52, borderRadius: 26 },
-  topVoterInitial: { fontSize: 20, fontWeight: '800', color: '#FFFFFF' },
-  topVoterName: {
-    fontSize: 12, fontWeight: '700', color: '#FFFFFF',
-    marginTop: 6, textAlign: 'center',
-  },
-  topVoterCount: {
-    fontSize: 11, fontWeight: '700', color: '#B3B3B3',
-    marginTop: 2, letterSpacing: 0.4,
-  },
-
-  submissionRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 14, paddingVertical: 12,
-    borderBottomWidth: 0.5, borderBottomColor: 'rgba(255,255,255,0.06)',
-    gap: 12,
-  },
-  submissionArt: {
-    width: 48, height: 48, borderRadius: 6,
-    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-  },
-  submissionArtImage: { width: 48, height: 48, borderRadius: 6 },
-  submissionInfo: { flex: 1, marginRight: 8 },
-  submissionTitle: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
-  submissionArtist: { fontSize: 12, color: '#B3B3B3', marginTop: 2 },
-  submissionContext: { color: '#B3B3B3', fontSize: 11, marginTop: 6 },
-  submissionState: {
-    color: '#6A6A6A', fontSize: 11, marginTop: 2, fontWeight: '600',
-  },
-});
-
-// 3-column grid sized off the screen width so the tiles edge-align
-// with the surrounding 20px horizontal padding the rest of the
-// profile uses. Mirrors the layout of LikedSongsTab on own profile
-// so the visual feels consistent across surfaces.
-const OTHER_LIKED_COLS = 3;
-const OTHER_LIKED_HORIZ_PAD = 20;
-const OTHER_LIKED_GAP = 8;
-const OTHER_LIKED_TILE_SIZE = Math.floor(
-  (Dimensions.get('window').width -
-    OTHER_LIKED_HORIZ_PAD * 2 -
-    OTHER_LIKED_GAP * (OTHER_LIKED_COLS - 1)) /
-    OTHER_LIKED_COLS,
-);
-
-const otherLikedStyles = StyleSheet.create({
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: OTHER_LIKED_HORIZ_PAD,
-    gap: OTHER_LIKED_GAP,
-    marginTop: 4,
-  },
-  tile: { width: OTHER_LIKED_TILE_SIZE, marginBottom: 12 },
-  coverWrap: { position: 'relative' },
-  cover: {
-    width: OTHER_LIKED_TILE_SIZE,
-    height: OTHER_LIKED_TILE_SIZE,
-    borderRadius: 8,
-  },
-  coverFallback: {
-    backgroundColor: '#282828',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heartBtn: {
-    position: 'absolute',
-    bottom: 6,
-    right: 6,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginTop: 6,
-  },
-  artist: {
-    fontSize: 11,
-    color: '#B3B3B3',
-    marginTop: 1,
-  },
 });

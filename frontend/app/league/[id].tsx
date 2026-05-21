@@ -41,6 +41,7 @@ import {
   getLeagueStandings,
   getChatStatus,
   getResults,
+  joinPublicLeague,
   League,
   Round,
   LeagueStandings,
@@ -422,9 +423,41 @@ export default function LeagueDetailScreen() {
   };
 
   const isCreator = league?.creator_id === user?.id;
+  // Non-member gating: the league screen is reachable through profile
+  // surfaces, so anyone could land here. Members see the full screen;
+  // non-members see a redacted view (no chat, no leave/trash, no
+  // standings on active leagues, no inner round content for
+  // not-yet-completed rounds).
+  const isMember =
+    !!(user?.id && league?.members?.some((m: any) => m.id === user.id));
+  const isActive = rounds.some((r) => r.status !== 'completed' && r.status !== 'skipped');
   const activeRound = rounds.find(
     (r) => r.status === 'submission' || r.status === 'voting',
   );
+
+  const [joiningPublic, setJoiningPublic] = useState(false);
+
+  const handleJoinPublicLeague = async () => {
+    if (!league || joiningPublic) return;
+    setJoiningPublic(true);
+    try {
+      await joinPublicLeague(league.id);
+      // Refetch league data so isMember flips and the full view
+      // unlocks without a manual reload.
+      await fetchData();
+      leagueEvents.emit();
+    } catch (e: any) {
+      const status = e?.response?.status;
+      const detail = e?.response?.data?.detail || '';
+      if (status === 403 && /block/i.test(detail)) {
+        Alert.alert('Could not join', "You can't join this league because of a block.");
+      } else {
+        Alert.alert('Could not join', detail || 'Please try again.');
+      }
+    } finally {
+      setJoiningPublic(false);
+    }
+  };
 
   const renderRoundItem = ({ item }: { item: Round }) => {
     const isLocked = item.status === 'locked';
@@ -433,6 +466,30 @@ export default function LeagueDetailScreen() {
     const isSkipped = item.status === 'skipped';
     const isCompleted = item.status === 'completed' || isSkipped;
     const isLive = item.status === 'submission' || item.status === 'voting';
+
+    // Non-member gate: for any round that isn't fully closed, render
+    // only the round name. No status text, no time remaining, no
+    // submission counts, no tap-through. Completed/skipped rounds
+    // fall through to the existing full row below.
+    if (!isMember && !isCompleted) {
+      return (
+        <View style={styles.roundCard}>
+          <View style={styles.roundContent}>
+            <View style={styles.roundRow}>
+              <View style={[styles.roundNumberBadge, { backgroundColor: '#3A3A3A' }]}>
+                <Text style={styles.roundNumberBadgeText}>{item.round_number}</Text>
+              </View>
+              <View style={styles.roundInfo}>
+                <Text style={[styles.roundThemeSubheader, { color: '#FFFFFF' }]} numberOfLines={1}>
+                  {`Round ${item.round_number}`}
+                </Text>
+              </View>
+              <Ionicons name="lock-closed" size={16} color="#6A6A6A" />
+            </View>
+          </View>
+        </View>
+      );
+    }
 
     // Badge color: locked or scheduled → gray (not yet open for action);
     // everything else (ready, submission, voting, completed, skipped) →
@@ -639,16 +696,22 @@ export default function LeagueDetailScreen() {
           <TouchableOpacity style={styles.headerButton} onPress={() => setShowMembersModal(true)}>
             <Ionicons name="people" size={22} color="rgba(255,255,255,0.60)" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerButton} onPress={() => setShowChatModal(true)}>
-            <Ionicons name="chatbubble-outline" size={22} color="rgba(255,255,255,0.60)" />
-            {hasUnread && <View style={styles.unreadBadge} />}
-          </TouchableOpacity>
-          {(() => {
+          {/* Chat is a member-only surface. Non-members reach this
+              screen via profile navigation; they're not part of the
+              conversation. */}
+          {isMember && (
+            <TouchableOpacity style={styles.headerButton} onPress={() => setShowChatModal(true)}>
+              <Ionicons name="chatbubble-outline" size={22} color="rgba(255,255,255,0.60)" />
+              {hasUnread && <View style={styles.unreadBadge} />}
+            </TouchableOpacity>
+          )}
+          {isMember && (() => {
             // Creators always get the Delete affordance — admin can
             // delete at any point in the league's lifecycle, with
             // mid-flight deletions becoming "NOT FINISHED" past leagues.
             // Non-creators get the Leave icon, which freezes their
-            // points and removes them from active play.
+            // points and removes them from active play. Non-members
+            // get neither — the spec hides both affordances.
             if (isCreator) {
               return (
                 <TouchableOpacity
@@ -679,6 +742,23 @@ export default function LeagueDetailScreen() {
           })()}
         </View>
       </View>
+
+      {/* Join CTA for non-members viewing a public league. Private
+          leagues stay invite-code-only, so the button is hidden. */}
+      {!isMember && league.is_public && (
+        <TouchableOpacity
+          style={styles.joinPublicCta}
+          onPress={handleJoinPublicLeague}
+          disabled={joiningPublic}
+          activeOpacity={0.85}
+        >
+          {joiningPublic ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text style={styles.joinPublicCtaText}>Join League</Text>
+          )}
+        </TouchableOpacity>
+      )}
 
 
       {/* Tab Selector */}
@@ -727,7 +807,14 @@ export default function LeagueDetailScreen() {
             />
           }
         >
-          {standings && standings.standings.length > 0 && standings.standings.some(p => p.total_points > 0) ? (
+          {!isMember && isActive ? (
+            <View style={styles.nonMemberStandingsLock}>
+              <Ionicons name="lock-closed-outline" size={40} color="#B3B3B3" />
+              <Text style={styles.nonMemberStandingsLockText}>
+                Standings hidden until league completes
+              </Text>
+            </View>
+          ) : standings && standings.standings.length > 0 && standings.standings.some(p => p.total_points > 0) ? (
             (() => {
               // Active members are ranked normally. Users who left the
               // league (left=true) always render below all active rows
@@ -1630,6 +1717,29 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '700',
   },
+  // Non-member surfaces
+  joinPublicCta: {
+    marginHorizontal: 16,
+    marginTop: 6,
+    marginBottom: 4,
+    paddingVertical: 11,
+    borderRadius: 999,
+    backgroundColor: '#7C3AED',
+    alignItems: 'center',
+  },
+  joinPublicCtaText: {
+    color: '#FFFFFF', fontSize: 14, fontWeight: '800', letterSpacing: 0.4,
+  },
+  nonMemberStandingsLock: {
+    alignItems: 'center',
+    paddingTop: 48,
+    paddingHorizontal: 32,
+    gap: 12,
+  },
+  nonMemberStandingsLockText: {
+    fontSize: 14, fontWeight: '700', color: '#B3B3B3', textAlign: 'center',
+  },
+
   // Standings styles
   standingsContainer: {
     flex: 1,
