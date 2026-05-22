@@ -378,7 +378,7 @@ export default function StoryViewerScreen() {
             <Image
               source={{ uri: story.photo_url }}
               style={styles.fullPhoto}
-              resizeMode="cover"
+              resizeMode="contain"
             />
             <View style={styles.photoOverlay}>
               <View style={styles.songPill}>
