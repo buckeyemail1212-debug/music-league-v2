@@ -24,6 +24,8 @@ import requests as _requests
 import billboard
 import random
 import string
+import cloudinary
+import cloudinary.uploader
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -42,6 +44,14 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID', '')
 TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN', '')
 TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER', '')
+
+# Cloudinary settings — used for hosted image uploads (e.g. stories).
+cloudinary.config(
+    cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME'),
+    api_key=os.environ.get('CLOUDINARY_API_KEY'),
+    api_secret=os.environ.get('CLOUDINARY_API_SECRET'),
+    secure=True,
+)
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -6877,6 +6887,35 @@ async def reset_database():
     for col in collections:
         await db[col].delete_many({})
     return {"message": "All data cleared", "collections_cleared": collections}
+
+# ==================== IMAGE UPLOAD ====================
+
+class UploadImageBody(BaseModel):
+    image: str
+
+
+@api_router.post("/upload-image")
+async def upload_image(
+    body: UploadImageBody,
+    current_user: dict = Depends(get_current_user),
+):
+    """Upload a base64 data-URI image to Cloudinary and return its hosted URL.
+
+    The client sends the image as a "data:image/...;base64,..." string. We
+    validate the prefix and reject oversized payloads before handing the
+    string to Cloudinary's uploader, which accepts data URIs directly.
+    """
+    image = body.image
+    if not image or not image.startswith("data:image"):
+        raise HTTPException(status_code=400, detail="Invalid image data")
+    if len(image) > 10_000_000:
+        raise HTTPException(status_code=413, detail="Image too large")
+    try:
+        result = cloudinary.uploader.upload(image, folder="music-comp/stories")
+    except Exception as e:
+        logger.error(f"cloudinary upload failed: {e}")
+        raise HTTPException(status_code=502, detail="Image upload failed")
+    return {"data": {"url": result.get("secure_url")}}
 
 # Include the router in the main app
 app.include_router(api_router)

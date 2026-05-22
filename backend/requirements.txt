@@ -16,3 +16,4 @@ python-dateutil>=2.8.2
 pytz>=2024.1
 billboard.py>=3.0.0
 spotipy>=2.23.0
+cloudinary>=1.40.0
