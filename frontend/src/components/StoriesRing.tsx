@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -11,8 +11,8 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { getStoriesFeed, StoryGroup } from '../services/api';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { getStoriesFeed, Story, StoryGroup } from '../services/api';
 
 interface CurrentUserShape {
   profile_photo?: string | null;
@@ -26,22 +26,28 @@ interface Props {
 export default function StoriesRing({ currentUser }: Props) {
   const router = useRouter();
   const [following, setFollowing] = useState<StoryGroup[]>([]);
+  const [myStories, setMyStories] = useState<Story[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await getStoriesFeed();
-        if (!cancelled) setFollowing(res.data.data.following);
-      } catch {
-        // Network or auth error — render the "your story" item alone.
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      (async () => {
+        try {
+          const res = await getStoriesFeed();
+          if (!cancelled) {
+            setMyStories(res.data.data.your_stories || []);
+            setFollowing(res.data.data.following);
+          }
+        } catch {
+          // Network or auth error — render the "your story" item alone.
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
 
   const renderFallback = () => (
     <View style={styles.avatarFallback}>
@@ -62,14 +68,19 @@ export default function StoriesRing({ currentUser }: Props) {
         activeOpacity={0.75}
         onPress={() => setMenuOpen(true)}
       >
-        <View style={styles.yourRingWrap}>
+        <View
+          style={[
+            styles.yourRingWrap,
+            myStories.length > 0 && styles.yourRingWrapActive,
+          ]}
+        >
           {currentUser?.profile_photo ? (
             <Image source={{ uri: currentUser.profile_photo }} style={styles.avatar} />
           ) : (
             renderFallback()
           )}
           <View style={styles.addBadge}>
-            <Ionicons name="add" size={14} color="#FFFFFF" />
+            <Ionicons name="add" size={16} color="#FFFFFF" />
           </View>
         </View>
         <Text style={styles.label} numberOfLines={1}>
@@ -170,6 +181,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     padding: 2.5,
   },
+  yourRingWrapActive: {
+    borderColor: '#7C3AED',
+  },
   ringWrap: {
     borderWidth: 2.5,
     borderColor: '#7C3AED',
@@ -191,11 +205,11 @@ const styles = StyleSheet.create({
   },
   addBadge: {
     position: 'absolute',
-    right: 3,
-    bottom: 3,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    right: 0,
+    bottom: 0,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     backgroundColor: '#7C3AED',
     alignItems: 'center',
     justifyContent: 'center',

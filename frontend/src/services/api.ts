@@ -498,8 +498,20 @@ export const getResults = (roundId: string) =>
   api.get<RoundResult>(`/rounds/${roundId}/results`);
 
 // Song Search
-export const searchSongs = (query: string) => 
+export const searchSongs = (query: string) =>
   api.get<{ data: Song[] }>('/songs/search', { params: { q: query } });
+
+export const getSongsRadar = (limit: number = 50) =>
+  api.get<{ data: Song[] }>('/songs/radar', { params: { limit } });
+
+export interface CreateStoryPayload {
+  song: { deezer_id: number; title: string; artist: string; cover_url: string; preview_url: string };
+  photo_url?: string | null;
+  caption?: string | null;
+}
+
+export const createStory = (payload: CreateStoryPayload) =>
+  api.post<{ data: { story_id: string } }>('/stories', payload);
 
 // Chat APIs
 export const getLeagueMessages = (leagueId: string) => 

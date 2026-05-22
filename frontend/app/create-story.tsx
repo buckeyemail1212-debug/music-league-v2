@@ -10,23 +10,47 @@ import {
   Image,
   Keyboard,
   TouchableWithoutFeedback,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
-import { Song, searchSongs } from '../src/services/api';
+import {
+  Song,
+  searchSongs,
+  getSongsRadar,
+  createStory,
+} from '../src/services/api';
 
 export default function CreateStoryScreen() {
   const router = useRouter();
 
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
-  const [photo, setPhoto] = useState<string | null>(null);
-  const [caption, setCaption] = useState('');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Song[]>([]);
+  const [radar, setRadar] = useState<Song[]>([]);
   const [searching, setSearching] = useState(false);
+  const [caption, setCaption] = useState('');
+  const [posting, setPosting] = useState(false);
 
+  // Radar recommendations — fetched once on mount; cached server-side so
+  // this is cheap. Failure is silent (the section just renders empty).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await getSongsRadar();
+        if (!cancelled) setRadar(res.data.data);
+      } catch {
+        // Empty radar — non-fatal.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Debounced search — only runs when the user actually has a query.
   useEffect(() => {
     if (!query.trim()) {
       setResults([]);
@@ -51,51 +75,32 @@ export default function CreateStoryScreen() {
     };
   }, [query]);
 
-  const pickFromLibrary = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission Required', 'Please grant photo library access.');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 0.15,
-      base64: true,
-    });
-    if (!result.canceled && result.assets[0].base64) {
-      setPhoto(`data:image/jpeg;base64,${result.assets[0].base64}`);
-    }
-  };
-
-  const takePhoto = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission Required', 'Please grant camera access.');
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      quality: 0.15,
-      base64: true,
-    });
-    if (!result.canceled && result.assets[0].base64) {
-      setPhoto(`data:image/jpeg;base64,${result.assets[0].base64}`);
-    }
-  };
-
-  const handlePhotoTap = () => {
-    Alert.alert('Add a photo', '', [
-      { text: 'Take Photo', onPress: takePhoto },
-      { text: 'Choose from Library', onPress: pickFromLibrary },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
-  };
-
   const onSelectSong = (s: Song) => {
     setSelectedSong(s);
     setQuery('');
     setResults([]);
+  };
+
+  const onSubmit = async () => {
+    if (!selectedSong || posting) return;
+    setPosting(true);
+    try {
+      await createStory({
+        song: {
+          deezer_id: selectedSong.deezer_id,
+          title: selectedSong.title,
+          artist: selectedSong.artist,
+          cover_url: selectedSong.cover_url,
+          preview_url: selectedSong.preview_url,
+        },
+        photo_url: null,
+        caption: caption.trim() || null,
+      });
+      router.back();
+    } catch {
+      setPosting(false);
+      Alert.alert("Couldn't post your story", 'Please try again.');
+    }
   };
 
   const renderResult = ({ item }: { item: Song }) => (
@@ -118,6 +123,10 @@ export default function CreateStoryScreen() {
     </TouchableOpacity>
   );
 
+  const showingRadar = query.trim().length === 0;
+  const list = showingRadar ? radar : results;
+  const submitDisabled = !selectedSong || posting;
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -128,66 +137,44 @@ export default function CreateStoryScreen() {
         >
           <Ionicons name="close" size={28} color="#FFFFFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>New Story</Text>
+        <Text style={styles.headerTitle}>Add Music</Text>
         {/* Right-side spacer keeps the title perfectly centered. */}
         <View style={styles.closeBtn} />
       </View>
 
       {selectedSong ? (
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-        <View style={styles.composerBody}>
-          <View style={styles.selectedCard}>
-            {selectedSong.cover_url ? (
-              <Image source={{ uri: selectedSong.cover_url }} style={styles.selectedCover} />
-            ) : (
-              <View style={[styles.selectedCover, styles.selectedCoverFallback]}>
-                <Ionicons name="musical-note" size={28} color="#B3B3B3" />
+          <View style={styles.composerBody}>
+            <View style={styles.selectedCard}>
+              {selectedSong.cover_url ? (
+                <Image source={{ uri: selectedSong.cover_url }} style={styles.selectedCover} />
+              ) : (
+                <View style={[styles.selectedCover, styles.selectedCoverFallback]}>
+                  <Ionicons name="musical-note" size={28} color="#B3B3B3" />
+                </View>
+              )}
+              <View style={styles.selectedText}>
+                <Text style={styles.selectedTitle} numberOfLines={1}>{selectedSong.title}</Text>
+                <Text style={styles.selectedArtist} numberOfLines={1}>{selectedSong.artist}</Text>
               </View>
-            )}
-            <View style={styles.selectedText}>
-              <Text style={styles.selectedTitle} numberOfLines={1}>{selectedSong.title}</Text>
-              <Text style={styles.selectedArtist} numberOfLines={1}>{selectedSong.artist}</Text>
-            </View>
-            <TouchableOpacity onPress={() => setSelectedSong(null)} activeOpacity={0.75}>
-              <Text style={styles.changeBtnText}>Change</Text>
-            </TouchableOpacity>
-          </View>
-
-          {photo ? (
-            <View style={styles.photoPreviewWrap}>
-              <Image source={{ uri: photo }} style={styles.photoPreview} />
-              <TouchableOpacity
-                style={styles.photoRemoveBtn}
-                onPress={() => setPhoto(null)}
-                activeOpacity={0.75}
-              >
-                <Ionicons name="close" size={16} color="#FFFFFF" />
+              <TouchableOpacity onPress={() => setSelectedSong(null)} activeOpacity={0.75}>
+                <Text style={styles.changeBtnText}>Change</Text>
               </TouchableOpacity>
             </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.addPhotoBtn}
-              onPress={handlePhotoTap}
-              activeOpacity={0.75}
-            >
-              <Ionicons name="image-outline" size={20} color="#B3B3B3" />
-              <Text style={styles.addPhotoLabel}>Add a photo (optional)</Text>
-            </TouchableOpacity>
-          )}
 
-          <View style={styles.captionWrap}>
-            <TextInput
-              style={styles.captionInput}
-              placeholder="Add a caption... (optional)"
-              placeholderTextColor="#6A6A6A"
-              value={caption}
-              onChangeText={setCaption}
-              maxLength={200}
-              multiline
-            />
-            <Text style={styles.captionCounter}>{caption.length}/200</Text>
+            <View style={styles.captionWrap}>
+              <TextInput
+                style={styles.captionInput}
+                placeholder="Add a caption... (optional)"
+                placeholderTextColor="#6A6A6A"
+                value={caption}
+                onChangeText={setCaption}
+                maxLength={200}
+                multiline
+              />
+              <Text style={styles.captionCounter}>{caption.length}/200</Text>
+            </View>
           </View>
-        </View>
         </TouchableWithoutFeedback>
       ) : (
         <View style={styles.searchSection}>
@@ -200,13 +187,16 @@ export default function CreateStoryScreen() {
             autoCorrect={false}
             autoCapitalize="none"
           />
+          {showingRadar && (
+            <Text style={styles.sectionLabel}>NEW THIS WEEK</Text>
+          )}
           {searching && results.length === 0 ? (
             <View style={styles.searchingWrap}>
               <Text style={styles.searchingText}>Searching...</Text>
             </View>
           ) : (
             <FlatList
-              data={results}
+              data={list}
               keyExtractor={(item) => String(item.deezer_id)}
               renderItem={renderResult}
               keyboardShouldPersistTaps="handled"
@@ -214,6 +204,19 @@ export default function CreateStoryScreen() {
           )}
         </View>
       )}
+
+      <TouchableOpacity
+        style={[styles.submitBtn, submitDisabled && styles.submitBtnDisabled]}
+        activeOpacity={submitDisabled ? 1 : 0.75}
+        onPress={onSubmit}
+        disabled={submitDisabled}
+      >
+        {posting ? (
+          <ActivityIndicator color="#FFFFFF" />
+        ) : (
+          <Ionicons name="arrow-forward" size={24} color="#FFFFFF" />
+        )}
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -255,6 +258,14 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginBottom: 12,
   },
+  sectionLabel: {
+    color: '#B3B3B3',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1,
+    paddingHorizontal: 20,
+    marginVertical: 8,
+  },
   searchingWrap: {
     alignItems: 'center',
     paddingTop: 24,
@@ -282,6 +293,7 @@ const styles = StyleSheet.create({
   resultTitle: { color: '#FFFFFF', fontSize: 15, fontWeight: '600' },
   resultArtist: { color: '#B3B3B3', fontSize: 13, marginTop: 2 },
 
+  composerBody: { flex: 1 },
   selectedCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -290,8 +302,8 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   selectedCover: {
-    width: 64,
-    height: 64,
+    width: 72,
+    height: 72,
     borderRadius: 8,
   },
   selectedCoverFallback: {
@@ -308,48 +320,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  composerBody: { flex: 1 },
-
-  photoPreviewWrap: {
-    marginHorizontal: 20,
-    marginTop: 12,
-    width: 100,
-    height: 100,
-  },
-  photoPreview: {
-    width: 100,
-    height: 100,
-    borderRadius: 8,
-  },
-  photoRemoveBtn: {
-    position: 'absolute',
-    top: -6,
-    right: -6,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(0,0,0,0.85)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#121212',
-  },
-  addPhotoBtn: {
-    marginHorizontal: 20,
-    marginTop: 12,
-    backgroundColor: '#282828',
-    borderRadius: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  addPhotoLabel: {
-    color: '#B3B3B3',
-    fontSize: 14,
-    fontWeight: '600',
-  },
   captionWrap: { marginTop: 16 },
   captionInput: {
     marginHorizontal: 20,
@@ -368,5 +338,27 @@ const styles = StyleSheet.create({
     color: '#6A6A6A',
     fontSize: 12,
     textAlign: 'right',
+  },
+
+  submitBtn: {
+    position: 'absolute',
+    right: 20,
+    bottom: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#7C3AED',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  submitBtnDisabled: {
+    backgroundColor: '#3A3A3A',
+    shadowOpacity: 0,
+    elevation: 0,
   },
 });
