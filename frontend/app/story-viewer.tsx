@@ -169,7 +169,6 @@ export default function StoryViewerScreen() {
   // flag guards against a fast story change while the sound is still
   // loading async.
   useEffect(() => {
-    console.log('[AUDIO] effect run', groupIndex, storyIndex);
     if (groups.length === 0) return;
     const group = groups[groupIndex];
     if (!group || group.stories.length === 0) return;
@@ -187,16 +186,13 @@ export default function StoryViewerScreen() {
       }
 
       const url = story.song.preview_url;
-      console.log('[AUDIO] preview url =', url);
       if (!url) return;
 
       try {
-        console.log('[AUDIO] createAsync starting');
         const { sound } = await Audio.Sound.createAsync(
           { uri: url },
           { shouldPlay: true, positionMillis: 0 },
         );
-        console.log('[AUDIO] createAsync done');
         // Story changed before this sound finished loading: drop it.
         if (cancelled) {
           try { await sound.stopAsync(); } catch {}
@@ -204,14 +200,12 @@ export default function StoryViewerScreen() {
           return;
         }
         soundRef.current = sound;
-        console.log('[AUDIO] sound assigned, playing');
         // If the user started holding while audio was loading, pause it
         // immediately so it doesn't blast over a frozen progress bar.
         if (pausedRef.current) {
           try { await sound.pauseAsync(); } catch {}
         }
       } catch (e) {
-        console.log('[AUDIO] createAsync threw:', String(e));
         // Silent — story still shows; the preview just won't play.
       }
     })();
