@@ -2425,8 +2425,8 @@ async def get_leaderboard(
 
     scope:
       "all"       — every user.
-      "following" — users the current user follows (approved), plus self.
-      "friends"   — mutual approved follows in both directions, plus self.
+      "following" — users the current user follows (approved), excluding self.
+      "friends"   — mutual approved follows in both directions, excluding self.
 
     Ranks are computed over the full scoped set, then limit/offset is
     applied — so `rank` reflects true position even on later pages, and
@@ -2449,14 +2449,14 @@ async def get_leaderboard(
         following_ids = {r["followed_id"] for r in following_rows}
 
         if scope == "following":
-            scoped_ids = following_ids | {me_id}
+            scoped_ids = set(following_ids)
         else:  # friends — require approved edges in both directions
             follower_rows = await db.follows.find(
                 {"followed_id": me_id, "status": "approved"},
                 {"_id": 0, "follower_id": 1},
             ).to_list(length=None)
             follower_ids = {r["follower_id"] for r in follower_rows}
-            scoped_ids = (following_ids & follower_ids) | {me_id}
+            scoped_ids = following_ids & follower_ids
 
         if not scoped_ids:
             return {"data": {"entries": [], "total": 0, "current_user_rank": None}}
