@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,10 @@ import {
   TextInput,
   Image,
   Alert,
+  KeyboardAvoidingView,
+  Keyboard,
+  TouchableWithoutFeedback,
   Platform,
-  ActionSheetIOS,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -49,7 +51,6 @@ export default function CreatePhotoStoryScreen() {
       console.log('[PHOTO] picker result:', JSON.stringify(result));
       if (result.canceled) {
         console.log('[PHOTO] canceled, photoUri is:', photoUri);
-        if (!photoUri) router.back();
         return;
       }
       console.log('[PHOTO] setting photoUri to:', result.assets[0].uri);
@@ -76,7 +77,6 @@ export default function CreatePhotoStoryScreen() {
       console.log('[PHOTO] picker result:', JSON.stringify(result));
       if (result.canceled) {
         console.log('[PHOTO] canceled, photoUri is:', photoUri);
-        if (!photoUri) router.back();
         return;
       }
       console.log('[PHOTO] setting photoUri to:', result.assets[0].uri);
@@ -85,31 +85,6 @@ export default function CreatePhotoStoryScreen() {
       console.log('[PHOTO] picker threw:', String(e), JSON.stringify(e));
     }
   };
-
-  // On mount: present the photo-source choice via a native action sheet
-  // (iOS) / Alert (Android). A native sheet fully dismisses before the
-  // picker launches, avoiding the iOS "another controller is presented"
-  // conflict that silently blocks expo-image-picker when an in-app
-  // <Modal> is still on screen.
-  useEffect(() => {
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        { options: ['Cancel', 'Take Photo', 'Choose from Library'], cancelButtonIndex: 0 },
-        (i) => {
-          if (i === 1) takePhoto();
-          else if (i === 2) pickFromLibrary();
-          else router.back();
-        },
-      );
-    } else {
-      Alert.alert('Add a photo', '', [
-        { text: 'Cancel', style: 'cancel', onPress: () => router.back() },
-        { text: 'Take Photo', onPress: takePhoto },
-        { text: 'Choose from Library', onPress: pickFromLibrary },
-      ]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const onAddMusicTap = () => {
     router.push('/song-picker' as any);
@@ -127,15 +102,50 @@ export default function CreatePhotoStoryScreen() {
 
   return (
     <View style={styles.container}>
-      {photoUri && (
+      {photoUri ? (
         <>
           <Image
             source={{ uri: photoUri }}
             style={StyleSheet.absoluteFillObject}
-            resizeMode="cover"
+            resizeMode="contain"
           />
 
-          {/* Top overlay: close + Add Music / song chip */}
+          {/* KAV wraps the dismiss-tap area + bottom overlay so the
+              caption/submit lift above the keyboard. Top overlay is
+              rendered AFTER the KAV so its buttons stay tappable above
+              the dismiss-area. */}
+          <KeyboardAvoidingView
+            style={StyleSheet.absoluteFillObject}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            pointerEvents="box-none"
+          >
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+              <View style={styles.dismissArea} />
+            </TouchableWithoutFeedback>
+
+            <SafeAreaView style={styles.bottomOverlay} edges={['bottom']} pointerEvents="box-none">
+              <TextInput
+                style={styles.captionInput}
+                placeholder="Add a caption... (optional)"
+                placeholderTextColor="rgba(255,255,255,0.6)"
+                value={caption}
+                onChangeText={setCaption}
+                maxLength={200}
+                multiline
+              />
+              <TouchableOpacity
+                style={[styles.submitBtn, submitDisabled && styles.submitBtnDisabled]}
+                onPress={onSubmitTap}
+                disabled={submitDisabled}
+                activeOpacity={submitDisabled ? 1 : 0.75}
+              >
+                <Ionicons name="arrow-forward" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            </SafeAreaView>
+          </KeyboardAvoidingView>
+
+          {/* Top overlay last → sits above the KAV's dismiss layer so
+              close + Add Music remain tappable. */}
           <SafeAreaView style={styles.topOverlay} edges={['top']} pointerEvents="box-none">
             <View style={styles.topRow}>
               <TouchableOpacity
@@ -174,27 +184,39 @@ export default function CreatePhotoStoryScreen() {
               </TouchableOpacity>
             </View>
           </SafeAreaView>
-
-          {/* Bottom overlay: caption + submit */}
-          <SafeAreaView style={styles.bottomOverlay} edges={['bottom']} pointerEvents="box-none">
-            <TextInput
-              style={styles.captionInput}
-              placeholder="Add a caption... (optional)"
-              placeholderTextColor="rgba(255,255,255,0.6)"
-              value={caption}
-              onChangeText={setCaption}
-              maxLength={200}
-              multiline
-            />
-            <TouchableOpacity
-              style={[styles.submitBtn, submitDisabled && styles.submitBtnDisabled]}
-              onPress={onSubmitTap}
-              disabled={submitDisabled}
-              activeOpacity={submitDisabled ? 1 : 0.75}
-            >
-              <Ionicons name="arrow-forward" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
+        </>
+      ) : (
+        <>
+          <SafeAreaView style={styles.topOverlay} edges={['top']} pointerEvents="box-none">
+            <View style={styles.topRow}>
+              <TouchableOpacity
+                style={styles.iconBtn}
+                onPress={() => router.back()}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="close" size={28} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
           </SafeAreaView>
+          <View style={styles.chooserCenter}>
+            <Text style={styles.chooserTitle}>Add a photo to your story</Text>
+            <TouchableOpacity
+              style={styles.chooserBtn}
+              onPress={takePhoto}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="camera" size={20} color="#FFFFFF" />
+              <Text style={styles.chooserBtnLabel}>Take Photo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.chooserBtn}
+              onPress={pickFromLibrary}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="images" size={20} color="#FFFFFF" />
+              <Text style={styles.chooserBtnLabel}>Choose from Library</Text>
+            </TouchableOpacity>
+          </View>
         </>
       )}
 
@@ -242,14 +264,11 @@ const styles = StyleSheet.create({
   musicPillArtist: { color: 'rgba(255,255,255,0.7)', fontSize: 11, marginTop: 1 },
 
   bottomOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     paddingHorizontal: 16,
     paddingBottom: 16,
     gap: 12,
   },
+  dismissArea: { flex: 1 },
   captionInput: {
     backgroundColor: 'rgba(0,0,0,0.55)',
     color: '#FFFFFF',
@@ -280,4 +299,30 @@ const styles = StyleSheet.create({
     shadowOpacity: 0,
     elevation: 0,
   },
+
+  chooserCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    gap: 14,
+  },
+  chooserTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  chooserBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: '#7C3AED',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    minWidth: 240,
+  },
+  chooserBtnLabel: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
 });
