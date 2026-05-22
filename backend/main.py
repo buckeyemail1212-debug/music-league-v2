@@ -2414,6 +2414,92 @@ async def get_my_following(
     )
 
 
+@api_router.get("/leaderboard")
+async def get_leaderboard(
+    scope: str = "all",
+    limit: int = 100,
+    offset: int = 0,
+    current_user: dict = Depends(get_current_user),
+):
+    """Rank users by all_time_points within the requested scope.
+
+    scope:
+      "all"       — every user.
+      "following" — users the current user follows (approved), plus self.
+      "friends"   — mutual approved follows in both directions, plus self.
+
+    Ranks are computed over the full scoped set, then limit/offset is
+    applied — so `rank` reflects true position even on later pages, and
+    `current_user_rank` is correct even if the user falls outside the
+    returned window.
+    """
+    if scope not in ("all", "following", "friends"):
+        raise HTTPException(status_code=400, detail="Invalid scope")
+    limit = max(1, min(limit, 100))
+    offset = max(0, offset)
+    me_id = current_user["id"]
+
+    if scope == "all":
+        user_filter: dict = {}
+    else:
+        following_rows = await db.follows.find(
+            {"follower_id": me_id, "status": "approved"},
+            {"_id": 0, "followed_id": 1},
+        ).to_list(length=None)
+        following_ids = {r["followed_id"] for r in following_rows}
+
+        if scope == "following":
+            scoped_ids = following_ids | {me_id}
+        else:  # friends — require approved edges in both directions
+            follower_rows = await db.follows.find(
+                {"followed_id": me_id, "status": "approved"},
+                {"_id": 0, "follower_id": 1},
+            ).to_list(length=None)
+            follower_ids = {r["follower_id"] for r in follower_rows}
+            scoped_ids = (following_ids & follower_ids) | {me_id}
+
+        if not scoped_ids:
+            return {"data": {"entries": [], "total": 0, "current_user_rank": None}}
+        user_filter = {"id": {"$in": list(scoped_ids)}}
+
+    users = await db.users.find(
+        user_filter,
+        {"_id": 0, "id": 1, "username": 1, "profile_photo": 1, "all_time_points": 1},
+    ).to_list(length=None)
+
+    # Sort by all_time_points desc, with username asc as a stable
+    # tiebreaker. Missing all_time_points is treated as 0.
+    users.sort(
+        key=lambda u: (
+            -int(u.get("all_time_points") or 0),
+            (u.get("username") or "").lower(),
+        )
+    )
+
+    total = len(users)
+    current_user_rank: Optional[int] = None
+    for idx, u in enumerate(users):
+        if u["id"] == me_id:
+            current_user_rank = idx + 1
+            break
+
+    page = users[offset : offset + limit]
+    entries = []
+    for i, u in enumerate(page):
+        row = _user_summary(u)
+        row["all_time_points"] = int(u.get("all_time_points") or 0)
+        row["rank"] = offset + i + 1
+        entries.append(row)
+
+    return {
+        "data": {
+            "entries": entries,
+            "total": total,
+            "current_user_rank": current_user_rank,
+        }
+    }
+
+
 async def _list_follow_edges_for_target(
     *,
     target_id: str,
