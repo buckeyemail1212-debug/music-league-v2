@@ -2622,6 +2622,26 @@ async def create_story(
     return {"data": {"story_id": story_id}}
 
 
+@api_router.delete("/stories/{story_id}")
+async def delete_story(
+    story_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Hard-delete a story owned by the current user.
+
+    404 if the story doesn't exist; 403 if it belongs to someone else.
+    The ownership check is enforced server-side so an ID guess from an
+    unauthorized client cannot remove someone else's story.
+    """
+    story = await db.stories.find_one({"id": story_id}, {"_id": 0, "user_id": 1})
+    if not story:
+        raise HTTPException(status_code=404, detail="Story not found")
+    if story.get("user_id") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="You can only delete your own stories")
+    await db.stories.delete_one({"id": story_id})
+    return {"data": {"deleted": True}}
+
+
 @api_router.get("/stories/feed")
 async def get_stories_feed(current_user: dict = Depends(get_current_user)):
     me_id = current_user["id"]
