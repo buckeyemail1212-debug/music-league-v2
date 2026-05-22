@@ -32,6 +32,7 @@ import { pastLeaguesCache } from '../../src/utils/pastLeaguesCache';
 import { publicLeaguesCache } from '../../src/utils/publicLeaguesCache';
 import LeagueAvatar from '../../src/components/LeagueAvatar';
 import CreateJoinSheet from '../../src/components/CreateJoinSheet';
+import StoriesRing from '../../src/components/StoriesRing';
 
 const getGreeting = () => {
   const h = new Date().getHours();
@@ -488,6 +489,10 @@ export default function HomeScreen() {
             </View>
           )}
         </TouchableOpacity>
+      </View>
+
+      <View style={{ marginTop: 4, marginBottom: 8 }}>
+        <StoriesRing currentUser={user} />
       </View>
 
       {/* Active leagues — page section title, matches INBOX */}

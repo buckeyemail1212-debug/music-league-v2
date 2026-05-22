@@ -712,4 +712,36 @@ export interface LeaderboardResponse {
 export const getLeaderboard = (scope: 'all' | 'following' | 'friends' = 'all') =>
   api.get<{ data: LeaderboardResponse }>('/leaderboard', { params: { scope } });
 
+export interface StorySong {
+  deezer_id: number;
+  title: string;
+  artist: string;
+  cover_url: string;
+  preview_url: string;
+}
+
+export interface Story {
+  id: string;
+  song: StorySong;
+  photo_url: string | null;
+  caption: string | null;
+  created_at: string;
+  expires_at: string;
+}
+
+export interface StoryGroup {
+  user_id: string;
+  username: string;
+  avatar_url: string | null;
+  stories: Story[];
+}
+
+export interface StoriesFeedResponse {
+  your_stories: Story[];
+  following: StoryGroup[];
+}
+
+export const getStoriesFeed = () =>
+  api.get<{ data: StoriesFeedResponse }>('/stories/feed');
+
 export default api;
