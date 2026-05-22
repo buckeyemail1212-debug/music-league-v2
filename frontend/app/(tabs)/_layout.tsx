@@ -2,10 +2,13 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Platform, StyleSheet } from 'react-native';
+import { useAuth } from '../../src/context/AuthContext';
 
 export default function TabLayout() {
+  const { user } = useAuth();
   return (
     <Tabs
+      key={user?.id ?? 'no-user'}
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
