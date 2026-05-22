@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { getLeaderboard, LeaderboardEntry } from '../../src/services/api';
 
 type Scope = 'all' | 'following' | 'friends';
@@ -24,12 +24,19 @@ const SCOPE_LABELS: Record<Scope, string> = {
 const EMPTY_TEXT: Record<Scope, string> = {
   all: 'No rankings yet',
   following: 'Follow people to see them here',
-  friends: 'Add friends to see them here',
+  friends: 'Friends are people you follow who follow you back',
 };
+
+const EMPTY_ICON = {
+  all: 'trophy-outline',
+  following: 'person-add-outline',
+  friends: 'people-outline',
+} as const;
 
 const SCOPES: Scope[] = ['all', 'following', 'friends'];
 
 export default function LeaderboardScreen() {
+  const router = useRouter();
   const [scope, setScope] = useState<Scope>('all');
   const [entries, setEntries] = useState<LeaderboardEntry[] | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -55,7 +62,11 @@ export default function LeaderboardScreen() {
   const renderItem = ({ item }: { item: LeaderboardEntry }) => {
     const isTop = item.rank <= 3;
     return (
-      <View style={styles.row}>
+      <TouchableOpacity
+        style={styles.row}
+        activeOpacity={0.75}
+        onPress={() => router.push(`/user/${item.user_id}` as any)}
+      >
         <Text style={[styles.rank, isTop && styles.rankTop]}>{item.rank}</Text>
         {item.avatar_url ? (
           <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
@@ -68,7 +79,7 @@ export default function LeaderboardScreen() {
           @{item.username}
         </Text>
         <Text style={styles.points}>{item.all_time_points}</Text>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -91,7 +102,7 @@ export default function LeaderboardScreen() {
         </View>
       ) : entries.length === 0 ? (
         <View style={styles.centerState}>
-          <Ionicons name="trophy-outline" size={40} color="#6A6A6A" />
+          <Ionicons name={EMPTY_ICON[scope]} size={40} color="#6A6A6A" />
           <Text style={styles.emptyText}>{EMPTY_TEXT[scope]}</Text>
         </View>
       ) : (
