@@ -6685,6 +6685,81 @@ async def get_chart_songs(limit: int = 50, index: int = 0):
         raise HTTPException(status_code=500, detail=f"Failed to fetch chart: {type(e).__name__}")
 
 
+async def _fetch_deezer_track_list(
+    client: httpx.AsyncClient, url: str, *, limit: int, index: int,
+) -> list[dict]:
+    """Fetch a Deezer track-list endpoint, return preview-only tracks
+    mapped to our SongData shape. Raises on HTTP errors so callers can
+    decide whether to fall back."""
+    resp = await client.get(url, params={"limit": limit, "index": index})
+    resp.raise_for_status()
+    return [
+        _map_deezer_track(t)
+        for t in resp.json().get("data", [])
+        if t.get("preview")
+    ]
+
+
+@api_router.get("/songs/radar")
+async def get_radar_songs(limit: int = 50, index: int = 0):
+    """
+    Return Deezer's "Radar Weekly" editorial playlist — new releases,
+    refreshed weekly by Deezer. Falls back to the global chart when the
+    Radar fetch fails or returns no playable tracks so the recommendation
+    list is never empty.
+
+    Cached for 1 hour via _CHART_CACHE since the source only refreshes
+    weekly. Cache key includes limit/index so paginated requests don't
+    overwrite each other.
+    """
+    limit = max(1, min(limit, 100))
+    index = max(0, index)
+
+    cache_key = f"deezer_radar:{limit}:{index}"
+    now = time.time()
+    cached = _CHART_CACHE.get(cache_key)
+    if cached and (now - cached["ts"]) < _CHART_CACHE_TTL:
+        return {"data": cached["data"]}
+
+    radar_url = "https://api.deezer.com/playlist/1282495565/tracks"
+    chart_url = "https://api.deezer.com/chart/0/tracks"
+
+    try:
+        async with httpx.AsyncClient(verify=False, timeout=30.0) as client:
+            songs: list[dict] = []
+            try:
+                songs = await _fetch_deezer_track_list(
+                    client, radar_url, limit=limit, index=index,
+                )
+                if not songs:
+                    logger.warning(
+                        "Deezer Radar Weekly returned no playable tracks — falling back to global chart"
+                    )
+            except Exception as e:
+                logger.warning(
+                    f"Deezer Radar fetch failed — falling back to global chart: {type(e).__name__}: {e}"
+                )
+                # `songs` stays [] → falls through to global chart below.
+
+            if not songs:
+                songs = await _fetch_deezer_track_list(
+                    client, chart_url, limit=limit, index=index,
+                )
+
+        _CHART_CACHE[cache_key] = {"ts": now, "data": songs}
+        return {"data": songs}
+
+    except httpx.TimeoutException:
+        logger.error("Deezer radar/chart API timeout")
+        raise HTTPException(status_code=504, detail="Radar request timed out. Please try again.")
+    except httpx.HTTPError as e:
+        logger.error(f"Deezer radar/chart HTTP error: {e}")
+        raise HTTPException(status_code=502, detail="Could not connect to song service")
+    except Exception as e:
+        logger.error(f"Deezer radar error: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch radar: {type(e).__name__}")
+
+
 @api_router.get("/songs/genre/{genre_id}")
 async def get_genre_songs(genre_id: int, artists: int = 5, tracks_per_artist: int = 10):
     """
