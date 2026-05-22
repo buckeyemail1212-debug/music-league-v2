@@ -31,6 +31,7 @@ import { getOrdinalSuffix } from '../../src/utils/ordinal';
 import { pastLeaguesCache } from '../../src/utils/pastLeaguesCache';
 import { publicLeaguesCache } from '../../src/utils/publicLeaguesCache';
 import LeagueAvatar from '../../src/components/LeagueAvatar';
+import CreateJoinSheet from '../../src/components/CreateJoinSheet';
 
 const getGreeting = () => {
   const h = new Date().getHours();
@@ -124,6 +125,7 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [pastLeagues, setPastLeagues] = useState<PastLeague[]>([]);
+  const [createSheetOpen, setCreateSheetOpen] = useState(false);
   const [publicCount, setPublicCount] = useState<number>(
     () => publicLeaguesCache.get()?.length ?? 0,
   );
@@ -454,6 +456,13 @@ export default function HomeScreen() {
 
         <TouchableOpacity
           style={styles.headerIconBtn}
+          onPress={() => setCreateSheetOpen(true)}
+        >
+          <Ionicons name="add-circle-outline" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.headerIconBtn}
           onPress={() => router.push('/how-to-play' as any)}
         >
           <Ionicons name="help-circle-outline" size={24} color="#FFFFFF" />
@@ -586,6 +595,11 @@ export default function HomeScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      <CreateJoinSheet
+        visible={createSheetOpen}
+        onClose={() => setCreateSheetOpen(false)}
+      />
     </SafeAreaView>
   );
 }
