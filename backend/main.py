@@ -2477,10 +2477,28 @@ async def get_leaderboard(
     )
 
     total = len(users)
+
+    # Standard competition ranking (1, 2, 2, 4 style): users tied on
+    # all_time_points share the same rank, and the next distinct score
+    # skips ahead by however many were tied above it. Computed over the
+    # full sorted list so ranks remain stable regardless of pagination.
+    ranks: List[int] = []
+    prev_points: Optional[int] = None
+    prev_rank = 0
+    for idx, u in enumerate(users):
+        pts = int(u.get("all_time_points") or 0)
+        if prev_points is not None and pts == prev_points:
+            rank = prev_rank
+        else:
+            rank = idx + 1
+        ranks.append(rank)
+        prev_points = pts
+        prev_rank = rank
+
     current_user_rank: Optional[int] = None
     for idx, u in enumerate(users):
         if u["id"] == me_id:
-            current_user_rank = idx + 1
+            current_user_rank = ranks[idx]
             break
 
     page = users[offset : offset + limit]
@@ -2488,7 +2506,7 @@ async def get_leaderboard(
     for i, u in enumerate(page):
         row = _user_summary(u)
         row["all_time_points"] = int(u.get("all_time_points") or 0)
-        row["rank"] = offset + i + 1
+        row["rank"] = ranks[offset + i]
         entries.append(row)
 
     return {
