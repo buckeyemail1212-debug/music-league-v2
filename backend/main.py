@@ -2528,6 +2528,127 @@ async def get_leaderboard(
     }
 
 
+# ==================== STORIES ====================
+#
+# Ephemeral song-share posts. A story has a song reference, an optional
+# photo + caption, and a 24-hour TTL. Expired stories remain in the
+# collection (no separate "expired" flag) — clients filter by
+# expires_at > now, which is also what /stories/feed enforces.
+
+
+class SongPayload(BaseModel):
+    deezer_id: int
+    title: str
+    artist: str
+    cover_url: str
+    preview_url: str
+
+
+class CreateStoryBody(BaseModel):
+    song: SongPayload
+    photo_url: Optional[str] = None
+    caption: Optional[str] = None
+
+
+def _story_payload(s: dict) -> dict:
+    """Strip Mongo internals + the user_id column for client return."""
+    return {
+        "id": s["id"],
+        "song": s.get("song"),
+        "photo_url": s.get("photo_url"),
+        "caption": s.get("caption"),
+        "created_at": s.get("created_at"),
+        "expires_at": s.get("expires_at"),
+    }
+
+
+@api_router.post("/stories")
+async def create_story(
+    body: CreateStoryBody,
+    current_user: dict = Depends(get_current_user),
+):
+    if body.caption is not None and len(body.caption) > 200:
+        raise HTTPException(status_code=400, detail="Caption too long")
+    now = datetime.now(timezone.utc)
+    story_id = str(uuid.uuid4())
+    doc = {
+        "id": story_id,
+        "user_id": current_user["id"],
+        "song": body.song.dict(),
+        "photo_url": body.photo_url,
+        "caption": body.caption,
+        "created_at": now,
+        "expires_at": now + timedelta(hours=24),
+    }
+    await db.stories.insert_one(doc)
+    return {"data": {"story_id": story_id}}
+
+
+@api_router.get("/stories/feed")
+async def get_stories_feed(current_user: dict = Depends(get_current_user)):
+    me_id = current_user["id"]
+    now = datetime.now(timezone.utc)
+
+    my_rows = await (
+        db.stories.find(
+            {"user_id": me_id, "expires_at": {"$gt": now}},
+            {"_id": 0},
+        )
+        .sort("created_at", 1)
+        .to_list(length=None)
+    )
+    your_stories = [_story_payload(s) for s in my_rows]
+
+    follow_rows = await db.follows.find(
+        {"follower_id": me_id, "status": "approved"},
+        {"_id": 0, "followed_id": 1},
+    ).to_list(length=None)
+    followed_ids = [r["followed_id"] for r in follow_rows]
+
+    following_groups: list[dict] = []
+    if followed_ids:
+        their_rows = await db.stories.find(
+            {"user_id": {"$in": followed_ids}, "expires_at": {"$gt": now}},
+            {"_id": 0},
+        ).to_list(length=None)
+
+        grouped: dict[str, list[dict]] = {}
+        for s in their_rows:
+            grouped.setdefault(s["user_id"], []).append(s)
+        for items in grouped.values():
+            items.sort(key=lambda x: x["created_at"])
+
+        author_ids = list(grouped.keys())
+        users = await db.users.find(
+            {"id": {"$in": author_ids}},
+            {"_id": 0, "id": 1, "username": 1, "profile_photo": 1},
+        ).to_list(length=len(author_ids))
+        users_by_id = {u["id"]: u for u in users}
+
+        for uid, items in grouped.items():
+            u = users_by_id.get(uid)
+            if not u:
+                continue
+            following_groups.append({
+                "user_id": uid,
+                "username": u.get("username"),
+                "avatar_url": u.get("profile_photo"),
+                "stories": [_story_payload(s) for s in items],
+            })
+
+        following_groups.sort(
+            key=lambda g: g["stories"][-1]["created_at"],
+            reverse=True,
+        )
+
+    return {
+        "data": {
+            "your_stories": your_stories,
+            "following": following_groups,
+        }
+    }
+
+
 async def _list_follow_edges_for_target(
     *,
     target_id: str,
@@ -7688,6 +7809,16 @@ async def past_leagues_startup_maintenance():
         )
     except Exception as e:
         logger.warning(f"blocks pair unique index creation failed: {e}")
+    # Stories: (user_id, expires_at) powers both /stories/feed paths —
+    # "my active stories" filters by user_id+expires_at>now, and the
+    # followed-user fan-out filters by user_id IN [...] +expires_at>now.
+    try:
+        await db.stories.create_index(
+            [("user_id", 1), ("expires_at", 1)],
+            name="stories_user_expiry",
+        )
+    except Exception as e:
+        logger.warning(f"stories user_id/expires_at index creation failed: {e}")
     # One-time genre backfill for public leagues created before the field
     # existed. Writes "General" for any public league missing or with a
     # blank genre; leaves private leagues alone.
