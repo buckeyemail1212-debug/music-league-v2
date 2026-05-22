@@ -450,8 +450,7 @@ export default function HomeScreen() {
       {/* Greeting row with ? + avatar (avatar taps into Settings). */}
       <View style={styles.headerRow}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.greeting}>{getGreeting()},</Text>
-          <Text style={styles.username}>{user?.display_name || user?.username}</Text>
+          <Text style={styles.wordmark}>music comp</Text>
         </View>
 
         <TouchableOpacity
@@ -612,13 +611,18 @@ const styles = StyleSheet.create({
     // so the greeting and icons align with "ACTIVE LEAGUES" and the league
     // card edges. Do not add paddingHorizontal here — it double-pads.
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     paddingTop: 12,
     paddingBottom: 18,
     gap: 6,
   },
   greeting: { fontSize: 14, color: '#B3B3B3', fontWeight: '400' },
   username: { fontSize: 26, fontWeight: '700', color: '#FFFFFF', marginTop: 2 },
+  wordmark: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#7C3AED',
+  },
   headerIconBtn: {
     width: 44,
     height: 44,
