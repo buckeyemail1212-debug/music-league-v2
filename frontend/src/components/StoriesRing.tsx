@@ -5,7 +5,10 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   Image,
+  Modal,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -23,6 +26,7 @@ interface Props {
 export default function StoriesRing({ currentUser }: Props) {
   const router = useRouter();
   const [following, setFollowing] = useState<StoryGroup[]>([]);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,6 +50,7 @@ export default function StoriesRing({ currentUser }: Props) {
   );
 
   return (
+    <>
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
@@ -55,7 +60,7 @@ export default function StoriesRing({ currentUser }: Props) {
       <TouchableOpacity
         style={styles.item}
         activeOpacity={0.75}
-        onPress={() => router.push('/create-story' as any)}
+        onPress={() => setMenuOpen(true)}
       >
         <View style={styles.yourRingWrap}>
           {currentUser?.profile_photo ? (
@@ -94,6 +99,59 @@ export default function StoriesRing({ currentUser }: Props) {
         </TouchableOpacity>
       ))}
     </ScrollView>
+
+    <Modal
+      visible={menuOpen}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setMenuOpen(false)}
+    >
+      <TouchableWithoutFeedback onPress={() => setMenuOpen(false)}>
+        <View style={styles.sheetOverlay}>
+          <TouchableWithoutFeedback onPress={() => {}}>
+            <View style={styles.sheetWrap}>
+              <View style={styles.optionsGroup}>
+                <TouchableOpacity
+                  style={styles.actionRow}
+                  activeOpacity={0.6}
+                  onPress={() => {
+                    setMenuOpen(false);
+                    router.push('/create-story' as any);
+                  }}
+                >
+                  <Ionicons name="musical-notes" size={22} color="#7C3AED" />
+                  <Text style={styles.actionLabel}>Add Music</Text>
+                  <View style={styles.actionRowSpacer} />
+                </TouchableOpacity>
+                <View style={styles.divider} />
+                <TouchableOpacity
+                  style={styles.actionRow}
+                  activeOpacity={0.6}
+                  onPress={() => {
+                    setMenuOpen(false);
+                    // TODO: /create-photo-story built in 4c-5
+                    router.push('/create-photo-story' as any);
+                  }}
+                >
+                  <Ionicons name="camera" size={22} color="#7C3AED" />
+                  <Text style={styles.actionLabel}>Add Music + Photo</Text>
+                  <View style={styles.actionRowSpacer} />
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity
+                style={styles.cancelGroup}
+                activeOpacity={0.6}
+                onPress={() => setMenuOpen(false)}
+              >
+                <Text style={styles.cancelLabel}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableWithoutFeedback>
+        </View>
+      </TouchableWithoutFeedback>
+    </Modal>
+    </>
   );
 }
 
@@ -150,5 +208,52 @@ const styles = StyleSheet.create({
     maxWidth: 80,
     textAlign: 'center',
     marginTop: 4,
+  },
+
+  sheetOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  sheetWrap: {
+    marginHorizontal: 10,
+    paddingBottom: Platform.OS === 'ios' ? 36 : 20,
+  },
+  optionsGroup: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  actionLabel: {
+    flex: 1,
+    fontSize: 16,
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  actionRowSpacer: {
+    width: 22,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  cancelGroup: {
+    marginTop: 8,
+    backgroundColor: '#1E1E1E',
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  cancelLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });
