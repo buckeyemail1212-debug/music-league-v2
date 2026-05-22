@@ -323,9 +323,9 @@ export default function StoryViewerScreen() {
 
   const onAvatarTap = () => {
     if (currentGroup.isOwn) {
-      router.push('/(tabs)/profile' as any);
+      router.replace('/(tabs)/profile' as any);
     } else if (currentGroup.userId) {
-      router.push(`/user/${currentGroup.userId}` as any);
+      router.replace(`/user/${currentGroup.userId}` as any);
     }
   };
 
