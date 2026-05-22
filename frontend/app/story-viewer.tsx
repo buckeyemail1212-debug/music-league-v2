@@ -82,6 +82,63 @@ export default function StoryViewerScreen() {
   const advanceRef = useRef<() => void>(() => {});
   const dragY = useRef(new Animated.Value(0)).current;
   const soundRef = useRef<Audio.Sound | null>(null);
+  // Hold-to-pause bookkeeping. All refs so they survive renders without
+  // re-triggering effects.
+  const pausedRef = useRef(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const animRef = useRef<Animated.CompositeAnimation | null>(null);
+  const startedAtRef = useRef<number>(0);
+  const accumulatedMsRef = useRef<number>(0);
+
+  const clearTimerAndAnim = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    if (animRef.current) {
+      animRef.current.stop();
+      animRef.current = null;
+    }
+  };
+
+  // Drive the progress animation + auto-advance timer from `fromMs` of
+  // elapsed time within the current 30s story window. fromMs=0 starts
+  // fresh; fromMs>0 resumes after a pause.
+  const startTimerAndAnim = (fromMs: number) => {
+    const remaining = Math.max(0, STORY_DURATION_MS - fromMs);
+    progress.setValue(fromMs / STORY_DURATION_MS);
+    const anim = Animated.timing(progress, {
+      toValue: 1,
+      duration: remaining,
+      useNativeDriver: false,
+    });
+    animRef.current = anim;
+    anim.start();
+    startedAtRef.current = Date.now();
+    timerRef.current = setTimeout(() => {
+      advanceRef.current();
+    }, remaining);
+  };
+
+  const pause = () => {
+    if (pausedRef.current) return;
+    pausedRef.current = true;
+    // Bank the elapsed time so resume picks up where we left off.
+    accumulatedMsRef.current += Date.now() - startedAtRef.current;
+    clearTimerAndAnim();
+    if (soundRef.current) {
+      soundRef.current.pauseAsync().catch(() => {});
+    }
+  };
+
+  const resume = () => {
+    if (!pausedRef.current) return;
+    pausedRef.current = false;
+    startTimerAndAnim(accumulatedMsRef.current);
+    if (soundRef.current) {
+      soundRef.current.playAsync().catch(() => {});
+    }
+  };
 
   // Empty/invalid feed → exit immediately.
   useEffect(() => {
@@ -137,6 +194,11 @@ export default function StoryViewerScreen() {
           return;
         }
         soundRef.current = sound;
+        // If the user started holding while audio was loading, pause it
+        // immediately so it doesn't blast over a frozen progress bar.
+        if (pausedRef.current) {
+          try { await sound.pauseAsync(); } catch {}
+        }
       } catch (e) {
         // Silent — story still shows; the preview just won't play.
       }
@@ -155,28 +217,21 @@ export default function StoryViewerScreen() {
 
   // 30s timer + progress animation. Reruns on every group, story, or
   // restartKey change — resetting the bar and starting a fresh countdown.
+  // Pause/resume are handled imperatively via the press handlers, which
+  // mutate the same refs this effect controls.
   useEffect(() => {
     if (groups.length === 0) return;
     const group = groups[groupIndex];
     if (!group || group.stories.length === 0) return;
 
-    progress.setValue(0);
-    const anim = Animated.timing(progress, {
-      toValue: 1,
-      duration: STORY_DURATION_MS,
-      useNativeDriver: false,
-    });
-    anim.start();
-
-    // Read the latest advance via the ref so the timer never holds a
-    // stale closure if mid-story re-renders happen (e.g. when audio
-    // integration arrives later and triggers re-renders without changing
-    // indices).
-    const timer = setTimeout(() => advanceRef.current(), STORY_DURATION_MS);
+    // Fresh story: clear pause state and elapsed counter, then start.
+    pausedRef.current = false;
+    accumulatedMsRef.current = 0;
+    clearTimerAndAnim();
+    startTimerAndAnim(0);
 
     return () => {
-      clearTimeout(timer);
-      anim.stop();
+      clearTimerAndAnim();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupIndex, storyIndex, restartKey]);
@@ -326,8 +381,20 @@ export default function StoryViewerScreen() {
 
       {/* ── Layer 2: tap zones for prev/next ───────────────────────────── */}
       <View style={styles.tapZones} pointerEvents="box-none">
-        <Pressable style={styles.tapLeft} onPress={goBack} />
-        <Pressable style={styles.tapRight} onPress={advance} />
+        <Pressable
+          style={styles.tapLeft}
+          onPress={goBack}
+          onLongPress={pause}
+          onPressOut={resume}
+          delayLongPress={200}
+        />
+        <Pressable
+          style={styles.tapRight}
+          onPress={advance}
+          onLongPress={pause}
+          onPressOut={resume}
+          delayLongPress={200}
+        />
       </View>
 
       {/* ── Layer 3: top UI (above tap zones; pointerEvents box-none lets
