@@ -8,6 +8,7 @@ import {
   Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { getStoriesFeed, StoryGroup } from '../services/api';
 
 interface CurrentUserShape {
@@ -20,6 +21,7 @@ interface Props {
 }
 
 export default function StoriesRing({ currentUser }: Props) {
+  const router = useRouter();
   const [following, setFollowing] = useState<StoryGroup[]>([]);
 
   useEffect(() => {
@@ -53,9 +55,7 @@ export default function StoriesRing({ currentUser }: Props) {
       <TouchableOpacity
         style={styles.item}
         activeOpacity={0.75}
-        onPress={() => {
-          // TODO: open story composer (4c)
-        }}
+        onPress={() => router.push('/create-story' as any)}
       >
         <View style={styles.yourRingWrap}>
           {currentUser?.profile_photo ? (
