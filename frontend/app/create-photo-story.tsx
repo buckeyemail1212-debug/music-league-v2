@@ -7,6 +7,7 @@ import {
   TextInput,
   Image,
   Alert,
+  ActivityIndicator,
   KeyboardAvoidingView,
   Keyboard,
   TouchableWithoutFeedback,
@@ -16,15 +17,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { Song } from '../src/services/api';
+import { Song, createStory, uploadImage } from '../src/services/api';
 import { consumePendingSong } from '../src/services/pendingSong';
 
 export default function CreatePhotoStoryScreen() {
   const router = useRouter();
 
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [photoBase64, setPhotoBase64] = useState<string | null>(null);
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [caption, setCaption] = useState('');
+  const [posting, setPosting] = useState(false);
 
   // Receive a song picked via /song-picker on every focus. consume clears
   // the slot so a previous pick can't leak back in later.
@@ -47,6 +50,7 @@ export default function CreatePhotoStoryScreen() {
       const result = await ImagePicker.launchCameraAsync({
         quality: 0.7,
         allowsEditing: false,
+        base64: true,
       });
       console.log('[PHOTO] picker result:', JSON.stringify(result));
       if (result.canceled) {
@@ -55,6 +59,7 @@ export default function CreatePhotoStoryScreen() {
       }
       console.log('[PHOTO] setting photoUri to:', result.assets[0].uri);
       setPhotoUri(result.assets[0].uri);
+      setPhotoBase64(result.assets[0].base64 || null);
     } catch (e) {
       console.log('[PHOTO] picker threw:', String(e), JSON.stringify(e));
     }
@@ -73,6 +78,7 @@ export default function CreatePhotoStoryScreen() {
         mediaTypes: ['images'] as any,
         quality: 0.7,
         allowsEditing: false,
+        base64: true,
       });
       console.log('[PHOTO] picker result:', JSON.stringify(result));
       if (result.canceled) {
@@ -81,6 +87,7 @@ export default function CreatePhotoStoryScreen() {
       }
       console.log('[PHOTO] setting photoUri to:', result.assets[0].uri);
       setPhotoUri(result.assets[0].uri);
+      setPhotoBase64(result.assets[0].base64 || null);
     } catch (e) {
       console.log('[PHOTO] picker threw:', String(e), JSON.stringify(e));
     }
@@ -90,15 +97,32 @@ export default function CreatePhotoStoryScreen() {
     router.push('/song-picker' as any);
   };
 
-  const onSubmitTap = () => {
-    if (!selectedSong) return;
-    Alert.alert(
-      'Ready to post',
-      'Photo + song + caption captured. Upload wiring comes next.',
-    );
+  const onSubmitTap = async () => {
+    if (!selectedSong || !photoUri || !photoBase64 || posting) return;
+    setPosting(true);
+    try {
+      const dataUri = `data:image/jpeg;base64,${photoBase64}`;
+      const uploadRes = await uploadImage(dataUri);
+      const hostedUrl = uploadRes.data.data.url;
+      await createStory({
+        song: {
+          deezer_id: selectedSong.deezer_id,
+          title: selectedSong.title,
+          artist: selectedSong.artist,
+          cover_url: selectedSong.cover_url,
+          preview_url: selectedSong.preview_url,
+        },
+        photo_url: hostedUrl,
+        caption: caption.trim() || null,
+      });
+      router.back();
+    } catch {
+      setPosting(false);
+      Alert.alert("Couldn't post your story", 'Please try again.');
+    }
   };
 
-  const submitDisabled = !selectedSong;
+  const submitDisabled = !selectedSong || posting;
 
   return (
     <View style={styles.container}>
@@ -139,7 +163,11 @@ export default function CreatePhotoStoryScreen() {
                 disabled={submitDisabled}
                 activeOpacity={submitDisabled ? 1 : 0.75}
               >
-                <Ionicons name="arrow-forward" size={24} color="#FFFFFF" />
+                {posting ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Ionicons name="arrow-forward" size={24} color="#FFFFFF" />
+                )}
               </TouchableOpacity>
             </SafeAreaView>
           </KeyboardAvoidingView>

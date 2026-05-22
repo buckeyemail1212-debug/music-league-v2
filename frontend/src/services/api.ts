@@ -516,6 +516,9 @@ export const createStory = (payload: CreateStoryPayload) =>
 export const deleteStory = (storyId: string) =>
   api.delete<{ data: { deleted: boolean } }>(`/stories/${storyId}`);
 
+export const uploadImage = (dataUri: string) =>
+  api.post<{ data: { url: string } }>('/upload-image', { image: dataUri });
+
 // Chat APIs
 export const getLeagueMessages = (leagueId: string) => 
   api.get<Message[]>(`/leagues/${leagueId}/messages`);
