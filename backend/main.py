@@ -2550,26 +2550,18 @@ class CreateStoryBody(BaseModel):
     caption: Optional[str] = None
 
 
-# Module-level cache for fresh Deezer preview URLs. Deezer preview URLs
-# are signed and expire after a few hours, so stories store the deezer_id
-# and we resolve a fresh URL at read time. Keyed by deezer_id; reuses the
-# same 1-hour TTL as the chart cache.
-_PREVIEW_URL_CACHE: dict[int, dict] = {}  # deezer_id -> {"ts": float, "url": str | None}
-
-
 async def get_fresh_preview_url(deezer_id: int) -> Optional[str]:
     """Fetch a freshly-signed preview URL for a Deezer track.
 
-    Returns None on any failure (network error, missing track, no preview
-    field) so callers can fall back to the stored URL. Results are
-    cached for 1 hour via _PREVIEW_URL_CACHE, sharing _CHART_CACHE_TTL.
+    Resolves on every call — no caching. Deezer's signed preview URLs
+    expire within minutes, so a cached value is almost always stale by
+    the time it's used and yields NSURLErrorDomain -1102 on the client.
+
+    Returns None on any failure (network error, missing track, no
+    preview field) so callers can fall back to the stored URL.
     """
     if not deezer_id:
         return None
-    now = time.time()
-    cached = _PREVIEW_URL_CACHE.get(deezer_id)
-    if cached and (now - cached["ts"]) < _CHART_CACHE_TTL:
-        return cached["url"]
     try:
         async with httpx.AsyncClient(verify=False, timeout=10.0) as client:
             resp = await client.get(f"https://api.deezer.com/track/{deezer_id}")
@@ -2577,9 +2569,7 @@ async def get_fresh_preview_url(deezer_id: int) -> Optional[str]:
             data = resp.json()
             url = data.get("preview")
             if not isinstance(url, str) or not url:
-                _PREVIEW_URL_CACHE[deezer_id] = {"ts": now, "url": None}
                 return None
-            _PREVIEW_URL_CACHE[deezer_id] = {"ts": now, "url": url}
             return url
     except Exception as e:
         logger.warning(
