@@ -695,4 +695,21 @@ export const getUserFollowing = (
 ) =>
   api.get<{ data: FollowListResponse }>(`/users/${userId}/following`, { params });
 
+export interface LeaderboardEntry {
+  user_id: string;
+  username: string;
+  avatar_url: string | null;
+  all_time_points: number;
+  rank: number;
+}
+
+export interface LeaderboardResponse {
+  entries: LeaderboardEntry[];
+  total: number;
+  current_user_rank: number | null;
+}
+
+export const getLeaderboard = (scope: 'all' | 'following' | 'friends' = 'all') =>
+  api.get<{ data: LeaderboardResponse }>('/leaderboard', { params: { scope } });
+
 export default api;
