@@ -513,6 +513,9 @@ export interface CreateStoryPayload {
 export const createStory = (payload: CreateStoryPayload) =>
   api.post<{ data: { story_id: string } }>('/stories', payload);
 
+export const deleteStory = (storyId: string) =>
+  api.delete<{ data: { deleted: boolean } }>(`/stories/${storyId}`);
+
 // Chat APIs
 export const getLeagueMessages = (leagueId: string) => 
   api.get<Message[]>(`/leagues/${leagueId}/messages`);

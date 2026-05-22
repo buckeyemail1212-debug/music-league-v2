@@ -9,11 +9,16 @@ import {
   Pressable,
   PanResponder,
   Dimensions,
+  Alert,
+  Modal,
+  TouchableWithoutFeedback,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Audio } from 'expo-av';
+import { deleteStory } from '../src/services/api';
 
 interface StorySong {
   deezer_id: number;
@@ -78,6 +83,7 @@ export default function StoryViewerScreen() {
   );
   const [storyIndex, setStoryIndex] = useState(0);
   const [restartKey, setRestartKey] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
   const progress = useRef(new Animated.Value(0)).current;
   const advanceRef = useRef<() => void>(() => {});
   const dragY = useRef(new Animated.Value(0)).current;
@@ -323,6 +329,40 @@ export default function StoryViewerScreen() {
     }
   };
 
+  const openMenu = () => {
+    pause();
+    setMenuOpen(true);
+  };
+
+  // Menu dismissal that resumes the story (Cancel button or backdrop tap).
+  const closeMenuAndResume = () => {
+    setMenuOpen(false);
+    resume();
+  };
+
+  const onDeletePress = () => {
+    // Close the sheet but keep the story paused while we confirm.
+    setMenuOpen(false);
+    Alert.alert(
+      'Delete this story?',
+      "This can't be undone.",
+      [
+        { text: 'Cancel', style: 'cancel', onPress: () => resume() },
+        { text: 'Delete', style: 'destructive', onPress: () => doDelete() },
+      ],
+    );
+  };
+
+  const doDelete = async () => {
+    try {
+      await deleteStory(story.id);
+      router.back();
+    } catch {
+      Alert.alert('Could not delete', 'Please try again.');
+      resume();
+    }
+  };
+
   return (
     <View style={styles.container} {...panResponder.panHandlers}>
       <Animated.View
@@ -437,6 +477,15 @@ export default function StoryViewerScreen() {
           </TouchableOpacity>
           <Text style={styles.headerName} numberOfLines={1}>{label}</Text>
           <View style={{ flex: 1 }} />
+          {currentGroup.isOwn && (
+            <TouchableOpacity
+              onPress={openMenu}
+              style={styles.closeBtn}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="ellipsis-horizontal" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             onPress={() => router.back()}
             style={styles.closeBtn}
@@ -447,6 +496,42 @@ export default function StoryViewerScreen() {
         </View>
       </SafeAreaView>
       </Animated.View>
+
+      <Modal
+        visible={menuOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={closeMenuAndResume}
+      >
+        <TouchableWithoutFeedback onPress={closeMenuAndResume}>
+          <View style={styles.sheetOverlay}>
+            <TouchableWithoutFeedback onPress={() => {}}>
+              <View style={styles.sheetWrap}>
+                <View style={styles.optionsGroup}>
+                  <TouchableOpacity
+                    style={styles.actionRow}
+                    activeOpacity={0.6}
+                    onPress={onDeletePress}
+                  >
+                    <Ionicons name="trash" size={22} color="#FF3B30" />
+                    <Text style={[styles.actionLabel, styles.actionLabelDestructive]}>
+                      Delete Story
+                    </Text>
+                    <View style={styles.actionRowSpacer} />
+                  </TouchableOpacity>
+                </View>
+                <TouchableOpacity
+                  style={styles.cancelGroup}
+                  activeOpacity={0.6}
+                  onPress={closeMenuAndResume}
+                >
+                  <Text style={styles.cancelLabel}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </View>
   );
 }
@@ -576,5 +661,51 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  sheetOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  sheetWrap: {
+    marginHorizontal: 10,
+    paddingBottom: Platform.OS === 'ios' ? 36 : 20,
+  },
+  optionsGroup: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  actionLabel: {
+    flex: 1,
+    fontSize: 16,
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  actionLabelDestructive: {
+    color: '#FF3B30',
+  },
+  actionRowSpacer: {
+    width: 22,
+  },
+  cancelGroup: {
+    marginTop: 8,
+    backgroundColor: '#1E1E1E',
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  cancelLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });
