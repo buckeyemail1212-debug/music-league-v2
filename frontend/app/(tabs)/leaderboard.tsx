@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -40,17 +40,28 @@ export default function LeaderboardScreen() {
   const [scope, setScope] = useState<Scope>('all');
   const [entries, setEntries] = useState<LeaderboardEntry[] | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  // Scope that the currently displayed `entries` belong to. When the
+  // tab is refocused and this still matches the active scope, the
+  // existing list stays visible while we refetch in the background —
+  // no "Loading…" flash. On scope change or first load it differs,
+  // so we blank to the loading state before fetching.
+  const loadedScopeRef = useRef<Scope | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
-      setEntries(null);
       (async () => {
         try {
           const res = await getLeaderboard(scope);
-          if (!cancelled) setEntries(res.data.data.entries);
+          if (!cancelled) {
+            setEntries(res.data.data.entries);
+            loadedScopeRef.current = scope;
+          }
         } catch {
-          if (!cancelled) setEntries([]);
+          if (!cancelled) {
+            setEntries([]);
+            loadedScopeRef.current = scope;
+          }
         }
       })();
       return () => {
