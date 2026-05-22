@@ -15,6 +15,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { getStoriesFeed, Story, StoryGroup } from '../services/api';
 
 interface CurrentUserShape {
+  id?: string | null;
   profile_photo?: string | null;
   username?: string | null;
 }
@@ -49,6 +50,28 @@ export default function StoriesRing({ currentUser }: Props) {
     }, []),
   );
 
+  // Combined feed in viewer order: own group first (if present), then
+  // followed users. The viewer scrolls person-to-person through this list.
+  const groups = [
+    ...(myStories.length > 0
+      ? [{
+          username: currentUser?.username || 'You',
+          avatarUrl: currentUser?.profile_photo || '',
+          userId: currentUser?.id || '',
+          isOwn: true,
+          stories: myStories,
+        }]
+      : []),
+    ...following.map((g) => ({
+      username: g.username,
+      avatarUrl: g.avatar_url || '',
+      userId: g.user_id,
+      isOwn: false,
+      stories: g.stories,
+    })),
+  ];
+  const ownOffset = myStories.length > 0 ? 1 : 0;
+
   const renderFallback = () => (
     <View style={styles.avatarFallback}>
       <Ionicons name="person" size={26} color="#B3B3B3" />
@@ -63,39 +86,62 @@ export default function StoriesRing({ currentUser }: Props) {
       contentContainerStyle={styles.scroller}
     >
       {/* Your story — always first, renders before the network resolves. */}
-      <TouchableOpacity
-        style={styles.item}
-        activeOpacity={0.75}
-        onPress={() => setMenuOpen(true)}
-      >
+      <View style={styles.item}>
         <View
           style={[
             styles.yourRingWrap,
             myStories.length > 0 && styles.yourRingWrapActive,
           ]}
         >
-          {currentUser?.profile_photo ? (
-            <Image source={{ uri: currentUser.profile_photo }} style={styles.avatar} />
-          ) : (
-            renderFallback()
-          )}
-          <View style={styles.addBadge}>
+          <TouchableOpacity
+            activeOpacity={0.75}
+            onPress={() => {
+              if (myStories.length > 0) {
+                router.push({
+                  pathname: '/story-viewer',
+                  params: {
+                    groups: JSON.stringify(groups),
+                    startGroupIndex: '0',
+                  },
+                } as any);
+              } else {
+                setMenuOpen(true);
+              }
+            }}
+          >
+            {currentUser?.profile_photo ? (
+              <Image source={{ uri: currentUser.profile_photo }} style={styles.avatar} />
+            ) : (
+              renderFallback()
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.addBadge}
+            activeOpacity={0.75}
+            onPress={() => setMenuOpen(true)}
+          >
             <Ionicons name="add" size={16} color="#FFFFFF" />
-          </View>
+          </TouchableOpacity>
         </View>
         <Text style={styles.label} numberOfLines={1}>
           Today's Vibe
         </Text>
-      </TouchableOpacity>
+      </View>
 
-      {following.map((g) => (
+      {following.map((g, idx) => (
         <TouchableOpacity
           key={g.user_id}
           style={styles.item}
           activeOpacity={0.75}
-          onPress={() => {
-            // TODO: open story viewer (4d)
-          }}
+          onPress={() =>
+            router.push({
+              pathname: '/story-viewer',
+              params: {
+                groups: JSON.stringify(groups),
+                startGroupIndex: String(ownOffset + idx),
+              },
+            } as any)
+          }
         >
           <View style={styles.ringWrap}>
             {g.avatar_url ? (

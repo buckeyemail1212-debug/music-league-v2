@@ -31,6 +31,10 @@ export default function RootLayout() {
           <Stack.Screen name="past-league/[id]" options={{ headerShown: false, animation: 'slide_from_right' }} />
           <Stack.Screen name="past-leagues" options={{ headerShown: false, animation: 'slide_from_right' }} />
           <Stack.Screen name="public-leagues" options={{ headerShown: false, animation: 'slide_from_right' }} />
+          <Stack.Screen
+            name="story-viewer"
+            options={{ headerShown: false, animation: 'fade', animationDuration: 150 }}
+          />
         </Stack>
       </AuthProvider>
     </GestureHandlerRootView>

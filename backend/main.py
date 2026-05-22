@@ -2550,6 +2550,44 @@ class CreateStoryBody(BaseModel):
     caption: Optional[str] = None
 
 
+# Module-level cache for fresh Deezer preview URLs. Deezer preview URLs
+# are signed and expire after a few hours, so stories store the deezer_id
+# and we resolve a fresh URL at read time. Keyed by deezer_id; reuses the
+# same 1-hour TTL as the chart cache.
+_PREVIEW_URL_CACHE: dict[int, dict] = {}  # deezer_id -> {"ts": float, "url": str | None}
+
+
+async def get_fresh_preview_url(deezer_id: int) -> Optional[str]:
+    """Fetch a freshly-signed preview URL for a Deezer track.
+
+    Returns None on any failure (network error, missing track, no preview
+    field) so callers can fall back to the stored URL. Results are
+    cached for 1 hour via _PREVIEW_URL_CACHE, sharing _CHART_CACHE_TTL.
+    """
+    if not deezer_id:
+        return None
+    now = time.time()
+    cached = _PREVIEW_URL_CACHE.get(deezer_id)
+    if cached and (now - cached["ts"]) < _CHART_CACHE_TTL:
+        return cached["url"]
+    try:
+        async with httpx.AsyncClient(verify=False, timeout=10.0) as client:
+            resp = await client.get(f"https://api.deezer.com/track/{deezer_id}")
+            resp.raise_for_status()
+            data = resp.json()
+            url = data.get("preview")
+            if not isinstance(url, str) or not url:
+                _PREVIEW_URL_CACHE[deezer_id] = {"ts": now, "url": None}
+                return None
+            _PREVIEW_URL_CACHE[deezer_id] = {"ts": now, "url": url}
+            return url
+    except Exception as e:
+        logger.warning(
+            f"get_fresh_preview_url failed for {deezer_id}: {type(e).__name__}: {e}"
+        )
+        return None
+
+
 def _story_payload(s: dict) -> dict:
     """Strip Mongo internals + the user_id column for client return."""
     return {
@@ -2640,6 +2678,44 @@ async def get_stories_feed(current_user: dict = Depends(get_current_user)):
             key=lambda g: g["stories"][-1]["created_at"],
             reverse=True,
         )
+
+    # Resolve a fresh preview URL for every unique deezer_id in this feed.
+    # Stored URLs from the moment a story was created may have expired —
+    # this is the read-time refresh that keeps audio playback alive.
+    deezer_ids: set[int] = set()
+    for s in your_stories:
+        did = (s.get("song") or {}).get("deezer_id")
+        if did:
+            deezer_ids.add(int(did))
+    for group in following_groups:
+        for s in group["stories"]:
+            did = (s.get("song") or {}).get("deezer_id")
+            if did:
+                deezer_ids.add(int(did))
+
+    if deezer_ids:
+        ids_list = list(deezer_ids)
+        fresh_urls = await asyncio.gather(
+            *(get_fresh_preview_url(did) for did in ids_list)
+        )
+        fresh_by_id = dict(zip(ids_list, fresh_urls))
+
+        def _patch_preview(s: dict) -> None:
+            song = s.get("song")
+            if not song:
+                return
+            did = song.get("deezer_id")
+            if did is None:
+                return
+            fresh = fresh_by_id.get(int(did))
+            if fresh:
+                song["preview_url"] = fresh
+
+        for s in your_stories:
+            _patch_preview(s)
+        for group in following_groups:
+            for s in group["stories"]:
+                _patch_preview(s)
 
     return {
         "data": {
