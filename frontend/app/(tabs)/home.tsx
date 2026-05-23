@@ -293,7 +293,7 @@ export default function HomeScreen() {
         } else if (activeRound.submission_deadline) {
           pillDeadline = activeRound.submission_deadline;
           pillColor = PURPLE;
-          pillPrefix = 'Submit in';
+          pillPrefix = 'Submit before';
         }
       } else if (activeRound.status === 'voting') {
         if (activeRound.has_user_voted) {
@@ -302,7 +302,7 @@ export default function HomeScreen() {
         } else if (activeRound.voting_deadline) {
           pillDeadline = activeRound.voting_deadline;
           pillColor = PURPLE;
-          pillPrefix = 'Vote in';
+          pillPrefix = 'Vote before';
         }
       }
     } else {
@@ -401,43 +401,42 @@ export default function HomeScreen() {
               </View>
             ) : null}
           </View>
-        </View>
 
-        {/* Progress row — unchanged logic; restyled in step 2. The
-            avatars-only fallback is gone (avatars are on the cover). */}
-        {hasStarted && hasAnyPoints && rank !== null ? (
-          <View style={styles.leagueCardProgressRow}>
-            <Text style={styles.leagueCardRank}>#{rank}</Text>
-            <View style={styles.leagueCardMiddle}>
-              <Text style={[styles.leagueCardGap, isLeading && { color: '#10B981' }]}>
-                {tiedAtRank
-                  ? `Tied for ${getOrdinalSuffix(rank)}`
-                  : isLeading
-                    ? 'Leading'
-                    : (() => {
-                        // Solo non-1st: render the gap to the highest-
-                        // scoring ACTIVE member. Left users are already
-                        // filtered out of `activeOnly`, so `leaderPoints`
-                        // is the right comparison anchor.
-                        const behind = Math.max(0, leaderPoints - myPoints);
-                        return `${behind} ${behind === 1 ? 'pt' : 'pts'} behind`;
-                      })()}
-              </Text>
-              <View style={styles.progressBarTrack}>
-                <View
-                  style={[
-                    styles.progressBarFill,
-                    {
-                      width: `${Math.max(4, progressPct * 100)}%`,
-                      backgroundColor: isLeading ? '#10B981' : '#7C3AED',
-                    },
-                  ]}
-                />
+          {/* Progress row — same internal logic, moved inside the body. */}
+          {hasStarted && hasAnyPoints && rank !== null ? (
+            <View style={styles.leagueCardProgressRow}>
+              <Text style={styles.leagueCardRank}>#{rank}</Text>
+              <View style={styles.leagueCardMiddle}>
+                <Text style={[styles.leagueCardGap, isLeading && { color: '#10B981' }]}>
+                  {tiedAtRank
+                    ? `Tied for ${getOrdinalSuffix(rank)}`
+                    : isLeading
+                      ? 'Leading'
+                      : (() => {
+                          // Solo non-1st: render the gap to the highest-
+                          // scoring ACTIVE member. Left users are already
+                          // filtered out of `activeOnly`, so `leaderPoints`
+                          // is the right comparison anchor.
+                          const behind = Math.max(0, leaderPoints - myPoints);
+                          return `${behind} ${behind === 1 ? 'pt' : 'pts'} behind`;
+                        })()}
+                </Text>
+                <View style={styles.progressBarTrack}>
+                  <View
+                    style={[
+                      styles.progressBarFill,
+                      {
+                        width: `${Math.max(4, progressPct * 100)}%`,
+                        backgroundColor: isLeading ? '#10B981' : '#7C3AED',
+                      },
+                    ]}
+                  />
+                </View>
               </View>
+              <Text style={styles.leagueCardTotal}>{myPoints}</Text>
             </View>
-            <Text style={styles.leagueCardTotal}>{myPoints}</Text>
-          </View>
-        ) : null}
+          ) : null}
+        </View>
       </TouchableOpacity>
     );
   };
