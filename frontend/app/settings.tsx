@@ -375,6 +375,12 @@ export default function SettingsPage() {
           />
           <Separator />
           <Row
+            icon="archive-outline"
+            label="Archived Vibes"
+            onPress={() => router.push('/archived-vibes' as any)}
+          />
+          <Separator />
+          <Row
             icon="log-out-outline"
             label="Log out"
             onPress={handleLogout}
