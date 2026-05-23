@@ -17,6 +17,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated';
 import { Song, createStory, uploadImage } from '../src/services/api';
 import { consumePendingSong } from '../src/services/pendingSong';
 import { useAuth } from '../src/context/AuthContext';
@@ -30,6 +36,36 @@ export default function CreatePhotoStoryScreen() {
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [caption, setCaption] = useState('');
   const [posting, setPosting] = useState(false);
+
+  // Music-sticker drag state. The shared values drive the on-screen
+  // translate on every frame; the React state is the committed position
+  // that S6 will persist with the post. Default 0/0 = the sticker's
+  // base position (see styles.stickerAnchor).
+  const [sticker, setSticker] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const stickerX = useSharedValue(0);
+  const stickerY = useSharedValue(0);
+  const stickerStartX = useSharedValue(0);
+  const stickerStartY = useSharedValue(0);
+
+  const stickerPan = Gesture.Pan()
+    .onStart(() => {
+      stickerStartX.value = stickerX.value;
+      stickerStartY.value = stickerY.value;
+    })
+    .onUpdate((e) => {
+      stickerX.value = stickerStartX.value + e.translationX;
+      stickerY.value = stickerStartY.value + e.translationY;
+    })
+    .onEnd(() => {
+      runOnJS(setSticker)({ x: stickerX.value, y: stickerY.value });
+    });
+
+  const stickerAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: stickerX.value },
+      { translateY: stickerY.value },
+    ],
+  }));
 
   // Receive a song picked via /song-picker on every focus. consume clears
   // the slot so a previous pick can't leak back in later.
@@ -195,6 +231,32 @@ export default function CreatePhotoStoryScreen() {
             </SafeAreaView>
           </KeyboardAvoidingView>
 
+          {/* Draggable music sticker — rendered after the KAV so it sits
+              above the dismiss-area (so drag gestures aren't swallowed
+              by the keyboard-dismiss layer), but before the top overlay
+              (so close + Change music remain tappable above it). The
+              outer anchor uses pointerEvents="box-none" so taps outside
+              the card itself fall through to the KAV's dismiss-area. */}
+          {selectedSong && (
+            <View style={styles.stickerAnchor} pointerEvents="box-none">
+              <GestureDetector gesture={stickerPan}>
+                <Animated.View style={[styles.stickerCard, stickerAnimatedStyle]}>
+                  {selectedSong.cover_url ? (
+                    <Image source={{ uri: selectedSong.cover_url }} style={styles.stickerCover} />
+                  ) : (
+                    <View style={[styles.stickerCover, styles.stickerCoverFallback]}>
+                      <Ionicons name="musical-note" size={20} color="#B3B3B3" />
+                    </View>
+                  )}
+                  <View style={styles.stickerText}>
+                    <Text style={styles.stickerTitle} numberOfLines={1}>{selectedSong.title}</Text>
+                    <Text style={styles.stickerArtist} numberOfLines={1}>{selectedSong.artist}</Text>
+                  </View>
+                </Animated.View>
+              </GestureDetector>
+            </View>
+          )}
+
           {/* Top overlay last → sits above the KAV's dismiss layer so
               close + music control remain tappable. */}
           <SafeAreaView style={styles.topOverlay} edges={['top']} pointerEvents="box-none">
@@ -210,21 +272,12 @@ export default function CreatePhotoStoryScreen() {
             <View style={styles.musicAnchor} pointerEvents="box-none">
               {selectedSong ? (
                 <TouchableOpacity
-                  style={styles.musicChip}
+                  style={styles.changeMusicBtn}
                   onPress={onAddMusicTap}
                   activeOpacity={0.85}
                 >
-                  {selectedSong.cover_url ? (
-                    <Image source={{ uri: selectedSong.cover_url }} style={styles.musicChipCover} />
-                  ) : (
-                    <View style={[styles.musicChipCover, styles.musicChipCoverFallback]}>
-                      <Ionicons name="musical-note" size={14} color="#B3B3B3" />
-                    </View>
-                  )}
-                  <View style={styles.musicChipText}>
-                    <Text style={styles.musicChipTitle} numberOfLines={1}>{selectedSong.title}</Text>
-                    <Text style={styles.musicChipArtist} numberOfLines={1}>{selectedSong.artist}</Text>
-                  </View>
+                  <Ionicons name="musical-note" size={14} color="#FFFFFF" />
+                  <Text style={styles.changeMusicBtnLabel}>Change music</Text>
                 </TouchableOpacity>
               ) : (
                 <TouchableOpacity
@@ -333,30 +386,53 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   addMusicBtnLabel: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
-  musicChip: {
+  changeMusicBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 6,
     backgroundColor: 'rgba(0,0,0,0.55)',
-    borderRadius: 24,
-    paddingVertical: 8,
+    borderRadius: 20,
+    paddingVertical: 6,
     paddingHorizontal: 12,
-    maxWidth: 260,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.35,
     shadowRadius: 6,
     elevation: 4,
   },
-  musicChipCover: { width: 32, height: 32, borderRadius: 6 },
-  musicChipCoverFallback: {
+  changeMusicBtnLabel: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
+
+  stickerAnchor: {
+    position: 'absolute',
+    top: '32%',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  stickerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    width: 300,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  stickerCover: { width: 52, height: 52, borderRadius: 8 },
+  stickerCoverFallback: {
     backgroundColor: '#282828',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  musicChipText: { flexShrink: 1 },
-  musicChipTitle: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
-  musicChipArtist: { color: 'rgba(255,255,255,0.7)', fontSize: 11, marginTop: 1 },
+  stickerText: { flex: 1 },
+  stickerTitle: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
+  stickerArtist: { color: 'rgba(255,255,255,0.7)', fontSize: 11.5, marginTop: 1 },
 
   bottomOverlay: {
     paddingHorizontal: 16,
