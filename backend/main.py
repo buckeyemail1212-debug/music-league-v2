@@ -2738,6 +2738,60 @@ async def get_stories_feed(current_user: dict = Depends(get_current_user)):
     }
 
 
+@api_router.get("/stories/archived")
+async def get_archived_stories(current_user: dict = Depends(get_current_user)):
+    """Return the current user's expired stories (newest first).
+
+    Inverse of /stories/feed: only the caller's own rows where
+    expires_at < now. Expired stories remain in the collection forever
+    (only explicit deletion removes them).
+    """
+    me_id = current_user["id"]
+    now = datetime.now(timezone.utc)
+
+    rows = await (
+        db.stories.find(
+            {"user_id": me_id, "expires_at": {"$lt": now}},
+            {"_id": 0},
+        )
+        .sort("created_at", -1)
+        .to_list(length=None)
+    )
+    archived = [_story_payload(s) for s in rows]
+
+    # Same read-time preview-URL refresh as /stories/feed — stored URLs
+    # are signed and expire quickly, so we resolve a fresh one per
+    # unique deezer_id before returning.
+    deezer_ids: set[int] = set()
+    for s in archived:
+        did = (s.get("song") or {}).get("deezer_id")
+        if did:
+            deezer_ids.add(int(did))
+
+    if deezer_ids:
+        ids_list = list(deezer_ids)
+        fresh_urls = await asyncio.gather(
+            *(get_fresh_preview_url(did) for did in ids_list)
+        )
+        fresh_by_id = dict(zip(ids_list, fresh_urls))
+
+        def _patch_preview(s: dict) -> None:
+            song = s.get("song")
+            if not song:
+                return
+            did = song.get("deezer_id")
+            if did is None:
+                return
+            fresh = fresh_by_id.get(int(did))
+            if fresh:
+                song["preview_url"] = fresh
+
+        for s in archived:
+            _patch_preview(s)
+
+    return {"data": {"stories": archived}}
+
+
 async def _list_follow_edges_for_target(
     *,
     target_id: str,
