@@ -107,7 +107,6 @@ async function fetchSongsForFilter(label: string, forceFresh = false): Promise<S
       return arr;
     }
   } catch (e) {
-    console.log(`[Discovery] chart fetch error for "${label}":`, e);
   }
   return [];
 }
@@ -121,7 +120,6 @@ async function searchDeezer(query: string, _offset: number): Promise<Song[]> {
     const songs: Song[] = res.data?.data ?? [];
     return songs.map(s => ({ ...s, cover_url: getHighResCover(s.cover_url ?? '') }));
   } catch (e) {
-    console.log('[Discovery] searchDeezer error:', e);
     return [];
   }
 }
@@ -507,7 +505,10 @@ export default function DiscoverScreen() {
     setSelectedFilter(0);
     selectedFilterRef.current = 0;
     loadLikedSongs();
-    fetchSongsRef.current(true);
+    // silent refresh: reset to Top Hits feed but keep existing songs on
+    // screen until the new list arrives. fetchSongs's reset path doesn't
+    // blank the list — it just swaps via setSongs(next) when data lands.
+    fetchSongsRef.current(true, false, true);
 
     return () => {
       // (1) Mark the screen as unfocused BEFORE anything else so any pending
@@ -555,7 +556,6 @@ export default function DiscoverScreen() {
     if (isSearchModeRef.current) return;
     const id     = ++fetchCounterRef.current;
     const filter = FILTERS[selectedFilterRef.current];
-    console.log(`[Discovery] fetchSongs called — filter: "${filter.label}", reset: ${reset}, silent: ${silent}, id: ${id}`);
 
     if (reset) {
       if (isRefresh) {
@@ -580,10 +580,7 @@ export default function DiscoverScreen() {
     try {
       const fetched = await fetchSongsForFilter(filter.label, isRefresh);
 
-      console.log(`[Discovery] fetched ${fetched.length} songs for "${filter.label}"`);
-
       if (id !== fetchCounterRef.current) {
-        console.log(`[Discovery] fetch ${id} superseded by ${fetchCounterRef.current}, discarding`);
         return;
       }
 
@@ -607,7 +604,6 @@ export default function DiscoverScreen() {
       shuffled.forEach(s => seenSongIdsRef.current.add(String(s.deezer_id)));
 
       const next = reset ? shuffled : [...songsRef.current, ...shuffled];
-      console.log(`[Discovery] setSongs → ${next.length} total songs`);
       songsRef.current = next;
       setSongs(next);
 
@@ -630,10 +626,8 @@ export default function DiscoverScreen() {
         }
       }
     } catch (e) {
-      console.error('[Discovery] fetchSongs uncaught error:', e);
     } finally {
       if (id === fetchCounterRef.current) {
-        console.log(`[Discovery] fetch ${id} complete — clearing loading flags`);
         setIsFetching(false);
         setRefreshing(false);
         setLoadingMore(false);
