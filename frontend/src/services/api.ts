@@ -427,6 +427,33 @@ export interface PublicLeagueSummary {
 export const getPublicLeagues = (params?: { q?: string; limit?: number; offset?: number }) =>
   api.get<{ leagues: PublicLeagueSummary[]; count: number }>('/leagues/public', { params });
 
+export interface LeagueSearchResult {
+  id: string;
+  name: string;
+  total_rounds: number;
+  starts_at: string | null;
+  member_count: number;
+  member_cap: number;
+  genre: string | null;
+  has_current_user_joined: boolean;
+  league_image: string | null;
+  creator_username: string | null;
+  is_public: boolean;
+}
+
+export const searchLeagues = (q: string, limit: number = 50) =>
+  api.get<{ leagues: LeagueSearchResult[]; count: number }>('/leagues/search', { params: { q, limit } });
+
+export interface UserSearchResult {
+  id: string;
+  username: string;
+  profile_photo: string | null;
+  is_private: boolean;
+}
+
+export const searchUsers = (q: string, limit: number = 50) =>
+  api.get<{ users: UserSearchResult[]; count: number }>('/users/search', { params: { q, limit } });
+
 export const joinPublicLeague = (id: string) =>
   api.post<League>(`/leagues/${id}/join-public`);
 
