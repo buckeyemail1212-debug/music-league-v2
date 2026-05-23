@@ -52,6 +52,22 @@ export default function StoriesRing({ currentUser }: Props) {
     }, []),
   );
 
+  // A group's ring goes grey only when every story in it is seen.
+  // Empty groups never reach this — the "Your Vibe" tile handles
+  // myStories.length === 0 inline. Defined before `groups` so it can
+  // drive the sort below.
+  const allSeen = (stories: Story[]) =>
+    stories.length > 0 && stories.every((s) => s.seen);
+
+  // Stable partition of followed users: groups with any unseen stories
+  // come first, fully-seen groups go to the end. Within each bucket the
+  // feed's original order (recency) is preserved — Array.sort is stable
+  // for equal keys. Used for BOTH the rendered tiles and the viewer's
+  // `groups` so a tap maps to the right user.
+  const sortedFollowing = [...following].sort(
+    (a, b) => (allSeen(a.stories) ? 1 : 0) - (allSeen(b.stories) ? 1 : 0),
+  );
+
   // Combined feed in viewer order: own group first (if present), then
   // followed users. The viewer scrolls person-to-person through this list.
   const groups = [
@@ -64,7 +80,7 @@ export default function StoriesRing({ currentUser }: Props) {
           stories: myStories,
         }]
       : []),
-    ...following.map((g) => ({
+    ...sortedFollowing.map((g) => ({
       username: g.username,
       avatarUrl: g.avatar_url || '',
       userId: g.user_id,
@@ -87,12 +103,6 @@ export default function StoriesRing({ currentUser }: Props) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [myStories, following]);
-
-  // A group's ring goes grey only when every story in it is seen.
-  // Empty groups never reach this — the "Your Vibe" tile handles
-  // myStories.length === 0 inline.
-  const allSeen = (stories: Story[]) =>
-    stories.length > 0 && stories.every((s) => s.seen);
 
   const renderFallback = () => (
     <View style={styles.avatarFallback}>
@@ -153,7 +163,7 @@ export default function StoriesRing({ currentUser }: Props) {
         </Text>
       </View>
 
-      {following.map((g, idx) => (
+      {sortedFollowing.map((g, idx) => (
         <TouchableOpacity
           key={g.user_id}
           style={styles.item}
