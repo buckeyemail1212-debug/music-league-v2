@@ -508,7 +508,12 @@ export interface CreateStoryPayload {
   song: { deezer_id: number; title: string; artist: string; cover_url: string; preview_url: string };
   photo_url?: string | null;
   caption?: string | null;
-  sticker?: { x: number; y: number } | null;
+  sticker?: {
+    x: number;
+    y: number;
+    scale?: number;
+    rotation?: number;
+  } | null;
 }
 
 export const createStory = (payload: CreateStoryPayload) =>
@@ -744,7 +749,12 @@ export interface Story {
   song: StorySong;
   photo_url: string | null;
   caption: string | null;
-  sticker: { x: number; y: number } | null;
+  sticker: {
+    x: number;
+    y: number;
+    scale?: number;
+    rotation?: number;
+  } | null;
   created_at: string;
   expires_at: string;
 }

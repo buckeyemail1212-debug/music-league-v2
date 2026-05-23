@@ -37,15 +37,33 @@ export default function CreatePhotoStoryScreen() {
   const [caption, setCaption] = useState('');
   const [posting, setPosting] = useState(false);
 
-  // Music-sticker drag state. The shared values drive the on-screen
-  // translate on every frame; the React state is the committed position
-  // that S6 will persist with the post. Default 0/0 = the sticker's
-  // base position (see styles.stickerAnchor).
-  const [sticker, setSticker] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  // Music-sticker transform state. The shared values drive the on-screen
+  // transform every frame; the React state is the committed snapshot
+  // that gets persisted with the post. Defaults match an un-touched
+  // sticker (no translate, scale 1, no rotation).
+  const [sticker, setSticker] = useState<{
+    x: number;
+    y: number;
+    scale: number;
+    rotation: number;
+  }>({ x: 0, y: 0, scale: 1, rotation: 0 });
   const stickerX = useSharedValue(0);
   const stickerY = useSharedValue(0);
   const stickerStartX = useSharedValue(0);
   const stickerStartY = useSharedValue(0);
+  const stickerScale = useSharedValue(1);
+  const stickerScaleStart = useSharedValue(1);
+  const stickerRotation = useSharedValue(0);
+  const stickerRotationStart = useSharedValue(0);
+
+  // Each gesture's onEnd reads all four shared values so concurrent
+  // gestures don't clobber each other's committed snapshot.
+  const commitSticker = (s: {
+    x: number;
+    y: number;
+    scale: number;
+    rotation: number;
+  }) => setSticker(s);
 
   const stickerPan = Gesture.Pan()
     .onStart(() => {
@@ -57,13 +75,59 @@ export default function CreatePhotoStoryScreen() {
       stickerY.value = stickerStartY.value + e.translationY;
     })
     .onEnd(() => {
-      runOnJS(setSticker)({ x: stickerX.value, y: stickerY.value });
+      runOnJS(commitSticker)({
+        x: stickerX.value,
+        y: stickerY.value,
+        scale: stickerScale.value,
+        rotation: stickerRotation.value,
+      });
     });
+
+  const stickerPinch = Gesture.Pinch()
+    .onStart(() => {
+      stickerScaleStart.value = stickerScale.value;
+    })
+    .onUpdate((e) => {
+      const next = stickerScaleStart.value * e.scale;
+      stickerScale.value = Math.min(2.5, Math.max(0.5, next));
+    })
+    .onEnd(() => {
+      runOnJS(commitSticker)({
+        x: stickerX.value,
+        y: stickerY.value,
+        scale: stickerScale.value,
+        rotation: stickerRotation.value,
+      });
+    });
+
+  const stickerRotate = Gesture.Rotation()
+    .onStart(() => {
+      stickerRotationStart.value = stickerRotation.value;
+    })
+    .onUpdate((e) => {
+      stickerRotation.value = stickerRotationStart.value + e.rotation;
+    })
+    .onEnd(() => {
+      runOnJS(commitSticker)({
+        x: stickerX.value,
+        y: stickerY.value,
+        scale: stickerScale.value,
+        rotation: stickerRotation.value,
+      });
+    });
+
+  const stickerGesture = Gesture.Simultaneous(
+    stickerPan,
+    stickerPinch,
+    stickerRotate,
+  );
 
   const stickerAnimatedStyle = useAnimatedStyle(() => ({
     transform: [
       { translateX: stickerX.value },
       { translateY: stickerY.value },
+      { scale: stickerScale.value },
+      { rotate: `${stickerRotation.value}rad` },
     ],
   }));
 
@@ -152,7 +216,14 @@ export default function CreatePhotoStoryScreen() {
         },
         photo_url: hostedUrl,
         caption: caption.trim() || null,
-        sticker: selectedSong ? { x: sticker.x, y: sticker.y } : null,
+        sticker: selectedSong
+          ? {
+              x: sticker.x,
+              y: sticker.y,
+              scale: sticker.scale,
+              rotation: sticker.rotation,
+            }
+          : null,
       });
       router.back();
     } catch {
@@ -240,7 +311,7 @@ export default function CreatePhotoStoryScreen() {
               the card itself fall through to the KAV's dismiss-area. */}
           {selectedSong && (
             <View style={styles.stickerAnchor} pointerEvents="box-none">
-              <GestureDetector gesture={stickerPan}>
+              <GestureDetector gesture={stickerGesture}>
                 <Animated.View style={[styles.stickerCard, stickerAnimatedStyle]}>
                   {selectedSong.cover_url ? (
                     <Image source={{ uri: selectedSong.cover_url }} style={styles.stickerCover} />

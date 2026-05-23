@@ -35,7 +35,12 @@ interface StoryItem {
   song: StorySong;
   photo_url: string | null;
   caption: string | null;
-  sticker: { x: number; y: number } | null;
+  sticker: {
+    x: number;
+    y: number;
+    scale?: number;
+    rotation?: number;
+  } | null;
   created_at: string;
   expires_at: string;
 }
@@ -418,6 +423,8 @@ export default function StoryViewerScreen() {
                       { transform: [
                         { translateX: story.sticker.x },
                         { translateY: story.sticker.y },
+                        { scale: story.sticker.scale ?? 1 },
+                        { rotate: `${story.sticker.rotation ?? 0}rad` },
                       ] },
                     ]}
                   >
