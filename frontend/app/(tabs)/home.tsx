@@ -478,7 +478,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      <View style={{ marginTop: 4, marginBottom: 8 }}>
+      <View style={{ marginTop: 4, marginBottom: 22 }}>
         <StoriesRing currentUser={user} />
       </View>
 
@@ -671,19 +671,26 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   homeSearchBar: {
+    height: 52,
+    borderRadius: 26,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#181818',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    marginTop: 0,
-    marginBottom: 12,
+    backgroundColor: '#1E1E1E',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    paddingHorizontal: 20,
+    marginBottom: 16,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  homeSearchIcon: { marginRight: 8 },
+  homeSearchIcon: { marginRight: 10 },
   homeSearchText: {
-    color: '#6A6A6A',
-    fontSize: 14,
+    color: '#8B8B8B',
+    fontSize: 15,
+    fontWeight: '500',
   },
   headerIconBtn: {
     width: 44,
