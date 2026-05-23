@@ -127,6 +127,27 @@ export default function InboxScreen() {
     })();
   }, [user?.id]);
 
+  // Seed notifs from the persisted cache so a returning user skips the
+  // cold-launch spinner. fetchAll still runs on focus and re-merges with
+  // this cache (it reads/writes the same key), so seeding is purely
+  // additive — the spinner branch only triggers on a genuine first-ever
+  // launch with nothing cached.
+  useEffect(() => {
+    if (!user?.id) return;
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(notifCacheKey(user.id));
+        if (raw) {
+          const parsed: Notif[] = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setNotifs(parsed);
+            dataLoaded.current = true;
+          }
+        }
+      } catch {}
+    })();
+  }, [user?.id]);
+
   const persistDismissed = async (next: Set<string>) => {
     if (!user?.id) return;
     try {
