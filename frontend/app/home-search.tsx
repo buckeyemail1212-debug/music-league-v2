@@ -10,6 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import LeaguesSearchTab from '../src/components/LeaguesSearchTab';
+import MembersSearchTab from '../src/components/MembersSearchTab';
 
 type Tab = 'leagues' | 'members';
 
@@ -81,11 +82,7 @@ export default function HomeSearchScreen() {
         {activeTab === 'leagues' ? (
           <LeaguesSearchTab query={query} />
         ) : (
-          <View style={styles.placeholderCenter}>
-            <Text style={styles.placeholder}>
-              Member results will appear here
-            </Text>
-          </View>
+          <MembersSearchTab query={query} />
         )}
       </View>
     </SafeAreaView>
@@ -166,16 +163,5 @@ const styles = StyleSheet.create({
 
   content: {
     flex: 1,
-  },
-  placeholderCenter: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-  },
-  placeholder: {
-    color: '#6A6A6A',
-    fontSize: 14,
-    textAlign: 'center',
   },
 });
