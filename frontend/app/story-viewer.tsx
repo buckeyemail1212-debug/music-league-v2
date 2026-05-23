@@ -92,12 +92,22 @@ export default function StoryViewerScreen() {
         Math.max(0, groups.length - 1),
       ),
     );
-    const maxStoryIdx = Math.max(
-      0,
-      (groups[startGroup]?.stories.length ?? 0) - 1,
-    );
-    const parsed = parseInt(params.startStoryIndex || '0', 10) || 0;
-    return Math.max(0, Math.min(parsed, maxStoryIdx));
+    const stories = groups[startGroup]?.stories ?? [];
+    if (stories.length === 0) return 0;
+    const maxStoryIdx = stories.length - 1;
+
+    // Explicit param ("0" counts) — honor it exactly so the archive's
+    // "open this specific story" flow keeps working. Auto-skip only
+    // when the param is absent / blank.
+    const rawStart = params.startStoryIndex;
+    if (typeof rawStart === 'string' && rawStart.length > 0) {
+      const parsed = parseInt(rawStart, 10) || 0;
+      return Math.max(0, Math.min(parsed, maxStoryIdx));
+    }
+
+    const firstUnseen = stories.findIndex((s) => !s.seen);
+    if (firstUnseen === -1) return 0; // all seen → replay from start
+    return Math.max(0, Math.min(firstUnseen, maxStoryIdx));
   });
   const [restartKey, setRestartKey] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
