@@ -213,12 +213,15 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchAll();
-      flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
     }, []),
   );
 
   useEffect(() => {
-    const unsub = leagueEvents.subscribe(fetchAll);
+    const onLeagueChange = () => {
+      fetchAll();
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+    };
+    const unsub = leagueEvents.subscribe(onLeagueChange);
     return () => {
       unsub();
     };
@@ -559,30 +562,40 @@ export default function HomeScreen() {
   const showPastRow = pastLeagues.length > 0;
   const listFooter =
     showPublicRow || showPastRow ? (
-      <View style={{ marginTop: leagues.length > 0 ? 20 : 6 }}>
+      <View style={{ marginTop: 24, gap: 10 }}>
         {showPublicRow && (
           <TouchableOpacity
-            style={styles.pastEntry}
+            style={styles.navRowCard}
             onPress={() => router.push('/public-leagues' as any)}
-            activeOpacity={0.75}
+            activeOpacity={0.85}
           >
-            <Text style={styles.activeLeaguesTitle}>PUBLIC LEAGUES</Text>
-            <View style={styles.pastEntryRight}>
-              <Text style={styles.pastEntryCount}>{publicCount}</Text>
-              <Ionicons name="chevron-forward" size={22} color="#B3B3B3" />
+            <View style={styles.navRowIconTile}>
+              <Ionicons name="globe-outline" size={22} color="#FFFFFF" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.navRowTitle}>Public leagues</Text>
+              <Text style={styles.navRowSub}>Browse open leagues to join</Text>
+            </View>
+            <View style={styles.navRowChevron}>
+              <Ionicons name="chevron-forward" size={18} color="#B3B3B3" />
             </View>
           </TouchableOpacity>
         )}
         {showPastRow && (
           <TouchableOpacity
-            style={styles.pastEntry}
+            style={styles.navRowCard}
             onPress={() => router.push('/past-leagues' as any)}
-            activeOpacity={0.75}
+            activeOpacity={0.85}
           >
-            <Text style={styles.activeLeaguesTitle}>PAST LEAGUES</Text>
-            <View style={styles.pastEntryRight}>
-              <Text style={styles.pastEntryCount}>{pastLeagues.length}</Text>
-              <Ionicons name="chevron-forward" size={22} color="#B3B3B3" />
+            <View style={styles.navRowIconTile}>
+              <Ionicons name="time-outline" size={22} color="#FFFFFF" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.navRowTitle}>Past leagues</Text>
+              <Text style={styles.navRowSub}>Your finished competitions</Text>
+            </View>
+            <View style={styles.navRowChevron}>
+              <Ionicons name="chevron-forward" size={18} color="#B3B3B3" />
             </View>
           </TouchableOpacity>
         )}
@@ -931,23 +944,47 @@ const styles = StyleSheet.create({
   memberAvatarInlineMore: { backgroundColor: '#3A3A3A' },
   memberAvatarInlineMoreText: { fontSize: 11, fontWeight: '600', color: '#B3B3B3' },
 
-  // Past leagues entry row (taps through to /past-leagues)
-  pastEntry: {
+  // Card-style nav rows for Public / Past leagues entry points.
+  navRowCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
+    gap: 12,
+    backgroundColor: '#181818',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
+    padding: 10,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  pastEntryRight: {
-    flexDirection: 'row',
+  navRowIconTile: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: '#282828',
     alignItems: 'center',
-    gap: 4,
+    justifyContent: 'center',
   },
-  pastEntryCount: {
-    fontSize: 13,
-    fontWeight: '600',
+  navRowTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  navRowSub: {
+    fontSize: 12.5,
     color: '#B3B3B3',
-    letterSpacing: 0.5,
+    marginTop: 2,
+  },
+  navRowChevron: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#282828',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   emptyState: {
