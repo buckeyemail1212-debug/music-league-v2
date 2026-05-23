@@ -37,6 +37,7 @@ export default function RootLayout() {
             name="story-viewer"
             options={{ headerShown: false, animation: 'fade', animationDuration: 150 }}
           />
+          <Stack.Screen name="archived-vibes" options={{ headerShown: false, animation: 'slide_from_right' }} />
         </Stack>
         </AuthProvider>
       </SafeAreaProvider>

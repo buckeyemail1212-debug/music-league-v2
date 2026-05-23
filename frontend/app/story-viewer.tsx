@@ -61,6 +61,7 @@ export default function StoryViewerScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
     startGroupIndex?: string;
+    startStoryIndex?: string;
   }>();
 
   // Groups are passed via a module-scoped in-memory slot
@@ -83,7 +84,21 @@ export default function StoryViewerScreen() {
       ),
     ),
   );
-  const [storyIndex, setStoryIndex] = useState(0);
+  const [storyIndex, setStoryIndex] = useState(() => {
+    const startGroup = Math.max(
+      0,
+      Math.min(
+        parseInt(params.startGroupIndex || '0', 10) || 0,
+        Math.max(0, groups.length - 1),
+      ),
+    );
+    const maxStoryIdx = Math.max(
+      0,
+      (groups[startGroup]?.stories.length ?? 0) - 1,
+    );
+    const parsed = parseInt(params.startStoryIndex || '0', 10) || 0;
+    return Math.max(0, Math.min(parsed, maxStoryIdx));
+  });
   const [restartKey, setRestartKey] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const progress = useRef(new Animated.Value(0)).current;

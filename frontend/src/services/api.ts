@@ -776,4 +776,7 @@ export interface StoriesFeedResponse {
 export const getStoriesFeed = () =>
   api.get<{ data: StoriesFeedResponse }>('/stories/feed');
 
+export const getArchivedStories = () =>
+  api.get<{ data: { stories: Story[] } }>('/stories/archived');
+
 export default api;
