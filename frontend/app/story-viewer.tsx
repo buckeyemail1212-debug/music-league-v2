@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -69,9 +69,9 @@ export default function StoryViewerScreen() {
   // JSON.stringify/parse of the whole feed on every tap was adding ~1s
   // to the open. Consumed once on first render; a fallback to [] keeps
   // the empty-feed handling below working.
-  const groups = useMemo<ViewerGroup[]>(() => {
-    return consumePendingStories() ?? [];
-  }, []);
+  const [groups, setGroups] = useState<ViewerGroup[]>(
+    () => consumePendingStories() ?? [],
+  );
 
   // Lazy state initializer — runs only on first mount, so the index math
   // doesn't recompute on every render.
@@ -422,12 +422,42 @@ export default function StoryViewerScreen() {
   };
 
   const doDelete = async () => {
+    const deletingId = story.id;
     try {
-      await deleteStory(story.id);
-      router.back();
+      await deleteStory(deletingId);
     } catch {
       Alert.alert('Could not delete', 'Please try again.');
       resume();
+      return;
+    }
+    // Splice the deleted story out of the in-memory groups, then land
+    // on the next story (or next group, or exit if nothing remains).
+    const newGroups = groups.map((g, gi) =>
+      gi === groupIndex
+        ? { ...g, stories: g.stories.filter((s) => s.id !== deletingId) }
+        : g,
+    );
+    const currentGroupStories = newGroups[groupIndex].stories;
+
+    if (currentGroupStories.length > 0) {
+      // The next story has shifted into the current storyIndex — unless
+      // we deleted the last one, in which case clamp to the new last.
+      setGroups(newGroups);
+      setStoryIndex((idx) => Math.min(idx, currentGroupStories.length - 1));
+      setRestartKey((k) => k + 1);
+    } else {
+      // Current group is now empty — drop it and advance to the next.
+      const groupsWithoutEmpty = newGroups.filter((_, gi) => gi !== groupIndex);
+      if (groupsWithoutEmpty.length === 0) {
+        router.back();
+        return;
+      }
+      setGroups(groupsWithoutEmpty);
+      // groupIndex now points at what was the next group; clamp in
+      // case we removed the last group.
+      setGroupIndex((gi) => Math.min(gi, groupsWithoutEmpty.length - 1));
+      setStoryIndex(0);
+      setRestartKey((k) => k + 1);
     }
   };
 
