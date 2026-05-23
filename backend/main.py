@@ -2728,6 +2728,28 @@ async def delete_story(
     return {"data": {"deleted": True}}
 
 
+@api_router.post("/stories/{story_id}/view")
+async def record_story_view(
+    story_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Record that the current user has viewed a story.
+
+    Upsert keyed on (viewer_id, story_id) so repeated views of the same
+    story are idempotent — one record per story a user has seen. We do
+    not verify the story still exists; a stale view record for a deleted
+    story is harmless (the feed simply never references it).
+    """
+    now = datetime.now(timezone.utc)
+    me_id = current_user["id"]
+    await db.story_views.update_one(
+        {"viewer_id": me_id, "story_id": story_id},
+        {"$set": {"viewer_id": me_id, "story_id": story_id, "viewed_at": now}},
+        upsert=True,
+    )
+    return {"data": {"recorded": True}}
+
+
 @api_router.get("/stories/feed")
 async def get_stories_feed(current_user: dict = Depends(get_current_user)):
     me_id = current_user["id"]
@@ -8187,6 +8209,14 @@ async def past_leagues_startup_maintenance():
         )
     except Exception as e:
         logger.warning(f"stories user_id/expires_at index creation failed: {e}")
+    try:
+        await db.story_views.create_index(
+            [("viewer_id", 1), ("story_id", 1)],
+            name="story_views_viewer_story",
+            unique=True,
+        )
+    except Exception as e:
+        logger.warning(f"story_views index creation failed: {e}")
     # One-time genre backfill for public leagues created before the field
     # existed. Writes "General" for any public league missing or with a
     # blank genre; leaves private leagues alone.
