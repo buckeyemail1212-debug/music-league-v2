@@ -382,7 +382,7 @@ export default function InboxScreen() {
 
   if (activeLeague) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <SharedChat
           leagueId={activeLeague.id}
           leagueName={activeLeague.name}
@@ -394,7 +394,7 @@ export default function InboxScreen() {
 
   if (loading && !dataLoaded.current) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
           <Text style={styles.title}>INBOX</Text>
         </View>
@@ -474,7 +474,7 @@ export default function InboxScreen() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
           <Text style={styles.title}>INBOX</Text>
           <Text style={styles.count}>{pluralize(visibleNotifs.length, 'item')}</Text>

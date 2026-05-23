@@ -3,12 +3,14 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider } from '../src/context/AuthContext';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native';
 
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.container}>
-      <AuthProvider>
+      <SafeAreaProvider>
+        <AuthProvider>
         <StatusBar style="light" />
         <Stack
           screenOptions={{
@@ -36,7 +38,8 @@ export default function RootLayout() {
             options={{ headerShown: false, animation: 'fade', animationDuration: 150 }}
           />
         </Stack>
-      </AuthProvider>
+        </AuthProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

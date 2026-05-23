@@ -540,7 +540,7 @@ export default function HomeScreen() {
     ) : null;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {loading && !dataLoaded.current ? (
         <View style={styles.listContent}>
           <View style={styles.headerRow}>
