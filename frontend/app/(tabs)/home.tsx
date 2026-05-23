@@ -114,10 +114,6 @@ export default function HomeScreen() {
   const { user } = useAuth();
   const router = useRouter();
 
-  // Tapping the header avatar opens the Settings screen — photo changes
-  // live there under the existing profile photo camera badge.
-  const goToSettings = () => router.push('/settings' as any);
-
   const [leagues, setLeagues] = useState<League[]>([]);
   const [activeRounds, setActiveRounds] = useState<{ [id: string]: Round | null }>({});
   const [cachedImages, setCachedImages] = useState<{ [id: string]: string }>({});
@@ -467,28 +463,6 @@ export default function HomeScreen() {
         >
           <Ionicons name="help-circle-outline" size={24} color="#FFFFFF" />
         </TouchableOpacity>
-
-        {/* Profile avatar: taps into Settings. Shows photo if set, else
-            a dashed purple circle with a small "+" badge. */}
-        <TouchableOpacity
-          style={styles.headerIconBtn}
-          onPress={goToSettings}
-          activeOpacity={0.75}
-        >
-          {user?.profile_photo ? (
-            <Image
-              source={{ uri: user.profile_photo }}
-              style={styles.headerAvatarImage}
-            />
-          ) : (
-            <View style={styles.headerAvatarEmpty}>
-              <Ionicons name="person" size={16} color="#7C3AED" />
-              <View style={styles.headerAvatarAddBadge}>
-                <Ionicons name="add" size={10} color="#FFFFFF" />
-              </View>
-            </View>
-          )}
-        </TouchableOpacity>
       </View>
 
       <View style={{ marginTop: 4, marginBottom: 8 }}>
@@ -634,40 +608,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // Avatar image — fills the 44×44 slot as ? and gear.
-  headerAvatarImage: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-  },
-  // Empty-avatar placeholder: dashed purple circle matching the Create
-  // League upload-photo placeholder. Person glyph centered; small solid
-  // "+" badge in the bottom-right corner hints tap-to-add.
-  headerAvatarEmpty: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    borderColor: '#7C3AED',
-    backgroundColor: 'transparent',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerAvatarAddBadge: {
-    position: 'absolute',
-    right: -4,
-    bottom: -4,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#7C3AED',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#121212',
-  },
-
   listContent: { paddingHorizontal: 20, paddingBottom: 40, flexGrow: 1 },
   skeletonCard: { opacity: 0.6, backgroundColor: '#181818' },
   skeletonLineLong: {
