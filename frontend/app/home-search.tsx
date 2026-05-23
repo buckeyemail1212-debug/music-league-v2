@@ -34,25 +34,6 @@ export default function HomeSearchScreen() {
         <View style={styles.headerBtn} />
       </View>
 
-      <View style={styles.searchWrap}>
-        <Ionicons
-          name="search"
-          size={18}
-          color="#6A6A6A"
-          style={styles.searchIcon}
-        />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search leagues and members"
-          placeholderTextColor="#6A6A6A"
-          value={query}
-          onChangeText={setQuery}
-          autoCorrect={false}
-          autoCapitalize="none"
-          returnKeyType="search"
-        />
-      </View>
-
       <View style={styles.tabRow}>
         {(['leagues', 'members'] as const).map((tab) => {
           const active = activeTab === tab;
@@ -76,6 +57,25 @@ export default function HomeSearchScreen() {
             </TouchableOpacity>
           );
         })}
+      </View>
+
+      <View style={styles.searchWrap}>
+        <Ionicons
+          name="search"
+          size={18}
+          color="#6A6A6A"
+          style={styles.searchIcon}
+        />
+        <TextInput
+          style={styles.searchInput}
+          placeholder={activeTab === 'leagues' ? 'Search all leagues' : 'Search members'}
+          placeholderTextColor="#6A6A6A"
+          value={query}
+          onChangeText={setQuery}
+          autoCorrect={false}
+          autoCapitalize="none"
+          returnKeyType="search"
+        />
       </View>
 
       <View style={styles.content}>

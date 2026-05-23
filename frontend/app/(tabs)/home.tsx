@@ -465,6 +465,10 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
+      <View style={{ marginTop: 4, marginBottom: 8 }}>
+        <StoriesRing currentUser={user} />
+      </View>
+
       {/* Search-bar tap target — opens /home-search. Not a live input. */}
       <TouchableOpacity
         style={styles.homeSearchBar}
@@ -479,10 +483,6 @@ export default function HomeScreen() {
         />
         <Text style={styles.homeSearchText}>Search leagues and members</Text>
       </TouchableOpacity>
-
-      <View style={{ marginTop: 4, marginBottom: 8 }}>
-        <StoriesRing currentUser={user} />
-      </View>
 
       {/* Active leagues — page section title, matches INBOX */}
       {activeCount > 0 && (

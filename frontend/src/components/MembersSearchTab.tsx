@@ -25,12 +25,10 @@ export default function MembersSearchTab({ query }: Props) {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [users, setUsers] = useState<UserSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
-  // Tracks which private rows have a follow request in flight (busy)
-  // or already sent in this session (so the icon can swap). Map values
-  // are 'requesting' | 'sent'.
-  const [requestState, setRequestState] = useState<
-    Record<string, 'requesting' | 'sent'>
-  >({});
+  // The row whose Follow pill is currently in flight — single id since
+  // we don't expect concurrent taps. Disables the pill and lets us
+  // ignore double-tap.
+  const [followingId, setFollowingId] = useState<string | null>(null);
 
   // Debounce the incoming query so we don't fire a request per keystroke.
   useEffect(() => {
@@ -63,31 +61,80 @@ export default function MembersSearchTab({ query }: Props) {
     };
   }, [debouncedQuery]);
 
-  const onRequestFollow = async (item: UserSearchResult) => {
-    if (requestState[item.id]) return;
-    setRequestState((prev) => ({ ...prev, [item.id]: 'requesting' }));
+  // Tap "Follow" — backend may return 'approved' (public account) or
+  // 'pending' (private account). The new follow_state depends on the
+  // previous state: following someone who already follows you flips
+  // straight to 'friends' (mutual); otherwise to 'following'. A
+  // 'pending' response always means 'requested' regardless of prior.
+  const onFollow = async (item: UserSearchResult) => {
+    if (followingId) return;
+    setFollowingId(item.id);
     try {
-      await followUser(item.id);
-      setRequestState((prev) => ({ ...prev, [item.id]: 'sent' }));
-      Alert.alert(
-        'Request sent',
-        `Your follow request was sent to @${item.username}.`,
+      const res = await followUser(item.id);
+      const status = res.data?.data?.status;
+      let next: UserSearchResult['follow_state'];
+      if (status === 'pending') {
+        next = 'requested';
+      } else if (item.follow_state === 'follows_you') {
+        next = 'friends';
+      } else {
+        next = 'following';
+      }
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === item.id ? { ...u, follow_state: next } : u,
+        ),
       );
     } catch {
-      setRequestState((prev) => {
-        const next = { ...prev };
-        delete next[item.id];
-        return next;
-      });
-      Alert.alert('Could not send request', 'Please try again.');
+      Alert.alert('Could not follow', 'Please try again.');
+    } finally {
+      setFollowingId(null);
     }
   };
 
   const renderRow = ({ item }: { item: UserSearchResult }) => {
     const initial = (item.username || '?').charAt(0).toUpperCase();
-    const state = requestState[item.id];
-    const requesting = state === 'requesting';
-    const sent = state === 'sent';
+    const inFlight = followingId === item.id;
+
+    // 'follows_you' is rendered as a plain "Follow" pill too —
+    // Instagram-style. The muted-tag branch is reserved for outgoing
+    // states (following / friends / requested).
+    const isFollowable =
+      item.follow_state === 'none' || item.follow_state === 'follows_you';
+
+    let indicator: React.ReactNode;
+    if (isFollowable) {
+      indicator = (
+        <TouchableOpacity
+          style={styles.followBtn}
+          activeOpacity={0.85}
+          onPress={() => onFollow(item)}
+          disabled={inFlight}
+          hitSlop={6}
+        >
+          {inFlight ? (
+            <ActivityIndicator color="#FFFFFF" size="small" />
+          ) : (
+            <>
+              <Ionicons name="add" size={14} color="#FFFFFF" />
+              <Text style={styles.followBtnText}>Follow</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      );
+    } else {
+      const label =
+        item.follow_state === 'following'
+          ? 'Following'
+          : item.follow_state === 'friends'
+          ? 'Friends'
+          : 'Requested';
+      indicator = (
+        <View style={styles.mutedTag}>
+          <Text style={styles.mutedTagText}>{label}</Text>
+        </View>
+      );
+    }
 
     return (
       <TouchableOpacity
@@ -102,36 +149,22 @@ export default function MembersSearchTab({ query }: Props) {
             <Text style={styles.avatarInitial}>{initial}</Text>
           </View>
         )}
-        <Text style={styles.username} numberOfLines={1}>
-          @{item.username}
-        </Text>
-        {item.is_private && (
-          <View style={styles.actions}>
-            <Ionicons
-              name="lock-closed"
-              size={14}
-              color="#8B8B8B"
-              style={styles.lockIcon}
-            />
-            <TouchableOpacity
-              style={styles.addBtn}
-              activeOpacity={0.75}
-              onPress={() => onRequestFollow(item)}
-              disabled={requesting || sent}
-              hitSlop={10}
-            >
-              {requesting ? (
-                <ActivityIndicator color={PURPLE} size="small" />
-              ) : (
-                <Ionicons
-                  name={sent ? 'checkmark' : 'person-add-outline'}
-                  size={20}
-                  color={sent ? '#8B8B8B' : PURPLE}
-                />
-              )}
-            </TouchableOpacity>
+        <View style={styles.identity}>
+          <View style={styles.nameRow}>
+            {item.is_private && (
+              <Ionicons
+                name="lock-closed"
+                size={12}
+                color="#8B8B8B"
+                style={styles.lockIcon}
+              />
+            )}
+            <Text style={styles.username} numberOfLines={1}>
+              @{item.username}
+            </Text>
           </View>
-        )}
+        </View>
+        {indicator}
       </TouchableOpacity>
     );
   };
@@ -203,22 +236,49 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '800',
   },
-  username: {
-    flex: 1,
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  actions: {
+  identity: { flex: 1 },
+  nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  lockIcon: { marginRight: 10 },
-  addBtn: {
-    width: 36,
-    height: 36,
+  lockIcon: { marginRight: 6 },
+  username: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+    flexShrink: 1,
+  },
+  followBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: PURPLE,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    gap: 4,
+    minWidth: 92,
+    justifyContent: 'center',
+  },
+  followBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 12,
+    letterSpacing: 0.4,
+  },
+  mutedTag: {
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: '#282828',
     alignItems: 'center',
     justifyContent: 'center',
+    minWidth: 92,
+  },
+  mutedTagText: {
+    color: '#B3B3B3',
+    fontWeight: '700',
+    fontSize: 12,
+    letterSpacing: 0.4,
   },
 
   center: {

@@ -449,6 +449,7 @@ export interface UserSearchResult {
   username: string;
   profile_photo: string | null;
   is_private: boolean;
+  follow_state: 'none' | 'following' | 'follows_you' | 'friends' | 'requested';
 }
 
 export const searchUsers = (q: string, limit: number = 50) =>
