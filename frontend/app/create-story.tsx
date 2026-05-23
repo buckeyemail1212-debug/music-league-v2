@@ -21,6 +21,9 @@ import {
   getSongsRadar,
   createStory,
 } from '../src/services/api';
+import { LikedSong } from '../src/utils/likedSongs';
+import LikeButton from '../src/components/LikeButton';
+import { PreviewPlayButton } from '../src/components/PreviewPlayButton';
 
 export default function CreateStoryScreen() {
   const router = useRouter();
@@ -108,23 +111,34 @@ export default function CreateStoryScreen() {
   };
 
   const renderResult = ({ item }: { item: Song }) => (
-    <TouchableOpacity
-      style={styles.resultRow}
-      activeOpacity={0.75}
-      onPress={() => onSelectSong(item)}
-    >
-      {item.cover_url ? (
-        <Image source={{ uri: item.cover_url }} style={styles.resultCover} />
-      ) : (
-        <View style={[styles.resultCover, styles.resultCoverFallback]}>
-          <Ionicons name="musical-note" size={20} color="#B3B3B3" />
+    <View style={styles.resultRow}>
+      <TouchableOpacity
+        style={styles.resultMain}
+        activeOpacity={0.75}
+        onPress={() => onSelectSong(item)}
+      >
+        {item.cover_url ? (
+          <Image source={{ uri: item.cover_url }} style={styles.resultCover} />
+        ) : (
+          <View style={[styles.resultCover, styles.resultCoverFallback]}>
+            <Ionicons name="musical-note" size={20} color="#B3B3B3" />
+          </View>
+        )}
+        <View style={styles.resultText}>
+          <Text style={styles.resultTitle} numberOfLines={1}>{item.title}</Text>
+          <Text style={styles.resultArtist} numberOfLines={1}>{item.artist}</Text>
         </View>
-      )}
-      <View style={styles.resultText}>
-        <Text style={styles.resultTitle} numberOfLines={1}>{item.title}</Text>
-        <Text style={styles.resultArtist} numberOfLines={1}>{item.artist}</Text>
+      </TouchableOpacity>
+      <View style={styles.resultActions}>
+        <LikeButton song={item as LikedSong} size={22} style={styles.likeBtnSpacing} />
+        <PreviewPlayButton
+          previewUrl={item.preview_url}
+          deezerId={item.deezer_id}
+          songId={`createstory-${item.deezer_id}`}
+          size={20}
+        />
       </View>
-    </TouchableOpacity>
+    </View>
   );
 
   const showingRadar = query.trim().length === 0;
@@ -282,9 +296,26 @@ const styles = StyleSheet.create({
   resultRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
     paddingHorizontal: 20,
+  },
+  resultMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
     gap: 12,
+  },
+  resultActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginLeft: 4,
+  },
+  // Adds breathing room between the heart and the play button so their
+  // hitSlop zones (8px + 14px = 22px combined) can't bleed into each
+  // other. 16px gap + 8px marginRight ≈ 24px visible separation.
+  likeBtnSpacing: {
+    marginRight: 8,
   },
   resultCover: {
     width: 48,

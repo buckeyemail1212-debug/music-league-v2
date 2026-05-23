@@ -17,11 +17,11 @@ import { useAuth } from '../src/context/AuthContext';
 import {
   LikedSong,
   loadLikedSongs,
-  getCachedLikedIds,
   getCachedLikedSongs,
   subscribeLikedSongs,
-  toggleLikedSong,
 } from '../src/utils/likedSongs';
+import LikeButton from '../src/components/LikeButton';
+import { PreviewPlayButton } from '../src/components/PreviewPlayButton';
 
 type BrowseFilter = 'new' | 'liked';
 
@@ -34,9 +34,6 @@ export default function SongPickerScreen() {
   const [radar, setRadar] = useState<Song[]>([]);
   const [searching, setSearching] = useState(false);
   const [filter, setFilter] = useState<BrowseFilter>('new');
-  const [likedIds, setLikedIds] = useState<Set<string>>(() =>
-    user?.id ? getCachedLikedIds(user.id) : new Set(),
-  );
   const [likedList, setLikedList] = useState<LikedSong[]>(() =>
     user?.id ? getCachedLikedSongs(user.id) : [],
   );
@@ -59,16 +56,13 @@ export default function SongPickerScreen() {
   }, []);
 
   // Liked songs: hydrate the shared cache once and stay subscribed so
-  // toggling a heart anywhere in the app re-renders this list and the
-  // per-row heart icons live. The subscriber returns string deezer ids;
-  // we mirror getCachedLikedSongs() into local state so the "Liked
-  // Songs" filter sees fresh data without re-querying the cache during
-  // render.
+  // the "Liked Songs" filter list re-renders when songs are liked/
+  // unliked elsewhere in the app. LikeButton owns per-row icon state
+  // itself; we only need the list mirror here for the filter.
   useEffect(() => {
     if (!user?.id) return;
     loadLikedSongs(user.id).catch(() => {});
-    const unsub = subscribeLikedSongs(user.id, (ids) => {
-      setLikedIds(ids);
+    const unsub = subscribeLikedSongs(user.id, () => {
       setLikedList(getCachedLikedSongs(user.id));
     });
     return unsub;
@@ -104,47 +98,36 @@ export default function SongPickerScreen() {
     router.back();
   };
 
-  const onToggleLike = (item: Song) => {
-    if (!user?.id) return;
-    toggleLikedSong(user.id, item as LikedSong).catch(() => {});
-  };
-
-  const renderResult = ({ item }: { item: Song }) => {
-    const isLiked = likedIds.has(String(item.deezer_id));
-    return (
-      <View style={styles.resultRow}>
-        <TouchableOpacity
-          style={styles.resultMain}
-          activeOpacity={0.75}
-          onPress={() => onPickSong(item)}
-        >
-          {item.cover_url ? (
-            <Image source={{ uri: item.cover_url }} style={styles.resultCover} />
-          ) : (
-            <View style={[styles.resultCover, styles.resultCoverFallback]}>
-              <Ionicons name="musical-note" size={20} color="#B3B3B3" />
-            </View>
-          )}
-          <View style={styles.resultText}>
-            <Text style={styles.resultTitle} numberOfLines={1}>{item.title}</Text>
-            <Text style={styles.resultArtist} numberOfLines={1}>{item.artist}</Text>
+  const renderResult = ({ item }: { item: Song }) => (
+    <View style={styles.resultRow}>
+      <TouchableOpacity
+        style={styles.resultMain}
+        activeOpacity={0.75}
+        onPress={() => onPickSong(item)}
+      >
+        {item.cover_url ? (
+          <Image source={{ uri: item.cover_url }} style={styles.resultCover} />
+        ) : (
+          <View style={[styles.resultCover, styles.resultCoverFallback]}>
+            <Ionicons name="musical-note" size={20} color="#B3B3B3" />
           </View>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.heartBtn}
-          activeOpacity={0.7}
-          onPress={() => onToggleLike(item)}
-          hitSlop={8}
-        >
-          <Ionicons
-            name={isLiked ? 'heart' : 'heart-outline'}
-            size={22}
-            color={isLiked ? '#7C3AED' : 'rgba(255,255,255,0.7)'}
-          />
-        </TouchableOpacity>
+        )}
+        <View style={styles.resultText}>
+          <Text style={styles.resultTitle} numberOfLines={1}>{item.title}</Text>
+          <Text style={styles.resultArtist} numberOfLines={1}>{item.artist}</Text>
+        </View>
+      </TouchableOpacity>
+      <View style={styles.resultActions}>
+        <LikeButton song={item as LikedSong} size={22} style={styles.likeBtnSpacing} />
+        <PreviewPlayButton
+          previewUrl={item.preview_url}
+          deezerId={item.deezer_id}
+          songId={`picker-${item.deezer_id}`}
+          size={20}
+        />
       </View>
-    );
-  };
+    </View>
+  );
 
   const isSearching = query.trim().length > 0;
   const list: Song[] = isSearching
@@ -308,12 +291,17 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     gap: 12,
   },
-  heartBtn: {
-    width: 40,
-    height: 40,
+  resultActions: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 16,
     marginLeft: 4,
+  },
+  // Adds breathing room between the heart and the play button so their
+  // hitSlop zones (8px + 14px = 22px combined) can't bleed into each
+  // other. 16px gap + 8px marginRight ≈ 24px visible separation.
+  likeBtnSpacing: {
+    marginRight: 8,
   },
   resultCover: {
     width: 48,
