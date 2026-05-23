@@ -35,6 +35,7 @@ interface StoryItem {
   song: StorySong;
   photo_url: string | null;
   caption: string | null;
+  sticker: { x: number; y: number } | null;
   created_at: string;
   expires_at: string;
 }
@@ -408,24 +409,57 @@ export default function StoryViewerScreen() {
               transition={150}
               cachePolicy="memory-disk"
             />
-            <View style={styles.photoOverlay}>
-              <View style={styles.songPill}>
-                {story.song.cover_url ? (
-                  <Image source={{ uri: story.song.cover_url }} style={styles.songPillCover} />
-                ) : (
-                  <View style={[styles.songPillCover, styles.songPillCoverFallback]}>
-                    <Ionicons name="musical-note" size={18} color="#B3B3B3" />
+            {story.sticker ? (
+              <>
+                <View style={styles.stickerAnchor} pointerEvents="none">
+                  <View
+                    style={[
+                      styles.stickerCard,
+                      { transform: [
+                        { translateX: story.sticker.x },
+                        { translateY: story.sticker.y },
+                      ] },
+                    ]}
+                  >
+                    {story.song.cover_url ? (
+                      <Image source={{ uri: story.song.cover_url }} style={styles.stickerCover} />
+                    ) : (
+                      <View style={[styles.stickerCover, styles.stickerCoverFallback]}>
+                        <Ionicons name="musical-note" size={20} color="#B3B3B3" />
+                      </View>
+                    )}
+                    <View style={styles.stickerText}>
+                      <Text style={styles.stickerTitle} numberOfLines={1}>{story.song.title}</Text>
+                      <Text style={styles.stickerArtist} numberOfLines={1}>{story.song.artist}</Text>
+                    </View>
                   </View>
-                )}
-                <View style={styles.songPillText}>
-                  <Text style={styles.songPillTitle} numberOfLines={1}>{story.song.title}</Text>
-                  <Text style={styles.songPillArtist} numberOfLines={1}>{story.song.artist}</Text>
                 </View>
+                {story.caption ? (
+                  <View style={styles.photoOverlay}>
+                    <Text style={styles.captionOverlay}>{story.caption}</Text>
+                  </View>
+                ) : null}
+              </>
+            ) : (
+              <View style={styles.photoOverlay}>
+                <View style={styles.songPill}>
+                  {story.song.cover_url ? (
+                    <Image source={{ uri: story.song.cover_url }} style={styles.songPillCover} />
+                  ) : (
+                    <View style={[styles.songPillCover, styles.songPillCoverFallback]}>
+                      <Ionicons name="musical-note" size={18} color="#B3B3B3" />
+                    </View>
+                  )}
+                  <View style={styles.songPillText}>
+                    <Text style={styles.songPillTitle} numberOfLines={1}>{story.song.title}</Text>
+                    <Text style={styles.songPillArtist} numberOfLines={1}>{story.song.artist}</Text>
+                  </View>
+                </View>
+                {story.caption ? (
+                  <Text style={styles.captionOverlay}>{story.caption}</Text>
+                ) : null}
               </View>
-              {story.caption ? (
-                <Text style={styles.captionOverlay}>{story.caption}</Text>
-              ) : null}
-            </View>
+            )}
           </>
         ) : (
           <View style={styles.songOnly}>
@@ -609,6 +643,38 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
+
+  stickerAnchor: {
+    position: 'absolute',
+    top: '32%',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  stickerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    width: 300,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  stickerCover: { width: 52, height: 52, borderRadius: 8 },
+  stickerCoverFallback: {
+    backgroundColor: '#282828',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stickerText: { flex: 1 },
+  stickerTitle: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
+  stickerArtist: { color: 'rgba(255,255,255,0.7)', fontSize: 11.5, marginTop: 1 },
 
   photoOverlay: {
     position: 'absolute',
