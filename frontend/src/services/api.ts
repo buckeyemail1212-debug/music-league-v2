@@ -513,6 +513,7 @@ export interface CreateStoryPayload {
     y: number;
     scale?: number;
     rotation?: number;
+    style?: 'card' | 'album';
   } | null;
 }
 
@@ -754,6 +755,7 @@ export interface Story {
     y: number;
     scale?: number;
     rotation?: number;
+    style?: 'card' | 'album';
   } | null;
   created_at: string;
   expires_at: string;

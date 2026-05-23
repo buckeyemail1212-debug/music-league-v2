@@ -40,6 +40,7 @@ interface StoryItem {
     y: number;
     scale?: number;
     rotation?: number;
+    style?: 'card' | 'album';
   } | null;
   created_at: string;
   expires_at: string;
@@ -417,29 +418,41 @@ export default function StoryViewerScreen() {
             {story.sticker ? (
               <>
                 <View style={styles.stickerAnchor} pointerEvents="none">
-                  <View
-                    style={[
-                      styles.stickerCard,
-                      { transform: [
-                        { translateX: story.sticker.x },
-                        { translateY: story.sticker.y },
-                        { scale: story.sticker.scale ?? 1 },
-                        { rotate: `${story.sticker.rotation ?? 0}rad` },
-                      ] },
-                    ]}
-                  >
-                    {story.song.cover_url ? (
-                      <Image source={{ uri: story.song.cover_url }} style={styles.stickerCover} />
-                    ) : (
-                      <View style={[styles.stickerCover, styles.stickerCoverFallback]}>
-                        <Ionicons name="musical-note" size={20} color="#B3B3B3" />
+                  {(() => {
+                    const variant = story.sticker.style ?? 'card';
+                    const transform = [
+                      { translateX: story.sticker.x },
+                      { translateY: story.sticker.y },
+                      { scale: story.sticker.scale ?? 1 },
+                      { rotate: `${story.sticker.rotation ?? 0}rad` },
+                    ];
+                    if (variant === 'album') {
+                      return (
+                        <View style={[styles.stickerAlbum, { transform }]}>
+                          {story.song.cover_url ? (
+                            <Image source={{ uri: story.song.cover_url }} style={styles.stickerAlbumImage} />
+                          ) : (
+                            <View style={[styles.stickerAlbumImage, styles.stickerAlbumFallback]} />
+                          )}
+                        </View>
+                      );
+                    }
+                    return (
+                      <View style={[styles.stickerCard, { transform }]}>
+                        {story.song.cover_url ? (
+                          <Image source={{ uri: story.song.cover_url }} style={styles.stickerCover} />
+                        ) : (
+                          <View style={[styles.stickerCover, styles.stickerCoverFallback]}>
+                            <Ionicons name="musical-note" size={20} color="#B3B3B3" />
+                          </View>
+                        )}
+                        <View style={styles.stickerText}>
+                          <Text style={styles.stickerTitle} numberOfLines={1}>{story.song.title}</Text>
+                          <Text style={styles.stickerArtist} numberOfLines={1}>{story.song.artist}</Text>
+                        </View>
                       </View>
-                    )}
-                    <View style={styles.stickerText}>
-                      <Text style={styles.stickerTitle} numberOfLines={1}>{story.song.title}</Text>
-                      <Text style={styles.stickerArtist} numberOfLines={1}>{story.song.artist}</Text>
-                    </View>
-                  </View>
+                    );
+                  })()}
                 </View>
                 {story.caption ? (
                   <View style={styles.photoOverlay}>
@@ -682,6 +695,24 @@ const styles = StyleSheet.create({
   stickerText: { flex: 1 },
   stickerTitle: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
   stickerArtist: { color: 'rgba(255,255,255,0.7)', fontSize: 11.5, marginTop: 1 },
+
+  stickerAlbum: {
+    width: 130,
+    height: 130,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  stickerAlbumImage: {
+    width: 130,
+    height: 130,
+    borderRadius: 14,
+  },
+  stickerAlbumFallback: {
+    backgroundColor: '#282828',
+  },
 
   photoOverlay: {
     position: 'absolute',

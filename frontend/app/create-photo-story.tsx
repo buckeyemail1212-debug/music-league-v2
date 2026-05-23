@@ -37,16 +37,27 @@ export default function CreatePhotoStoryScreen() {
   const [caption, setCaption] = useState('');
   const [posting, setPosting] = useState(false);
 
-  // Music-sticker transform state. The shared values drive the on-screen
-  // transform every frame; the React state is the committed snapshot
-  // that gets persisted with the post. Defaults match an un-touched
-  // sticker (no translate, scale 1, no rotation).
+  // Music-sticker transform + style state. The shared values drive the
+  // on-screen transform every frame; the React state is the committed
+  // snapshot persisted with the post. Style is a JS-only choice (no
+  // shared value) since it doesn't animate.
+  type StickerStyle = 'card' | 'album';
   const [sticker, setSticker] = useState<{
     x: number;
     y: number;
     scale: number;
     rotation: number;
-  }>({ x: 0, y: 0, scale: 1, rotation: 0 });
+    style: StickerStyle;
+  }>({ x: 0, y: 0, scale: 1, rotation: 0, style: 'card' });
+
+  // Tap toggles the sticker style. Lives outside the gesture so its
+  // closure reads the latest state via setSticker's functional form,
+  // avoiding the gesture-handler closure-capture footgun.
+  const toggleStickerStyle = () =>
+    setSticker((prev) => ({
+      ...prev,
+      style: prev.style === 'card' ? 'album' : 'card',
+    }));
   const stickerX = useSharedValue(0);
   const stickerY = useSharedValue(0);
   const stickerStartX = useSharedValue(0);
@@ -57,13 +68,22 @@ export default function CreatePhotoStoryScreen() {
   const stickerRotationStart = useSharedValue(0);
 
   // Each gesture's onEnd reads all four shared values so concurrent
-  // gestures don't clobber each other's committed snapshot.
-  const commitSticker = (s: {
+  // gestures don't clobber each other's committed snapshot. Functional
+  // setSticker merges so the `style` field (chosen via the picker, not
+  // by a gesture) is preserved across commits.
+  const commitSticker = (next: {
     x: number;
     y: number;
     scale: number;
     rotation: number;
-  }) => setSticker(s);
+  }) =>
+    setSticker((prev) => ({
+      ...prev,
+      x: next.x,
+      y: next.y,
+      scale: next.scale,
+      rotation: next.rotation,
+    }));
 
   const stickerPan = Gesture.Pan()
     .onStart(() => {
@@ -116,10 +136,20 @@ export default function CreatePhotoStoryScreen() {
       });
     });
 
+  // Tap toggles the variant. maxDistance(10) means a drag that moves the
+  // finger more than 10px fails the tap recognizer — so dragging never
+  // accidentally flips the style.
+  const stickerTap = Gesture.Tap()
+    .maxDistance(10)
+    .onEnd((_e, success) => {
+      if (success) runOnJS(toggleStickerStyle)();
+    });
+
   const stickerGesture = Gesture.Simultaneous(
     stickerPan,
     stickerPinch,
     stickerRotate,
+    stickerTap,
   );
 
   const stickerAnimatedStyle = useAnimatedStyle(() => ({
@@ -200,7 +230,12 @@ export default function CreatePhotoStoryScreen() {
   };
 
   const onSubmitTap = async () => {
-    if (!selectedSong || !photoUri || !photoBase64 || posting) return;
+    if (posting) return;
+    if (!selectedSong) {
+      Alert.alert('Unable to post', 'Choosing a song is required.');
+      return;
+    }
+    if (!photoUri || !photoBase64) return;
     setPosting(true);
     try {
       const dataUri = `data:image/jpeg;base64,${photoBase64}`;
@@ -222,6 +257,7 @@ export default function CreatePhotoStoryScreen() {
               y: sticker.y,
               scale: sticker.scale,
               rotation: sticker.rotation,
+              style: sticker.style,
             }
           : null,
       });
@@ -287,8 +323,8 @@ export default function CreatePhotoStoryScreen() {
                 <TouchableOpacity
                   style={[styles.sendBtn, submitDisabled && styles.sendBtnDisabled]}
                   onPress={onSubmitTap}
-                  disabled={submitDisabled}
-                  activeOpacity={submitDisabled ? 1 : 0.85}
+                  disabled={posting}
+                  activeOpacity={posting ? 1 : 0.85}
                 >
                   {posting ? (
                     <ActivityIndicator color="#FFFFFF" />
@@ -312,19 +348,29 @@ export default function CreatePhotoStoryScreen() {
           {selectedSong && (
             <View style={styles.stickerAnchor} pointerEvents="box-none">
               <GestureDetector gesture={stickerGesture}>
-                <Animated.View style={[styles.stickerCard, stickerAnimatedStyle]}>
-                  {selectedSong.cover_url ? (
-                    <Image source={{ uri: selectedSong.cover_url }} style={styles.stickerCover} />
-                  ) : (
-                    <View style={[styles.stickerCover, styles.stickerCoverFallback]}>
-                      <Ionicons name="musical-note" size={20} color="#B3B3B3" />
+                {sticker.style === 'album' ? (
+                  <Animated.View style={[styles.stickerAlbum, stickerAnimatedStyle]}>
+                    {selectedSong.cover_url ? (
+                      <Image source={{ uri: selectedSong.cover_url }} style={styles.stickerAlbumImage} />
+                    ) : (
+                      <View style={[styles.stickerAlbumImage, styles.stickerAlbumFallback]} />
+                    )}
+                  </Animated.View>
+                ) : (
+                  <Animated.View style={[styles.stickerCard, stickerAnimatedStyle]}>
+                    {selectedSong.cover_url ? (
+                      <Image source={{ uri: selectedSong.cover_url }} style={styles.stickerCover} />
+                    ) : (
+                      <View style={[styles.stickerCover, styles.stickerCoverFallback]}>
+                        <Ionicons name="musical-note" size={20} color="#B3B3B3" />
+                      </View>
+                    )}
+                    <View style={styles.stickerText}>
+                      <Text style={styles.stickerTitle} numberOfLines={1}>{selectedSong.title}</Text>
+                      <Text style={styles.stickerArtist} numberOfLines={1}>{selectedSong.artist}</Text>
                     </View>
-                  )}
-                  <View style={styles.stickerText}>
-                    <Text style={styles.stickerTitle} numberOfLines={1}>{selectedSong.title}</Text>
-                    <Text style={styles.stickerArtist} numberOfLines={1}>{selectedSong.artist}</Text>
-                  </View>
-                </Animated.View>
+                  </Animated.View>
+                )}
               </GestureDetector>
             </View>
           )}
@@ -340,15 +386,13 @@ export default function CreatePhotoStoryScreen() {
               >
                 <Ionicons name="close" size={28} color="#FFFFFF" />
               </TouchableOpacity>
-            </View>
-            <View style={styles.musicAnchor} pointerEvents="box-none">
+              <View style={{ flex: 1 }} />
               {selectedSong ? (
                 <TouchableOpacity
                   style={styles.changeMusicBtn}
                   onPress={onAddMusicTap}
                   activeOpacity={0.85}
                 >
-                  <Ionicons name="musical-note" size={14} color="#FFFFFF" />
                   <Text style={styles.changeMusicBtnLabel}>Change music</Text>
                 </TouchableOpacity>
               ) : (
@@ -357,7 +401,6 @@ export default function CreatePhotoStoryScreen() {
                   onPress={onAddMusicTap}
                   activeOpacity={0.85}
                 >
-                  <Ionicons name="musical-notes" size={18} color="#FFFFFF" />
                   <Text style={styles.addMusicBtnLabel}>Add music</Text>
                 </TouchableOpacity>
               )}
@@ -439,10 +482,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  musicAnchor: {
-    marginTop: 12,
-    alignItems: 'center',
-  },
   addMusicBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -505,6 +544,24 @@ const styles = StyleSheet.create({
   stickerText: { flex: 1 },
   stickerTitle: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
   stickerArtist: { color: 'rgba(255,255,255,0.7)', fontSize: 11.5, marginTop: 1 },
+
+  stickerAlbum: {
+    width: 130,
+    height: 130,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  stickerAlbumImage: {
+    width: 130,
+    height: 130,
+    borderRadius: 14,
+  },
+  stickerAlbumFallback: {
+    backgroundColor: '#282828',
+  },
 
   bottomOverlay: {
     paddingHorizontal: 16,

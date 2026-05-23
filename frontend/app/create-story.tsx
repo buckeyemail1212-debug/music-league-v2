@@ -82,7 +82,11 @@ export default function CreateStoryScreen() {
   };
 
   const onSubmit = async () => {
-    if (!selectedSong || posting) return;
+    if (posting) return;
+    if (!selectedSong) {
+      Alert.alert('Unable to post', 'Choosing a song is required.');
+      return;
+    }
     setPosting(true);
     try {
       await createStory({
@@ -207,9 +211,9 @@ export default function CreateStoryScreen() {
 
       <TouchableOpacity
         style={[styles.submitBtn, submitDisabled && styles.submitBtnDisabled]}
-        activeOpacity={submitDisabled ? 1 : 0.75}
+        activeOpacity={posting ? 1 : 0.75}
         onPress={onSubmit}
-        disabled={submitDisabled}
+        disabled={posting}
       >
         {posting ? (
           <ActivityIndicator color="#FFFFFF" />
