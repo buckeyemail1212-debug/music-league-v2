@@ -13,14 +13,33 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Song, searchSongs, getSongsRadar } from '../src/services/api';
 import { setPendingSong } from '../src/services/pendingSong';
+import { useAuth } from '../src/context/AuthContext';
+import {
+  LikedSong,
+  loadLikedSongs,
+  getCachedLikedIds,
+  getCachedLikedSongs,
+  subscribeLikedSongs,
+  toggleLikedSong,
+} from '../src/utils/likedSongs';
+
+type BrowseFilter = 'new' | 'liked';
 
 export default function SongPickerScreen() {
   const router = useRouter();
+  const { user } = useAuth();
 
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Song[]>([]);
   const [radar, setRadar] = useState<Song[]>([]);
   const [searching, setSearching] = useState(false);
+  const [filter, setFilter] = useState<BrowseFilter>('new');
+  const [likedIds, setLikedIds] = useState<Set<string>>(() =>
+    user?.id ? getCachedLikedIds(user.id) : new Set(),
+  );
+  const [likedList, setLikedList] = useState<LikedSong[]>(() =>
+    user?.id ? getCachedLikedSongs(user.id) : [],
+  );
 
   // Radar recommendations — fetched once on mount; cached server-side so
   // this is cheap. Failure is silent (the section just renders empty).
@@ -38,6 +57,22 @@ export default function SongPickerScreen() {
       cancelled = true;
     };
   }, []);
+
+  // Liked songs: hydrate the shared cache once and stay subscribed so
+  // toggling a heart anywhere in the app re-renders this list and the
+  // per-row heart icons live. The subscriber returns string deezer ids;
+  // we mirror getCachedLikedSongs() into local state so the "Liked
+  // Songs" filter sees fresh data without re-querying the cache during
+  // render.
+  useEffect(() => {
+    if (!user?.id) return;
+    loadLikedSongs(user.id).catch(() => {});
+    const unsub = subscribeLikedSongs(user.id, (ids) => {
+      setLikedIds(ids);
+      setLikedList(getCachedLikedSongs(user.id));
+    });
+    return unsub;
+  }, [user?.id]);
 
   // Debounced search — only runs when the user actually has a query.
   useEffect(() => {
@@ -69,28 +104,58 @@ export default function SongPickerScreen() {
     router.back();
   };
 
-  const renderResult = ({ item }: { item: Song }) => (
-    <TouchableOpacity
-      style={styles.resultRow}
-      activeOpacity={0.75}
-      onPress={() => onPickSong(item)}
-    >
-      {item.cover_url ? (
-        <Image source={{ uri: item.cover_url }} style={styles.resultCover} />
-      ) : (
-        <View style={[styles.resultCover, styles.resultCoverFallback]}>
-          <Ionicons name="musical-note" size={20} color="#B3B3B3" />
-        </View>
-      )}
-      <View style={styles.resultText}>
-        <Text style={styles.resultTitle} numberOfLines={1}>{item.title}</Text>
-        <Text style={styles.resultArtist} numberOfLines={1}>{item.artist}</Text>
-      </View>
-    </TouchableOpacity>
-  );
+  const onToggleLike = (item: Song) => {
+    if (!user?.id) return;
+    toggleLikedSong(user.id, item as LikedSong).catch(() => {});
+  };
 
-  const showingRadar = query.trim().length === 0;
-  const list = showingRadar ? radar : results;
+  const renderResult = ({ item }: { item: Song }) => {
+    const isLiked = likedIds.has(String(item.deezer_id));
+    return (
+      <View style={styles.resultRow}>
+        <TouchableOpacity
+          style={styles.resultMain}
+          activeOpacity={0.75}
+          onPress={() => onPickSong(item)}
+        >
+          {item.cover_url ? (
+            <Image source={{ uri: item.cover_url }} style={styles.resultCover} />
+          ) : (
+            <View style={[styles.resultCover, styles.resultCoverFallback]}>
+              <Ionicons name="musical-note" size={20} color="#B3B3B3" />
+            </View>
+          )}
+          <View style={styles.resultText}>
+            <Text style={styles.resultTitle} numberOfLines={1}>{item.title}</Text>
+            <Text style={styles.resultArtist} numberOfLines={1}>{item.artist}</Text>
+          </View>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.heartBtn}
+          activeOpacity={0.7}
+          onPress={() => onToggleLike(item)}
+          hitSlop={8}
+        >
+          <Ionicons
+            name={isLiked ? 'heart' : 'heart-outline'}
+            size={22}
+            color={isLiked ? '#7C3AED' : 'rgba(255,255,255,0.7)'}
+          />
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  const isSearching = query.trim().length > 0;
+  const list: Song[] = isSearching
+    ? results
+    : filter === 'liked'
+    ? (likedList as Song[])
+    : radar;
+  const emptyMessage =
+    !isSearching && filter === 'liked' && likedList.length === 0
+      ? 'No liked songs yet'
+      : null;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -117,12 +182,37 @@ export default function SongPickerScreen() {
           autoCorrect={false}
           autoCapitalize="none"
         />
-        {showingRadar && (
-          <Text style={styles.sectionLabel}>NEW THIS WEEK</Text>
-        )}
+        <View style={styles.chipRow}>
+          <TouchableOpacity
+            style={[styles.chip, filter === 'new' && styles.chipActive]}
+            activeOpacity={0.8}
+            onPress={() => setFilter('new')}
+          >
+            <Text
+              style={[styles.chipLabel, filter === 'new' && styles.chipLabelActive]}
+            >
+              New This Week
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.chip, filter === 'liked' && styles.chipActive]}
+            activeOpacity={0.8}
+            onPress={() => setFilter('liked')}
+          >
+            <Text
+              style={[styles.chipLabel, filter === 'liked' && styles.chipLabelActive]}
+            >
+              Liked Songs
+            </Text>
+          </TouchableOpacity>
+        </View>
         {searching && results.length === 0 ? (
           <View style={styles.searchingWrap}>
             <Text style={styles.searchingText}>Searching...</Text>
+          </View>
+        ) : emptyMessage ? (
+          <View style={styles.searchingWrap}>
+            <Text style={styles.searchingText}>{emptyMessage}</Text>
           </View>
         ) : (
           <FlatList
@@ -174,13 +264,31 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginBottom: 12,
   },
-  sectionLabel: {
-    color: '#B3B3B3',
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1,
+  chipRow: {
+    flexDirection: 'row',
+    gap: 8,
     paddingHorizontal: 20,
-    marginVertical: 8,
+    marginBottom: 12,
+  },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+  },
+  chipActive: {
+    backgroundColor: '#7C3AED',
+    borderColor: '#7C3AED',
+  },
+  chipLabel: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  chipLabelActive: {
+    color: '#FFFFFF',
   },
   searchingWrap: {
     alignItems: 'center',
@@ -191,9 +299,21 @@ const styles = StyleSheet.create({
   resultRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
     paddingHorizontal: 20,
+  },
+  resultMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
     gap: 12,
+  },
+  heartBtn: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 4,
   },
   resultCover: {
     width: 48,
