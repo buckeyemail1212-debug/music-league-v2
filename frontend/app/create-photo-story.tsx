@@ -19,9 +19,11 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Song, createStory, uploadImage } from '../src/services/api';
 import { consumePendingSong } from '../src/services/pendingSong';
+import { useAuth } from '../src/context/AuthContext';
 
 export default function CreatePhotoStoryScreen() {
   const router = useRouter();
+  const { user } = useAuth();
 
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [photoBase64, setPhotoBase64] = useState<string | null>(null);
@@ -134,6 +136,10 @@ export default function CreatePhotoStoryScreen() {
             resizeMode="contain"
           />
 
+          {/* Centered music control — floats over the upper portion of the
+              photo. Above the KAV/dismiss layer because it's rendered later
+              (the top overlay group is the last sibling). */}
+
           {/* KAV wraps the dismiss-tap area + bottom overlay so the
               caption/submit lift above the keyboard. Top overlay is
               rendered AFTER the KAV so its buttons stay tappable above
@@ -157,23 +163,40 @@ export default function CreatePhotoStoryScreen() {
                 maxLength={200}
                 multiline
               />
-              <TouchableOpacity
-                style={[styles.submitBtn, submitDisabled && styles.submitBtnDisabled]}
-                onPress={onSubmitTap}
-                disabled={submitDisabled}
-                activeOpacity={submitDisabled ? 1 : 0.75}
-              >
-                {posting ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <Ionicons name="arrow-forward" size={24} color="#FFFFFF" />
-                )}
-              </TouchableOpacity>
+              <View style={styles.shareRow}>
+                <View style={styles.shareIdentity}>
+                  {user?.profile_photo ? (
+                    <Image source={{ uri: user.profile_photo }} style={styles.shareAvatar} />
+                  ) : (
+                    <View style={[styles.shareAvatar, styles.shareAvatarFallback]}>
+                      <Text style={styles.shareAvatarInitial}>
+                        {(user?.username || '?').charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
+                  <Text style={styles.shareIdentityLabel}>Your story</Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.sendBtn, submitDisabled && styles.sendBtnDisabled]}
+                  onPress={onSubmitTap}
+                  disabled={submitDisabled}
+                  activeOpacity={submitDisabled ? 1 : 0.85}
+                >
+                  {posting ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Text style={styles.sendBtnLabel}>Post</Text>
+                      <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
             </SafeAreaView>
           </KeyboardAvoidingView>
 
           {/* Top overlay last → sits above the KAV's dismiss layer so
-              close + Add Music remain tappable. */}
+              close + music control remain tappable. */}
           <SafeAreaView style={styles.topOverlay} edges={['top']} pointerEvents="box-none">
             <View style={styles.topRow}>
               <TouchableOpacity
@@ -183,33 +206,36 @@ export default function CreatePhotoStoryScreen() {
               >
                 <Ionicons name="close" size={28} color="#FFFFFF" />
               </TouchableOpacity>
-              <View style={{ flex: 1 }} />
-              <TouchableOpacity
-                style={styles.musicPill}
-                onPress={onAddMusicTap}
-                activeOpacity={0.75}
-              >
-                {selectedSong ? (
-                  <>
-                    {selectedSong.cover_url ? (
-                      <Image source={{ uri: selectedSong.cover_url }} style={styles.musicPillCover} />
-                    ) : (
-                      <View style={[styles.musicPillCover, styles.musicPillCoverFallback]}>
-                        <Ionicons name="musical-note" size={12} color="#B3B3B3" />
-                      </View>
-                    )}
-                    <View style={styles.musicPillText}>
-                      <Text style={styles.musicPillTitle} numberOfLines={1}>{selectedSong.title}</Text>
-                      <Text style={styles.musicPillArtist} numberOfLines={1}>{selectedSong.artist}</Text>
+            </View>
+            <View style={styles.musicAnchor} pointerEvents="box-none">
+              {selectedSong ? (
+                <TouchableOpacity
+                  style={styles.musicChip}
+                  onPress={onAddMusicTap}
+                  activeOpacity={0.85}
+                >
+                  {selectedSong.cover_url ? (
+                    <Image source={{ uri: selectedSong.cover_url }} style={styles.musicChipCover} />
+                  ) : (
+                    <View style={[styles.musicChipCover, styles.musicChipCoverFallback]}>
+                      <Ionicons name="musical-note" size={14} color="#B3B3B3" />
                     </View>
-                  </>
-                ) : (
-                  <>
-                    <Ionicons name="musical-notes" size={18} color="#FFFFFF" />
-                    <Text style={styles.musicPillLabel}>Add Music</Text>
-                  </>
-                )}
-              </TouchableOpacity>
+                  )}
+                  <View style={styles.musicChipText}>
+                    <Text style={styles.musicChipTitle} numberOfLines={1}>{selectedSong.title}</Text>
+                    <Text style={styles.musicChipArtist} numberOfLines={1}>{selectedSong.artist}</Text>
+                  </View>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={styles.addMusicBtn}
+                  onPress={onAddMusicTap}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="musical-notes" size={18} color="#FFFFFF" />
+                  <Text style={styles.addMusicBtnLabel}>Add music</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </SafeAreaView>
         </>
@@ -288,26 +314,49 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  musicPill: {
+  musicAnchor: {
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  addMusicBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#7C3AED',
+    borderRadius: 28,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  addMusicBtnLabel: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+  musicChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     backgroundColor: 'rgba(0,0,0,0.55)',
-    borderRadius: 20,
+    borderRadius: 24,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    gap: 8,
-    maxWidth: 220,
+    maxWidth: 260,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 4,
   },
-  musicPillLabel: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
-  musicPillCover: { width: 28, height: 28, borderRadius: 4 },
-  musicPillCoverFallback: {
+  musicChipCover: { width: 32, height: 32, borderRadius: 6 },
+  musicChipCoverFallback: {
     backgroundColor: '#282828',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  musicPillText: { flex: 1 },
-  musicPillTitle: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
-  musicPillArtist: { color: 'rgba(255,255,255,0.7)', fontSize: 11, marginTop: 1 },
+  musicChipText: { flexShrink: 1 },
+  musicChipTitle: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
+  musicChipArtist: { color: 'rgba(255,255,255,0.7)', fontSize: 11, marginTop: 1 },
 
   bottomOverlay: {
     paddingHorizontal: 16,
@@ -318,7 +367,7 @@ const styles = StyleSheet.create({
   captionInput: {
     backgroundColor: 'rgba(0,0,0,0.55)',
     color: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,
@@ -326,25 +375,60 @@ const styles = StyleSheet.create({
     maxHeight: 120,
     textAlignVertical: 'top',
   },
-  submitBtn: {
-    alignSelf: 'flex-end',
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#7C3AED',
+  shareRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  shareIdentity: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flexShrink: 1,
+  },
+  shareAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
+  shareAvatarFallback: {
+    backgroundColor: '#282828',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#7C3AED',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 6,
   },
-  submitBtnDisabled: {
+  shareAvatarInitial: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  shareIdentityLabel: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  sendBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 22,
+    borderRadius: 28,
+    backgroundColor: '#7C3AED',
+    minWidth: 110,
+    justifyContent: 'center',
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  sendBtnDisabled: {
     backgroundColor: '#3A3A3A',
     shadowOpacity: 0,
     elevation: 0,
   },
+  sendBtnLabel: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
 
   chooserScreen: {
     flex: 1,

@@ -214,7 +214,10 @@ export default function CreateStoryScreen() {
         {posting ? (
           <ActivityIndicator color="#FFFFFF" />
         ) : (
-          <Ionicons name="arrow-forward" size={24} color="#FFFFFF" />
+          <>
+            <Text style={styles.submitBtnLabel}>Post</Text>
+            <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
+          </>
         )}
       </TouchableOpacity>
     </SafeAreaView>
@@ -344,12 +347,15 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 20,
     bottom: 24,
-    width: 56,
     height: 56,
+    paddingHorizontal: 22,
     borderRadius: 28,
     backgroundColor: '#7C3AED',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
+    minWidth: 110,
     shadowColor: '#7C3AED',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
@@ -360,5 +366,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#3A3A3A',
     shadowOpacity: 0,
     elevation: 0,
+  },
+  submitBtnLabel: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
   },
 });
