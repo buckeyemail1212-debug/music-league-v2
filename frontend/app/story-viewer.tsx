@@ -19,7 +19,7 @@ import { Image as ExpoImage } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Audio } from 'expo-av';
-import { deleteStory } from '../src/services/api';
+import { deleteStory, recordStoryView } from '../src/services/api';
 import { consumePendingStories } from '../src/services/pendingStories';
 
 interface StorySong {
@@ -287,6 +287,16 @@ export default function StoryViewerScreen() {
       if (neighbor && neighbor.photo_url) {
         Image.prefetch(neighbor.photo_url).catch(() => {});
       }
+    }
+  }, [groupIndex, storyIndex, groups]);
+
+  // Fire-and-forget: record a view for whichever story is currently
+  // displayed. Server upserts so repeats are harmless. Failures are
+  // swallowed so they can never disrupt playback or rendering.
+  useEffect(() => {
+    const currentStory = groups[groupIndex]?.stories?.[storyIndex];
+    if (currentStory?.id) {
+      recordStoryView(currentStory.id).catch(() => {});
     }
   }, [groupIndex, storyIndex, groups]);
 

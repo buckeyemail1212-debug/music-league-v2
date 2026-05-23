@@ -551,6 +551,9 @@ export const createStory = (payload: CreateStoryPayload) =>
 export const deleteStory = (storyId: string) =>
   api.delete<{ data: { deleted: boolean } }>(`/stories/${storyId}`);
 
+export const recordStoryView = (storyId: string) =>
+  api.post<{ data: { recorded: boolean } }>(`/stories/${storyId}/view`);
+
 export const uploadImage = (dataUri: string) =>
   api.post<{ data: { url: string } }>('/upload-image', { image: dataUri });
 
