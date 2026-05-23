@@ -2548,6 +2548,7 @@ class CreateStoryBody(BaseModel):
     song: SongPayload
     photo_url: Optional[str] = None
     caption: Optional[str] = None
+    sticker: Optional[dict] = None
 
 
 async def get_fresh_preview_url(deezer_id: int) -> Optional[str]:
@@ -2585,6 +2586,7 @@ def _story_payload(s: dict) -> dict:
         "song": s.get("song"),
         "photo_url": s.get("photo_url"),
         "caption": s.get("caption"),
+        "sticker": s.get("sticker"),
         "created_at": s.get("created_at"),
         "expires_at": s.get("expires_at"),
     }
@@ -2605,6 +2607,7 @@ async def create_story(
         "song": body.song.dict(),
         "photo_url": body.photo_url,
         "caption": body.caption,
+        "sticker": body.sticker,
         "created_at": now,
         "expires_at": now + timedelta(hours=24),
     }

@@ -152,6 +152,7 @@ export default function CreatePhotoStoryScreen() {
         },
         photo_url: hostedUrl,
         caption: caption.trim() || null,
+        sticker: selectedSong ? { x: sticker.x, y: sticker.y } : null,
       });
       router.back();
     } catch {
