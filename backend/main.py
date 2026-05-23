@@ -4349,6 +4349,63 @@ async def list_public_leagues(
     return {"leagues": results, "count": len(results)}
 
 
+@api_router.get("/leagues/search")
+async def search_leagues(
+    q: Optional[str] = None,
+    limit: int = 50,
+    current_user: dict = Depends(get_current_user),
+):
+    """Search leagues by name or genre across BOTH public and private.
+
+    Unlike /leagues/public this is not filtered by visibility, start
+    time, or status — it powers the Home search bar which needs to
+    surface any league the user might know about by name. The private
+    join code is never returned; private leagues are exposed only by
+    metadata, and the client uses `is_public` to gate the join UI.
+    """
+    try:
+        limit = max(1, min(int(limit), 50))
+    except (TypeError, ValueError):
+        limit = 50
+
+    if not q or not q.strip():
+        return {"leagues": [], "count": 0}
+
+    # Case-insensitive partial match on name OR genre. Input is
+    # regex-escaped so users can't inject regex operators. The
+    # deleted_at guard sits as a sibling $or clause under $and so the
+    # two $or branches don't clobber each other.
+    pattern = {"$regex": re.escape(q.strip()), "$options": "i"}
+    filt: dict = {
+        "$and": [
+            {"$or": [{"deleted_at": {"$exists": False}}, {"deleted_at": None}]},
+            {"$or": [{"name": pattern}, {"genre": pattern}]},
+        ],
+    }
+
+    cursor = db.leagues.find(filt, {"_id": 0}).sort("name", 1).limit(limit)
+    leagues = await cursor.to_list(limit)
+
+    results = []
+    user_id = current_user["id"]
+    for l in leagues:
+        members = l.get("members", [])
+        results.append({
+            "id": l["id"],
+            "name": l.get("name"),
+            "total_rounds": l.get("total_rounds", 0) or 0,
+            "starts_at": l.get("starts_at"),
+            "member_count": len(members),
+            "member_cap": l.get("member_cap") or PUBLIC_MEMBER_CAP_DEFAULT,
+            "genre": l.get("genre"),
+            "has_current_user_joined": any(m.get("id") == user_id for m in members),
+            "league_image": l.get("league_image"),
+            "creator_username": l.get("creator_username"),
+            "is_public": bool(l.get("is_public")),
+        })
+    return {"leagues": results, "count": len(results)}
+
+
 # ==================== PAST LEAGUES ====================
 # Past leagues live in their own `past_leagues` collection. A snapshot of
 # every league (standings, members, rounds, submissions, image) is written
