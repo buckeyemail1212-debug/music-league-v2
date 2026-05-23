@@ -2424,6 +2424,59 @@ async def get_my_following(
     )
 
 
+@api_router.get("/users/search")
+async def search_users(
+    q: Optional[str] = None,
+    limit: int = 50,
+    current_user: dict = Depends(get_current_user),
+):
+    """Username search powering the Home Members tab.
+
+    Returns only the minimal fields needed to render a result row
+    (id, username, profile_photo, is_private). A private user's details
+    stay behind the follow-request gate — this endpoint never reveals
+    stats, leagues, follower counts, email, or display_name. Declared
+    before /users/{user_id}/... so the literal path wins.
+    """
+    try:
+        limit = max(1, min(int(limit), 50))
+    except (TypeError, ValueError):
+        limit = 50
+
+    if not q or not q.strip():
+        return {"users": [], "count": 0}
+
+    # Case-insensitive partial match on username. Regex-escape the
+    # query so users can't inject regex operators — same safe pattern
+    # as /leagues/public and /leagues/search.
+    pattern = {"$regex": re.escape(q.strip()), "$options": "i"}
+    filt = {
+        "username": pattern,
+        "id": {"$ne": current_user["id"]},
+    }
+
+    cursor = (
+        db.users.find(
+            filt,
+            {"_id": 0, "id": 1, "username": 1, "profile_photo": 1, "is_private": 1},
+        )
+        .sort("username", 1)
+        .limit(limit)
+    )
+    users = await cursor.to_list(limit)
+
+    results = [
+        {
+            "id": u["id"],
+            "username": u.get("username"),
+            "profile_photo": u.get("profile_photo"),
+            "is_private": bool(u.get("is_private", False)),
+        }
+        for u in users
+    ]
+    return {"users": results, "count": len(results)}
+
+
 @api_router.get("/leaderboard")
 async def get_leaderboard(
     scope: str = "all",
