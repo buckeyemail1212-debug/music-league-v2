@@ -447,7 +447,7 @@ export default function HomeScreen() {
       {/* Greeting row with ? + avatar (avatar taps into Settings). */}
       <View style={styles.headerRow}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.wordmark}>music comp</Text>
+          <Text style={styles.wordmark}>music <Text style={{ fontStyle: 'italic' }}>comp</Text></Text>
         </View>
 
         <TouchableOpacity
