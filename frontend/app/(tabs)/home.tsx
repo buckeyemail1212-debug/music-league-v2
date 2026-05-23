@@ -91,23 +91,23 @@ function CountdownPill({
 }
 
 // Smart-format a countdown:
-//   >24h → "2D 14H 23M"
-//   >1h  → "14H 23M"
-//   >1m  → "23M"
-//   <1m  → "45S" (the only case that shows seconds)
+//   >24h → "2d 14h 23m"
+//   >1h  → "14h 23m"
+//   >1m  → "23m"
+//   <1m  → "45s" (the only case that shows seconds)
 const formatCountdown = (deadline: string, now: number = Date.now()): string => {
   const diffMs = parseDeadline(deadline).getTime() - now;
-  if (diffMs <= 0) return '0S';
+  if (diffMs <= 0) return '0s';
   const totalSeconds = Math.floor(diffMs / 1000);
-  if (totalSeconds < 60) return `${Math.max(1, totalSeconds)}S`;
+  if (totalSeconds < 60) return `${Math.max(1, totalSeconds)}s`;
   const totalMinutes = Math.floor(totalSeconds / 60);
-  if (totalMinutes < 60) return `${totalMinutes}M`;
+  if (totalMinutes < 60) return `${totalMinutes}m`;
   const hours = Math.floor(totalMinutes / 60);
   const minutesAfterHours = totalMinutes % 60;
-  if (hours < 24) return `${hours}H ${minutesAfterHours}M`;
+  if (hours < 24) return `${hours}h ${minutesAfterHours}m`;
   const days = Math.floor(hours / 24);
   const hoursAfterDays = hours % 24;
-  return `${days}D ${hoursAfterDays}H ${minutesAfterHours}M`;
+  return `${days}d ${hoursAfterDays}h ${minutesAfterHours}m`;
 };
 
 export default function HomeScreen() {
@@ -276,7 +276,7 @@ export default function HomeScreen() {
         if (activeRound.starts_at) {
           pillDeadline = activeRound.starts_at;
           pillColor = PURPLE;
-          pillPrefix = 'STARTS IN';
+          pillPrefix = 'Starts in';
         } else {
           pillText = 'STARTING SOON';
           pillColor = PURPLE;
@@ -293,6 +293,7 @@ export default function HomeScreen() {
         } else if (activeRound.submission_deadline) {
           pillDeadline = activeRound.submission_deadline;
           pillColor = PURPLE;
+          pillPrefix = 'Submit in';
         }
       } else if (activeRound.status === 'voting') {
         if (activeRound.has_user_voted) {
@@ -301,6 +302,7 @@ export default function HomeScreen() {
         } else if (activeRound.voting_deadline) {
           pillDeadline = activeRound.voting_deadline;
           pillColor = PURPLE;
+          pillPrefix = 'Vote in';
         }
       }
     } else {
@@ -331,70 +333,21 @@ export default function HomeScreen() {
         onPress={() => router.push(`/league/${item.id}`)}
         onLongPress={() => displayImage && setZoomLeagueImage(displayImage)}
         delayLongPress={300}
-        activeOpacity={0.75}
+        activeOpacity={0.85}
       >
-        <View style={styles.leagueCardTopRow}>
-          <LeagueAvatar
-            image={displayImage}
-            name={item.name}
-            size={44}
-            imageBorderRadius={8}
-          />
-          <View style={styles.leagueCardInfo}>
-            <Text style={styles.leagueCardName} numberOfLines={1}>
-              {item.name}
-            </Text>
-            <Text style={styles.leagueCardSubtext} numberOfLines={1}>
-              {activeRound && activeRound.status === 'scheduled'
-                ? `${pluralize(item.members.length, 'player')} · ${item.total_rounds} ${item.total_rounds === 1 ? 'round' : 'rounds'}`
-                : hasStarted
-                  ? `R${item.current_round}/${item.total_rounds} · ${pluralize(item.members.length, 'player')}`
-                  : `${pluralize(item.members.length, 'player')} · Code ${item.league_code}`}
-            </Text>
-          </View>
-          {pillDeadline ? (
-            <CountdownPill deadline={pillDeadline} color={pillColor} prefix={pillPrefix} />
-          ) : pillText ? (
-            <View style={[styles.statusPill, { borderColor: pillColor, backgroundColor: `${pillColor}22` }]}>
-              <Text style={[styles.statusPillText, { color: pillColor }]}>{pillText}</Text>
-            </View>
-          ) : null}
-        </View>
-
-        {hasStarted && hasAnyPoints && rank !== null ? (
-          <View style={styles.leagueCardProgressRow}>
-            <Text style={styles.leagueCardRank}>#{rank}</Text>
-            <View style={styles.leagueCardMiddle}>
-              <Text style={[styles.leagueCardGap, isLeading && { color: '#10B981' }]}>
-                {tiedAtRank
-                  ? `Tied for ${getOrdinalSuffix(rank)}`
-                  : isLeading
-                    ? 'Leading'
-                    : (() => {
-                        // Solo non-1st: render the gap to the highest-
-                        // scoring ACTIVE member. Left users are already
-                        // filtered out of `activeOnly`, so `leaderPoints`
-                        // is the right comparison anchor.
-                        const behind = Math.max(0, leaderPoints - myPoints);
-                        return `${behind} ${behind === 1 ? 'pt' : 'pts'} behind`;
-                      })()}
-              </Text>
-              <View style={styles.progressBarTrack}>
-                <View
-                  style={[
-                    styles.progressBarFill,
-                    {
-                      width: `${Math.max(4, progressPct * 100)}%`,
-                      backgroundColor: isLeading ? '#10B981' : '#7C3AED',
-                    },
-                  ]}
-                />
-              </View>
-            </View>
-            <Text style={styles.leagueCardTotal}>{myPoints}</Text>
-          </View>
-        ) : (
-          <View style={styles.leagueCardProgressRow}>
+        {/* Cover image (or solid-accent fallback) with overlays. */}
+        <View style={styles.leagueCover}>
+          {displayImage ? (
+            <Image
+              source={{ uri: displayImage }}
+              style={styles.leagueCoverImage}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[styles.leagueCoverImage, styles.leagueCoverFallback]} />
+          )}
+          {/* Bottom-left: member avatar stack — relocated onto the cover. */}
+          <View style={styles.leagueCoverAvatars}>
             <View style={styles.memberAvatarsInline}>
               {item.members.slice(0, 5).map((m, i) => (
                 <View
@@ -427,15 +380,64 @@ export default function HomeScreen() {
                 </View>
               )}
             </View>
-            <View style={styles.leagueCardMiddle}>
-              <Text style={styles.leagueCardGap}>
-                {hasStarted ? 'NO POINTS YET' : 'NOT STARTED'}
-              </Text>
-              <View style={styles.progressBarTrack} />
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#6A6A6A" />
           </View>
-        )}
+        </View>
+
+        {/* Body: eyebrow + headline. */}
+        <View style={styles.leagueCardBody}>
+          <Text style={styles.leagueCardEyebrow} numberOfLines={1}>
+            {`Round ${item.current_round || 1} of ${item.total_rounds}`}
+            {activeRound?.theme ? ` · ${activeRound.theme}` : ''}
+          </Text>
+          <View style={styles.leagueCardHeadlineRow}>
+            <Text style={[styles.leagueCardHeadline, { flex: 1 }]} numberOfLines={2}>
+              {item.name}
+            </Text>
+            {pillDeadline ? (
+              <CountdownPill deadline={pillDeadline} color={pillColor} prefix={pillPrefix} />
+            ) : pillText ? (
+              <View style={[styles.statusPill, { borderColor: pillColor, backgroundColor: `${pillColor}22` }]}>
+                <Text style={[styles.statusPillText, { color: pillColor }]}>{pillText}</Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+
+        {/* Progress row — unchanged logic; restyled in step 2. The
+            avatars-only fallback is gone (avatars are on the cover). */}
+        {hasStarted && hasAnyPoints && rank !== null ? (
+          <View style={styles.leagueCardProgressRow}>
+            <Text style={styles.leagueCardRank}>#{rank}</Text>
+            <View style={styles.leagueCardMiddle}>
+              <Text style={[styles.leagueCardGap, isLeading && { color: '#10B981' }]}>
+                {tiedAtRank
+                  ? `Tied for ${getOrdinalSuffix(rank)}`
+                  : isLeading
+                    ? 'Leading'
+                    : (() => {
+                        // Solo non-1st: render the gap to the highest-
+                        // scoring ACTIVE member. Left users are already
+                        // filtered out of `activeOnly`, so `leaderPoints`
+                        // is the right comparison anchor.
+                        const behind = Math.max(0, leaderPoints - myPoints);
+                        return `${behind} ${behind === 1 ? 'pt' : 'pts'} behind`;
+                      })()}
+              </Text>
+              <View style={styles.progressBarTrack}>
+                <View
+                  style={[
+                    styles.progressBarFill,
+                    {
+                      width: `${Math.max(4, progressPct * 100)}%`,
+                      backgroundColor: isLeading ? '#10B981' : '#7C3AED',
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+            <Text style={styles.leagueCardTotal}>{myPoints}</Text>
+          </View>
+        ) : null}
       </TouchableOpacity>
     );
   };
@@ -753,9 +755,52 @@ const styles = StyleSheet.create({
 
   leagueCardV2: {
     backgroundColor: '#181818',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 10,
+    borderRadius: 28,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
+    overflow: 'hidden',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  leagueCover: {
+    width: '100%',
+    aspectRatio: 1.05,
+    position: 'relative',
+  },
+  leagueCoverImage: {
+    width: '100%',
+    height: '100%',
+  },
+  leagueCoverFallback: {
+    backgroundColor: '#7C3AED',
+  },
+  leagueCardHeadlineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  leagueCoverAvatars: {
+    position: 'absolute',
+    bottom: 12,
+    left: 12,
+  },
+  leagueCardBody: {
+    padding: 18,
+  },
+  leagueCardEyebrow: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#B3B3B3',
+    marginBottom: 6,
+  },
+  leagueCardHeadline: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
   leagueCardTopRow: { flexDirection: 'row', alignItems: 'center' },
   leagueCardInfo: { flex: 1, marginLeft: 12, marginRight: 8 },
