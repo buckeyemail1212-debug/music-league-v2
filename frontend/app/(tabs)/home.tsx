@@ -452,16 +452,29 @@ export default function HomeScreen() {
 
         <TouchableOpacity
           style={styles.headerIconBtn}
-          onPress={() => setCreateSheetOpen(true)}
-        >
-          <Ionicons name="add-circle-outline" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.headerIconBtn}
           onPress={() => router.push('/how-to-play' as any)}
         >
           <Ionicons name="help-circle-outline" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Primary / secondary CTA pills — Create League + Join With Code.
+          Replaced the header "+" entry to the action sheet. */}
+      <View style={styles.ctaRow}>
+        <TouchableOpacity
+          style={styles.ctaPrimary}
+          activeOpacity={0.85}
+          onPress={() => router.push('/create-league' as any)}
+        >
+          <Ionicons name="add" size={16} color="#FFFFFF" />
+          <Text style={styles.ctaPrimaryLabel}>Create league</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.ctaSecondary}
+          activeOpacity={0.85}
+          onPress={() => router.push('/join-league' as any)}
+        >
+          <Text style={styles.ctaSecondaryLabel}>Join with code</Text>
         </TouchableOpacity>
       </View>
 
@@ -616,6 +629,46 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: '800',
     color: '#7C3AED',
+  },
+  ctaRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 18,
+  },
+  ctaPrimary: {
+    flex: 1,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#7C3AED',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  ctaPrimaryLabel: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  ctaSecondary: {
+    flex: 1,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ctaSecondaryLabel: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
   },
   homeSearchBar: {
     flexDirection: 'row',
