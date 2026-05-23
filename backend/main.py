@@ -2465,12 +2465,52 @@ async def search_users(
     )
     users = await cursor.to_list(limit)
 
+    # Batch-resolve the follow relationship between the searcher and
+    # every result. Two queries total regardless of result count — one
+    # for my outgoing edges (status: approved | pending), one for their
+    # incoming approved edges back to me.
+    me_id = current_user["id"]
+    result_ids = [u["id"] for u in users]
+
+    my_edge_by_id: dict[str, str] = {}
+    they_follow_me: set[str] = set()
+    if result_ids:
+        my_edges = await db.follows.find(
+            {"follower_id": me_id, "followed_id": {"$in": result_ids}},
+            {"_id": 0, "followed_id": 1, "status": 1},
+        ).to_list(length=None)
+        my_edge_by_id = {e["followed_id"]: e["status"] for e in my_edges}
+
+        their_edges = await db.follows.find(
+            {
+                "follower_id": {"$in": result_ids},
+                "followed_id": me_id,
+                "status": "approved",
+            },
+            {"_id": 0, "follower_id": 1},
+        ).to_list(length=None)
+        they_follow_me = {e["follower_id"] for e in their_edges}
+
+    def _follow_state(uid: str) -> str:
+        my_status = my_edge_by_id.get(uid)
+        they_follow = uid in they_follow_me
+        if my_status == "pending":
+            return "requested"
+        if my_status == "approved" and they_follow:
+            return "friends"
+        if my_status == "approved":
+            return "following"
+        if they_follow:
+            return "follows_you"
+        return "none"
+
     results = [
         {
             "id": u["id"],
             "username": u.get("username"),
             "profile_photo": u.get("profile_photo"),
             "is_private": bool(u.get("is_private", False)),
+            "follow_state": _follow_state(u["id"]),
         }
         for u in users
     ]

@@ -465,6 +465,21 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Search-bar tap target — opens /home-search. Not a live input. */}
+      <TouchableOpacity
+        style={styles.homeSearchBar}
+        activeOpacity={0.75}
+        onPress={() => router.push('/home-search' as any)}
+      >
+        <Ionicons
+          name="search"
+          size={18}
+          color="#6A6A6A"
+          style={styles.homeSearchIcon}
+        />
+        <Text style={styles.homeSearchText}>Search leagues and members</Text>
+      </TouchableOpacity>
+
       <View style={{ marginTop: 4, marginBottom: 8 }}>
         <StoriesRing currentUser={user} />
       </View>
@@ -601,6 +616,21 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: '800',
     color: '#7C3AED',
+  },
+  homeSearchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#181818',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    marginTop: 0,
+    marginBottom: 12,
+  },
+  homeSearchIcon: { marginRight: 8 },
+  homeSearchText: {
+    color: '#6A6A6A',
+    fontSize: 14,
   },
   headerIconBtn: {
     width: 44,
