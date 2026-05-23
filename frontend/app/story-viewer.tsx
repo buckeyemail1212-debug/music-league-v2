@@ -15,6 +15,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Image as ExpoImage } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Audio } from 'expo-av';
@@ -242,6 +243,37 @@ export default function StoryViewerScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupIndex, storyIndex, restartKey]);
 
+  // Warm the image cache for adjacent stories so tapping forward/back
+  // doesn't blank-flash while the next photo downloads. Best-effort —
+  // a failed prefetch falls back to load-on-render.
+  useEffect(() => {
+    if (groups.length === 0) return;
+    const group = groups[groupIndex];
+    if (!group || group.stories.length === 0) return;
+
+    const nextStory =
+      storyIndex + 1 < group.stories.length
+        ? group.stories[storyIndex + 1]
+        : groupIndex + 1 < groups.length
+        ? groups[groupIndex + 1].stories[0]
+        : null;
+
+    const prevStory =
+      storyIndex > 0
+        ? group.stories[storyIndex - 1]
+        : groupIndex > 0
+        ? groups[groupIndex - 1].stories[
+            groups[groupIndex - 1].stories.length - 1
+          ]
+        : null;
+
+    for (const neighbor of [nextStory, prevStory]) {
+      if (neighbor && neighbor.photo_url) {
+        Image.prefetch(neighbor.photo_url).catch(() => {});
+      }
+    }
+  }, [groupIndex, storyIndex, groups]);
+
   // Swipe-down to dismiss. Claims responder only on a sustained downward
   // gesture so plain taps still reach the Pressable tap zones.
   const panResponder = useRef(
@@ -375,10 +407,12 @@ export default function StoryViewerScreen() {
       <View style={styles.contentArea}>
         {story.photo_url ? (
           <>
-            <Image
+            <ExpoImage
               source={{ uri: story.photo_url }}
               style={styles.fullPhoto}
-              resizeMode="contain"
+              contentFit="contain"
+              transition={150}
+              cachePolicy="memory-disk"
             />
             <View style={styles.photoOverlay}>
               <View style={styles.songPill}>
