@@ -53,8 +53,15 @@ export default function FollowListScreen({ mode }: { mode: Mode }) {
   const targetId = id ?? '';
   const viewerId = user?.id ?? '';
 
-  const [data, setData] = useState<FollowListResponse | null>(null);
-  const [targetUsername, setTargetUsername] = useState<string>('');
+  const [data, setData] = useState<FollowListResponse | null>(
+    () => apiCache.getStale<FollowListResponse>(listCacheKey(mode, targetId, viewerId)),
+  );
+  const [targetUsername, setTargetUsername] = useState<string>(
+    () =>
+      apiCache.getStale<{ username?: string }>(
+        `user-profile:${targetId}:${viewerId}`,
+      )?.username || '',
+  );
   const [loadError, setLoadError] = useState<'private' | 'notfound' | 'network' | null>(null);
 
   const load = useCallback(() => {
