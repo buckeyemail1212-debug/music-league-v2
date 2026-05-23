@@ -2845,6 +2845,27 @@ async def get_stories_feed(current_user: dict = Depends(get_current_user)):
             for s in group["stories"]:
                 _patch_preview(s)
 
+    # Mark which stories the current user has already viewed. One batched
+    # query against story_views; default False for any story without a
+    # view record.
+    all_story_ids: list[str] = [s["id"] for s in your_stories]
+    for group in following_groups:
+        all_story_ids.extend(s["id"] for s in group["stories"])
+
+    seen_ids: set[str] = set()
+    if all_story_ids:
+        view_rows = await db.story_views.find(
+            {"viewer_id": me_id, "story_id": {"$in": all_story_ids}},
+            {"_id": 0, "story_id": 1},
+        ).to_list(length=None)
+        seen_ids = {r["story_id"] for r in view_rows}
+
+    for s in your_stories:
+        s["seen"] = s["id"] in seen_ids
+    for group in following_groups:
+        for s in group["stories"]:
+            s["seen"] = s["id"] in seen_ids
+
     return {
         "data": {
             "your_stories": your_stories,
