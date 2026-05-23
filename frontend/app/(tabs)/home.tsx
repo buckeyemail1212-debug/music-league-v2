@@ -8,6 +8,7 @@ import {
   RefreshControl,
   Modal,
   Image,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -116,6 +117,7 @@ export default function HomeScreen() {
 
   const [leagues, setLeagues] = useState<League[]>([]);
   const [activeRounds, setActiveRounds] = useState<{ [id: string]: Round | null }>({});
+  const [leagueFilter, setLeagueFilter] = useState<'all' | 'submission' | 'voting'>('all');
   const [cachedImages, setCachedImages] = useState<{ [id: string]: string }>({});
   const [zoomLeagueImage, setZoomLeagueImage] = useState<string | null>(null);
   const [leagueStandings, setLeagueStandings] = useState<{ [leagueId: string]: LeagueStandings }>({});
@@ -443,6 +445,14 @@ export default function HomeScreen() {
 
   const activeCount = leagues.length;
 
+  // Filter the visible cards by the active chip. activeCount stays the
+  // total so the "ACTIVE LEAGUES · N ACTIVE" header keeps reflecting
+  // membership rather than the current filter view.
+  const filteredLeagues =
+    leagueFilter === 'all'
+      ? leagues
+      : leagues.filter((l) => activeRounds[l.id]?.status === leagueFilter);
+
   const listHeader = (
     <View>
       {/* Greeting row with ? + avatar (avatar taps into Settings). */}
@@ -500,10 +510,47 @@ export default function HomeScreen() {
 
       {/* Active leagues — page section title, matches INBOX */}
       {activeCount > 0 && (
-        <View style={styles.activeLeaguesHeader}>
-          <Text style={styles.activeLeaguesTitle}>ACTIVE LEAGUES</Text>
-          <Text style={styles.activeLeaguesCount}>{activeCount} ACTIVE</Text>
-        </View>
+        <>
+          <View style={styles.activeLeaguesHeader}>
+            <Text style={styles.activeLeaguesTitle}>Now Playing</Text>
+            <Text style={styles.activeLeaguesCount}>{activeCount} active</Text>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterChipRow}
+          >
+            {(
+              [
+                { key: 'all', label: 'All' },
+                { key: 'submission', label: 'Submission open' },
+                { key: 'voting', label: 'Voting open' },
+              ] as const
+            ).map((opt) => {
+              const active = leagueFilter === opt.key;
+              return (
+                <TouchableOpacity
+                  key={opt.key}
+                  style={[
+                    styles.filterChip,
+                    active && styles.filterChipActive,
+                  ]}
+                  activeOpacity={0.8}
+                  onPress={() => setLeagueFilter(opt.key)}
+                >
+                  <Text
+                    style={[
+                      styles.filterChipLabel,
+                      active && styles.filterChipLabelActive,
+                    ]}
+                  >
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </>
       )}
     </View>
   );
@@ -559,18 +606,28 @@ export default function HomeScreen() {
       ) : (
         <FlatList
           ref={flatListRef}
-          data={leagues}
+          data={filteredLeagues}
           keyExtractor={(item) => item.id}
           renderItem={renderLeagueItem}
           ListHeaderComponent={listHeader}
           ListFooterComponent={listFooter}
           ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>No active leagues</Text>
-              <Text style={styles.emptyText}>
-                Tap + to create a league or join one.
-              </Text>
-            </View>
+            leagueFilter !== 'all' && leagues.length > 0 ? (
+              <View style={styles.filterEmptyState}>
+                <Text style={styles.filterEmptyText}>
+                  {leagueFilter === 'submission'
+                    ? 'No leagues are in submission right now.'
+                    : 'No leagues are in voting right now.'}
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyTitle}>No active leagues</Text>
+                <Text style={styles.emptyText}>
+                  Tap + to create a league or join one.
+                </Text>
+              </View>
+            )
           }
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
@@ -750,6 +807,45 @@ const styles = StyleSheet.create({
     color: '#B3B3B3',
     marginBottom: 4,
     letterSpacing: 0.5,
+  },
+
+  filterChipRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingBottom: 12,
+  },
+  filterChip: {
+    height: 38,
+    paddingHorizontal: 16,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  filterChipActive: {
+    backgroundColor: '#7C3AED',
+    borderColor: '#7C3AED',
+  },
+  filterChipLabel: {
+    color: '#B3B3B3',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  filterChipLabelActive: {
+    color: '#FFFFFF',
+  },
+
+  filterEmptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 24,
+  },
+  filterEmptyText: {
+    color: '#B3B3B3',
+    fontSize: 14,
+    textAlign: 'center',
   },
 
   leagueCardV2: {
