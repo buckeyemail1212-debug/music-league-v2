@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Audio } from 'expo-av';
 import { deleteStory } from '../src/services/api';
+import { consumePendingStories } from '../src/services/pendingStories';
 
 interface StorySong {
   deezer_id: number;
@@ -52,24 +53,17 @@ const SCREEN_HEIGHT = Dimensions.get('window').height;
 export default function StoryViewerScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
-    groups?: string;
     startGroupIndex?: string;
   }>();
 
-  // Parse the groups param once; only re-parse if the param string itself
-  // changes. Avoids a JSON.parse + new array allocation on every render,
-  // which was churning downstream re-renders during mount.
+  // Groups are passed via a module-scoped in-memory slot
+  // (src/services/pendingStories.ts) rather than a route param, because
+  // JSON.stringify/parse of the whole feed on every tap was adding ~1s
+  // to the open. Consumed once on first render; a fallback to [] keeps
+  // the empty-feed handling below working.
   const groups = useMemo<ViewerGroup[]>(() => {
-    try {
-      if (params.groups) {
-        const parsed = JSON.parse(params.groups);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch {
-      // fall through to empty
-    }
-    return [];
-  }, [params.groups]);
+    return consumePendingStories() ?? [];
+  }, []);
 
   // Lazy state initializer — runs only on first mount, so the index math
   // doesn't recompute on every render.

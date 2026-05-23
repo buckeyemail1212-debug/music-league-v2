@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -10,9 +10,11 @@ import {
   Modal,
   Platform,
 } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { getStoriesFeed, Story, StoryGroup } from '../services/api';
+import { setPendingStories } from '../services/pendingStories';
 
 interface CurrentUserShape {
   id?: string | null;
@@ -72,6 +74,20 @@ export default function StoriesRing({ currentUser }: Props) {
   ];
   const ownOffset = myStories.length > 0 ? 1 : 0;
 
+  // Warm the image cache with each group's first photo so tapping a ring
+  // opens to a painted photo instead of a blank frame. The viewer renders
+  // with expo-image + cachePolicy="memory-disk", so prefetching here hits
+  // the same cache. Best-effort — failures are swallowed.
+  useEffect(() => {
+    for (const group of groups) {
+      const first = group.stories[0];
+      if (first && first.photo_url) {
+        ExpoImage.prefetch(first.photo_url).catch(() => {});
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myStories, following]);
+
   const renderFallback = () => (
     <View style={styles.avatarFallback}>
       <Ionicons name="person" size={26} color="#B3B3B3" />
@@ -97,10 +113,10 @@ export default function StoriesRing({ currentUser }: Props) {
             activeOpacity={0.75}
             onPress={() => {
               if (myStories.length > 0) {
+                setPendingStories(groups);
                 router.push({
                   pathname: '/story-viewer',
                   params: {
-                    groups: JSON.stringify(groups),
                     startGroupIndex: '0',
                   },
                 } as any);
@@ -133,15 +149,15 @@ export default function StoriesRing({ currentUser }: Props) {
           key={g.user_id}
           style={styles.item}
           activeOpacity={0.75}
-          onPress={() =>
+          onPress={() => {
+            setPendingStories(groups);
             router.push({
               pathname: '/story-viewer',
               params: {
-                groups: JSON.stringify(groups),
                 startGroupIndex: String(ownOffset + idx),
               },
-            } as any)
-          }
+            } as any);
+          }}
         >
           <View style={styles.ringWrap}>
             {g.avatar_url ? (
