@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { getArchivedStories, Story } from '../src/services/api';
 import {
   setPendingStories,
@@ -36,22 +36,20 @@ export default function ArchivedVibesScreen() {
   const [stories, setStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await getArchivedStories();
-        if (!cancelled) setStories(res.data.data.stories || []);
-      } catch {
-        if (!cancelled) setStories([]);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+  // Re-fetch on every focus so a story deleted in the viewer disappears
+  // from the grid when the user returns. Mirrors LikedSongsTab.
+  const load = useCallback(async () => {
+    try {
+      const res = await getArchivedStories();
+      setStories(res.data.data.stories || []);
+    } catch {
+      setStories([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const onTapStory = (i: number) => {
     const group: PendingStoryGroup = {
