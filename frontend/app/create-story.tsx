@@ -21,12 +21,21 @@ import {
   getSongsRadar,
   createStory,
 } from '../src/services/api';
-import { LikedSong } from '../src/utils/likedSongs';
+import {
+  LikedSong,
+  loadLikedSongs,
+  getCachedLikedSongs,
+  subscribeLikedSongs,
+} from '../src/utils/likedSongs';
 import LikeButton from '../src/components/LikeButton';
 import { PreviewPlayButton } from '../src/components/PreviewPlayButton';
+import { useAuth } from '../src/context/AuthContext';
+
+type BrowseFilter = 'new' | 'liked';
 
 export default function CreateStoryScreen() {
   const router = useRouter();
+  const { user } = useAuth();
 
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [query, setQuery] = useState('');
@@ -35,6 +44,10 @@ export default function CreateStoryScreen() {
   const [searching, setSearching] = useState(false);
   const [caption, setCaption] = useState('');
   const [posting, setPosting] = useState(false);
+  const [filter, setFilter] = useState<BrowseFilter>('new');
+  const [likedList, setLikedList] = useState<LikedSong[]>(() =>
+    user?.id ? getCachedLikedSongs(user.id) : [],
+  );
 
   // Radar recommendations — fetched once on mount; cached server-side so
   // this is cheap. Failure is silent (the section just renders empty).
@@ -52,6 +65,18 @@ export default function CreateStoryScreen() {
       cancelled = true;
     };
   }, []);
+
+  // Liked songs: hydrate the shared cache once and stay subscribed so
+  // the "Liked Songs" filter list re-renders when songs are liked/
+  // unliked elsewhere in the app. LikeButton owns its own icon state.
+  useEffect(() => {
+    if (!user?.id) return;
+    loadLikedSongs(user.id).catch(() => {});
+    const unsub = subscribeLikedSongs(user.id, () => {
+      setLikedList(getCachedLikedSongs(user.id));
+    });
+    return unsub;
+  }, [user?.id]);
 
   // Debounced search — only runs when the user actually has a query.
   useEffect(() => {
@@ -141,8 +166,16 @@ export default function CreateStoryScreen() {
     </View>
   );
 
-  const showingRadar = query.trim().length === 0;
-  const list = showingRadar ? radar : results;
+  const isSearching = query.trim().length > 0;
+  const list: Song[] = isSearching
+    ? results
+    : filter === 'liked'
+    ? (likedList as Song[])
+    : radar;
+  const emptyMessage =
+    !isSearching && filter === 'liked' && likedList.length === 0
+      ? 'No liked songs yet'
+      : null;
   const submitDisabled = !selectedSong || posting;
 
   return (
@@ -205,12 +238,37 @@ export default function CreateStoryScreen() {
             autoCorrect={false}
             autoCapitalize="none"
           />
-          {showingRadar && (
-            <Text style={styles.sectionLabel}>NEW THIS WEEK</Text>
-          )}
+          <View style={styles.chipRow}>
+            <TouchableOpacity
+              style={[styles.chip, filter === 'new' && styles.chipActive]}
+              activeOpacity={0.8}
+              onPress={() => setFilter('new')}
+            >
+              <Text
+                style={[styles.chipLabel, filter === 'new' && styles.chipLabelActive]}
+              >
+                New This Week
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.chip, filter === 'liked' && styles.chipActive]}
+              activeOpacity={0.8}
+              onPress={() => setFilter('liked')}
+            >
+              <Text
+                style={[styles.chipLabel, filter === 'liked' && styles.chipLabelActive]}
+              >
+                Liked Songs
+              </Text>
+            </TouchableOpacity>
+          </View>
           {searching && results.length === 0 ? (
             <View style={styles.searchingWrap}>
               <Text style={styles.searchingText}>Searching...</Text>
+            </View>
+          ) : emptyMessage ? (
+            <View style={styles.searchingWrap}>
+              <Text style={styles.searchingText}>{emptyMessage}</Text>
             </View>
           ) : (
             <FlatList
@@ -279,13 +337,31 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginBottom: 12,
   },
-  sectionLabel: {
-    color: '#B3B3B3',
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1,
+  chipRow: {
+    flexDirection: 'row',
+    gap: 8,
     paddingHorizontal: 20,
-    marginVertical: 8,
+    marginBottom: 12,
+  },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+  },
+  chipActive: {
+    backgroundColor: '#7C3AED',
+    borderColor: '#7C3AED',
+  },
+  chipLabel: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  chipLabelActive: {
+    color: '#FFFFFF',
   },
   searchingWrap: {
     alignItems: 'center',
