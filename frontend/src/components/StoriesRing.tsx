@@ -88,6 +88,12 @@ export default function StoriesRing({ currentUser }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [myStories, following]);
 
+  // A group's ring goes grey only when every story in it is seen.
+  // Empty groups never reach this — the "Your Vibe" tile handles
+  // myStories.length === 0 inline.
+  const allSeen = (stories: Story[]) =>
+    stories.length > 0 && stories.every((s) => s.seen);
+
   const renderFallback = () => (
     <View style={styles.avatarFallback}>
       <Ionicons name="person" size={26} color="#B3B3B3" />
@@ -106,7 +112,10 @@ export default function StoriesRing({ currentUser }: Props) {
         <View
           style={[
             styles.yourRingWrap,
-            myStories.length > 0 && styles.yourRingWrapActive,
+            myStories.length > 0 &&
+              (allSeen(myStories)
+                ? styles.yourRingWrapSeen
+                : styles.yourRingWrapActive),
           ]}
         >
           <TouchableOpacity
@@ -159,7 +168,7 @@ export default function StoriesRing({ currentUser }: Props) {
             } as any);
           }}
         >
-          <View style={styles.ringWrap}>
+          <View style={[styles.ringWrap, allSeen(g.stories) && styles.ringWrapSeen]}>
             {g.avatar_url ? (
               <Image source={{ uri: g.avatar_url }} style={styles.avatar} />
             ) : (
@@ -246,11 +255,17 @@ const styles = StyleSheet.create({
   yourRingWrapActive: {
     borderColor: '#7C3AED',
   },
+  yourRingWrapSeen: {
+    borderColor: 'rgba(255,255,255,0.25)',
+  },
   ringWrap: {
     borderWidth: 2.5,
     borderColor: '#7C3AED',
     borderRadius: 999,
     padding: 2.5,
+  },
+  ringWrapSeen: {
+    borderColor: 'rgba(255,255,255,0.25)',
   },
   avatar: {
     width: 64,

@@ -790,6 +790,7 @@ export interface Story {
   } | null;
   created_at: string;
   expires_at: string;
+  seen: boolean;
 }
 
 export interface StoryGroup {
