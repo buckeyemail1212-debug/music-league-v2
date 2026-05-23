@@ -214,38 +214,56 @@ export default function CreatePhotoStoryScreen() {
           </SafeAreaView>
         </>
       ) : (
-        <>
-          <SafeAreaView style={styles.topOverlay} edges={['top']} pointerEvents="box-none">
-            <View style={styles.topRow}>
+        <View style={styles.chooserScreen}>
+          <SafeAreaView edges={['top']} pointerEvents="box-none">
+            <View style={styles.chooserTopRow}>
               <TouchableOpacity
-                style={styles.iconBtn}
+                style={styles.chooserCloseBtn}
                 onPress={() => router.back()}
                 activeOpacity={0.75}
               >
-                <Ionicons name="close" size={28} color="#FFFFFF" />
+                <Ionicons name="close" size={22} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
           </SafeAreaView>
-          <View style={styles.chooserCenter}>
-            <Text style={styles.chooserTitle}>Add a photo to your story</Text>
-            <TouchableOpacity
-              style={styles.chooserBtn}
-              onPress={takePhoto}
-              activeOpacity={0.75}
-            >
-              <Ionicons name="camera" size={20} color="#FFFFFF" />
-              <Text style={styles.chooserBtnLabel}>Take Photo</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.chooserBtn}
-              onPress={pickFromLibrary}
-              activeOpacity={0.75}
-            >
-              <Ionicons name="images" size={20} color="#FFFFFF" />
-              <Text style={styles.chooserBtnLabel}>Choose from Library</Text>
-            </TouchableOpacity>
+
+          <View style={styles.chooserBody}>
+            <View style={styles.heroCanvas}>
+              <TouchableOpacity
+                style={styles.heroCameraBtn}
+                onPress={takePhoto}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="camera" size={26} color="#FFFFFF" />
+              </TouchableOpacity>
+              <Text style={styles.heroCaption}>Post For Today's Vibe</Text>
+            </View>
+
+            <Text style={styles.eyebrow}>NEW STORY</Text>
+            <Text style={styles.headline}>Drop a moment.{'\n'}Add a track.</Text>
+
+            <View style={styles.ctaStack}>
+              <TouchableOpacity
+                style={[styles.ctaBtn, styles.ctaPrimary]}
+                onPress={takePhoto}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="camera" size={22} color="#FFFFFF" />
+                <Text style={styles.ctaLabel}>Take photo</Text>
+                <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.ctaBtn, styles.ctaSecondary]}
+                onPress={pickFromLibrary}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="images" size={22} color="#FFFFFF" />
+                <Text style={styles.ctaLabel}>Choose from library</Text>
+                <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
           </View>
-        </>
+        </View>
       )}
 
     </View>
@@ -328,29 +346,92 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
 
-  chooserCenter: {
+  chooserScreen: {
     flex: 1,
+    backgroundColor: '#0a0a0a',
+  },
+  chooserTopRow: {
+    paddingHorizontal: 12,
+    paddingTop: 4,
+    paddingBottom: 4,
+  },
+  chooserCloseBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#121212',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
-    gap: 14,
   },
-  chooserTitle: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '700',
+  chooserBody: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 28,
+  },
+  heroCanvas: {
+    flex: 1,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 28,
+  },
+  heroCameraBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#7C3AED',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroCaption: {
+    marginTop: 14,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontSize: 11,
+    letterSpacing: 2,
+    color: 'rgba(255,255,255,0.45)',
+    textAlign: 'center',
+  },
+  eyebrow: {
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontSize: 11,
+    letterSpacing: 2,
+    color: 'rgba(255,255,255,0.45)',
     marginBottom: 8,
   },
-  chooserBtn: {
+  headline: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    lineHeight: 30,
+    marginBottom: 24,
+  },
+  ctaStack: {
+    gap: 12,
+  },
+  ctaBtn: {
+    height: 58,
+    borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    backgroundColor: '#7C3AED',
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    minWidth: 240,
+    paddingHorizontal: 18,
+    gap: 12,
   },
-  chooserBtnLabel: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  ctaPrimary: {
+    backgroundColor: '#7C3AED',
+  },
+  ctaSecondary: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+  },
+  ctaLabel: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
 });
