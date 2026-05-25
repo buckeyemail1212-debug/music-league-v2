@@ -2348,6 +2348,31 @@ async def follow_user(
             return {"data": {"status": race["status"]}}
         raise HTTPException(status_code=500, detail="Failed to create follow")
 
+    try:
+        actor_name = current_user.get("username") or "Someone"
+        if new_status == "pending":
+            await create_notification(
+                user_id=target_id,
+                type="follow_request",
+                category="follows",
+                title="Follow request",
+                body=f"{actor_name} requested to follow you.",
+                actor_id=me_id,
+                ref_id=me_id,
+            )
+        else:
+            await create_notification(
+                user_id=target_id,
+                type="new_follower",
+                category="follows",
+                title="New follower",
+                body=f"{actor_name} started following you.",
+                actor_id=me_id,
+                ref_id=me_id,
+            )
+    except Exception as e:
+        logger.warning(f"follow notification failed: {e}")
+
     return {"data": {"status": new_status}}
 
 
@@ -3199,6 +3224,21 @@ async def approve_follow_request(user_id: str, current_user: dict = Depends(get_
     )
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="No pending follow request from this user")
+
+    try:
+        approver_name = current_user.get("username") or "Someone"
+        await create_notification(
+            user_id=requester_id,
+            type="follow_accepted",
+            category="follows",
+            title="Follow request accepted",
+            body=f"{approver_name} accepted your follow request.",
+            actor_id=me_id,
+            ref_id=me_id,
+        )
+    except Exception as e:
+        logger.warning(f"follow-accept notification failed: {e}")
+
     return {"data": {"approved": True}}
 
 
