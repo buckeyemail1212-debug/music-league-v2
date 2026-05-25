@@ -21,6 +21,7 @@ import {
   getFollowStatus,
   getUserProfile,
   unfollowUser,
+  startConversation,
   FollowStatus,
   UserProfileResponse,
 } from '../../src/services/api';
@@ -315,6 +316,35 @@ export default function UserProfileScreen() {
   // available, so we show the menu and let buildMenuOptions decide.
   const menuVisible = !!profile && followStatus !== 'self';
 
+  // ── message ────────────────────────────────────────────────────────
+
+  const handleMessage = async () => {
+    if (!profile) return;
+    try {
+      const res = await startConversation(targetId);
+      const conversation = res.data.data.conversation;
+      router.push({
+        pathname: '/dm/[id]',
+        params: {
+          id: conversation.id,
+          username: profile.username,
+          avatar: profile.avatar_url ?? '',
+        },
+      });
+    } catch (e: any) {
+      if (e?.response?.status === 403 && e?.response?.data?.detail === 'not_friends') {
+        Alert.alert(
+          'Not friends yet',
+          `You can message @${profile.username} once you're friends — you both need to follow each other.`,
+        );
+      } else {
+        Alert.alert('Could not open chat', 'Please try again.');
+      }
+    }
+  };
+
+  const messageVisible = !!profile && followStatus !== 'self';
+
   // ── render branches ────────────────────────────────────────────────
 
   if (loadError === 'notfound') {
@@ -390,6 +420,7 @@ export default function UserProfileScreen() {
     <SafeAreaView style={styles.container}>
       <Header
         onBack={() => router.back()}
+        onMessage={messageVisible ? handleMessage : undefined}
         onMenu={menuVisible ? handleMenuPress : undefined}
       />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
@@ -495,9 +526,11 @@ export default function UserProfileScreen() {
 
 function Header({
   onBack,
+  onMessage,
   onMenu,
 }: {
   onBack: () => void;
+  onMessage?: () => void;
   onMenu?: () => void;
 }) {
   return (
@@ -506,14 +539,16 @@ function Header({
         <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
       </TouchableOpacity>
       <View style={styles.headerActions}>
+        {onMessage ? (
+          <TouchableOpacity hitSlop={8} style={styles.headerBtn} onPress={onMessage}>
+            <Ionicons name="paper-plane-outline" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+        ) : null}
         {onMenu ? (
           <TouchableOpacity hitSlop={8} style={styles.headerBtn} onPress={onMenu}>
             <Ionicons name="ellipsis-horizontal" size={22} color="#FFFFFF" />
           </TouchableOpacity>
         ) : (
-          // Preserve the header's right-side width when the menu is
-          // hidden (e.g., loading / 404) so the back chevron stays in
-          // the same visual position.
           <View style={styles.headerBtn} />
         )}
       </View>
