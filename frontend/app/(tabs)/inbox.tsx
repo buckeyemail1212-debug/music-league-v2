@@ -257,7 +257,9 @@ export default function InboxScreen() {
         : 'No activity yet';
 
       const lastViewed = categoryViews[cat.key] ?? 0;
-      const count = feedItems.filter(it => it.timestamp > lastViewed).length;
+      const count = cat.key === 'reminders'
+        ? 0
+        : feedItems.filter(it => it.timestamp > lastViewed).length;
 
       return {
         ...cat,
