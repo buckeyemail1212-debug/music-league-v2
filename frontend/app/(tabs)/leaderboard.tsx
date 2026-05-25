@@ -11,7 +11,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { useAuth } from '../../src/context/AuthContext';
 import { getLeaderboard, LeaderboardEntry } from '../../src/services/api';
+import { apiCache } from '../../src/services/apiCache';
 
 type Scope = 'all' | 'following' | 'friends';
 
@@ -37,8 +39,12 @@ const SCOPES: Scope[] = ['all', 'following', 'friends'];
 
 export default function LeaderboardScreen() {
   const router = useRouter();
+  const { user } = useAuth();
+  const userId = user?.id ?? '';
   const [scope, setScope] = useState<Scope>('all');
-  const [entries, setEntries] = useState<LeaderboardEntry[] | null>(null);
+  const [entries, setEntries] = useState<LeaderboardEntry[] | null>(
+    () => apiCache.getStale<LeaderboardEntry[]>(`leaderboard:all:${userId}`) ?? null
+  );
   const [menuOpen, setMenuOpen] = useState(false);
   // Scope that the currently displayed `entries` belong to. When the
   // tab is refocused and this still matches the active scope, the
@@ -50,24 +56,36 @@ export default function LeaderboardScreen() {
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
-      (async () => {
-        try {
-          const res = await getLeaderboard(scope);
+      const key = `leaderboard:${scope}:${userId}`;
+      const cachedForScope = apiCache.getStale<LeaderboardEntry[]>(key);
+      if (cachedForScope) setEntries(cachedForScope);
+      apiCache
+        .swr(
+          key,
+          () => getLeaderboard(scope).then((r) => r.data.data.entries),
+          (data) => {
+            if (!cancelled) {
+              setEntries(data);
+              loadedScopeRef.current = scope;
+            }
+          },
+        )
+        .then((data) => {
           if (!cancelled) {
-            setEntries(res.data.data.entries);
+            setEntries(data);
             loadedScopeRef.current = scope;
           }
-        } catch {
+        })
+        .catch(() => {
           if (!cancelled) {
             setEntries([]);
             loadedScopeRef.current = scope;
           }
-        }
-      })();
+        });
       return () => {
         cancelled = true;
       };
-    }, [scope]),
+    }, [scope, userId]),
   );
 
   const renderItem = ({ item }: { item: LeaderboardEntry }) => {
