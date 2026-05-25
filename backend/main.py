@@ -3233,6 +3233,43 @@ async def get_my_follow_requests(
     return {"data": {"users": out, "total": total}}
 
 
+@api_router.get("/users/me/friends")
+async def get_my_friends(current_user: dict = Depends(get_current_user)):
+    me_id = current_user["id"]
+
+    my_following = await db.follows.find(
+        {"follower_id": me_id, "status": "approved"},
+        {"_id": 0, "followed_id": 1},
+    ).to_list(length=None)
+    following_ids = [r["followed_id"] for r in my_following]
+
+    if following_ids:
+        back_rows = await db.follows.find(
+            {"follower_id": {"$in": following_ids}, "followed_id": me_id, "status": "approved"},
+            {"_id": 0, "follower_id": 1},
+        ).to_list(length=None)
+        friend_ids = [r["follower_id"] for r in back_rows]
+    else:
+        friend_ids = []
+
+    if not friend_ids:
+        return {"data": {"friends": []}}
+
+    users = await db.users.find(
+        {"id": {"$in": friend_ids}},
+        {"_id": 0, "id": 1, "username": 1, "profile_photo": 1},
+    ).to_list(length=None)
+
+    friends = sorted(
+        [
+            {"user_id": u["id"], "username": u.get("username"), "avatar_url": u.get("profile_photo")}
+            for u in users
+        ],
+        key=lambda f: (f.get("username") or "").lower(),
+    )
+    return {"data": {"friends": friends}}
+
+
 @api_router.post("/follow-requests/{user_id}/approve")
 async def approve_follow_request(user_id: str, current_user: dict = Depends(get_current_user)):
     requester_id = _validate_uuid(user_id)
