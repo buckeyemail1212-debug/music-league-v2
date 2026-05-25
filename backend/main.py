@@ -3146,11 +3146,31 @@ async def get_follow_status(user_id: str, current_user: dict = Depends(get_curre
     if await _is_blocked_either_direction(me_id, target_id):
         raise HTTPException(status_code=404, detail="User not found")
 
-    doc = await db.follows.find_one(
-        {"follower_id": me_id, "followed_id": target_id},
-        {"_id": 0, "status": 1},
+    my_edge, they_edge = await asyncio.gather(
+        db.follows.find_one(
+            {"follower_id": me_id, "followed_id": target_id},
+            {"_id": 0, "status": 1},
+        ),
+        db.follows.find_one(
+            {"follower_id": target_id, "followed_id": me_id, "status": "approved"},
+            {"_id": 1},
+        ),
     )
-    return {"data": {"status": doc["status"] if doc else "none"}}
+    my_status = my_edge["status"] if my_edge else None
+    they_follow = they_edge is not None
+
+    if my_status == "pending":
+        status = "requested"
+    elif my_status == "approved" and they_follow:
+        status = "friends"
+    elif my_status == "approved":
+        status = "following"
+    elif they_follow:
+        status = "follows_you"
+    else:
+        status = "none"
+
+    return {"data": {"status": status}}
 
 
 @api_router.get("/users/{user_id}/follow-counts")
