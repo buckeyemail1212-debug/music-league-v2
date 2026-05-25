@@ -2,6 +2,7 @@ import React from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider } from '../src/context/AuthContext';
+import { InboxDataProvider } from '../src/context/InboxDataContext';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native';
@@ -11,6 +12,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={styles.container}>
       <SafeAreaProvider>
         <AuthProvider>
+        <InboxDataProvider>
         <StatusBar style="light" />
         <Stack
           screenOptions={{
@@ -44,6 +46,7 @@ export default function RootLayout() {
           <Stack.Screen name="dm/[id]" options={{ headerShown: false, animation: 'slide_from_right' }} />
           <Stack.Screen name="new-message" options={{ headerShown: false, animation: 'slide_from_right' }} />
         </Stack>
+        </InboxDataProvider>
         </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
