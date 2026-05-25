@@ -811,4 +811,20 @@ export const getStoriesFeed = () =>
 export const getArchivedStories = () =>
   api.get<{ data: { stories: Story[] } }>('/stories/archived');
 
+export interface AppNotification {
+  id: string;
+  user_id: string;
+  type: string;
+  category: string;
+  title: string;
+  body: string;
+  actor_id: string | null;
+  ref_id: string | null;
+  created_at: string;
+  read: boolean;
+}
+
+export const getNotifications = () =>
+  api.get<{ data: { notifications: AppNotification[] } }>('/notifications');
+
 export default api;
