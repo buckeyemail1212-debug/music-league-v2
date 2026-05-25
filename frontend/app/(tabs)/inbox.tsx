@@ -176,7 +176,7 @@ export default function InboxScreen() {
         .filter(n => n.type === 'RESULT')
         .map(n => ({
           id: n.id,
-          text: n.message,
+          text: n.leagueName ? `${n.leagueName} — ${n.message}` : n.message,
           timestamp: n.timestamp,
           tapType: n.roundId ? 'round' as const : 'none' as const,
           tapId: n.roundId,
@@ -186,7 +186,7 @@ export default function InboxScreen() {
         .filter(n => n.type === 'REMINDER' || n.type === 'SUBMIT')
         .map(n => ({
           id: n.id,
-          text: n.message,
+          text: n.leagueName ? `${n.leagueName} — ${n.message}` : n.message,
           timestamp: n.timestamp,
           tapType: n.roundId ? 'round' as const : 'none' as const,
           tapId: n.roundId,
@@ -196,7 +196,7 @@ export default function InboxScreen() {
         .filter(n => n.type === 'COMMENT')
         .map(n => ({
           id: n.id,
-          text: n.message,
+          text: n.leagueName ? `${n.leagueName} — ${n.message}` : n.message,
           timestamp: n.timestamp,
           tapType: 'chat' as const,
           tapId: n.leagueId,
