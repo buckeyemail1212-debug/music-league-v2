@@ -28,6 +28,7 @@ import {
 } from '../../services/api';
 import { apiCache } from '../../services/apiCache';
 import { leagueEvents } from '../../utils/leagueEvents';
+import Skeleton from '../Skeleton';
 
 const TASTE_COLORS: Record<string, string> = {
   Indie: '#7C3AED',
@@ -324,9 +325,9 @@ export default function StatsTab() {
 function StatTile({ label, value }: { label: string; value: number | null }) {
   return (
     <View style={styles.statTile}>
-      <Text style={styles.statTileValue}>
-        {value === null ? '—' : value.toLocaleString()}
-      </Text>
+      {value === null
+        ? <Skeleton width={50} height={26} borderRadius={6} />
+        : <Text style={styles.statTileValue}>{value.toLocaleString()}</Text>}
       <Text style={styles.statTileLabel}>{label}</Text>
     </View>
   );
