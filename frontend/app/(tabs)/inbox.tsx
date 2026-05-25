@@ -26,6 +26,7 @@ import {
 import { SharedChat } from '../../src/components/SharedChat';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { pluralize } from '../../src/utils/pluralize';
+import { setPendingInboxCategory, InboxCategoryItem } from '../../src/services/pendingInboxCategory';
 
 type NotifType = 'COMMENT' | 'RESULT' | 'REMINDER' | 'ACTIVITY' | 'SUBMIT';
 
@@ -242,6 +243,57 @@ export default function InboxScreen() {
     }
   };
 
+  const handleCategoryPress = (catKey: string, catLabel: string) => {
+    if (catKey === 'league') return;
+
+    let items: InboxCategoryItem[] = [];
+
+    if (catKey === 'follows') {
+      items = serverNotifs
+        .filter(n => n.category === 'follows')
+        .map(n => ({
+          id: n.id,
+          text: n.body,
+          timestamp: parseTs(n.created_at),
+          tapType: 'user' as const,
+          tapId: n.actor_id ?? undefined,
+        }));
+    } else if (catKey === 'results') {
+      items = notifs
+        .filter(n => n.type === 'RESULT')
+        .map(n => ({
+          id: n.id,
+          text: n.message,
+          timestamp: n.timestamp,
+          tapType: n.roundId ? 'round' as const : 'none' as const,
+          tapId: n.roundId,
+        }));
+    } else if (catKey === 'reminders') {
+      items = notifs
+        .filter(n => n.type === 'REMINDER' || n.type === 'SUBMIT')
+        .map(n => ({
+          id: n.id,
+          text: n.message,
+          timestamp: n.timestamp,
+          tapType: n.roundId ? 'round' as const : 'none' as const,
+          tapId: n.roundId,
+        }));
+    } else if (catKey === 'system') {
+      items = serverNotifs
+        .filter(n => n.category === 'system')
+        .map(n => ({
+          id: n.id,
+          text: n.body,
+          timestamp: parseTs(n.created_at),
+          tapType: 'none' as const,
+        }));
+    }
+
+    items.sort((a, b) => b.timestamp - a.timestamp);
+    setPendingInboxCategory({ category: catKey, label: catLabel, items });
+    router.push('/inbox-category');
+  };
+
   const categoryData = useMemo(() => {
     return CATEGORIES.map(cat => {
       let feedItems: { message: string; timestamp: number }[] = [];
@@ -318,7 +370,7 @@ export default function InboxScreen() {
           <TouchableOpacity
             key={cat.key}
             style={styles.categoryRow}
-            onPress={() => {}}
+            onPress={() => handleCategoryPress(cat.key, cat.label)}
             activeOpacity={0.7}
           >
             <View style={[styles.categoryIcon, { backgroundColor: cat.color }]}>
