@@ -17,37 +17,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '../../src/context/AuthContext';
 import {
-  getLeagues,
-  getLeagueMessages,
-  getRounds,
-  getMySubmissions,
   getNotifications,
   getDmConversations,
   hideConversation,
-  Round,
-  MySubmission,
+  getInboxFeed,
   AppNotification,
   DmConversation,
+  InboxFeedItem,
 } from '../../src/services/api';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiCache } from '../../src/services/apiCache';
-import { pluralize } from '../../src/utils/pluralize';
 import { setPendingInboxCategory, InboxCategoryItem } from '../../src/services/pendingInboxCategory';
-
-type NotifType = 'COMMENT' | 'RESULT' | 'REMINDER' | 'ACTIVITY' | 'SUBMIT';
-
-interface Notif {
-  id: string;
-  type: NotifType;
-  leagueId: string;
-  leagueName: string;
-  leagueImage?: string;
-  roundInfo?: string;
-  message: string;
-  timestamp: number;
-  onTap: 'chat' | 'round' | 'league';
-  roundId?: string;
-}
 
 const CATEGORIES = [
   { key: 'follows', label: 'New followers', icon: 'people' as const, color: '#3B82F6' },
@@ -73,23 +52,13 @@ function relativeTime(ts: number): string {
   return `${Math.floor(diff / (7 * 86_400_000))}w`;
 }
 
-const leaguePhotoKey = (userId: string, leagueId: string) =>
-  `league_image_${userId}_${leagueId}`;
-
-async function cacheLeaguePhoto(userId: string, leagueId: string, photo?: string | null) {
-  if (!userId || !leagueId || !photo) return;
-  try {
-    await AsyncStorage.setItem(leaguePhotoKey(userId, leagueId), photo);
-  } catch {}
-}
-
 export default function InboxScreen() {
   const { user } = useAuth();
   const router = useRouter();
   const userId = user?.id ?? '';
 
-  const [notifs, setNotifs] = useState<Notif[]>(
-    () => apiCache.getStale<Notif[]>(`inbox-notifs:${userId}`) ?? []
+  const [notifs, setNotifs] = useState<InboxFeedItem[]>(
+    () => apiCache.getStale<InboxFeedItem[]>(`inbox-notifs:${userId}`) ?? []
   );
   const [serverNotifs, setServerNotifs] = useState<AppNotification[]>(
     () => apiCache.getStale<AppNotification[]>(`inbox-server:${userId}`) ?? []
@@ -108,120 +77,11 @@ export default function InboxScreen() {
   const fetchAll = async () => {
     lastFetchTime.current = Date.now();
     try {
-      const leaguesRes = await getLeagues();
-      const leagueList = leaguesRes.data;
-
-      // hydrate league images from async-storage cache
-      await Promise.all(leagueList.map(async (l) => {
-        if (!l.league_image) {
-          try {
-            const cached = user?.id ? await AsyncStorage.getItem(`league_image_${user.id}_${l.id}`) : null;
-            if (cached) l.league_image = cached;
-          } catch {}
-        }
-        // Always keep a durable copy of the current photo so deleted leagues
-        // still render their thumbnail for the 3-day persistence window.
-        if (l.league_image && user?.id) cacheLeaguePhoto(user.id, l.id, l.league_image);
-      }));
-      dataLoaded.current = true;
-
-      const items: Notif[] = [];
-
-      const mySubsRes = await getMySubmissions().catch(() => null);
-      const mySubs: MySubmission[] = mySubsRes?.data?.submissions ?? [];
-
-      await Promise.all(leagueList.map(async (league) => {
-        // messages → COMMENT
-        try {
-          const msgRes = await getLeagueMessages(league.id);
-          const msgs = msgRes.data || [];
-          const latestOther = [...msgs].reverse().find(m => m.user_id !== user?.id);
-          if (latestOther) {
-            items.push({
-              id: `msg-${latestOther.id}`,
-              type: 'COMMENT',
-              leagueId: league.id,
-              leagueName: league.name,
-              leagueImage: league.league_image || undefined,
-              message: `${latestOther.username}: ${latestOther.content}`,
-              timestamp: parseTs(latestOther.created_at),
-              onTap: 'chat',
-            });
-          }
-        } catch {}
-
-        // rounds → REMINDER + SUBMIT
-        try {
-          const roundsRes = await getRounds(league.id);
-          const rounds: Round[] = roundsRes.data || [];
-          for (const r of rounds) {
-            if (r.status === 'submission' || r.status === 'voting') {
-              const deadline = r.status === 'submission' ? r.submission_deadline : r.voting_deadline;
-              const deadlineTs = parseTs(deadline);
-              const diff = deadlineTs - Date.now();
-              const userActed = r.status === 'submission' ? r.has_user_submitted : r.has_user_voted;
-
-              if (diff > 0 && diff < 24 * 3600 * 1000 && !userActed) {
-                const hours = Math.ceil(diff / 3_600_000);
-                items.push({
-                  id: `rem-${r.id}-${r.status}`,
-                  type: 'REMINDER',
-                  leagueId: league.id,
-                  leagueName: league.name,
-                  leagueImage: league.league_image || undefined,
-                  roundInfo: `Round ${r.round_number}`,
-                  message: `${r.status === 'submission' ? 'Submission' : 'Voting'} closes in ${pluralize(hours, 'hour')} — don’t miss out`,
-                  timestamp: Date.now() - 1000,
-                  onTap: 'round',
-                  roundId: r.id,
-                });
-              }
-
-              if (r.status === 'submission' && !r.has_user_submitted) {
-                const createdTs = parseTs(r.created_at);
-                if (createdTs && Date.now() - createdTs < 2 * 86_400_000) {
-                  items.push({
-                    id: `sub-${r.id}`,
-                    type: 'SUBMIT',
-                    leagueId: league.id,
-                    leagueName: league.name,
-                    leagueImage: league.league_image || undefined,
-                    roundInfo: `Round ${r.round_number}`,
-                    message: (r.theme || '').trim()
-                      ? `New round in ${league.name}: “${(r.theme || '').trim()}”`
-                      : `Submit a song to ${league.name}`,
-                    timestamp: createdTs,
-                    onTap: 'round',
-                    roundId: r.id,
-                  });
-                }
-              }
-            }
-          }
-        } catch {}
-      }));
-
-      // RESULT from my completed submissions
-      for (const sub of mySubs) {
-        if (sub.round_status !== 'completed' || sub.points === null || sub.points === undefined) continue;
-        const ts = parseTs(sub.submitted_at);
-        items.push({
-          id: `res-${sub.submission_id}`,
-          type: 'RESULT',
-          leagueId: sub.league_id,
-          leagueName: sub.league_name,
-          leagueImage: sub.league_image || undefined,
-          roundInfo: `Round ${sub.round_number}`,
-          message: `You earned ${pluralize(sub.points ?? 0, 'point')} on “${sub.song?.title ?? 'your song'}”`,
-          timestamp: ts,
-          onTap: 'round',
-          roundId: sub.round_id,
-        });
-      }
-
-      items.sort((a, b) => b.timestamp - a.timestamp);
+      const feedRes = await getInboxFeed();
+      const items = feedRes.data?.data?.items ?? [];
       setNotifs(items);
       apiCache.set(`inbox-notifs:${userId}`, items);
+      dataLoaded.current = true;
 
       // Fetch server notifications
       try {
@@ -288,7 +148,7 @@ export default function InboxScreen() {
     }
   };
 
-  const handleTap = (n: Notif) => {
+  const handleTap = (n: InboxFeedItem) => {
     if (n.onTap === 'chat') {
       router.push(`/league-chat?leagueId=${n.leagueId}&leagueName=${encodeURIComponent(n.leagueName)}`);
     } else if (n.onTap === 'round' && n.roundId) {

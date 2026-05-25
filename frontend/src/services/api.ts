@@ -869,4 +869,20 @@ export interface FriendSummary {
 export const getMyFriends = () =>
   api.get<{ data: { friends: FriendSummary[] } }>('/users/me/friends');
 
+export interface InboxFeedItem {
+  id: string;
+  type: string;
+  leagueId: string;
+  leagueName: string;
+  leagueImage: string | null;
+  message: string;
+  timestamp: number;
+  onTap: string;
+  roundId?: string;
+  roundInfo?: string;
+}
+
+export const getInboxFeed = () =>
+  api.get<{ data: { items: InboxFeedItem[] } }>('/inbox/feed');
+
 export default api;
