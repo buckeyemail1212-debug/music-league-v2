@@ -856,4 +856,13 @@ export const getDmMessages = (conversationId: string) =>
 export const getDmConversations = () =>
   api.get<{ data: { conversations: DmConversation[] } }>('/dm/conversations');
 
+export interface FriendSummary {
+  user_id: string;
+  username: string;
+  avatar_url: string | null;
+}
+
+export const getMyFriends = () =>
+  api.get<{ data: { friends: FriendSummary[] } }>('/users/me/friends');
+
 export default api;

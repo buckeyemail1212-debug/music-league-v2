@@ -344,6 +344,9 @@ export default function InboxScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>INBOX</Text>
+        <TouchableOpacity onPress={() => router.push('/new-message' as any)} hitSlop={8}>
+          <Ionicons name="create-outline" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView
