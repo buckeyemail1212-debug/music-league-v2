@@ -18,12 +18,10 @@ import {
   getRounds,
   getMySubmissions,
   getNotifications,
-  League as ApiLeague,
   Round,
   MySubmission,
   AppNotification,
 } from '../../src/services/api';
-import { SharedChat } from '../../src/components/SharedChat';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { pluralize } from '../../src/utils/pluralize';
 import { setPendingInboxCategory, InboxCategoryItem } from '../../src/services/pendingInboxCategory';
@@ -73,10 +71,8 @@ export default function InboxScreen() {
 
   const [notifs, setNotifs] = useState<Notif[]>([]);
   const [serverNotifs, setServerNotifs] = useState<AppNotification[]>([]);
-  const [leaguesList, setLeaguesList] = useState<ApiLeague[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeLeague, setActiveLeague] = useState<ApiLeague | null>(null);
   const lastFetchTime = useRef<number>(0);
   const dataLoaded = useRef(false);
 
@@ -98,7 +94,6 @@ export default function InboxScreen() {
         // still render their thumbnail for the 3-day persistence window.
         if (l.league_image && user?.id) cacheLeaguePhoto(user.id, l.id, l.league_image);
       }));
-      setLeaguesList(leagueList);
       dataLoaded.current = true;
 
       const items: Notif[] = [];
@@ -214,7 +209,6 @@ export default function InboxScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      setActiveLeague(null);
       if (Date.now() - lastFetchTime.current > 30000) {
         fetchAll();
       }
@@ -227,15 +221,9 @@ export default function InboxScreen() {
     setRefreshing(false);
   };
 
-  const closeChat = () => {
-    setActiveLeague(null);
-    fetchAll();
-  };
-
   const handleTap = (n: Notif) => {
     if (n.onTap === 'chat') {
-      const league = leaguesList.find(l => l.id === n.leagueId);
-      if (league) setActiveLeague(league);
+      router.push(`/league-chat?leagueId=${n.leagueId}&leagueName=${encodeURIComponent(n.leagueName)}`);
     } else if (n.onTap === 'round' && n.roundId) {
       router.push(`/round/${n.roundId}`);
     } else {
@@ -244,8 +232,6 @@ export default function InboxScreen() {
   };
 
   const handleCategoryPress = (catKey: string, catLabel: string) => {
-    if (catKey === 'league') return;
-
     let items: InboxCategoryItem[] = [];
 
     if (catKey === 'follows') {
@@ -277,6 +263,17 @@ export default function InboxScreen() {
           timestamp: n.timestamp,
           tapType: n.roundId ? 'round' as const : 'none' as const,
           tapId: n.roundId,
+        }));
+    } else if (catKey === 'league') {
+      items = notifs
+        .filter(n => n.type === 'COMMENT')
+        .map(n => ({
+          id: n.id,
+          text: n.message,
+          timestamp: n.timestamp,
+          tapType: 'chat' as const,
+          tapId: n.leagueId,
+          tapLabel: n.leagueName,
         }));
     } else if (catKey === 'system') {
       items = serverNotifs
@@ -329,18 +326,6 @@ export default function InboxScreen() {
       };
     });
   }, [notifs, serverNotifs]);
-
-  if (activeLeague) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <SharedChat
-          leagueId={activeLeague.id}
-          leagueName={activeLeague.name}
-          onClose={closeChat}
-        />
-      </SafeAreaView>
-    );
-  }
 
   if (loading && !dataLoaded.current) {
     return (

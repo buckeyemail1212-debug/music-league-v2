@@ -38,6 +38,8 @@ export default function InboxCategoryScreen() {
       router.push(`/user/${item.tapId}`);
     } else if (item.tapType === 'round' && item.tapId) {
       router.push(`/round/${item.tapId}`);
+    } else if (item.tapType === 'chat' && item.tapId) {
+      router.push(`/league-chat?leagueId=${item.tapId}&leagueName=${encodeURIComponent(item.tapLabel || '')}`);
     }
   };
 

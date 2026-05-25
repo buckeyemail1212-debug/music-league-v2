@@ -2,8 +2,9 @@ export interface InboxCategoryItem {
   id: string;
   text: string;
   timestamp: number;
-  tapType: 'user' | 'round' | 'none';
+  tapType: 'user' | 'round' | 'chat' | 'none';
   tapId?: string;
+  tapLabel?: string;
 }
 
 export interface PendingInboxCategory {
