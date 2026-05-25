@@ -19,16 +19,21 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../src/context/AuthContext';
 import { getDmMessages, sendDmMessage, DmMessage } from '../../src/services/api';
+import { apiCache } from '../../src/services/apiCache';
 
 export default function DmConversationScreen() {
   const { id, username, avatar } = useLocalSearchParams<{ id: string; username: string; avatar?: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const [messages, setMessages] = useState<DmMessage[]>([]);
+  const [messages, setMessages] = useState<DmMessage[]>(
+    () => apiCache.getStale<DmMessage[]>(`dm-messages:${id}`) ?? []
+  );
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(
+    () => !apiCache.getStale(`dm-messages:${id}`)
+  );
   const chatListRef = useRef<FlatList>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -39,6 +44,7 @@ export default function DmConversationScreen() {
       const newMsgs: DmMessage[] = res.data?.data?.messages ?? [];
       const hasNew = newMsgs.length > messages.length;
       setMessages(newMsgs);
+      apiCache.set(`dm-messages:${id}`, newMsgs);
       if (hasNew || !silent) {
         setTimeout(() => chatListRef.current?.scrollToEnd({ animated: silent }), 100);
       }
@@ -66,7 +72,11 @@ export default function DmConversationScreen() {
       const res = await sendDmMessage(id!, text);
       const msg = res.data?.data?.message;
       if (msg) {
-        setMessages(prev => [...prev, msg]);
+        setMessages(prev => {
+          const next = [...prev, msg];
+          apiCache.set(`dm-messages:${id}`, next);
+          return next;
+        });
         setTimeout(() => chatListRef.current?.scrollToEnd({ animated: true }), 100);
       }
     } catch {
