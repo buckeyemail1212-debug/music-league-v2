@@ -833,6 +833,7 @@ export interface DmConversation {
   created_at: string;
   last_message_at: string;
   last_message_text: string;
+  other_user: { user_id: string; username: string; avatar_url: string | null };
 }
 
 export interface DmMessage {
@@ -855,6 +856,9 @@ export const getDmMessages = (conversationId: string) =>
 
 export const getDmConversations = () =>
   api.get<{ data: { conversations: DmConversation[] } }>('/dm/conversations');
+
+export const hideConversation = (conversationId: string) =>
+  api.post(`/dm/conversations/${conversationId}/hide`);
 
 export interface FriendSummary {
   user_id: string;

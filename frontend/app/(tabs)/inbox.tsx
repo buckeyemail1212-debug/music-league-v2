@@ -2,13 +2,17 @@ import React, { useState, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
   ScrollView,
+  Alert,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '../../src/context/AuthContext';
@@ -18,9 +22,12 @@ import {
   getRounds,
   getMySubmissions,
   getNotifications,
+  getDmConversations,
+  hideConversation,
   Round,
   MySubmission,
   AppNotification,
+  DmConversation,
 } from '../../src/services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { pluralize } from '../../src/utils/pluralize';
@@ -55,6 +62,16 @@ function parseTs(s?: string | null): number {
   return isNaN(t) ? 0 : t;
 }
 
+function relativeTime(ts: number): string {
+  if (!ts) return '';
+  const diff = Date.now() - ts;
+  if (diff < 60_000) return 'now';
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h`;
+  if (diff < 7 * 86_400_000) return `${Math.floor(diff / 86_400_000)}d`;
+  return `${Math.floor(diff / (7 * 86_400_000))}w`;
+}
+
 const leaguePhotoKey = (userId: string, leagueId: string) =>
   `league_image_${userId}_${leagueId}`;
 
@@ -71,6 +88,7 @@ export default function InboxScreen() {
 
   const [notifs, setNotifs] = useState<Notif[]>([]);
   const [serverNotifs, setServerNotifs] = useState<AppNotification[]>([]);
+  const [conversations, setConversations] = useState<DmConversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const lastFetchTime = useRef<number>(0);
@@ -200,6 +218,14 @@ export default function InboxScreen() {
       } catch {
         setServerNotifs([]);
       }
+
+      // Fetch DM conversations
+      try {
+        const dmRes = await getDmConversations();
+        setConversations(dmRes.data?.data?.conversations ?? []);
+      } catch {
+        setConversations([]);
+      }
     } catch (err) {
       console.error('Failed to build inbox:', err);
     } finally {
@@ -219,6 +245,17 @@ export default function InboxScreen() {
     setRefreshing(true);
     await fetchAll();
     setRefreshing(false);
+  };
+
+  const handleHideConversation = async (convId: string) => {
+    const prev = conversations;
+    setConversations(cs => cs.filter(c => c.id !== convId));
+    try {
+      await hideConversation(convId);
+    } catch {
+      setConversations(prev);
+      Alert.alert('Could not hide conversation', 'Please try again.');
+    }
   };
 
   const handleTap = (n: Notif) => {
@@ -340,7 +377,27 @@ export default function InboxScreen() {
     );
   }
 
+  const renderSwipeActions = (progress: Animated.AnimatedInterpolation<number>, convId: string) => {
+    const translateX = progress.interpolate({
+      inputRange: [0, 1],
+      outputRange: [80, 0],
+      extrapolate: 'clamp',
+    });
+    return (
+      <Animated.View style={[styles.swipeActionWrap, { transform: [{ translateX }] }]}>
+        <TouchableOpacity
+          style={styles.trashBtn}
+          onPress={() => handleHideConversation(convId)}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="trash" size={20} color="#FFFFFF" />
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  };
+
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>INBOX</Text>
@@ -377,8 +434,56 @@ export default function InboxScreen() {
             )}
           </TouchableOpacity>
         ))}
+
+        <Text style={styles.sectionHeader}>Messages</Text>
+        {conversations.length === 0 ? (
+          <Text style={styles.dmEmpty}>No messages yet.</Text>
+        ) : (
+          conversations.map(conv => (
+            <Swipeable
+              key={conv.id}
+              renderRightActions={(p) => renderSwipeActions(p, conv.id)}
+              rightThreshold={40}
+              friction={2}
+              overshootRight={false}
+            >
+              <TouchableOpacity
+                style={styles.dmRow}
+                activeOpacity={0.7}
+                onPress={() =>
+                  router.push({
+                    pathname: '/dm/[id]',
+                    params: {
+                      id: conv.id,
+                      username: conv.other_user.username,
+                      avatar: conv.other_user.avatar_url ?? '',
+                    },
+                  })
+                }
+              >
+                {conv.other_user.avatar_url ? (
+                  <Image source={{ uri: conv.other_user.avatar_url }} style={styles.dmAvatar} />
+                ) : (
+                  <View style={[styles.dmAvatar, styles.dmAvatarFallback]}>
+                    <Text style={styles.dmAvatarInitial}>
+                      {(conv.other_user.username || '?').charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+                <View style={styles.dmBody}>
+                  <Text style={styles.dmUsername}>{conv.other_user.username}</Text>
+                  <Text style={styles.dmPreview} numberOfLines={1}>
+                    {conv.last_message_text || 'No messages yet'}
+                  </Text>
+                </View>
+                <Text style={styles.dmTime}>{relativeTime(parseTs(conv.last_message_at))}</Text>
+              </TouchableOpacity>
+            </Swipeable>
+          ))
+        )}
       </ScrollView>
     </SafeAreaView>
+    </GestureHandlerRootView>
   );
 }
 
@@ -446,5 +551,75 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  sectionHeader: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#8E8E93',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  dmEmpty: {
+    fontSize: 14,
+    color: '#8E8E93',
+    paddingVertical: 8,
+  },
+  dmRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+  },
+  dmAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  dmAvatarFallback: {
+    backgroundColor: '#3E3E3E',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dmAvatarInitial: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  dmBody: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  dmUsername: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  dmPreview: {
+    fontSize: 13,
+    color: '#8E8E93',
+    marginTop: 2,
+  },
+  dmTime: {
+    fontSize: 12,
+    color: '#8E8E93',
+    marginLeft: 8,
+  },
+  swipeActionWrap: {
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    paddingRight: 4,
+    marginBottom: 8,
+  },
+  trashBtn: {
+    width: 56,
+    height: '100%',
+    backgroundColor: '#EF4444',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
