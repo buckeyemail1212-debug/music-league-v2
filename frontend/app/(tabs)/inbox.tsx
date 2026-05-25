@@ -372,7 +372,14 @@ export default function InboxScreen() {
                     {conv.last_message_text || 'No messages yet'}
                   </Text>
                 </View>
-                <Text style={styles.dmTime}>{relativeTime(parseTs(conv.last_message_at))}</Text>
+                <View style={styles.dmRight}>
+                  <Text style={styles.dmTime}>{relativeTime(parseTs(conv.last_message_at))}</Text>
+                  {conv.unread_count > 0 && (
+                    <View style={styles.dmUnreadBadge}>
+                      <Text style={styles.dmUnreadText}>{conv.unread_count}</Text>
+                    </View>
+                  )}
+                </View>
               </TouchableOpacity>
             </Swipeable>
           ))
@@ -499,10 +506,28 @@ const styles = StyleSheet.create({
     color: '#8E8E93',
     marginTop: 2,
   },
+  dmRight: {
+    alignItems: 'flex-end',
+    marginLeft: 8,
+    gap: 6,
+  },
   dmTime: {
     fontSize: 12,
     color: '#8E8E93',
-    marginLeft: 8,
+  },
+  dmUnreadBadge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#7C3AED',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  dmUnreadText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   swipeActionWrap: {
     justifyContent: 'center',

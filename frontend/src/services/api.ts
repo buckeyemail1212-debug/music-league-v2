@@ -834,6 +834,7 @@ export interface DmConversation {
   last_message_at: string;
   last_message_text: string;
   other_user: { user_id: string; username: string; avatar_url: string | null };
+  unread_count: number;
 }
 
 export interface DmMessage {
