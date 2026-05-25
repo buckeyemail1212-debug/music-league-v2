@@ -827,4 +827,33 @@ export interface AppNotification {
 export const getNotifications = () =>
   api.get<{ data: { notifications: AppNotification[] } }>('/notifications');
 
+export interface DmConversation {
+  id: string;
+  participant_ids: string[];
+  created_at: string;
+  last_message_at: string;
+  last_message_text: string;
+}
+
+export interface DmMessage {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  text: string;
+  created_at: string;
+  read_by: string[];
+}
+
+export const startConversation = (userId: string) =>
+  api.post<{ data: { conversation: DmConversation } }>('/dm/conversations', { user_id: userId });
+
+export const sendDmMessage = (conversationId: string, text: string) =>
+  api.post<{ data: { message: DmMessage } }>(`/dm/conversations/${conversationId}/messages`, { text });
+
+export const getDmMessages = (conversationId: string) =>
+  api.get<{ data: { messages: DmMessage[] } }>(`/dm/conversations/${conversationId}/messages`);
+
+export const getDmConversations = () =>
+  api.get<{ data: { conversations: DmConversation[] } }>('/dm/conversations');
+
 export default api;
