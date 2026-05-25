@@ -7591,6 +7591,7 @@ async def start_or_get_dm_conversation(body: dict, current_user: dict = Depends(
         "created_at": now,
         "last_message_at": now,
         "last_message_text": "",
+        "hidden_for": [],
     }
     await db.dm_conversations.insert_one(conv)
     conv.pop("_id", None)
@@ -7626,7 +7627,7 @@ async def send_dm_message(conversation_id: str, body: dict, current_user: dict =
 
     await db.dm_conversations.update_one(
         {"id": conversation_id},
-        {"$set": {"last_message_at": now, "last_message_text": text[:120]}},
+        {"$set": {"last_message_at": now, "last_message_text": text[:120], "hidden_for": []}},
     )
     return {"data": {"message": msg}}
 
@@ -7648,14 +7649,56 @@ async def get_dm_messages(conversation_id: str, current_user: dict = Depends(get
     return {"data": {"messages": messages}}
 
 
+@api_router.post("/dm/conversations/{conversation_id}/hide")
+async def hide_dm_conversation(conversation_id: str, current_user: dict = Depends(get_current_user)):
+    me_id = current_user["id"]
+    conv = await db.dm_conversations.find_one({"id": conversation_id})
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    if me_id not in conv.get("participant_ids", []):
+        raise HTTPException(status_code=403, detail="Not a participant")
+    await db.dm_conversations.update_one(
+        {"id": conversation_id},
+        {"$addToSet": {"hidden_for": me_id}},
+    )
+    return {"data": {"hidden": True}}
+
+
 @api_router.get("/dm/conversations")
 async def list_dm_conversations(current_user: dict = Depends(get_current_user)):
     me_id = current_user["id"]
     conversations = await (
-        db.dm_conversations.find({"participant_ids": me_id}, {"_id": 0})
+        db.dm_conversations.find(
+            {"participant_ids": me_id, "hidden_for": {"$ne": me_id}},
+            {"_id": 0},
+        )
         .sort("last_message_at", -1)
         .to_list(200)
     )
+
+    other_ids = []
+    for c in conversations:
+        for pid in c.get("participant_ids", []):
+            if pid != me_id:
+                other_ids.append(pid)
+                break
+
+    users_by_id = {}
+    if other_ids:
+        user_docs = await db.users.find(
+            {"id": {"$in": other_ids}},
+            {"_id": 0, "id": 1, "username": 1, "profile_photo": 1},
+        ).to_list(len(other_ids))
+        users_by_id = {u["id"]: u for u in user_docs}
+
+    for c in conversations:
+        other_id = next((pid for pid in c.get("participant_ids", []) if pid != me_id), None)
+        if other_id and other_id in users_by_id:
+            u = users_by_id[other_id]
+            c["other_user"] = {"user_id": u["id"], "username": u.get("username"), "avatar_url": u.get("profile_photo")}
+        else:
+            c["other_user"] = {"user_id": other_id, "username": "Unknown", "avatar_url": None}
+
     return {"data": {"conversations": conversations}}
 
 # ==================== ROOT ENDPOINT ====================
