@@ -41,6 +41,7 @@ export default function RootLayout() {
           <Stack.Screen name="home-search" options={{ headerShown: false, animation: 'slide_from_right' }} />
           <Stack.Screen name="inbox-category" options={{ headerShown: false, animation: 'slide_from_right' }} />
           <Stack.Screen name="league-chat" options={{ headerShown: false, animation: 'slide_from_right' }} />
+          <Stack.Screen name="dm/[id]" options={{ headerShown: false, animation: 'slide_from_right' }} />
         </Stack>
         </AuthProvider>
       </SafeAreaProvider>
