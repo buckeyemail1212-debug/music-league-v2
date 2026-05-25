@@ -309,7 +309,7 @@ function RowFollowButton({
     if (busy) return;
     setBusy(true);
     const prev = status;
-    setStatus('approved'); // optimistic; backend may return 'pending'
+    setStatus(status === 'follows_you' ? 'friends' : 'following');
     try {
       const res = await followUser(rowUserId);
       setStatus(res.data.data.status);
@@ -332,7 +332,7 @@ function RowFollowButton({
           if (busy) return;
           setBusy(true);
           const prev = status;
-          setStatus('none');
+          setStatus(status === 'friends' ? 'follows_you' : 'none');
           try {
             await unfollowUser(rowUserId);
             invalidate();
@@ -349,14 +349,14 @@ function RowFollowButton({
 
   const onPress = () => {
     if (!status) return;
-    if (status === 'none') return doFollow();
-    if (status === 'approved') {
+    if (status === 'none' || status === 'follows_you') return doFollow();
+    if (status === 'following' || status === 'friends') {
       return doUnfollow({
         title: `Unfollow @${rowUsername}?`,
-        message: 'You’ll need to follow them again to see their game.',
+        message: 'You will need to follow them again to see their game.',
       });
     }
-    if (status === 'pending') {
+    if (status === 'requested') {
       return doUnfollow({
         title: 'Cancel follow request?',
         message: `Your request to follow @${rowUsername} will be withdrawn.`,
@@ -366,9 +366,17 @@ function RowFollowButton({
 
   if (status === null || status === 'self') return null;
 
-  const primary = status === 'none';
+  const primary = status === 'none' || status === 'follows_you';
   const label =
-    status === 'none' ? 'Follow' : status === 'pending' ? 'Requested' : 'Following';
+    status === 'none'
+      ? 'Follow'
+      : status === 'follows_you'
+        ? 'Follow back'
+        : status === 'following'
+          ? 'Following'
+          : status === 'friends'
+            ? 'Friends'
+            : 'Requested';
 
   return (
     <TouchableOpacity
