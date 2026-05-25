@@ -7828,6 +7828,12 @@ async def get_dm_messages(conversation_id: str, current_user: dict = Depends(get
         .sort("created_at", 1)
         .to_list(1000)
     )
+
+    await db.dm_messages.update_many(
+        {"conversation_id": conversation_id, "read_by": {"$ne": me_id}},
+        {"$addToSet": {"read_by": me_id}},
+    )
+
     return {"data": {"messages": messages}}
 
 
@@ -7880,6 +7886,23 @@ async def list_dm_conversations(current_user: dict = Depends(get_current_user)):
             c["other_user"] = {"user_id": u["id"], "username": u.get("username"), "avatar_url": u.get("profile_photo")}
         else:
             c["other_user"] = {"user_id": other_id, "username": "Unknown", "avatar_url": None}
+
+    conv_ids = [c["id"] for c in conversations]
+    unread_map: dict[str, int] = {}
+    if conv_ids:
+        pipeline = [
+            {"$match": {
+                "conversation_id": {"$in": conv_ids},
+                "sender_id": {"$ne": me_id},
+                "read_by": {"$ne": me_id},
+            }},
+            {"$group": {"_id": "$conversation_id", "count": {"$sum": 1}}},
+        ]
+        async for doc in db.dm_messages.aggregate(pipeline):
+            unread_map[doc["_id"]] = doc["count"]
+
+    for c in conversations:
+        c["unread_count"] = unread_map.get(c["id"], 0)
 
     return {"data": {"conversations": conversations}}
 
