@@ -3287,6 +3287,17 @@ async def _is_blocked_either_direction(user_a_id: str, user_b_id: str) -> bool:
     return doc is not None
 
 
+async def _are_mutual_friends(user_a: str, user_b: str) -> bool:
+    """True iff user_a and user_b follow each other (both approved)."""
+    a_follows_b = await db.follows.find_one(
+        {"follower_id": user_a, "followed_id": user_b, "status": "approved"}, {"_id": 1})
+    if not a_follows_b:
+        return False
+    b_follows_a = await db.follows.find_one(
+        {"follower_id": user_b, "followed_id": user_a, "status": "approved"}, {"_id": 1})
+    return b_follows_a is not None
+
+
 async def _league_has_blocked_member(viewer_id: str, members: list) -> bool:
     """True iff the viewer has a block (in either direction) with at
     least one user in `members`. Used by the league-join handlers to
@@ -7495,6 +7506,101 @@ async def get_notifications(current_user: dict = Depends(get_current_user)):
     )
     return {"data": {"notifications": rows}}
 
+# ==================== DIRECT MESSAGE ENDPOINTS ====================
+
+@api_router.post("/dm/conversations")
+async def start_or_get_dm_conversation(body: dict, current_user: dict = Depends(get_current_user)):
+    me_id = current_user["id"]
+    other_id = (body.get("user_id") or "").strip()
+    if not other_id:
+        raise HTTPException(status_code=400, detail="user_id is required")
+    if other_id == me_id:
+        raise HTTPException(status_code=400, detail="Cannot start a conversation with yourself")
+    if await _is_blocked_either_direction(me_id, other_id):
+        raise HTTPException(status_code=404, detail="User not found")
+    if not await _are_mutual_friends(me_id, other_id):
+        raise HTTPException(status_code=403, detail="not_friends")
+
+    existing = await db.dm_conversations.find_one(
+        {"participant_ids": {"$all": [me_id, other_id]}}, {"_id": 0}
+    )
+    if existing:
+        return {"data": {"conversation": existing}}
+
+    now = datetime.now(timezone.utc)
+    conv = {
+        "id": str(uuid.uuid4()),
+        "participant_ids": [me_id, other_id],
+        "created_at": now,
+        "last_message_at": now,
+        "last_message_text": "",
+    }
+    await db.dm_conversations.insert_one(conv)
+    conv.pop("_id", None)
+    return {"data": {"conversation": conv}}
+
+
+@api_router.post("/dm/conversations/{conversation_id}/messages")
+async def send_dm_message(conversation_id: str, body: dict, current_user: dict = Depends(get_current_user)):
+    me_id = current_user["id"]
+    conv = await db.dm_conversations.find_one({"id": conversation_id})
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    if me_id not in conv.get("participant_ids", []):
+        raise HTTPException(status_code=403, detail="Not a participant")
+
+    text = (body.get("text") or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Text cannot be empty")
+    if len(text) > 2000:
+        raise HTTPException(status_code=400, detail="Text exceeds 2000 character limit")
+
+    now = datetime.now(timezone.utc)
+    msg = {
+        "id": str(uuid.uuid4()),
+        "conversation_id": conversation_id,
+        "sender_id": me_id,
+        "text": text,
+        "created_at": now,
+        "read_by": [me_id],
+    }
+    await db.dm_messages.insert_one(msg)
+    msg.pop("_id", None)
+
+    await db.dm_conversations.update_one(
+        {"id": conversation_id},
+        {"$set": {"last_message_at": now, "last_message_text": text[:120]}},
+    )
+    return {"data": {"message": msg}}
+
+
+@api_router.get("/dm/conversations/{conversation_id}/messages")
+async def get_dm_messages(conversation_id: str, current_user: dict = Depends(get_current_user)):
+    me_id = current_user["id"]
+    conv = await db.dm_conversations.find_one({"id": conversation_id})
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    if me_id not in conv.get("participant_ids", []):
+        raise HTTPException(status_code=403, detail="Not a participant")
+
+    messages = await (
+        db.dm_messages.find({"conversation_id": conversation_id}, {"_id": 0})
+        .sort("created_at", 1)
+        .to_list(1000)
+    )
+    return {"data": {"messages": messages}}
+
+
+@api_router.get("/dm/conversations")
+async def list_dm_conversations(current_user: dict = Depends(get_current_user)):
+    me_id = current_user["id"]
+    conversations = await (
+        db.dm_conversations.find({"participant_ids": me_id}, {"_id": 0})
+        .sort("last_message_at", -1)
+        .to_list(200)
+    )
+    return {"data": {"conversations": conversations}}
+
 # ==================== ROOT ENDPOINT ====================
 
 @api_router.get("/")
@@ -8334,6 +8440,20 @@ async def past_leagues_startup_maintenance():
         )
     except Exception as e:
         logger.warning(f"notifications index creation failed: {e}")
+    try:
+        await db.dm_conversations.create_index(
+            "participant_ids",
+            name="dm_conversations_participants",
+        )
+    except Exception as e:
+        logger.warning(f"dm_conversations index creation failed: {e}")
+    try:
+        await db.dm_messages.create_index(
+            [("conversation_id", 1), ("created_at", 1)],
+            name="dm_messages_conv_created",
+        )
+    except Exception as e:
+        logger.warning(f"dm_messages index creation failed: {e}")
     # One-time genre backfill for public leagues created before the field
     # existed. Writes "General" for any public league missing or with a
     # blank genre; leaves private leagues alone.
