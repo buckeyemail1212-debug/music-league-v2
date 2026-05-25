@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Platform, StyleSheet } from 'react-native';
 import { useAuth } from '../../src/context/AuthContext';
+import { unreadStore } from '../../src/services/unreadStore';
 
 export default function TabLayout() {
   const { user } = useAuth();
+  const [unread, setUnread] = useState(unreadStore.get());
+  useEffect(() => unreadStore.subscribe(setUnread), []);
   return (
     <Tabs
       key={user?.id ?? 'no-user'}
@@ -62,6 +65,8 @@ export default function TabLayout() {
         options={{
           title: 'INBOX',
           tabBarIcon: ({ color }) => <Ionicons name="chatbubble-outline" size={22} color={color} />,
+          tabBarBadge: unread > 0 ? unread : undefined,
+          tabBarBadgeStyle: { backgroundColor: '#EF4444' },
         }}
       />
       <Tabs.Screen

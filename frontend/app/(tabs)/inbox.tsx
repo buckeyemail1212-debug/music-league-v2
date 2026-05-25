@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -27,6 +27,7 @@ import {
 } from '../../src/services/api';
 import { apiCache } from '../../src/services/apiCache';
 import { getCategoryViews, markCategoryViewed } from '../../src/services/inboxReadState';
+import { unreadStore } from '../../src/services/unreadStore';
 import { setPendingInboxCategory, InboxCategoryItem } from '../../src/services/pendingInboxCategory';
 
 const CATEGORIES = [
@@ -268,6 +269,13 @@ export default function InboxScreen() {
       };
     });
   }, [notifs, serverNotifs, categoryViews]);
+
+  const totalUnread = useMemo(() => {
+    const categoryUnread = categoryData.reduce((sum, c) => sum + (c.count || 0), 0);
+    const dmUnread = conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);
+    return categoryUnread + dmUnread;
+  }, [categoryData, conversations]);
+  useEffect(() => { unreadStore.set(totalUnread); }, [totalUnread]);
 
   if (loading && !dataLoaded.current) {
     return (
