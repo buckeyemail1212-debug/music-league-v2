@@ -122,7 +122,9 @@ export default function UserProfileScreen() {
   const doFollow = async () => {
     if (busy) return;
     setBusy(true);
-    const optimistic: FollowStatus = profile?.is_private ? 'pending' : 'approved';
+    const optimistic: FollowStatus = profile?.is_private
+      ? 'requested'
+      : (followStatus === 'follows_you' ? 'friends' : 'following');
     setFollowStatus(optimistic);
     try {
       const res = await followUser(targetId);
@@ -147,7 +149,7 @@ export default function UserProfileScreen() {
         onPress: async () => {
           setBusy(true);
           const prev = followStatus;
-          setFollowStatus('none');
+          setFollowStatus(followStatus === 'friends' ? 'follows_you' : 'none');
           try {
             await unfollowUser(targetId);
             invalidateAfterFollowChange();
@@ -165,14 +167,14 @@ export default function UserProfileScreen() {
 
   const onFollowButtonPress = () => {
     if (!followStatus) return;
-    if (followStatus === 'none') return doFollow();
-    if (followStatus === 'approved') {
+    if (followStatus === 'none' || followStatus === 'follows_you') return doFollow();
+    if (followStatus === 'following' || followStatus === 'friends') {
       return doUnfollow({
         title: `Unfollow @${profile?.username ?? ''}?`,
-        message: 'You’ll need to follow them again to see their game.',
+        message: "You'll need to follow them again to see their game.",
       });
     }
-    if (followStatus === 'pending') {
+    if (followStatus === 'requested') {
       return doUnfollow({
         title: 'Cancel follow request?',
         message: `Your request to follow @${profile?.username ?? ''} will be withdrawn.`,
@@ -237,19 +239,16 @@ export default function UserProfileScreen() {
     const username = profile.username;
     const opts: { label: string; onPress: () => void; destructive?: boolean }[] = [];
 
-    // Order: the non-destructive follow-state action comes first
-    // (Unfollow / Cancel request), then the destructive Block. Limited
-    // view follows the same logic — 'approved' isn't possible there.
-    if (followStatus === 'approved') {
+    if (followStatus === 'following' || followStatus === 'friends') {
       opts.push({
         label: `Unfollow @${username}`,
         onPress: () =>
           doUnfollow({
             title: `Unfollow @${username}?`,
-            message: 'You’ll need to follow them again to see their game.',
+            message: "You'll need to follow them again to see their game.",
           }),
       });
-    } else if (followStatus === 'pending') {
+    } else if (followStatus === 'requested') {
       opts.push({
         label: 'Cancel request',
         onPress: () =>
@@ -390,13 +389,17 @@ export default function UserProfileScreen() {
 
   const followBtn = (() => {
     if (followStatus === null || followStatus === 'self') return null;
-    const primary = followStatus === 'none';
+    const primary = followStatus === 'none' || followStatus === 'follows_you';
     const label =
       followStatus === 'none'
         ? 'Follow'
-        : followStatus === 'pending'
-          ? 'Requested'
-          : 'Following';
+        : followStatus === 'follows_you'
+          ? 'Follow back'
+          : followStatus === 'following'
+            ? 'Following'
+            : followStatus === 'friends'
+              ? 'Friends'
+              : 'Requested';
     return (
       <TouchableOpacity
         style={[styles.followBtn, primary ? styles.followBtnPrimary : styles.followBtnSecondary]}

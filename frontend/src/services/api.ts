@@ -587,7 +587,7 @@ export const clearAllData = () =>
 
 // ── Social graph: follow / profile ─────────────────────────────────────────
 
-export type FollowStatus = 'approved' | 'pending' | 'none' | 'self';
+export type FollowStatus = 'none' | 'following' | 'follows_you' | 'friends' | 'requested' | 'self';
 
 export interface FollowCounts {
   followers: number;
