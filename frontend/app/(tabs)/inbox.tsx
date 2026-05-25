@@ -30,6 +30,7 @@ import {
   DmConversation,
 } from '../../src/services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { apiCache } from '../../src/services/apiCache';
 import { pluralize } from '../../src/utils/pluralize';
 import { setPendingInboxCategory, InboxCategoryItem } from '../../src/services/pendingInboxCategory';
 
@@ -85,11 +86,20 @@ async function cacheLeaguePhoto(userId: string, leagueId: string, photo?: string
 export default function InboxScreen() {
   const { user } = useAuth();
   const router = useRouter();
+  const userId = user?.id ?? '';
 
-  const [notifs, setNotifs] = useState<Notif[]>([]);
-  const [serverNotifs, setServerNotifs] = useState<AppNotification[]>([]);
-  const [conversations, setConversations] = useState<DmConversation[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [notifs, setNotifs] = useState<Notif[]>(
+    () => apiCache.getStale<Notif[]>(`inbox-notifs:${userId}`) ?? []
+  );
+  const [serverNotifs, setServerNotifs] = useState<AppNotification[]>(
+    () => apiCache.getStale<AppNotification[]>(`inbox-server:${userId}`) ?? []
+  );
+  const [conversations, setConversations] = useState<DmConversation[]>(
+    () => apiCache.getStale<DmConversation[]>(`inbox-convos:${userId}`) ?? []
+  );
+  const [loading, setLoading] = useState(
+    () => !apiCache.getStale(`inbox-notifs:${userId}`)
+  );
   const [refreshing, setRefreshing] = useState(false);
   const lastFetchTime = useRef<number>(0);
   const dataLoaded = useRef(false);
@@ -211,11 +221,14 @@ export default function InboxScreen() {
 
       items.sort((a, b) => b.timestamp - a.timestamp);
       setNotifs(items);
+      apiCache.set(`inbox-notifs:${userId}`, items);
 
       // Fetch server notifications
       try {
         const notifRes = await getNotifications();
-        setServerNotifs(notifRes.data?.data?.notifications ?? []);
+        const sn = notifRes.data?.data?.notifications ?? [];
+        setServerNotifs(sn);
+        apiCache.set(`inbox-server:${userId}`, sn);
       } catch {
         setServerNotifs([]);
       }
@@ -223,7 +236,9 @@ export default function InboxScreen() {
       // Fetch DM conversations
       try {
         const dmRes = await getDmConversations();
-        setConversations(dmRes.data?.data?.conversations ?? []);
+        const convos = dmRes.data?.data?.conversations ?? [];
+        setConversations(convos);
+        apiCache.set(`inbox-convos:${userId}`, convos);
       } catch {
         setConversations([]);
       }
