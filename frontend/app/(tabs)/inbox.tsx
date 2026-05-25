@@ -93,6 +93,7 @@ export default function InboxScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const lastFetchTime = useRef<number>(0);
   const dataLoaded = useRef(false);
+  const navigatingRef = useRef(false);
 
   const fetchAll = async () => {
     lastFetchTime.current = Date.now();
@@ -245,6 +246,20 @@ export default function InboxScreen() {
     setRefreshing(true);
     await fetchAll();
     setRefreshing(false);
+  };
+
+  const openDmConversation = (conv: DmConversation) => {
+    if (navigatingRef.current) return;
+    navigatingRef.current = true;
+    router.push({
+      pathname: '/dm/[id]',
+      params: {
+        id: conv.id,
+        username: conv.other_user.username,
+        avatar: conv.other_user.avatar_url ?? '',
+      },
+    });
+    setTimeout(() => { navigatingRef.current = false; }, 800);
   };
 
   const handleHideConversation = async (convId: string) => {
@@ -450,16 +465,7 @@ export default function InboxScreen() {
               <TouchableOpacity
                 style={styles.dmRow}
                 activeOpacity={0.7}
-                onPress={() =>
-                  router.push({
-                    pathname: '/dm/[id]',
-                    params: {
-                      id: conv.id,
-                      username: conv.other_user.username,
-                      avatar: conv.other_user.avatar_url ?? '',
-                    },
-                  })
-                }
+                onPress={() => openDmConversation(conv)}
               >
                 {conv.other_user.avatar_url ? (
                   <Image source={{ uri: conv.other_user.avatar_url }} style={styles.dmAvatar} />
