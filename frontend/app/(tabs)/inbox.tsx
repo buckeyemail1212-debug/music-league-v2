@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,18 +16,9 @@ import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler'
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '../../src/context/AuthContext';
-import {
-  getNotifications,
-  getDmConversations,
-  hideConversation,
-  getInboxFeed,
-  AppNotification,
-  DmConversation,
-  InboxFeedItem,
-} from '../../src/services/api';
-import { apiCache } from '../../src/services/apiCache';
-import { getCategoryViews, markCategoryViewed } from '../../src/services/inboxReadState';
-import { unreadStore } from '../../src/services/unreadStore';
+import { useInboxData } from '../../src/context/InboxDataContext';
+import { hideConversation, DmConversation, InboxFeedItem } from '../../src/services/api';
+import { markCategoryViewed } from '../../src/services/inboxReadState';
 import { setPendingInboxCategory, InboxCategoryItem } from '../../src/services/pendingInboxCategory';
 
 const CATEGORIES = [
@@ -58,72 +49,18 @@ export default function InboxScreen() {
   const { user } = useAuth();
   const router = useRouter();
   const userId = user?.id ?? '';
+  const { notifs, serverNotifs, conversations, categoryViews, loading, refresh } = useInboxData();
 
-  const [notifs, setNotifs] = useState<InboxFeedItem[]>(
-    () => apiCache.getStale<InboxFeedItem[]>(`inbox-notifs:${userId}`) ?? []
-  );
-  const [serverNotifs, setServerNotifs] = useState<AppNotification[]>(
-    () => apiCache.getStale<AppNotification[]>(`inbox-server:${userId}`) ?? []
-  );
-  const [conversations, setConversations] = useState<DmConversation[]>(
-    () => apiCache.getStale<DmConversation[]>(`inbox-convos:${userId}`) ?? []
-  );
-  const [loading, setLoading] = useState(
-    () => !apiCache.getStale(`inbox-notifs:${userId}`)
-  );
-  const [categoryViews, setCategoryViews] = useState<Record<string, number>>({});
   const [refreshing, setRefreshing] = useState(false);
-  const lastFetchTime = useRef<number>(0);
-  const dataLoaded = useRef(false);
   const navigatingRef = useRef(false);
 
-  const fetchAll = async () => {
-    lastFetchTime.current = Date.now();
-    try {
-      const feedRes = await getInboxFeed();
-      const items = feedRes.data?.data?.items ?? [];
-      setNotifs(items);
-      apiCache.set(`inbox-notifs:${userId}`, items);
-      dataLoaded.current = true;
-
-      // Fetch server notifications
-      try {
-        const notifRes = await getNotifications();
-        const sn = notifRes.data?.data?.notifications ?? [];
-        setServerNotifs(sn);
-        apiCache.set(`inbox-server:${userId}`, sn);
-      } catch {
-        setServerNotifs([]);
-      }
-
-      // Fetch DM conversations
-      try {
-        const dmRes = await getDmConversations();
-        const convos = dmRes.data?.data?.conversations ?? [];
-        setConversations(convos);
-        apiCache.set(`inbox-convos:${userId}`, convos);
-      } catch {
-        setConversations([]);
-      }
-    } catch (err) {
-      console.error('Failed to build inbox:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useFocusEffect(
-    useCallback(() => {
-      getCategoryViews(userId).then(setCategoryViews);
-      if (Date.now() - lastFetchTime.current > 30000) {
-        fetchAll();
-      }
-    }, []),
+    useCallback(() => { refresh(); }, [refresh]),
   );
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchAll();
+    await refresh();
     setRefreshing(false);
   };
 
@@ -142,12 +79,10 @@ export default function InboxScreen() {
   };
 
   const handleHideConversation = async (convId: string) => {
-    const prev = conversations;
-    setConversations(cs => cs.filter(c => c.id !== convId));
     try {
       await hideConversation(convId);
+      await refresh();
     } catch {
-      setConversations(prev);
       Alert.alert('Could not hide conversation', 'Please try again.');
     }
   };
@@ -219,8 +154,8 @@ export default function InboxScreen() {
 
     items.sort((a, b) => b.timestamp - a.timestamp);
     setPendingInboxCategory({ category: catKey, label: catLabel, items });
-    const updated = await markCategoryViewed(userId, catKey);
-    setCategoryViews(updated);
+    await markCategoryViewed(userId, catKey);
+    await refresh();
     router.push('/inbox-category');
   };
 
@@ -270,14 +205,7 @@ export default function InboxScreen() {
     });
   }, [notifs, serverNotifs, categoryViews]);
 
-  const totalUnread = useMemo(() => {
-    const categoryUnread = categoryData.reduce((sum, c) => sum + (c.count || 0), 0);
-    const dmUnread = conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);
-    return categoryUnread + dmUnread;
-  }, [categoryData, conversations]);
-  useEffect(() => { unreadStore.set(totalUnread); }, [totalUnread]);
-
-  if (loading && !dataLoaded.current) {
+  if (loading && notifs.length === 0 && serverNotifs.length === 0 && conversations.length === 0) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
