@@ -1,36 +1,33 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  Animated,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 import { useAuth } from '../../src/context/AuthContext';
 import {
   getLeagues,
   getLeagueMessages,
   getRounds,
   getMySubmissions,
-  getLeagueSnapshot,
+  getNotifications,
   League as ApiLeague,
   Round,
   MySubmission,
+  AppNotification,
 } from '../../src/services/api';
 import { SharedChat } from '../../src/components/SharedChat';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { pluralize } from '../../src/utils/pluralize';
-import LeagueAvatar from '../../src/components/LeagueAvatar';
 
 type NotifType = 'COMMENT' | 'RESULT' | 'REMINDER' | 'ACTIVITY' | 'SUBMIT';
-type FilterKey = 'ALL' | 'RESULTS' | 'REMINDER' | 'ACTIVITY' | 'SUBMIT';
 
 interface Notif {
   id: string;
@@ -45,23 +42,13 @@ interface Notif {
   roundId?: string;
 }
 
-const TYPE_COLORS: Record<NotifType, string> = {
-  COMMENT: '#3B82F6',
-  RESULT: '#F59E0B',
-  REMINDER: '#EF4444',
-  ACTIVITY: '#10B981',
-  SUBMIT: '#7C3AED',
-};
-
-const FILTER_TABS: { key: FilterKey; label: string }[] = [
-  { key: 'ALL', label: 'ALL' },
-  { key: 'RESULTS', label: 'RESULTS' },
-  { key: 'REMINDER', label: 'REMINDER' },
-  { key: 'ACTIVITY', label: 'ACTIVITY' },
-  { key: 'SUBMIT', label: 'SUBMIT' },
+const CATEGORIES = [
+  { key: 'follows', label: 'New followers', icon: 'people' as const, color: '#3B82F6' },
+  { key: 'results', label: 'Round results', icon: 'trophy' as const, color: '#F59E0B' },
+  { key: 'reminders', label: 'Reminders', icon: 'alarm' as const, color: '#EF4444' },
+  { key: 'league', label: 'League activity', icon: 'musical-notes' as const, color: '#10B981' },
+  { key: 'system', label: 'System', icon: 'information-circle' as const, color: '#6B7280' },
 ];
-
-const NOTIF_PERSIST_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
 
 function parseTs(s?: string | null): number {
   if (!s) return 0;
@@ -69,23 +56,8 @@ function parseTs(s?: string | null): number {
   return isNaN(t) ? 0 : t;
 }
 
-function relativeTime(ts: number): string {
-  const diff = Date.now() - ts;
-  if (diff < 60_000) return 'now';
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m`;
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h`;
-  if (diff < 7 * 86_400_000) return `${Math.floor(diff / 86_400_000)}d`;
-  const d = new Date(ts);
-  return `${d.toLocaleString('en-US', { month: 'short' })} ${d.getDate()}`;
-}
-
-// Per-spec cache key — user-scoped so each account has its own photo copy.
-// The photo stays cached after the league is deleted so notifications still
-// show the correct thumbnail during the 3-day persistence window.
 const leaguePhotoKey = (userId: string, leagueId: string) =>
   `league_image_${userId}_${leagueId}`;
-const notifCacheKey = (userId: string) => `inbox_notifs_${userId}`;
-const dismissedKey = (userId: string) => `inbox_dismissed_${userId}`;
 
 async function cacheLeaguePhoto(userId: string, leagueId: string, photo?: string | null) {
   if (!userId || !leagueId || !photo) return;
@@ -93,67 +65,19 @@ async function cacheLeaguePhoto(userId: string, leagueId: string, photo?: string
     await AsyncStorage.setItem(leaguePhotoKey(userId, leagueId), photo);
   } catch {}
 }
-async function getCachedLeaguePhoto(userId: string, leagueId: string): Promise<string | undefined> {
-  try {
-    const v = await AsyncStorage.getItem(leaguePhotoKey(userId, leagueId));
-    return v || undefined;
-  } catch {
-    return undefined;
-  }
-}
 
 export default function InboxScreen() {
   const { user } = useAuth();
   const router = useRouter();
 
   const [notifs, setNotifs] = useState<Notif[]>([]);
+  const [serverNotifs, setServerNotifs] = useState<AppNotification[]>([]);
   const [leaguesList, setLeaguesList] = useState<ApiLeague[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeLeague, setActiveLeague] = useState<ApiLeague | null>(null);
-  const [filter, setFilter] = useState<FilterKey>('ALL');
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const lastFetchTime = useRef<number>(0);
   const dataLoaded = useRef(false);
-
-  // Load dismissed IDs on user change
-  useEffect(() => {
-    if (!user?.id) return;
-    (async () => {
-      try {
-        const raw = await AsyncStorage.getItem(dismissedKey(user.id));
-        if (raw) setDismissed(new Set(JSON.parse(raw)));
-      } catch {}
-    })();
-  }, [user?.id]);
-
-  // Seed notifs from the persisted cache so a returning user skips the
-  // cold-launch spinner. fetchAll still runs on focus and re-merges with
-  // this cache (it reads/writes the same key), so seeding is purely
-  // additive — the spinner branch only triggers on a genuine first-ever
-  // launch with nothing cached.
-  useEffect(() => {
-    if (!user?.id) return;
-    (async () => {
-      try {
-        const raw = await AsyncStorage.getItem(notifCacheKey(user.id));
-        if (raw) {
-          const parsed: Notif[] = JSON.parse(raw);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setNotifs(parsed);
-            dataLoaded.current = true;
-          }
-        }
-      } catch {}
-    })();
-  }, [user?.id]);
-
-  const persistDismissed = async (next: Set<string>) => {
-    if (!user?.id) return;
-    try {
-      await AsyncStorage.setItem(dismissedKey(user.id), JSON.stringify([...next]));
-    } catch {}
-  };
 
   const fetchAll = async () => {
     lastFetchTime.current = Date.now();
@@ -221,7 +145,7 @@ export default function InboxScreen() {
                   leagueName: league.name,
                   leagueImage: league.league_image || undefined,
                   roundInfo: `Round ${r.round_number}`,
-                  message: `${r.status === 'submission' ? 'Submission' : 'Voting'} closes in ${pluralize(hours, 'hour')} — don\u2019t miss out`,
+                  message: `${r.status === 'submission' ? 'Submission' : 'Voting'} closes in ${pluralize(hours, 'hour')} — don’t miss out`,
                   timestamp: Date.now() - 1000,
                   onTap: 'round',
                   roundId: r.id,
@@ -239,7 +163,7 @@ export default function InboxScreen() {
                     leagueImage: league.league_image || undefined,
                     roundInfo: `Round ${r.round_number}`,
                     message: (r.theme || '').trim()
-                      ? `New round in ${league.name}: \u201C${(r.theme || '').trim()}\u201D`
+                      ? `New round in ${league.name}: “${(r.theme || '').trim()}”`
                       : `Submit a song to ${league.name}`,
                     timestamp: createdTs,
                     onTap: 'round',
@@ -263,65 +187,22 @@ export default function InboxScreen() {
           leagueName: sub.league_name,
           leagueImage: sub.league_image || undefined,
           roundInfo: `Round ${sub.round_number}`,
-          message: `You earned ${pluralize(sub.points ?? 0, 'point')} on \u201C${sub.song?.title ?? 'your song'}\u201D`,
+          message: `You earned ${pluralize(sub.points ?? 0, 'point')} on “${sub.song?.title ?? 'your song'}”`,
           timestamp: ts,
           onTap: 'round',
           roundId: sub.round_id,
         });
       }
 
-      // Merge with persisted cache. When a league is deleted by the creator
-      // we want its notifications gone immediately — drop any cached notif
-      // whose league no longer appears in the user's active league list.
-      let cached: Notif[] = [];
-      if (user?.id) {
-        try {
-          const raw = await AsyncStorage.getItem(notifCacheKey(user.id));
-          if (raw) cached = JSON.parse(raw);
-        } catch {}
-      }
+      items.sort((a, b) => b.timestamp - a.timestamp);
+      setNotifs(items);
 
-      const activeLeagueIds = new Set(leagueList.map(l => l.id));
-      const byId = new Map<string, Notif>();
-      // Fresh items take precedence (they have most recent data).
-      for (const it of items) byId.set(it.id, it);
-      // Cached items stay only if they're still within 3 days AND the
-      // originating league hasn't been deleted.
-      const cutoff = Date.now() - NOTIF_PERSIST_MS;
-      for (const c of cached) {
-        if (!byId.has(c.id) && c.timestamp >= cutoff && activeLeagueIds.has(c.leagueId)) {
-          byId.set(c.id, c);
-        }
-      }
-
-      // Hydrate thumbnails: prefer cached local photo, then fall back to the
-      // server's durable league_snapshots record so deleted/never-seen
-      // leagues still show their actual image instead of a question mark.
-      const merged = [...byId.values()];
-      if (user?.id) {
-        await Promise.all(merged.map(async (n) => {
-          if (n.leagueImage) return;
-          const p = await getCachedLeaguePhoto(user.id, n.leagueId);
-          if (p) { n.leagueImage = p; return; }
-          try {
-            const snap = await getLeagueSnapshot(n.leagueId);
-            if (snap.data?.league_image) {
-              n.leagueImage = snap.data.league_image;
-              cacheLeaguePhoto(user.id, n.leagueId, snap.data.league_image);
-            }
-          } catch {}
-        }));
-      }
-
-      merged.sort((a, b) => b.timestamp - a.timestamp);
-      setNotifs(merged);
-
-      // Persist the merged list back to AsyncStorage for next launch.
-      if (user?.id) {
-        try {
-          const toStore = merged.filter(m => m.timestamp >= cutoff).slice(0, 100);
-          await AsyncStorage.setItem(notifCacheKey(user.id), JSON.stringify(toStore));
-        } catch {}
+      // Fetch server notifications
+      try {
+        const notifRes = await getNotifications();
+        setServerNotifs(notifRes.data?.data?.notifications ?? []);
+      } catch {
+        setServerNotifs([]);
       }
     } catch (err) {
       console.error('Failed to build inbox:', err);
@@ -361,24 +242,41 @@ export default function InboxScreen() {
     }
   };
 
-  const handleDismiss = (n: Notif) => {
-    // Remove from the displayed list and persist the dismissal so the notif
-    // doesn't reappear on next fetch.
-    const next = new Set(dismissed);
-    next.add(n.id);
-    setDismissed(next);
-    persistDismissed(next);
+  const categoryData = useMemo(() => {
+    return CATEGORIES.map(cat => {
+      let feedItems: { message: string; timestamp: number }[] = [];
 
-    setNotifs(prev => {
-      const updated = prev.filter(p => p.id !== n.id);
-      if (user?.id) {
-        const cutoff = Date.now() - NOTIF_PERSIST_MS;
-        const toStore = updated.filter(m => m.timestamp >= cutoff).slice(0, 100);
-        AsyncStorage.setItem(notifCacheKey(user.id), JSON.stringify(toStore)).catch(() => {});
+      if (cat.key === 'follows') {
+        feedItems = serverNotifs
+          .filter(n => n.category === 'follows')
+          .map(n => ({ message: n.body, timestamp: parseTs(n.created_at) }));
+      } else if (cat.key === 'results') {
+        feedItems = notifs
+          .filter(n => n.type === 'RESULT')
+          .map(n => ({ message: n.message, timestamp: n.timestamp }));
+      } else if (cat.key === 'reminders') {
+        feedItems = notifs
+          .filter(n => n.type === 'REMINDER' || n.type === 'SUBMIT')
+          .map(n => ({ message: n.message, timestamp: n.timestamp }));
+      } else if (cat.key === 'league') {
+        feedItems = notifs
+          .filter(n => n.type === 'COMMENT')
+          .map(n => ({ message: n.message, timestamp: n.timestamp }));
+      } else if (cat.key === 'system') {
+        feedItems = serverNotifs
+          .filter(n => n.category === 'system')
+          .map(n => ({ message: n.body, timestamp: parseTs(n.created_at) }));
       }
-      return updated;
+
+      feedItems.sort((a, b) => b.timestamp - a.timestamp);
+
+      return {
+        ...cat,
+        count: feedItems.length,
+        preview: feedItems[0]?.message || 'No activity yet',
+      };
     });
-  };
+  }, [notifs, serverNotifs]);
 
   if (activeLeague) {
     return (
@@ -405,123 +303,42 @@ export default function InboxScreen() {
     );
   }
 
-  // Apply dismiss + filter
-  const visibleNotifs = notifs
-    .filter(n => !dismissed.has(n.id))
-    .filter(n => {
-      if (filter === 'ALL') return true;
-      if (filter === 'RESULTS') return n.type === 'RESULT';
-      return n.type === filter;
-    });
-
-  const renderRightActions = (progress: Animated.AnimatedInterpolation<number>, notif: Notif) => {
-    const translateX = progress.interpolate({
-      inputRange: [0, 1],
-      outputRange: [80, 0],
-      extrapolate: 'clamp',
-    });
-    return (
-      <Animated.View style={[styles.swipeActionWrap, { transform: [{ translateX }] }]}>
-        <TouchableOpacity
-          style={styles.trashBtn}
-          onPress={() => handleDismiss(notif)}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="trash" size={22} color="#FFFFFF" />
-        </TouchableOpacity>
-      </Animated.View>
-    );
-  };
-
-  const renderNotif = ({ item }: { item: Notif }) => (
-    <Swipeable
-      renderRightActions={(p) => renderRightActions(p, item)}
-      rightThreshold={40}
-      friction={2}
-      overshootRight={false}
-    >
-      <TouchableOpacity
-        style={styles.notifCard}
-        onPress={() => handleTap(item)}
-        activeOpacity={0.75}
-      >
-        <View style={styles.notifIcon}>
-          <LeagueAvatar
-            image={item.leagueImage}
-            name={item.leagueName}
-            size={40}
-            imageBorderRadius={8}
-          />
-        </View>
-        <View style={styles.notifBody}>
-          <View style={styles.notifTopLine}>
-            <Text style={[styles.notifType, { color: TYPE_COLORS[item.type] }]} numberOfLines={1}>
-              {item.type}
-              <Text style={styles.notifMeta}>
-                {` · ${item.leagueName}`}
-                {item.roundInfo ? ` · ${item.roundInfo}` : ''}
-              </Text>
-            </Text>
-            <Text style={styles.notifTime}>{relativeTime(item.timestamp)}</Text>
-          </View>
-          <Text style={styles.notifMessage} numberOfLines={2}>
-            {item.message}
-          </Text>
-        </View>
-      </TouchableOpacity>
-    </Swipeable>
-  );
-
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.header}>
-          <Text style={styles.title}>INBOX</Text>
-          <Text style={styles.count}>{pluralize(visibleNotifs.length, 'item')}</Text>
-        </View>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.header}>
+        <Text style={styles.title}>INBOX</Text>
+      </View>
 
-        {/* Filter tabs */}
-        <View style={styles.filterRow}>
-          {FILTER_TABS.map((item) => {
-            const active = filter === item.key;
-            return (
-              <TouchableOpacity
-                key={item.key}
-                style={[styles.filterTab, active && styles.filterTabActive]}
-                onPress={() => setFilter(item.key)}
-                activeOpacity={0.75}
-              >
-                <Text
-                  style={[styles.filterTabText, active && styles.filterTabTextActive]}
-                  numberOfLines={1}
-                >
-                  {item.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {visibleNotifs.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="mail-outline" size={64} color="#7C3AED" />
-            <Text style={styles.emptyTitle}>Nothing here yet</Text>
-            <Text style={styles.emptyText}>
-              Notifications about your leagues — rounds, votes, results, and chat — will show up here.
-            </Text>
-          </View>
-        ) : (
-          <FlatList
-            data={visibleNotifs}
-            keyExtractor={(item) => item.id}
-            renderItem={renderNotif}
-            contentContainerStyle={styles.listContent}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#7C3AED" />}
-            showsVerticalScrollIndicator={false}
-          />
-        )}
-      </SafeAreaView>
-    </GestureHandlerRootView>
+      <ScrollView
+        contentContainerStyle={styles.listContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#7C3AED" />}
+        showsVerticalScrollIndicator={false}
+      >
+        {categoryData.map(cat => (
+          <TouchableOpacity
+            key={cat.key}
+            style={styles.categoryRow}
+            onPress={() => {}}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.categoryIcon, { backgroundColor: cat.color }]}>
+              <Ionicons name={cat.icon} size={24} color="#FFFFFF" />
+            </View>
+            <View style={styles.categoryBody}>
+              <Text style={styles.categoryLabel}>{cat.label}</Text>
+              <Text style={styles.categoryPreview} numberOfLines={1}>
+                {cat.preview}
+              </Text>
+            </View>
+            {cat.count > 0 && (
+              <View style={styles.countBadge}>
+                <Text style={styles.countText}>{cat.count}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -541,116 +358,53 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: 1,
   },
-  count: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#B3B3B3',
-    marginBottom: 4,
-  },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-
-  // ── Filter tabs ──
-  filterRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 12,
-    paddingBottom: 10,
-    gap: 6,
-  },
-  filterTab: {
-    flex: 1,
-    paddingHorizontal: 4,
-    paddingVertical: 7,
-    borderRadius: 14,
-    backgroundColor: '#1a1a1a',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  filterTabActive: {
-    backgroundColor: '#7C3AED',
-    borderColor: '#7C3AED',
-  },
-  filterTabText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#B3B3B3',
-    letterSpacing: 0.3,
-  },
-  filterTabTextActive: {
-    color: '#FFFFFF',
-  },
-
   listContent: {
     paddingHorizontal: 16,
     paddingBottom: 24,
   },
-  notifCard: {
+  categoryRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#1a1a1a',
     borderRadius: 12,
     padding: 14,
     marginBottom: 10,
+  },
+  categoryIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  notifIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  notifBody: {
+  categoryBody: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 14,
   },
-  notifTopLine: {
-    flexDirection: 'row',
+  categoryLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  categoryPreview: {
+    fontSize: 13,
+    color: '#8E8E93',
+    marginTop: 2,
+  },
+  countBadge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#7C3AED',
     alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  notifType: {
-    flex: 1,
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.6,
-  },
-  notifMeta: {
-    fontWeight: '500',
-    color: '#B3B3B3',
-    letterSpacing: 0,
-    fontSize: 11,
-  },
-  notifTime: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: '#6A6A6A',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
     marginLeft: 8,
   },
-  notifMessage: {
-    fontSize: 14,
-    fontWeight: '600',
+  countText: {
+    fontSize: 12,
+    fontWeight: '700',
     color: '#FFFFFF',
-    marginTop: 4,
-    lineHeight: 19,
   },
-
-  // ── Swipe trash action ──
-  swipeActionWrap: {
-    justifyContent: 'center',
-    alignItems: 'flex-end',
-    paddingRight: 16,
-    marginBottom: 10,
-  },
-  trashBtn: {
-    width: 60,
-    height: '100%',
-    backgroundColor: '#EF4444',
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 },
-  emptyTitle: { fontSize: 22, fontWeight: '700', color: '#FFFFFF', marginTop: 16 },
-  emptyText: { fontSize: 14, color: '#B3B3B3', textAlign: 'center', marginTop: 8, lineHeight: 20 },
 });
