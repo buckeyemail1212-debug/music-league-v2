@@ -14,6 +14,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '../../src/context/AuthContext';
 import { getLeaderboard, LeaderboardEntry } from '../../src/services/api';
 import { apiCache } from '../../src/services/apiCache';
+import Skeleton from '../../src/components/Skeleton';
 
 type Scope = 'all' | 'following' | 'friends';
 
@@ -126,8 +127,14 @@ export default function LeaderboardScreen() {
       </TouchableOpacity>
 
       {entries === null ? (
-        <View style={styles.centerState}>
-          <Text style={styles.loadingText}>Loading…</Text>
+        <View>
+          {Array.from({ length: 10 }, (_, i) => (
+            <View key={i} style={styles.row}>
+              <Skeleton width={20} height={16} borderRadius={4} />
+              <Skeleton width={40} height={40} borderRadius={20} />
+              <Skeleton width="60%" height={14} borderRadius={6} />
+            </View>
+          ))}
         </View>
       ) : entries.length === 0 ? (
         <View style={styles.centerState}>
