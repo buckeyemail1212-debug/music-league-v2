@@ -810,7 +810,45 @@ class ChatStatusResponse(BaseModel):
     has_unread: bool
     last_message_at: Optional[datetime] = None
 
+class NotificationOut(BaseModel):
+    id: str
+    user_id: str
+    type: str
+    category: str
+    title: str
+    body: str
+    actor_id: Optional[str] = None
+    ref_id: Optional[str] = None
+    created_at: datetime
+    read: bool = False
+
 # ==================== HELPER FUNCTIONS ====================
+
+async def create_notification(
+    user_id: str,
+    type: str,
+    category: str,
+    title: str,
+    body: str,
+    actor_id: Optional[str] = None,
+    ref_id: Optional[str] = None,
+) -> None:
+    """Insert a notification for a user. Fire-and-forget style — callers
+    should not depend on the return. category is one of:
+    'follows' | 'results' | 'reminders' | 'league' | 'system'."""
+    doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "type": type,
+        "category": category,
+        "title": title,
+        "body": body,
+        "actor_id": actor_id,
+        "ref_id": ref_id,
+        "created_at": datetime.now(timezone.utc),
+        "read": False,
+    }
+    await db.notifications.insert_one(doc)
 
 # Timezone mapping for "same clock time" calculations
 TIMEZONE_MAP = {
@@ -7406,6 +7444,17 @@ async def get_chat_status(league_id: str, current_user: dict = Depends(get_curre
     
     return ChatStatusResponse(has_unread=has_unread, last_message_at=last_message_at)
 
+@api_router.get("/notifications")
+async def get_notifications(current_user: dict = Depends(get_current_user)):
+    """Return the current user's notifications, newest first."""
+    me_id = current_user["id"]
+    rows = await (
+        db.notifications.find({"user_id": me_id}, {"_id": 0})
+        .sort("created_at", -1)
+        .to_list(length=100)
+    )
+    return {"data": {"notifications": rows}}
+
 # ==================== ROOT ENDPOINT ====================
 
 @api_router.get("/")
@@ -8238,6 +8287,13 @@ async def past_leagues_startup_maintenance():
         )
     except Exception as e:
         logger.warning(f"story_views index creation failed: {e}")
+    try:
+        await db.notifications.create_index(
+            [("user_id", 1), ("created_at", -1)],
+            name="notifications_user_created",
+        )
+    except Exception as e:
+        logger.warning(f"notifications index creation failed: {e}")
     # One-time genre backfill for public leagues created before the field
     # existed. Writes "General" for any public league missing or with a
     # blank genre; leaves private leagues alone.
