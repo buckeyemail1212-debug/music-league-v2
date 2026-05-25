@@ -18,6 +18,7 @@ from dateutil.relativedelta import relativedelta
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 import asyncio
+import math
 import time
 import httpx
 import requests as _requests
@@ -1963,23 +1964,18 @@ async def get_user_taste(current_user: dict = Depends(get_current_user)):
     return {"total": total, "breakdown": breakdown}
 
 
-@api_router.get("/auth/submissions")
-async def get_my_submissions(current_user: dict = Depends(get_current_user)):
-    """Return the current user's submissions across all leagues, newest first, with league/round info and points earned."""
+async def _build_my_submissions(current_user: dict) -> list:
+    """Shared helper: build the current user's submission list with points/ranking."""
     user_id = current_user["id"]
     cleared_at = _effective_cleared_at(current_user)
 
-    # Hide submissions dated before the user's clear-data cutoff so My
-    # Game's Recent Submissions honors the "fresh slate" intent. Raw
-    # rows stay in db.submissions so other members' standings aren't
-    # affected.
     sub_query: dict = {"user_id": user_id}
     if cleared_at:
         sub_query["submitted_at"] = {"$gt": cleared_at}
 
     submissions = await db.submissions.find(sub_query).sort("submitted_at", -1).to_list(500)
     if not submissions:
-        return {"submissions": []}
+        return []
 
     round_ids = list({s["round_id"] for s in submissions})
     rounds = await db.rounds.find({"id": {"$in": round_ids}}).to_list(500)
@@ -1994,9 +1990,6 @@ async def get_my_submissions(current_user: dict = Depends(get_current_user)):
 
     completed_round_ids = [rid for rid, r in rounds_by_id.items() if r.get("status") == "completed"]
     points_by_sub_id: dict[str, int] = {}
-    # Per-round: sorted submission ids by points desc so we can compute
-    # standard competition rank (1, 2, 2, 4). total_subs_by_round is the
-    # "of N" denominator in "3rd of 8".
     sub_rank_by_id: dict[str, int] = {}
     total_subs_by_round: dict[str, int] = {}
     if completed_round_ids:
@@ -2053,8 +2046,6 @@ async def get_my_submissions(current_user: dict = Depends(get_current_user)):
             for sid, p in pts.items():
                 points_by_sub_id[sid] = p
 
-            # Standard competition ranking: ties share a rank, the next
-            # rank skips by the tie size. Sort once by points desc.
             ordered = sorted(pts.items(), key=lambda kv: -kv[1])
             last_points: Optional[int] = None
             last_rank = 0
@@ -2070,9 +2061,6 @@ async def get_my_submissions(current_user: dict = Depends(get_current_user)):
         if not r:
             continue
         league = leagues_by_id.get(r["league_id"], {})
-        # league_status is derived, not raw. "deleted" wins over the
-        # stored status when deleted_at is set — the frontend uses this
-        # to decide whether to render the "League deleted" label.
         if league.get("deleted_at"):
             league_status = "deleted"
         else:
@@ -2080,10 +2068,6 @@ async def get_my_submissions(current_user: dict = Depends(get_current_user)):
 
         round_status = r.get("status")
         is_round_completed = round_status == "completed"
-        # Points/placement are only meaningful if the round actually
-        # finished scoring. For a deleted league whose round was mid-
-        # flight at deletion, round_status stays at submission/voting
-        # and these fields correctly stay null.
         points_earned = points_by_sub_id.get(s["id"]) if is_round_completed else None
         placement = sub_rank_by_id.get(s["id"]) if is_round_completed else None
         total_in_round = total_subs_by_round.get(r["id"]) if is_round_completed else None
@@ -2100,14 +2084,18 @@ async def get_my_submissions(current_user: dict = Depends(get_current_user)):
             "league_name": league.get("name", ""),
             "league_image": league.get("league_image"),
             "league_status": league_status,
-            # Legacy field, kept for older clients. New code should use
-            # points_earned.
             "points": points_earned,
             "points_earned": points_earned,
             "placement": placement,
             "total_submissions_in_round": total_in_round,
         })
-    return {"submissions": result}
+    return result
+
+
+@api_router.get("/auth/submissions")
+async def get_my_submissions(current_user: dict = Depends(get_current_user)):
+    """Return the current user's submissions across all leagues, newest first, with league/round info and points earned."""
+    return {"submissions": await _build_my_submissions(current_user)}
 
 async def _propagate_username_change(user_id: str, new_username: str) -> None:
     """
@@ -7562,6 +7550,200 @@ async def get_notifications(current_user: dict = Depends(get_current_user)):
         .to_list(length=100)
     )
     return {"data": {"notifications": rows}}
+
+
+@api_router.get("/inbox/feed")
+async def get_inbox_feed(current_user: dict = Depends(get_current_user)):
+    me_id = current_user["id"]
+    now = datetime.now(timezone.utc)
+    now_ms = int(now.timestamp() * 1000)
+
+    def _dt_to_ms(dt) -> int:
+        if dt is None:
+            return 0
+        if isinstance(dt, str):
+            try:
+                dt = datetime.fromisoformat(dt.replace('Z', '+00:00'))
+            except Exception:
+                return 0
+        dt = ensure_utc(dt)
+        return int(dt.timestamp() * 1000)
+
+    leagues = await db.leagues.find(
+        {
+            "members.id": me_id,
+            "$or": [{"deleted_at": {"$exists": False}}, {"deleted_at": None}],
+        },
+        {"_id": 0, "id": 1, "name": 1, "league_image": 1},
+    ).to_list(100)
+    league_map = {l["id"]: l for l in leagues}
+    league_ids = list(league_map.keys())
+
+    if not league_ids:
+        subs = await _build_my_submissions(current_user)
+        result_items = []
+        for sub in subs:
+            if sub.get("round_status") != "completed":
+                continue
+            pts = sub.get("points")
+            if pts is None:
+                continue
+            song_title = (sub.get("song") or {}).get("title") or "your song"
+            pts_label = "point" if pts == 1 else "points"
+            result_items.append({
+                "id": f"res-{sub['submission_id']}",
+                "type": "RESULT",
+                "leagueId": sub.get("league_id", ""),
+                "leagueName": sub.get("league_name", ""),
+                "leagueImage": sub.get("league_image"),
+                "roundId": sub.get("round_id"),
+                "roundInfo": f"Round {sub.get('round_number', '')}",
+                "message": f'You earned {pts} {pts_label} on "{song_title}"',
+                "timestamp": _dt_to_ms(sub.get("submitted_at")),
+                "onTap": "round",
+            })
+        result_items.sort(key=lambda x: x["timestamp"], reverse=True)
+        return {"data": {"items": result_items}}
+
+    items: list[dict] = []
+
+    # COMMENT items — latest other-user message per league
+    all_messages = await db.messages.find(
+        {"league_id": {"$in": league_ids}, "user_id": {"$ne": me_id}},
+        {"_id": 0, "id": 1, "league_id": 1, "user_id": 1, "username": 1, "content": 1, "created_at": 1},
+    ).sort("created_at", -1).to_list(5000)
+
+    seen_leagues: set[str] = set()
+    for msg in all_messages:
+        lid = msg["league_id"]
+        if lid in seen_leagues:
+            continue
+        seen_leagues.add(lid)
+        league = league_map.get(lid)
+        if not league:
+            continue
+        items.append({
+            "id": f"msg-{msg['id']}",
+            "type": "COMMENT",
+            "leagueId": lid,
+            "leagueName": league.get("name", ""),
+            "leagueImage": league.get("league_image"),
+            "message": f"{msg.get('username', '')}: {msg.get('content', '')}",
+            "timestamp": _dt_to_ms(msg.get("created_at")),
+            "onTap": "chat",
+        })
+
+    # REMINDER + SUBMIT items
+    all_rounds = await db.rounds.find(
+        {"league_id": {"$in": league_ids}},
+        {"_id": 0, "id": 1, "league_id": 1, "round_number": 1, "status": 1,
+         "theme": 1, "created_at": 1, "submission_deadline": 1, "voting_deadline": 1},
+    ).to_list(1000)
+
+    all_round_ids = [r["id"] for r in all_rounds]
+
+    has_submitted: set[str] = set()
+    has_voted: set[str] = set()
+    if all_round_ids:
+        sub_docs, vote_docs = await asyncio.gather(
+            db.submissions.find(
+                {"round_id": {"$in": all_round_ids}, "user_id": me_id},
+                {"_id": 0, "round_id": 1},
+            ).to_list(1000),
+            db.votes.find(
+                {"round_id": {"$in": all_round_ids}, "voter_id": me_id},
+                {"_id": 0, "round_id": 1},
+            ).to_list(1000),
+        )
+        has_submitted = {d["round_id"] for d in sub_docs}
+        has_voted = {d["round_id"] for d in vote_docs}
+
+    for r in all_rounds:
+        league = league_map.get(r["league_id"])
+        if not league:
+            continue
+
+        eff_status = r.get("status")
+        sub_deadline = ensure_utc(r.get("submission_deadline")) if r.get("submission_deadline") else None
+        vote_deadline = ensure_utc(r.get("voting_deadline")) if r.get("voting_deadline") else None
+
+        if eff_status == "submission" and sub_deadline and sub_deadline < now:
+            eff_status = "voting"
+        if eff_status == "voting" and vote_deadline and vote_deadline < now:
+            eff_status = "completed"
+
+        if eff_status not in ("submission", "voting"):
+            continue
+
+        deadline = sub_deadline if eff_status == "submission" else vote_deadline
+        if not deadline:
+            continue
+
+        diff = deadline - now
+        diff_secs = diff.total_seconds()
+        user_acted = (r["id"] in has_submitted) if eff_status == "submission" else (r["id"] in has_voted)
+
+        if diff_secs > 0 and diff_secs < 86400 and not user_acted:
+            hours = math.ceil(diff_secs / 3600)
+            hour_label = "hour" if hours == 1 else "hours"
+            phase = "Submission" if eff_status == "submission" else "Voting"
+            items.append({
+                "id": f"rem-{r['id']}-{eff_status}",
+                "type": "REMINDER",
+                "leagueId": r["league_id"],
+                "leagueName": league.get("name", ""),
+                "leagueImage": league.get("league_image"),
+                "roundId": r["id"],
+                "roundInfo": f"Round {r.get('round_number', '')}",
+                "message": f"{phase} closes in {hours} {hour_label} - don't miss out",
+                "timestamp": now_ms - 1000,
+                "onTap": "round",
+            })
+
+        if eff_status == "submission" and r["id"] not in has_submitted:
+            created_ms = _dt_to_ms(r.get("created_at"))
+            if created_ms and (now_ms - created_ms) < 2 * 86_400_000:
+                theme = (r.get("theme") or "").strip()
+                league_name = league.get("name", "")
+                msg = f'New round in {league_name}: "{theme}"' if theme else f"Submit a song to {league_name}"
+                items.append({
+                    "id": f"sub-{r['id']}",
+                    "type": "SUBMIT",
+                    "leagueId": r["league_id"],
+                    "leagueName": league_name,
+                    "leagueImage": league.get("league_image"),
+                    "roundId": r["id"],
+                    "roundInfo": f"Round {r.get('round_number', '')}",
+                    "message": msg,
+                    "timestamp": created_ms,
+                    "onTap": "round",
+                })
+
+    # RESULT items from completed submissions
+    subs = await _build_my_submissions(current_user)
+    for sub in subs:
+        if sub.get("round_status") != "completed":
+            continue
+        pts = sub.get("points")
+        if pts is None:
+            continue
+        song_title = (sub.get("song") or {}).get("title") or "your song"
+        pts_label = "point" if pts == 1 else "points"
+        items.append({
+            "id": f"res-{sub['submission_id']}",
+            "type": "RESULT",
+            "leagueId": sub.get("league_id", ""),
+            "leagueName": sub.get("league_name", ""),
+            "leagueImage": sub.get("league_image"),
+            "roundId": sub.get("round_id"),
+            "roundInfo": f"Round {sub.get('round_number', '')}",
+            "message": f'You earned {pts} {pts_label} on "{song_title}"',
+            "timestamp": _dt_to_ms(sub.get("submitted_at")),
+            "onTap": "round",
+        })
+
+    items.sort(key=lambda x: x["timestamp"], reverse=True)
+    return {"data": {"items": items}}
 
 # ==================== DIRECT MESSAGE ENDPOINTS ====================
 
