@@ -7696,7 +7696,7 @@ async def get_inbox_feed(current_user: dict = Depends(get_current_user)):
                 "roundId": r["id"],
                 "roundInfo": f"Round {r.get('round_number', '')}",
                 "message": f"{phase} closes in {hours} {hour_label} - don't miss out",
-                "timestamp": now_ms - 1000,
+                "timestamp": _dt_to_ms(deadline),
                 "onTap": "round",
             })
 

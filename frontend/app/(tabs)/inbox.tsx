@@ -26,6 +26,7 @@ import {
   InboxFeedItem,
 } from '../../src/services/api';
 import { apiCache } from '../../src/services/apiCache';
+import { getCategoryViews, markCategoryViewed } from '../../src/services/inboxReadState';
 import { setPendingInboxCategory, InboxCategoryItem } from '../../src/services/pendingInboxCategory';
 
 const CATEGORIES = [
@@ -69,6 +70,7 @@ export default function InboxScreen() {
   const [loading, setLoading] = useState(
     () => !apiCache.getStale(`inbox-notifs:${userId}`)
   );
+  const [categoryViews, setCategoryViews] = useState<Record<string, number>>({});
   const [refreshing, setRefreshing] = useState(false);
   const lastFetchTime = useRef<number>(0);
   const dataLoaded = useRef(false);
@@ -111,6 +113,7 @@ export default function InboxScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      getCategoryViews(userId).then(setCategoryViews);
       if (Date.now() - lastFetchTime.current > 30000) {
         fetchAll();
       }
@@ -158,7 +161,7 @@ export default function InboxScreen() {
     }
   };
 
-  const handleCategoryPress = (catKey: string, catLabel: string) => {
+  const handleCategoryPress = async (catKey: string, catLabel: string) => {
     let items: InboxCategoryItem[] = [];
 
     if (catKey === 'follows') {
@@ -215,6 +218,8 @@ export default function InboxScreen() {
 
     items.sort((a, b) => b.timestamp - a.timestamp);
     setPendingInboxCategory({ category: catKey, label: catLabel, items });
+    const updated = await markCategoryViewed(userId, catKey);
+    setCategoryViews(updated);
     router.push('/inbox-category');
   };
 
@@ -251,13 +256,16 @@ export default function InboxScreen() {
         ? (top.leagueName ? `${top.leagueName} — ${top.message}` : top.message)
         : 'No activity yet';
 
+      const lastViewed = categoryViews[cat.key] ?? 0;
+      const count = feedItems.filter(it => it.timestamp > lastViewed).length;
+
       return {
         ...cat,
-        count: feedItems.length,
+        count,
         preview,
       };
     });
-  }, [notifs, serverNotifs]);
+  }, [notifs, serverNotifs, categoryViews]);
 
   if (loading && !dataLoaded.current) {
     return (
