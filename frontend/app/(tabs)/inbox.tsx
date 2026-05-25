@@ -220,7 +220,7 @@ export default function InboxScreen() {
 
   const categoryData = useMemo(() => {
     return CATEGORIES.map(cat => {
-      let feedItems: { message: string; timestamp: number }[] = [];
+      let feedItems: { message: string; timestamp: number; leagueName?: string }[] = [];
 
       if (cat.key === 'follows') {
         feedItems = serverNotifs
@@ -229,15 +229,15 @@ export default function InboxScreen() {
       } else if (cat.key === 'results') {
         feedItems = notifs
           .filter(n => n.type === 'RESULT')
-          .map(n => ({ message: n.message, timestamp: n.timestamp }));
+          .map(n => ({ message: n.message, timestamp: n.timestamp, leagueName: n.leagueName }));
       } else if (cat.key === 'reminders') {
         feedItems = notifs
           .filter(n => n.type === 'REMINDER' || n.type === 'SUBMIT')
-          .map(n => ({ message: n.message, timestamp: n.timestamp }));
+          .map(n => ({ message: n.message, timestamp: n.timestamp, leagueName: n.leagueName }));
       } else if (cat.key === 'league') {
         feedItems = notifs
           .filter(n => n.type === 'COMMENT')
-          .map(n => ({ message: n.message, timestamp: n.timestamp }));
+          .map(n => ({ message: n.message, timestamp: n.timestamp, leagueName: n.leagueName }));
       } else if (cat.key === 'system') {
         feedItems = serverNotifs
           .filter(n => n.category === 'system')
@@ -246,10 +246,15 @@ export default function InboxScreen() {
 
       feedItems.sort((a, b) => b.timestamp - a.timestamp);
 
+      const top = feedItems[0];
+      const preview = top
+        ? (top.leagueName ? `${top.leagueName} — ${top.message}` : top.message)
+        : 'No activity yet';
+
       return {
         ...cat,
         count: feedItems.length,
-        preview: feedItems[0]?.message || 'No activity yet',
+        preview,
       };
     });
   }, [notifs, serverNotifs]);
