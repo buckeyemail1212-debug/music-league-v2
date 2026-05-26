@@ -14,6 +14,7 @@ import {
   ActionSheetIOS,
   Modal,
   FlatList,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -578,54 +579,108 @@ export default function CreateLeaguePage() {
 
           {step === 3 && (
           <>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 }}>
-              <Text style={{ color: '#B3B3B3', fontSize: 13 }}>Photo</Text>
-              <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '600' }}>{photo ? 'Added' : 'None'}</Text>
-            </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 }}>
-              <Text style={{ color: '#B3B3B3', fontSize: 13 }}>Name</Text>
-              <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '600' }}>{name}</Text>
-            </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 }}>
-              <Text style={{ color: '#B3B3B3', fontSize: 13 }}>Genre</Text>
-              <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '600' }}>{trimmedGenre || 'None'}</Text>
-            </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 }}>
-              <Text style={{ color: '#B3B3B3', fontSize: 13 }}>Rounds</Text>
-              <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '600' }}>{rounds}</Text>
-            </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 }}>
-              <Text style={{ color: '#B3B3B3', fontSize: 13 }}>Submission time</Text>
-              <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '600' }}>{submissionHours}h</Text>
-            </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 }}>
-              <Text style={{ color: '#B3B3B3', fontSize: 13 }}>Voting time</Text>
-              <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '600' }}>{votingHours}h</Text>
-            </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 }}>
-              <Text style={{ color: '#B3B3B3', fontSize: 13 }}>Themes</Text>
-              <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '600' }}>{themesOn ? 'On' : 'Off'}</Text>
-            </View>
-            {themesOn && themes.map((t, i) => (
-              <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, paddingLeft: 12 }}>
-                <Text style={{ color: '#B3B3B3', fontSize: 13 }}>R{i + 1}</Text>
-                <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '600', flex: 1, textAlign: 'right', marginLeft: 12 }} numberOfLines={1}>{t.trim() || '(empty)'}</Text>
+            {/* Preview card */}
+            <TouchableOpacity style={styles.previewCard} activeOpacity={0.8} onPress={() => setStep(1)}>
+              {photo ? (
+                <Image source={{ uri: photo }} style={styles.previewCover} />
+              ) : (
+                <View style={styles.previewCoverEmpty}>
+                  <Ionicons name="image-outline" size={32} color={FAINT} />
+                </View>
+              )}
+              <View style={styles.previewBody}>
+                <Text style={styles.previewName}>{name}</Text>
+                {trimmedGenre ? (
+                  <View style={styles.previewGenreChip}>
+                    <View style={styles.previewGenreDot} />
+                    <Text style={styles.previewGenreText}>{trimmedGenre}</Text>
+                  </View>
+                ) : null}
               </View>
-            ))}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 }}>
-              <Text style={{ color: '#B3B3B3', fontSize: 13 }}>Public</Text>
-              <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '600' }}>{isPublic ? 'Yes' : 'No'}</Text>
-            </View>
+            </TouchableOpacity>
+
+            {/* Settings summary */}
+            <Text style={styles.sectionLabel}>SETTINGS</Text>
+
+            <TouchableOpacity style={styles.summaryRow} activeOpacity={0.7} onPress={() => setStep(1)}>
+              <View style={styles.summaryIcon}><Ionicons name="albums-outline" size={18} color={INK} /></View>
+              <View style={styles.summaryContent}>
+                <Text style={styles.summaryLabel}>Rounds</Text>
+                <Text style={styles.summaryValue}>{rounds}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={FAINT} />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.summaryRow} activeOpacity={0.7} onPress={() => setStep(1)}>
+              <View style={styles.summaryIcon}><Ionicons name="cloud-upload-outline" size={18} color={INK} /></View>
+              <View style={styles.summaryContent}>
+                <Text style={styles.summaryLabel}>Submission time</Text>
+                <Text style={styles.summaryValue}>{submissionHours}h</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={FAINT} />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.summaryRow} activeOpacity={0.7} onPress={() => setStep(1)}>
+              <View style={styles.summaryIcon}><Ionicons name="checkbox-outline" size={18} color={INK} /></View>
+              <View style={styles.summaryContent}>
+                <Text style={styles.summaryLabel}>Voting time</Text>
+                <Text style={styles.summaryValue}>{votingHours}h</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={FAINT} />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.summaryRow} activeOpacity={0.7} onPress={() => setStep(1)}>
+              <View style={styles.summaryIcon}><Ionicons name="color-palette-outline" size={18} color={INK} /></View>
+              <View style={styles.summaryContent}>
+                <Text style={styles.summaryLabel}>Themes</Text>
+                <Text style={styles.summaryValue}>{themesOn ? 'On' : 'Off'}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={FAINT} />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.summaryRow} activeOpacity={0.7} onPress={() => setStep(1)}>
+              <View style={styles.summaryIcon}><Ionicons name="globe-outline" size={18} color={INK} /></View>
+              <View style={styles.summaryContent}>
+                <Text style={styles.summaryLabel}>Public</Text>
+                <Text style={styles.summaryValue}>{isPublic ? 'Yes' : 'No'}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={FAINT} />
+            </TouchableOpacity>
+
             {isPublic && (
               <>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 }}>
-                  <Text style={{ color: '#B3B3B3', fontSize: 13 }}>Start first round in</Text>
-                  <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '600' }}>{startsInHours}h</Text>
-                </View>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 }}>
-                  <Text style={{ color: '#B3B3B3', fontSize: 13 }}>Max members</Text>
-                  <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '600' }}>{memberCap}</Text>
-                </View>
+                <TouchableOpacity style={styles.summaryRow} activeOpacity={0.7} onPress={() => setStep(1)}>
+                  <View style={styles.summaryIcon}><Ionicons name="time-outline" size={18} color={INK} /></View>
+                  <View style={styles.summaryContent}>
+                    <Text style={styles.summaryLabel}>Start first round in</Text>
+                    <Text style={styles.summaryValue}>{startsInHours}h</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={FAINT} />
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.summaryRow} activeOpacity={0.7} onPress={() => setStep(1)}>
+                  <View style={styles.summaryIcon}><Ionicons name="people-outline" size={18} color={INK} /></View>
+                  <View style={styles.summaryContent}>
+                    <Text style={styles.summaryLabel}>Max members</Text>
+                    <Text style={styles.summaryValue}>{memberCap}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={FAINT} />
+                </TouchableOpacity>
+              </>
+            )}
+
+            {themesOn && (
+              <>
+                <Text style={styles.sectionLabel}>ROUND THEMES</Text>
+                <TouchableOpacity style={styles.themeSummaryCard} activeOpacity={0.7} onPress={() => setStep(2)}>
+                  {themes.map((t, i) => (
+                    <View key={i} style={[styles.themeSummaryRow, i < themes.length - 1 && styles.themeSummaryRowBorder]}>
+                      <Text style={styles.themeSummaryRound}>Round {i + 1}</Text>
+                      <Text style={styles.themeSummaryText} numberOfLines={1}>{t.trim() || '(empty)'}</Text>
+                      <Ionicons name="chevron-forward" size={16} color={FAINT} />
+                    </View>
+                  ))}
+                </TouchableOpacity>
               </>
             )}
           </>
@@ -1043,6 +1098,117 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 14,
     padding: 0,
+  },
+
+  previewCard: {
+    backgroundColor: CARD_BG,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: HAIRLINE,
+    overflow: 'hidden',
+  },
+  previewCover: {
+    width: '100%',
+    aspectRatio: 2.2,
+    resizeMode: 'cover',
+  } as any,
+  previewCoverEmpty: {
+    width: '100%',
+    aspectRatio: 2.2,
+    backgroundColor: CHIP_BG,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewBody: {
+    padding: 14,
+  },
+  previewName: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: INK,
+  },
+  previewGenreChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: CHIP_BG,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginTop: 8,
+    gap: 6,
+  },
+  previewGenreDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: ACCENT,
+  },
+  previewGenreText: {
+    fontSize: 12,
+    color: MUTED,
+    fontWeight: '600',
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: CARD_BG,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: HAIRLINE,
+    padding: 14,
+    marginBottom: 8,
+  },
+  summaryIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: CHIP_BG,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  summaryContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: MUTED,
+  },
+  summaryValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: INK,
+    marginTop: 1,
+  },
+  themeSummaryCard: {
+    backgroundColor: CARD_BG,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: HAIRLINE,
+    overflow: 'hidden',
+  },
+  themeSummaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+  },
+  themeSummaryRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: HAIRLINE,
+  },
+  themeSummaryRound: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: MUTED,
+    width: 60,
+  },
+  themeSummaryText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: INK,
+    marginRight: 8,
   },
 
   cta: {
