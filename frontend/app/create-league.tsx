@@ -604,7 +604,9 @@ export default function CreateLeaguePage() {
                 <Image source={{ uri: photo }} style={styles.previewCover} />
               ) : (
                 <View style={styles.previewCoverEmpty}>
-                  <Ionicons name="image-outline" size={32} color={FAINT} />
+                  <Text style={styles.previewInitial}>
+                    {name.trim() ? name.trim()[0].toUpperCase() : '?'}
+                  </Text>
                 </View>
               )}
               <View style={styles.previewBody}>
@@ -1128,15 +1130,20 @@ const styles = StyleSheet.create({
   },
   previewCover: {
     width: '100%',
-    aspectRatio: 2.2,
+    aspectRatio: 1,
     resizeMode: 'cover',
   } as any,
   previewCoverEmpty: {
     width: '100%',
-    aspectRatio: 2.2,
-    backgroundColor: CHIP_BG,
+    aspectRatio: 1,
+    backgroundColor: ACCENT,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  previewInitial: {
+    fontSize: 48,
+    fontWeight: '800',
+    color: INK,
   },
   previewBody: {
     padding: 14,
