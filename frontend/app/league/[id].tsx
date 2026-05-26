@@ -544,7 +544,7 @@ export default function LeagueDetailScreen() {
           ? item.submission_deadline
           : item.voting_deadline;
       const timeLeft = deadline ? getTimeRemaining(deadline) : '';
-      statusText = `${item.submissions_count} songs · ${timeLeft}`;
+      statusText = timeLeft;
     }
 
     const onPress = () => {
@@ -604,12 +604,21 @@ export default function LeagueDetailScreen() {
               <Text style={[styles.roundNumberBadgeText, puckTextStyle]}>{item.round_number}</Text>
             </View>
             <View style={styles.roundInfo}>
-              <Text
-                style={[styles.roundThemeSubheader, { color: themeColor }]}
-                numberOfLines={1}
-              >
-                {displayName}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text
+                  style={[styles.roundThemeSubheader, { color: themeColor, flexShrink: 1 }]}
+                  numberOfLines={1}
+                >
+                  {displayName}
+                </Text>
+                {isLive && (
+                  <Text style={styles.roundInlineCount}>
+                    {item.status === 'submission'
+                      ? `${item.submissions_count}/${item.total_members} submitted`
+                      : `${item.votes_count}/${item.total_members} voted`}
+                  </Text>
+                )}
+              </View>
               {isLive && (() => {
                 const userDone = item.status === 'submission'
                   ? !!item.has_user_submitted
@@ -617,21 +626,13 @@ export default function LeagueDetailScreen() {
                 const chipLabel = item.status === 'submission'
                   ? (userDone ? 'SUBMITTED' : 'SUBMIT')
                   : (userDone ? 'VOTED' : 'VOTE');
-                const progressText = item.status === 'submission'
-                  ? `${item.submissions_count}/${item.total_members} submitted`
-                  : `${item.votes_count}/${item.total_members} voted`;
                 return (
-                  <>
-                    <View style={styles.roundLiveChip}>
-                      <View style={[styles.roundLiveDot, userDone && { backgroundColor: '#22C55E' }]} />
-                      <Text style={styles.roundLiveChipText}>
-                        {chipLabel} · {statusText}
-                      </Text>
-                    </View>
-                    <View style={styles.roundProgressChip}>
-                      <Text style={styles.roundProgressChipText}>{progressText}</Text>
-                    </View>
-                  </>
+                  <View style={styles.roundLiveChip}>
+                    <View style={[styles.roundLiveDot, userDone && { backgroundColor: '#22C55E' }]} />
+                    <Text style={styles.roundLiveChipText}>
+                      {chipLabel} · {statusText}
+                    </Text>
+                  </View>
                 );
               })()}
               {!isLive && (
@@ -1251,7 +1252,7 @@ export default function LeagueDetailScreen() {
             </View>
           );
         }
-        const sortedRounds = [...rounds].sort((a, b) => b.round_number - a.round_number);
+        const sortedRounds = [...rounds].sort((a, b) => a.round_number - b.round_number);
         return (
           <ScrollView
             contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 20 }}
@@ -1935,18 +1936,12 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
-  roundProgressChip: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#2A2A2A',
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    marginTop: 4,
-  },
-  roundProgressChipText: {
+  roundInlineCount: {
     fontSize: 11,
+    color: '#6A6A6A',
     fontWeight: '600',
-    color: '#B3B3B3',
+    marginLeft: 8,
+    flexShrink: 0,
   },
   roundTrailingCircle: {
     width: 30,
