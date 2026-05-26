@@ -1,83 +1,121 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Platform, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../src/context/AuthContext';
 import { useInboxData } from '../../src/context/InboxDataContext';
 
+const TAB_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+  home: 'home-outline',
+  discovery: 'headset-outline',
+  leaderboard: 'trophy-outline',
+  inbox: 'chatbubble-outline',
+  profile: 'person-outline',
+};
+
+const VISIBLE_TABS = new Set(Object.keys(TAB_ICONS));
+
+function FloatingTabBar({ state, navigation }: any) {
+  const insets = useSafeAreaInsets();
+  const { totalUnread } = useInboxData();
+
+  return (
+    <View style={[styles.pill, { bottom: insets.bottom + 12 }]}>
+      {state.routes.map((route: any, index: number) => {
+        if (!VISIBLE_TABS.has(route.name)) return null;
+        const active = state.index === index;
+        const iconName = TAB_ICONS[route.name];
+
+        return (
+          <TouchableOpacity
+            key={route.key}
+            style={[styles.tab, active && styles.tabActive]}
+            activeOpacity={0.7}
+            onPress={() => {
+              const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+              if (!event.defaultPrevented && !active) {
+                navigation.navigate(route.name);
+              }
+            }}
+          >
+            <Ionicons name={iconName} size={22} color={active ? '#FFFFFF' : '#6A6A6A'} />
+            {route.name === 'inbox' && totalUnread > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{totalUnread > 99 ? '99+' : totalUnread}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
 export default function TabLayout() {
   const { user } = useAuth();
-  const { totalUnread } = useInboxData();
   return (
     <Tabs
       key={user?.id ?? 'no-user'}
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: {
-          backgroundColor: '#121212',
-          // Subtle top divider line — a hairline that reads as a
-          // separator against the dark background without looking like
-          // a hard border.
-          borderTopWidth: StyleSheet.hairlineWidth,
-          borderTopColor: 'rgba(255,255,255,0.08)',
-          height: Platform.OS === 'ios' ? 84 : 64,
-          paddingBottom: Platform.OS === 'ios' ? 26 : 10,
-          paddingTop: 10,
-          elevation: 0,
-          shadowOpacity: 0,
-        },
-        tabBarActiveTintColor: '#7C3AED',
-        tabBarInactiveTintColor: '#B3B3B3',
-        // Icon-only bar — labels hidden globally. Active state is
-        // signalled by the active/inactive tint colors applied to
-        // the icon itself.
-        tabBarShowLabel: false,
-        tabBarItemStyle: {
-          paddingVertical: 2,
-          paddingHorizontal: 2,
-        },
-      }}
+      tabBar={(props) => <FloatingTabBar {...props} />}
+      screenOptions={{ headerShown: false }}
     >
-      <Tabs.Screen
-        name="home"
-        options={{
-          title: 'HOME',
-          tabBarIcon: ({ color }) => <Ionicons name="home-outline" size={22} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="discovery"
-        options={{
-          title: 'DISCOVER',
-          tabBarIcon: ({ color }) => <Ionicons name="headset-outline" size={22} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="leaderboard"
-        options={{
-          title: 'LEADERBOARD',
-          tabBarIcon: ({ color }) => <Ionicons name="trophy-outline" size={22} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="inbox"
-        options={{
-          title: 'INBOX',
-          tabBarIcon: ({ color }) => <Ionicons name="chatbubble-outline" size={22} color={color} />,
-          tabBarBadge: totalUnread > 0 ? totalUnread : undefined,
-          tabBarBadgeStyle: { backgroundColor: '#EF4444' },
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ color }) => <Ionicons name="person-outline" size={22} color={color} />,
-        }}
-      />
-      {/* add.tsx and join.tsx exist in this directory but must not appear in the tab bar */}
+      <Tabs.Screen name="home" />
+      <Tabs.Screen name="discovery" />
+      <Tabs.Screen name="leaderboard" />
+      <Tabs.Screen name="inbox" />
+      <Tabs.Screen name="profile" />
       <Tabs.Screen name="add" options={{ href: null }} />
       <Tabs.Screen name="join" options={{ href: null }} />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  pill: {
+    position: 'absolute',
+    left: 24,
+    right: 24,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#1a1a1a',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    shadowColor: '#000',
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 12,
+  },
+  tab: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabActive: {
+    backgroundColor: '#2A2A2A',
+  },
+  badge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+});
