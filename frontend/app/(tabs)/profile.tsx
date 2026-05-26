@@ -17,6 +17,7 @@ import StatsTab from '../../src/components/profile-tabs/StatsTab';
 import LeaguesTab from '../../src/components/profile-tabs/LeaguesTab';
 import LikedSongsTab from '../../src/components/profile-tabs/LikedSongsTab';
 import ExpandableImage from '../../src/components/ExpandableImage';
+import { FLOATING_NAV_CLEARANCE } from './_layout';
 
 type TabKey = 'stats' | 'leagues' | 'liked';
 
@@ -202,7 +203,7 @@ function TabIcon({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#121212' },
-  scroll: { paddingBottom: 48 },
+  scroll: { paddingBottom: FLOATING_NAV_CLEARANCE },
 
   topBar: {
     flexDirection: 'row',

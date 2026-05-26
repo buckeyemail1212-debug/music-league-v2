@@ -15,6 +15,7 @@ import { useAuth } from '../../src/context/AuthContext';
 import { getLeaderboard, LeaderboardEntry } from '../../src/services/api';
 import { apiCache } from '../../src/services/apiCache';
 import Skeleton from '../../src/components/Skeleton';
+import { FLOATING_NAV_CLEARANCE } from './_layout';
 
 type Scope = 'all' | 'following' | 'friends';
 
@@ -147,6 +148,7 @@ export default function LeaderboardScreen() {
           keyExtractor={(item) => item.user_id}
           renderItem={renderItem}
           showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: FLOATING_NAV_CLEARANCE }}
         />
       )}
 

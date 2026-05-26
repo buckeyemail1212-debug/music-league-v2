@@ -31,6 +31,7 @@ import {
   subscribeLikedSongs,
   getCachedLikedSongs,
 } from '../../src/utils/likedSongs';
+import { FLOATING_NAV_CLEARANCE } from './_layout';
 
 // Screen-width-dependent sizes (album art, card width, progress track) are
 // computed from `useWindowDimensions()` inside the components below so they
@@ -1107,7 +1108,7 @@ const styles = StyleSheet.create({
 
   // ── Bottom info section ───────────────────────────────────────────────────
   bottomSection: {
-    paddingBottom: 24,
+    paddingBottom: FLOATING_NAV_CLEARANCE,
   },
 
   // Row 1: title + like + skip

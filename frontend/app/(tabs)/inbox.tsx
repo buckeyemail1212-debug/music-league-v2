@@ -20,6 +20,7 @@ import { useInboxData } from '../../src/context/InboxDataContext';
 import { hideConversation, DmConversation, InboxFeedItem } from '../../src/services/api';
 import { markCategoryViewed } from '../../src/services/inboxReadState';
 import { setPendingInboxCategory, InboxCategoryItem } from '../../src/services/pendingInboxCategory';
+import { FLOATING_NAV_CLEARANCE } from './_layout';
 
 const CATEGORIES = [
   { key: 'follows', label: 'New followers', icon: 'people' as const, color: '#3B82F6' },
@@ -345,7 +346,7 @@ const styles = StyleSheet.create({
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   listContent: {
     paddingHorizontal: 16,
-    paddingBottom: 24,
+    paddingBottom: FLOATING_NAV_CLEARANCE,
   },
   categoryRow: {
     flexDirection: 'row',

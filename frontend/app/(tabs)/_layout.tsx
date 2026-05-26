@@ -6,6 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../src/context/AuthContext';
 import { useInboxData } from '../../src/context/InboxDataContext';
 
+export const FLOATING_NAV_CLEARANCE = 110;
+
 const TAB_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   home: 'home-outline',
   discovery: 'headset-outline',
