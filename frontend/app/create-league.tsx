@@ -289,15 +289,21 @@ export default function CreateLeaguePage() {
               onPress={handlePhotoTap}
               style={styles.photoBtn}
             >
-              <LeagueAvatar
-                variant="upload"
-                image={photo}
-                size={88}
-                imageBorderRadius={16}
-              />
-              {photo && (
-                <View style={styles.photoBadge}>
-                  <Ionicons name="camera" size={14} color="#FFFFFF" />
+              {photo ? (
+                <View style={{ position: 'relative' }}>
+                  <LeagueAvatar
+                    variant="upload"
+                    image={photo}
+                    size={108}
+                    imageBorderRadius={54}
+                  />
+                  <View style={styles.photoBadge}>
+                    <Ionicons name="camera" size={14} color={INK} />
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.photoEmpty}>
+                  <Ionicons name="camera-outline" size={32} color={MUTED} />
                 </View>
               )}
             </TouchableOpacity>
@@ -307,11 +313,14 @@ export default function CreateLeaguePage() {
           </View>
 
           {/* Name */}
-          <Text style={styles.label}>League Name</Text>
+          <View style={styles.labelRow}>
+            <Text style={styles.microLabel}>LEAGUE NAME</Text>
+            <Text style={styles.counter}>{name.length}/60</Text>
+          </View>
           <TextInput
-            style={styles.input}
+            style={[styles.input, name.length > 0 && styles.inputActive]}
             placeholder="e.g., Friday Night Vibes"
-            placeholderTextColor="#6A6A6A"
+            placeholderTextColor={FAINT}
             value={name}
             onChangeText={setName}
             maxLength={60}
@@ -320,25 +329,39 @@ export default function CreateLeaguePage() {
 
           {/* Genre */}
           <View style={styles.labelRow}>
-            <Text style={styles.label}>
-              Genre{isPublic ? '' : ' (optional)'}
+            <Text style={styles.microLabel}>
+              GENRE{isPublic ? '' : ' (OPTIONAL)'}
             </Text>
             <Text style={styles.counter}>
-              {genre.length} / {GENRE_MAX_LENGTH}
+              {genre.length}/{GENRE_MAX_LENGTH}
             </Text>
           </View>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g., Indie Rock, 90s Hip-Hop, Chill Vibes"
-            placeholderTextColor="#6A6A6A"
-            value={genre}
-            onChangeText={(v) => {
-              setGenre(v);
-              if (genreError) setGenreError(null);
-            }}
-            maxLength={GENRE_MAX_LENGTH}
-            returnKeyType="done"
-          />
+          {trimmedGenre ? (
+            <View style={[styles.input, styles.inputActive, { flexDirection: 'row', alignItems: 'center' }]}>
+              <View style={styles.genrePill}>
+                <Text style={styles.genrePillText}>{trimmedGenre}</Text>
+                <TouchableOpacity
+                  onPress={() => { setGenre(''); if (genreError) setGenreError(null); }}
+                  hitSlop={8}
+                >
+                  <Ionicons name="close" size={14} color="rgba(255,255,255,0.7)" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <TextInput
+              style={styles.input}
+              placeholder="e.g., Indie Rock, 90s Hip-Hop, Chill Vibes"
+              placeholderTextColor={FAINT}
+              value={genre}
+              onChangeText={(v) => {
+                setGenre(v);
+                if (genreError) setGenreError(null);
+              }}
+              maxLength={GENRE_MAX_LENGTH}
+              returnKeyType="done"
+            />
+          )}
           {genreError && <Text style={styles.inlineError}>{genreError}</Text>}
           </>
           )}
@@ -531,62 +554,49 @@ export default function CreateLeaguePage() {
           </>
           )}
 
-          {step === 1 && (
-            <TouchableOpacity
-              style={[styles.cta, !(name.trim().length > 0 && !genreRequiredMissing) && styles.ctaDisabled]}
-              onPress={() => {
-                if (name.trim().length > 0 && !genreRequiredMissing) setStep(2);
-              }}
-              disabled={!(name.trim().length > 0 && !genreRequiredMissing)}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.ctaText}>NEXT</Text>
-            </TouchableOpacity>
-          )}
-
-          {step === 2 && (
-            <>
+          {/* Primary CTA */}
+          {(() => {
+            const step1Valid = name.trim().length > 0 && !genreRequiredMissing;
+            const disabled = step === 1 ? !step1Valid : step === 3 ? !canSubmit : false;
+            const actionText = step === 1 ? 'Next' : step === 2 ? 'Review' : themesOn ? 'Set round themes' : 'Create league';
+            const hint = step === 1 ? 'Step 1 of 3 · Basics' : step === 2 ? 'Step 2 of 3 · Settings' : 'Step 3 of 3 · Confirm';
+            const onPress = step === 1
+              ? () => { if (step1Valid) setStep(2); }
+              : step === 2
+                ? () => setStep(3)
+                : handleCreate;
+            return (
               <TouchableOpacity
-                style={styles.cta}
-                onPress={() => setStep(3)}
+                style={[styles.cta, disabled && styles.ctaDisabled]}
+                onPress={onPress}
+                disabled={disabled}
                 activeOpacity={0.85}
               >
-                <Text style={styles.ctaText}>REVIEW</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setStep(step - 1)}
-                activeOpacity={0.7}
-                style={{ alignItems: 'center', marginTop: 14 }}
-              >
-                <Text style={{ color: '#B3B3B3', fontWeight: '700', fontSize: 14 }}>Back</Text>
-              </TouchableOpacity>
-            </>
-          )}
-
-          {step === 3 && (
-            <>
-              <TouchableOpacity
-                style={[styles.cta, !canSubmit && styles.ctaDisabled]}
-                onPress={handleCreate}
-                disabled={!canSubmit}
-                activeOpacity={0.85}
-              >
-                {submitting ? (
-                  <ActivityIndicator color="#FFFFFF" />
+                {submitting && step === 3 ? (
+                  <ActivityIndicator color={INK} />
                 ) : (
-                  <Text style={styles.ctaText}>
-                    {themesOn ? 'NEXT — SET ROUND THEMES' : 'CREATE LEAGUE'}
-                  </Text>
+                  <>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.ctaAction}>{actionText}</Text>
+                      <Text style={styles.ctaHint}>{hint}</Text>
+                    </View>
+                    <View style={styles.ctaKnob}>
+                      <Ionicons name="chevron-forward" size={22} color={ACCENT} />
+                    </View>
+                  </>
                 )}
               </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setStep(step - 1)}
-                activeOpacity={0.7}
-                style={{ alignItems: 'center', marginTop: 14 }}
-              >
-                <Text style={{ color: '#B3B3B3', fontWeight: '700', fontSize: 14 }}>Back</Text>
-              </TouchableOpacity>
-            </>
+            );
+          })()}
+
+          {step > 1 && (
+            <TouchableOpacity
+              onPress={() => setStep(step - 1)}
+              activeOpacity={0.7}
+              style={{ alignItems: 'center', marginTop: 14 }}
+            >
+              <Text style={{ color: MUTED, fontWeight: '700', fontSize: 14 }}>Back</Text>
+            </TouchableOpacity>
           )}
         </ScrollView>
       </KeyboardAvoidingView>
@@ -641,36 +651,53 @@ const styles = StyleSheet.create({
     letterSpacing: 1.4,
     color: '#FFFFFF',
   },
-  scroll: { paddingHorizontal: 20, paddingBottom: 60 },
+  scroll: { paddingHorizontal: 24, paddingBottom: 60 },
 
   photoWrap: {
     alignItems: 'center',
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: 20,
+    marginBottom: 12,
   },
   photoBtn: {
     position: 'relative',
+  },
+  photoEmpty: {
+    width: 108,
+    height: 108,
+    borderRadius: 54,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: CARD_BG,
   },
   photoBadge: {
     position: 'absolute',
     right: -2,
     bottom: -2,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#282828',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: CHIP_BG,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#121212',
+    borderColor: PAGE_BG,
   },
   photoHint: {
     marginTop: 10,
-    fontSize: 12,
-    color: '#B3B3B3',
+    fontSize: 12.5,
+    color: MUTED,
     fontWeight: '500',
   },
 
+  microLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: MUTED,
+    letterSpacing: 0.6,
+  },
   label: {
     fontSize: 12,
     fontWeight: '700',
@@ -682,14 +709,15 @@ const styles = StyleSheet.create({
   },
   labelRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     justifyContent: 'space-between',
+    marginTop: 22,
+    marginBottom: 10,
   },
   counter: {
     fontSize: 11,
-    color: '#6A6A6A',
-    marginBottom: 10,
-    marginTop: 22,
+    color: FAINT,
+    fontVariant: ['tabular-nums'],
   },
   inlineError: {
     marginTop: 8,
@@ -750,12 +778,33 @@ const styles = StyleSheet.create({
   pickerRowText: { color: '#FFFFFF', fontSize: 15, fontWeight: '600' },
   pickerRowTextSelected: { color: '#FFFFFF' },
   input: {
-    backgroundColor: '#181818',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    color: '#FFFFFF',
+    backgroundColor: CARD_BG,
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    height: 56,
+    justifyContent: 'center',
+    color: INK,
+    fontWeight: '700',
     fontSize: 15,
+    borderWidth: 1,
+    borderColor: HAIRLINE,
+  },
+  inputActive: {
+    borderColor: 'rgba(255,255,255,0.16)',
+  },
+  genrePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: ACCENT,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  genrePillText: {
+    color: INK,
+    fontSize: 13,
+    fontWeight: '700',
   },
 
   chipRow: {
@@ -836,20 +885,40 @@ const styles = StyleSheet.create({
   },
 
   cta: {
-    backgroundColor: '#7C3AED',
-    borderRadius: 999,
-    paddingVertical: 16,
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: ACCENT,
+    borderRadius: 28,
+    height: 56,
+    paddingLeft: 20,
+    paddingRight: 6,
     marginTop: 32,
+    shadowColor: '#000',
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
   },
   ctaDisabled: {
-    opacity: 0.35,
+    opacity: 0.4,
   },
-  ctaText: {
-    color: '#FFFFFF',
+  ctaAction: {
+    color: INK,
     fontWeight: '800',
     fontSize: 15,
-    letterSpacing: 1,
+  },
+  ctaHint: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 11,
+    marginTop: 1,
+  },
+  ctaKnob: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: INK,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   // Success state
