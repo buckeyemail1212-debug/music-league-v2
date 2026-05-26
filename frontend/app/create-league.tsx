@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -23,7 +23,6 @@ import { createLeague, League } from '../src/services/api';
 import { leagueEvents } from '../src/utils/leagueEvents';
 import LeagueAvatar from '../src/components/LeagueAvatar';
 import LeagueCreatedSuccess from '../src/components/LeagueCreatedSuccess';
-import { leagueDraft } from '../src/utils/leagueDraft';
 
 const PAGE_BG = '#0a0a0a';
 const CARD_BG = '#1a1a1a';
@@ -34,11 +33,11 @@ const MUTED = 'rgba(255,255,255,0.55)';
 const FAINT = '#6A6A6A';
 const ACCENT = '#7C3AED';
 
-const STEP_TITLES: { title: string; subtitle: string }[] = [
-  { title: 'Set up your league', subtitle: 'Name it and give it a look.' },
-  { title: 'Rounds & settings', subtitle: 'Set the cadence and options.' },
-  { title: 'Review & create', subtitle: 'Check everything looks right.' },
-];
+const STEP_META: Record<number, { title: string; subtitle: string; label: string }> = {
+  1: { title: 'Set up your league', subtitle: 'Name it and give it a look.', label: 'Basics' },
+  2: { title: 'Name your rounds', subtitle: 'Give each round a theme prompt.', label: 'Themes' },
+  3: { title: 'Review & create', subtitle: 'Check everything looks right.', label: 'Confirm' },
+};
 
 const ROUND_CHOICES = [2, 3, 4, 5, 6, 7, 8, 9, 10];
 // Time choices must match the backend's ALLOWED_PHASE_HOURS (12, 24, 48,
@@ -77,10 +76,30 @@ export default function CreateLeaguePage() {
   const [startsInHours, setStartsInHours] = useState(24);
   const [memberCap, setMemberCap] = useState<number>(DEFAULT_MEMBER_CAP);
   const [memberCapPickerOpen, setMemberCapPickerOpen] = useState(false);
+  const [themes, setThemes] = useState<string[]>(() => Array(3).fill(''));
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [genreError, setGenreError] = useState<string | null>(null);
   const [createdLeague, setCreatedLeague] = useState<League | null>(null);
+
+  useEffect(() => {
+    setThemes((prev) => {
+      const next = Array(rounds).fill('');
+      for (let i = 0; i < Math.min(prev.length, rounds); i++) next[i] = prev[i];
+      return next;
+    });
+  }, [rounds]);
+
+  const totalSteps = themesOn ? 3 : 2;
+
+  const goNext = () => {
+    if (step === 1) setStep(themesOn ? 2 : 3);
+    else if (step === 2) setStep(3);
+  };
+  const goBack = () => {
+    if (step === 3) setStep(themesOn ? 2 : 1);
+    else if (step === 2) setStep(1);
+  };
 
   const pickFromLibrary = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -152,33 +171,12 @@ export default function CreateLeaguePage() {
     name.trim().length > 0 && !submitting && !genreRequiredMissing;
 
   const handleCreate = async () => {
-    // Public leagues require a non-empty genre. Surface the error inline
-    // rather than silently disabling submission.
     if (isPublic && trimmedGenre.length === 0) {
       setGenreError('Genre is required for public leagues');
       return;
     }
     setGenreError(null);
     if (!canSubmit) return;
-
-    // Themes ON → hand off to the Set Round Themes screen. It owns the
-    // actual createLeague call so we don't create a league that's missing
-    // the themes the user promised to supply.
-    if (themesOn) {
-      leagueDraft.set({
-        name: name.trim(),
-        photo,
-        totalRounds: rounds,
-        submissionHours,
-        votingHours,
-        genre: trimmedGenre || undefined,
-        isPublic,
-        startsInHours: isPublic ? startsInHours : undefined,
-        memberCap: isPublic ? memberCap : undefined,
-      });
-      router.push('/set-round-themes' as any);
-      return;
-    }
 
     setSubmitting(true);
     try {
@@ -190,6 +188,7 @@ export default function CreateLeaguePage() {
       };
       if (photo) payload.league_image = photo;
       if (trimmedGenre) payload.genre = trimmedGenre;
+      if (themesOn) payload.themes = themes.map((t) => t.trim());
       if (isPublic) {
         payload.is_public = true;
         payload.starts_at = new Date(
@@ -242,42 +241,47 @@ export default function CreateLeaguePage() {
           showsVerticalScrollIndicator={false}
         >
           {/* Stepper */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, marginBottom: 22 }}>
-            {[1, 2, 3].map((s, i) => {
-              const completed = s < step;
-              const current = s === step;
-              const pending = s > step;
-              return (
-                <React.Fragment key={s}>
-                  {i > 0 && (
-                    <View style={{ flex: 1, height: 2, marginHorizontal: 6, backgroundColor: s <= step ? ACCENT : CHIP_BG, borderRadius: 1 }} />
-                  )}
-                  {current ? (
-                    <View style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 4, borderColor: 'rgba(124,58,237,0.25)', alignItems: 'center', justifyContent: 'center' }}>
-                      <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: ACCENT, alignItems: 'center', justifyContent: 'center' }}>
-                        <Text style={{ color: INK, fontSize: 13, fontWeight: '800' }}>{s}</Text>
-                      </View>
-                    </View>
-                  ) : (
-                    <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: completed ? ACCENT : CHIP_BG, alignItems: 'center', justifyContent: 'center' }}>
-                      {completed ? (
-                        <Ionicons name="checkmark" size={16} color={INK} />
-                      ) : (
-                        <Text style={{ color: MUTED, fontSize: 13, fontWeight: '700' }}>{s}</Text>
+          {(() => {
+            const dots = themesOn ? [1, 2, 3] : [1, 3];
+            const stepIndex = dots.indexOf(step);
+            return (
+              <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, marginBottom: 22 }}>
+                {dots.map((s, i) => {
+                  const completed = i < stepIndex;
+                  const current = s === step;
+                  return (
+                    <React.Fragment key={s}>
+                      {i > 0 && (
+                        <View style={{ flex: 1, height: 2, marginHorizontal: 6, backgroundColor: i <= stepIndex ? ACCENT : CHIP_BG, borderRadius: 1 }} />
                       )}
-                    </View>
-                  )}
-                </React.Fragment>
-              );
-            })}
-          </View>
+                      {current ? (
+                        <View style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 4, borderColor: 'rgba(124,58,237,0.25)', alignItems: 'center', justifyContent: 'center' }}>
+                          <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: ACCENT, alignItems: 'center', justifyContent: 'center' }}>
+                            <Text style={{ color: INK, fontSize: 13, fontWeight: '800' }}>{i + 1}</Text>
+                          </View>
+                        </View>
+                      ) : (
+                        <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: completed ? ACCENT : CHIP_BG, alignItems: 'center', justifyContent: 'center' }}>
+                          {completed ? (
+                            <Ionicons name="checkmark" size={16} color={INK} />
+                          ) : (
+                            <Text style={{ color: MUTED, fontSize: 13, fontWeight: '700' }}>{i + 1}</Text>
+                          )}
+                        </View>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </View>
+            );
+          })()}
 
           {/* Step title */}
           <Text style={{ fontSize: 28, fontWeight: '800', color: INK, letterSpacing: -0.7 }}>
-            {STEP_TITLES[step - 1].title}
+            {STEP_META[step].title}
           </Text>
           <Text style={{ fontSize: 14, fontWeight: '500', color: MUTED, marginTop: 4, marginBottom: 8 }}>
-            {STEP_TITLES[step - 1].subtitle}
+            {STEP_META[step].subtitle}
           </Text>
 
           {step === 1 && (
@@ -363,11 +367,7 @@ export default function CreateLeaguePage() {
             />
           )}
           {genreError && <Text style={styles.inlineError}>{genreError}</Text>}
-          </>
-          )}
 
-          {step === 2 && (
-          <>
           {/* Cadence section */}
           <Text style={styles.sectionLabel}>CADENCE</Text>
           <View style={styles.settingsCard}>
@@ -524,6 +524,33 @@ export default function CreateLeaguePage() {
           </>
           )}
 
+          {step === 2 && (
+          <>
+          {themes.map((theme, i) => (
+            <View key={i} style={styles.themeRow}>
+              <View style={styles.themePill}>
+                <Text style={styles.themePillText}>R{i + 1}</Text>
+              </View>
+              <TextInput
+                style={styles.themeInput}
+                placeholder={`Round ${i + 1} theme`}
+                placeholderTextColor={FAINT}
+                value={theme}
+                onChangeText={(v) => {
+                  setThemes((prev) => {
+                    const next = [...prev];
+                    next[i] = v;
+                    return next;
+                  });
+                }}
+                maxLength={100}
+                returnKeyType={i === themes.length - 1 ? 'done' : 'next'}
+              />
+            </View>
+          ))}
+          </>
+          )}
+
           {step === 3 && (
           <>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 }}>
@@ -554,6 +581,12 @@ export default function CreateLeaguePage() {
               <Text style={{ color: '#B3B3B3', fontSize: 13 }}>Themes</Text>
               <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '600' }}>{themesOn ? 'On' : 'Off'}</Text>
             </View>
+            {themesOn && themes.map((t, i) => (
+              <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, paddingLeft: 12 }}>
+                <Text style={{ color: '#B3B3B3', fontSize: 13 }}>R{i + 1}</Text>
+                <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '600', flex: 1, textAlign: 'right', marginLeft: 12 }} numberOfLines={1}>{t.trim() || '(empty)'}</Text>
+              </View>
+            ))}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 }}>
               <Text style={{ color: '#B3B3B3', fontSize: 13 }}>Public</Text>
               <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '600' }}>{isPublic ? 'Yes' : 'No'}</Text>
@@ -576,14 +609,20 @@ export default function CreateLeaguePage() {
           {/* Primary CTA */}
           {(() => {
             const step1Valid = name.trim().length > 0 && !genreRequiredMissing;
-            const disabled = step === 1 ? !step1Valid : step === 3 ? !canSubmit : false;
-            const actionText = step === 1 ? 'Next' : step === 2 ? 'Review' : themesOn ? 'Set round themes' : 'Create league';
-            const hint = step === 1 ? 'Step 1 of 3 · Basics' : step === 2 ? 'Step 2 of 3 · Settings' : 'Step 3 of 3 · Confirm';
-            const onPress = step === 1
-              ? () => { if (step1Valid) setStep(2); }
-              : step === 2
-                ? () => setStep(3)
-                : handleCreate;
+            const step2Valid = themes.every((t) => t.trim().length > 0);
+            const isConfirm = step === 3;
+            const disabled = step === 1 ? !step1Valid : step === 2 ? !step2Valid : !canSubmit;
+
+            const dots = themesOn ? [1, 2, 3] : [1, 3];
+            const visualIndex = dots.indexOf(step);
+            const actionText = isConfirm ? 'Create league' : step === 2 ? 'Review' : 'Next';
+            const hint = `Step ${visualIndex + 1} of ${totalSteps} · ${STEP_META[step].label}`;
+
+            const onPress = isConfirm
+              ? handleCreate
+              : step === 1
+                ? () => { if (step1Valid) goNext(); }
+                : () => { if (step2Valid) goNext(); };
             return (
               <TouchableOpacity
                 style={[styles.cta, disabled && styles.ctaDisabled]}
@@ -591,7 +630,7 @@ export default function CreateLeaguePage() {
                 disabled={disabled}
                 activeOpacity={0.85}
               >
-                {submitting && step === 3 ? (
+                {submitting && isConfirm ? (
                   <ActivityIndicator color={INK} />
                 ) : (
                   <>
@@ -610,7 +649,7 @@ export default function CreateLeaguePage() {
 
           {step > 1 && (
             <TouchableOpacity
-              onPress={() => setStep(step - 1)}
+              onPress={goBack}
               activeOpacity={0.7}
               style={{ alignItems: 'center', marginTop: 14 }}
             >
