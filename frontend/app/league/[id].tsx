@@ -70,7 +70,7 @@ export default function LeagueDetailScreen() {
   const [creatingRound, setCreatingRound] = useState(false);
   const [advancing, setAdvancing] = useState<string | null>(null);
   const [starting, setStarting] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'rounds' | 'standings'>('rounds');
+  const [activeTab, setActiveTab] = useState<'rounds' | 'standings' | 'submissions'>('rounds');
   
   // Start round modal state
   const [showStartRoundModal, setShowStartRoundModal] = useState(false);
@@ -811,18 +811,21 @@ export default function LeagueDetailScreen() {
 
       {/* Tab Selector */}
       <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'rounds' && styles.tabActive]}
-          onPress={() => setActiveTab('rounds')}
-        >
-          <Text style={[styles.tabText, activeTab === 'rounds' && styles.tabTextActive]}>Rounds</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'standings' && styles.tabActive]}
-          onPress={() => setActiveTab('standings')}
-        >
-          <Text style={[styles.tabText, activeTab === 'standings' && styles.tabTextActive]}>Standings</Text>
-        </TouchableOpacity>
+        {(['rounds', 'standings', 'submissions'] as const).map((tab) => {
+          const active = activeTab === tab;
+          return (
+            <TouchableOpacity
+              key={tab}
+              style={[styles.tab, active && styles.tabActive]}
+              onPress={() => setActiveTab(tab)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.tabText, active && styles.tabTextActive]}>
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {/* Rounds Tab */}
@@ -1191,6 +1194,12 @@ export default function LeagueDetailScreen() {
             />
           )}
         </ScrollView>
+      )}
+
+      {activeTab === 'submissions' && (
+        <View style={{ padding: 24, alignItems: 'center' }}>
+          <Text style={{ color: '#B3B3B3', fontSize: 14 }}>Submissions coming soon</Text>
+        </View>
       )}
 
       {/* Start Round Modal */}
@@ -1838,30 +1847,35 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 16,
     marginBottom: 8,
-    backgroundColor: '#282828',
-    borderRadius: 6,
-    padding: 3,
+    gap: 8,
   },
   tab: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 10,
-    borderRadius: 4,
-    gap: 6,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+    backgroundColor: '#2A2A2A',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
   tabActive: {
     backgroundColor: '#7C3AED',
+    borderColor: '#7C3AED',
+    shadowColor: '#7C3AED',
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
   },
   tabText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: '#B3B3B3',
   },
   tabTextActive: {
     color: '#FFFFFF',
-    fontWeight: '700',
   },
   // Non-member surfaces
   joinPublicCta: {
