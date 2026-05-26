@@ -42,9 +42,11 @@ import {
   getChatStatus,
   getResults,
   joinPublicLeague,
+  getMySubmissions,
   League,
   Round,
   LeagueStandings,
+  MySubmission,
 } from '../../src/services/api';
 import { format } from 'date-fns';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -65,6 +67,7 @@ export default function LeagueDetailScreen() {
   const [rounds, setRounds] = useState<Round[]>([]);
   const [standings, setStandings] = useState<LeagueStandings | null>(null);
   const [lastRoundPoints, setLastRoundPoints] = useState<{ [userId: string]: number }>({});
+  const [mySubmissions, setMySubmissions] = useState<MySubmission[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [creatingRound, setCreatingRound] = useState(false);
@@ -196,6 +199,14 @@ export default function LeagueDetailScreen() {
         setHasUnread(chatStatusRes.data.has_unread);
       } catch (e) {
         // Ignore chat status errors
+      }
+
+      // Fetch user's submissions for this league
+      try {
+        const subsRes = await getMySubmissions();
+        setMySubmissions(subsRes.data.submissions.filter((s) => s.league_id === id));
+      } catch {
+        // Non-fatal — submissions tab will show empty
       }
     } catch (error: any) {
       const status = error?.response?.status;
@@ -1232,11 +1243,111 @@ export default function LeagueDetailScreen() {
         </ScrollView>
       )}
 
-      {activeTab === 'submissions' && (
-        <View style={{ padding: 24, alignItems: 'center' }}>
-          <Text style={{ color: '#B3B3B3', fontSize: 14 }}>Submissions coming soon</Text>
-        </View>
-      )}
+      {activeTab === 'submissions' && (() => {
+        if (rounds.length === 0) {
+          return (
+            <View style={{ padding: 24, alignItems: 'center' }}>
+              <Text style={{ color: '#B3B3B3', fontSize: 14 }}>No rounds yet</Text>
+            </View>
+          );
+        }
+        const sortedRounds = [...rounds].sort((a, b) => b.round_number - a.round_number);
+        return (
+          <ScrollView
+            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 20 }}
+            showsVerticalScrollIndicator={false}
+          >
+            {sortedRounds.map((round) => {
+              const sub = mySubmissions?.find((s) => s.round_id === round.id);
+              const isRoundLocked = round.status === 'locked' || round.status === 'scheduled';
+              const isRoundLive = round.status === 'submission' || round.status === 'voting';
+              const isRoundDone = round.status === 'completed' || round.status === 'skipped';
+
+              let cardState: string;
+              let stateLabel: string;
+              if (isRoundLocked) {
+                cardState = 'locked';
+                stateLabel = 'LOCKED';
+              } else if (isRoundLive && sub) {
+                cardState = 'active_played';
+                stateLabel = round.status === 'voting' ? 'VOTING OPEN' : 'SUBMISSIONS OPEN';
+              } else if (isRoundLive && !sub) {
+                cardState = 'active_unplayed';
+                stateLabel = round.status === 'voting' ? 'VOTING OPEN' : 'SUBMISSIONS OPEN';
+              } else if (isRoundDone && sub) {
+                cardState = 'finished_played';
+                stateLabel = 'FINISHED';
+              } else {
+                cardState = 'forfeited';
+                stateLabel = 'FORFEITED';
+              }
+
+              const tappable = cardState !== 'locked';
+
+              return (
+                <TouchableOpacity
+                  key={round.id}
+                  style={styles.subCard}
+                  activeOpacity={tappable ? 0.7 : 1}
+                  onPress={tappable ? () => router.push(`/round/${round.id}`) : undefined}
+                  disabled={!tappable}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <Text style={{ color: '#B3B3B3', fontSize: 11, fontWeight: '700', letterSpacing: 0.5 }}>
+                      ROUND {round.round_number}
+                    </Text>
+                    <Text style={{
+                      fontSize: 10,
+                      fontWeight: '800',
+                      letterSpacing: 0.5,
+                      color: cardState === 'forfeited' ? '#EF4444'
+                        : isRoundLive ? '#22C55E'
+                        : '#B3B3B3',
+                    }}>
+                      {stateLabel}
+                    </Text>
+                  </View>
+
+                  <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '700', marginBottom: 4 }} numberOfLines={1}>
+                    {round.theme?.trim() || `Round ${round.round_number}`}
+                  </Text>
+
+                  {sub && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+                      <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 12.5, fontWeight: '500', flex: 1, marginRight: 8 }} numberOfLines={1}>
+                        {sub.song.title} — {sub.song.artist}
+                      </Text>
+                      {isRoundDone && (
+                        <Text style={{ color: '#7C3AED', fontSize: 13, fontWeight: '800' }}>
+                          +{sub.points_earned ?? sub.points ?? 0} PTS
+                        </Text>
+                      )}
+                    </View>
+                  )}
+
+                  {cardState === 'active_unplayed' && (
+                    <Text style={{ color: '#7C3AED', fontSize: 12.5, fontWeight: '700', marginTop: 4 }}>
+                      Submit your song →
+                    </Text>
+                  )}
+
+                  {cardState === 'locked' && (
+                    <Text style={{ color: 'rgba(255,255,255,0.38)', fontSize: 12, fontWeight: '500', marginTop: 2 }}>
+                      Opens when R{round.round_number - 1} ends
+                    </Text>
+                  )}
+
+                  {cardState === 'forfeited' && (
+                    <Text style={{ color: 'rgba(255,255,255,0.38)', fontSize: 12, fontWeight: '500', marginTop: 2 }}>
+                      No submission
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        );
+      })()}
 
       {/* Start Round Modal */}
       <Modal
@@ -1883,6 +1994,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.5,
+  },
+  subCard: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
   },
   emptyState: {
     flex: 1,
