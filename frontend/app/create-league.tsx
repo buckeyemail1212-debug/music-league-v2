@@ -293,7 +293,7 @@ export default function CreateLeaguePage() {
           </>
           )}
 
-          {step >= 2 && (
+          {step === 2 && (
           <>
           {/* Rounds */}
           <Text style={styles.label}>Number of Rounds</Text>
@@ -432,7 +432,56 @@ export default function CreateLeaguePage() {
           </>
           )}
 
-          {step === 1 ? (
+          {step === 3 && (
+          <>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 }}>
+              <Text style={{ color: '#B3B3B3', fontSize: 13 }}>Photo</Text>
+              <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '600' }}>{photo ? 'Added' : 'None'}</Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 }}>
+              <Text style={{ color: '#B3B3B3', fontSize: 13 }}>Name</Text>
+              <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '600' }}>{name}</Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 }}>
+              <Text style={{ color: '#B3B3B3', fontSize: 13 }}>Genre</Text>
+              <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '600' }}>{trimmedGenre || 'None'}</Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 }}>
+              <Text style={{ color: '#B3B3B3', fontSize: 13 }}>Rounds</Text>
+              <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '600' }}>{rounds}</Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 }}>
+              <Text style={{ color: '#B3B3B3', fontSize: 13 }}>Submission time</Text>
+              <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '600' }}>{submissionHours}h</Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 }}>
+              <Text style={{ color: '#B3B3B3', fontSize: 13 }}>Voting time</Text>
+              <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '600' }}>{votingHours}h</Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 }}>
+              <Text style={{ color: '#B3B3B3', fontSize: 13 }}>Themes</Text>
+              <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '600' }}>{themesOn ? 'On' : 'Off'}</Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 }}>
+              <Text style={{ color: '#B3B3B3', fontSize: 13 }}>Public</Text>
+              <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '600' }}>{isPublic ? 'Yes' : 'No'}</Text>
+            </View>
+            {isPublic && (
+              <>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 }}>
+                  <Text style={{ color: '#B3B3B3', fontSize: 13 }}>Start first round in</Text>
+                  <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '600' }}>{startsInHours}h</Text>
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 }}>
+                  <Text style={{ color: '#B3B3B3', fontSize: 13 }}>Max members</Text>
+                  <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '600' }}>{memberCap}</Text>
+                </View>
+              </>
+            )}
+          </>
+          )}
+
+          {step === 1 && (
             <TouchableOpacity
               style={[styles.cta, !(name.trim().length > 0 && !genreRequiredMissing) && styles.ctaDisabled]}
               onPress={() => {
@@ -443,7 +492,28 @@ export default function CreateLeaguePage() {
             >
               <Text style={styles.ctaText}>NEXT</Text>
             </TouchableOpacity>
-          ) : (
+          )}
+
+          {step === 2 && (
+            <>
+              <TouchableOpacity
+                style={styles.cta}
+                onPress={() => setStep(3)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.ctaText}>REVIEW</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setStep(step - 1)}
+                activeOpacity={0.7}
+                style={{ alignItems: 'center', marginTop: 14 }}
+              >
+                <Text style={{ color: '#B3B3B3', fontWeight: '700', fontSize: 14 }}>Back</Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          {step === 3 && (
             <>
               <TouchableOpacity
                 style={[styles.cta, !canSubmit && styles.ctaDisabled]}
