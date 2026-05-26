@@ -606,13 +606,21 @@ export default function LeagueDetailScreen() {
                 const chipLabel = item.status === 'submission'
                   ? (userDone ? 'SUBMITTED' : 'SUBMIT')
                   : (userDone ? 'VOTED' : 'VOTE');
+                const progressText = item.status === 'submission'
+                  ? `${item.submissions_count}/${item.total_members} submitted`
+                  : `${item.votes_count}/${item.total_members} voted`;
                 return (
-                  <View style={styles.roundLiveChip}>
-                    <View style={[styles.roundLiveDot, userDone && { backgroundColor: '#22C55E' }]} />
-                    <Text style={styles.roundLiveChipText}>
-                      {chipLabel} · {statusText}
-                    </Text>
-                  </View>
+                  <>
+                    <View style={styles.roundLiveChip}>
+                      <View style={[styles.roundLiveDot, userDone && { backgroundColor: '#22C55E' }]} />
+                      <Text style={styles.roundLiveChipText}>
+                        {chipLabel} · {statusText}
+                      </Text>
+                    </View>
+                    <View style={styles.roundProgressChip}>
+                      <Text style={styles.roundProgressChipText}>{progressText}</Text>
+                    </View>
+                  </>
                 );
               })()}
               {!isLive && (
@@ -1815,6 +1823,19 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.55)',
     letterSpacing: 0.5,
     textTransform: 'uppercase',
+  },
+  roundProgressChip: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#2A2A2A',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginTop: 4,
+  },
+  roundProgressChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#B3B3B3',
   },
   roundTrailingCircle: {
     width: 30,
