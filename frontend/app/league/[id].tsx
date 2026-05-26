@@ -889,6 +889,36 @@ export default function LeagueDetailScreen() {
         })}
       </View>
 
+      {/* Meta strip */}
+      {(() => {
+        const playerCount = league.members?.length ?? 0;
+        const totalRnds = rounds.length;
+        const completedRnds = rounds.filter(r => r.status === 'completed' || r.status === 'skipped').length;
+        const liveRound = rounds.find(r => r.status === 'submission' || r.status === 'voting');
+        const playedCount = mySubmissions?.length ?? 0;
+
+        let left = '';
+        let right = '';
+        if (activeTab === 'rounds') {
+          left = `${playerCount} ${playerCount === 1 ? 'player' : 'players'} · ${totalRnds} ${totalRnds === 1 ? 'round' : 'rounds'}`;
+          right = liveRound
+            ? `R${liveRound.round_number} ${liveRound.status === 'voting' ? 'voting' : 'submitting'}`
+            : completedRnds === totalRnds && totalRnds > 0 ? 'Completed' : 'Not started';
+        } else if (activeTab === 'standings') {
+          left = `${playerCount} ${playerCount === 1 ? 'player' : 'players'} · ${completedRnds}/${totalRnds} rounds played`;
+          right = completedRnds > 0 ? `After R${completedRnds}` : '';
+        } else {
+          left = `Your submissions · ${playedCount}/${totalRnds} played`;
+        }
+
+        return (
+          <View style={styles.metaStrip}>
+            <Text style={styles.metaStripText}>{left}</Text>
+            {right ? <Text style={styles.metaStripText}>{right}</Text> : null}
+          </View>
+        );
+      })()}
+
       {/* Rounds Tab */}
       {activeTab === 'rounds' && (
         <FlatList
@@ -2247,6 +2277,17 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   // Tab styles
+  metaStrip: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  metaStripText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#B3B3B3',
+  },
   tabContainer: {
     flexDirection: 'row',
     marginHorizontal: 16,
