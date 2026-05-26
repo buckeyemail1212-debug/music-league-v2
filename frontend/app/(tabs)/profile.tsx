@@ -11,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
-import { getFollowCounts, FollowCounts } from '../../src/services/api';
+import { getFollowCounts, getLeaderboard, FollowCounts } from '../../src/services/api';
 import { apiCache } from '../../src/services/apiCache';
 import StatsTab from '../../src/components/profile-tabs/StatsTab';
 import LikedSongsTab from '../../src/components/profile-tabs/LikedSongsTab';
@@ -29,6 +29,7 @@ export default function ProfileScreen() {
   // headline Stats view.
   const [tab, setTab] = useState<TabKey>('stats');
   const [followCounts, setFollowCounts] = useState<FollowCounts | null>(null);
+  const [ranking, setRanking] = useState<number | null>(null);
 
   const loadFollowCounts = useCallback(() => {
     const userId = user?.id;
@@ -43,7 +44,13 @@ export default function ProfileScreen() {
       .catch(() => {});
   }, [user?.id]);
 
-  useFocusEffect(useCallback(() => { loadFollowCounts(); }, [loadFollowCounts]));
+  const loadRanking = useCallback(() => {
+    getLeaderboard('all')
+      .then((r) => setRanking(r.data.data.current_user_rank))
+      .catch(() => {});
+  }, []);
+
+  useFocusEffect(useCallback(() => { loadFollowCounts(); loadRanking(); }, [loadFollowCounts, loadRanking]));
 
   const displayName = user?.display_name || user?.username || '';
 
@@ -98,6 +105,16 @@ export default function ProfileScreen() {
                   {followCounts ? followCounts.following.toLocaleString() : '—'}
                 </Text>
                 <Text style={styles.statLabel}>following</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.statItem}
+                activeOpacity={0.7}
+                onPress={() => router.push('/(tabs)/leaderboard' as any)}
+              >
+                <Text style={styles.statValue}>
+                  {ranking != null ? `#${ranking}` : '—'}
+                </Text>
+                <Text style={styles.statLabel}>ranking</Text>
               </TouchableOpacity>
             </View>
           ) : null}
@@ -225,9 +242,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 32,
+    gap: 24,
   },
-  statItem: { alignItems: 'center' },
+  statItem: { flex: 1, alignItems: 'center' },
   statValue: { fontSize: 20, fontWeight: '700', color: '#FFFFFF' },
   statLabel: { fontSize: 13, color: '#B3B3B3', marginTop: 2 },
 
