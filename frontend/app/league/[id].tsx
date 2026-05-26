@@ -21,7 +21,7 @@ import {
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import * as Linking from 'expo-linking';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
@@ -60,6 +60,7 @@ export default function LeagueDetailScreen() {
   const { id, openChat: openChatParam } = useLocalSearchParams<{ id: string; openChat?: string }>();
   const { user } = useAuth();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [league, setLeague] = useState<League | null>(null);
   const [rounds, setRounds] = useState<Round[]>([]);
   const [standings, setStandings] = useState<LeagueStandings | null>(null);
@@ -101,6 +102,7 @@ export default function LeagueDetailScreen() {
   const [showMembersModal, setShowMembersModal] = useState(false);
 
   const [overflowOpen, setOverflowOpen] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
   // Share modal state — opens the redesigned share UI with view
   // toggles (Story / Square / Top 3) and the SHARE TO grid.
   const [showShareModal, setShowShareModal] = useState(false);
@@ -686,6 +688,71 @@ export default function LeagueDetailScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Overflow popover */}
+      {overflowOpen && (
+        <>
+          <TouchableWithoutFeedback onPress={() => setOverflowOpen(false)}>
+            <View style={styles.overflowBackdrop} />
+          </TouchableWithoutFeedback>
+          <View style={[styles.overflowPopover, { top: insets.top + 60 }]}>
+            {!league.is_public && !startedRound && (
+              <TouchableOpacity
+                style={styles.overflowCodeRow}
+                activeOpacity={0.7}
+                onPress={async () => {
+                  await Clipboard.setStringAsync(league.league_code);
+                  setCodeCopied(true);
+                  setTimeout(() => setCodeCopied(false), 1500);
+                }}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.overflowCodeLabel}>JOIN CODE</Text>
+                  <Text style={styles.overflowCodeValue}>{league.league_code}</Text>
+                </View>
+                {codeCopied ? (
+                  <Text style={styles.overflowCopiedText}>Copied!</Text>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.overflowCopyBtn}
+                    onPress={async () => {
+                      await Clipboard.setStringAsync(league.league_code);
+                      setCodeCopied(true);
+                      setTimeout(() => setCodeCopied(false), 1500);
+                    }}
+                  >
+                    <Ionicons name="copy-outline" size={16} color="rgba(255,255,255,0.55)" />
+                  </TouchableOpacity>
+                )}
+              </TouchableOpacity>
+            )}
+            {isMember && (
+              <>
+                <View style={styles.overflowDivider} />
+                {isCreator ? (
+                  <TouchableOpacity
+                    style={styles.overflowItem}
+                    activeOpacity={0.7}
+                    onPress={() => { setOverflowOpen(false); handleDeleteLeague(); }}
+                  >
+                    <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                    <Text style={styles.overflowItemDestructive}>Delete league</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.overflowItem}
+                    activeOpacity={0.7}
+                    onPress={() => { setOverflowOpen(false); handleLeaveLeague(); }}
+                  >
+                    <Ionicons name="log-out-outline" size={20} color="#EF4444" />
+                    <Text style={styles.overflowItemDestructive}>Leave league</Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
+          </View>
+        </>
+      )}
 
       {/* Cover card */}
       <View style={styles.coverCard}>
@@ -1461,6 +1528,83 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
+  },
+  overflowBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 90,
+  },
+  overflowPopover: {
+    position: 'absolute',
+    right: 12,
+    zIndex: 100,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    minWidth: 220,
+    shadowColor: '#000',
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 12,
+    overflow: 'hidden',
+  },
+  overflowCodeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2A2A2A',
+    margin: 8,
+    borderRadius: 12,
+    padding: 12,
+  },
+  overflowCodeLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    color: 'rgba(255,255,255,0.55)',
+    textTransform: 'uppercase',
+  },
+  overflowCodeValue: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 2,
+    marginTop: 2,
+  },
+  overflowCopyBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+  overflowCopiedText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#7C3AED',
+    marginLeft: 8,
+  },
+  overflowDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    marginHorizontal: 8,
+  },
+  overflowItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    gap: 10,
+  },
+  overflowItemDestructive: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#EF4444',
   },
   codeBar: {
     flexDirection: 'row',
