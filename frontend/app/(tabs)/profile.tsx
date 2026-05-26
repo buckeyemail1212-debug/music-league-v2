@@ -14,12 +14,11 @@ import { useAuth } from '../../src/context/AuthContext';
 import { getFollowCounts, FollowCounts } from '../../src/services/api';
 import { apiCache } from '../../src/services/apiCache';
 import StatsTab from '../../src/components/profile-tabs/StatsTab';
-import LeaguesTab from '../../src/components/profile-tabs/LeaguesTab';
 import LikedSongsTab from '../../src/components/profile-tabs/LikedSongsTab';
 import ExpandableImage from '../../src/components/ExpandableImage';
 import { FLOATING_NAV_CLEARANCE } from './_layout';
 
-type TabKey = 'stats' | 'leagues' | 'liked';
+type TabKey = 'stats' | 'liked';
 
 export default function ProfileScreen() {
   const { user } = useAuth();
@@ -137,14 +136,7 @@ export default function ProfileScreen() {
             onPress={() => setTab('stats')}
             label="Stats"
           />
-          <TabIcon
-            iconActive="trophy"
-            iconInactive="trophy-outline"
-            active={tab === 'leagues'}
-            onPress={() => setTab('leagues')}
-            label="Leagues"
-          />
-          <TabIcon
+<TabIcon
             iconActive="heart"
             iconInactive="heart-outline"
             active={tab === 'liked'}
@@ -158,10 +150,7 @@ export default function ProfileScreen() {
           <View style={{ display: tab === 'stats' ? 'flex' : 'none' }}>
             <StatsTab />
           </View>
-          <View style={{ display: tab === 'leagues' ? 'flex' : 'none' }}>
-            <LeaguesTab />
-          </View>
-          <View style={{ display: tab === 'liked' ? 'flex' : 'none' }}>
+<View style={{ display: tab === 'liked' ? 'flex' : 'none' }}>
             <LikedSongsTab />
           </View>
         </View>
