@@ -166,6 +166,14 @@ export default function CreateLeaguePage() {
     }
   };
 
+  const formatDuration = (hours: number): string => {
+    if (hours % 24 === 0) {
+      const days = hours / 24;
+      return days === 1 ? '1 day' : `${days} days`;
+    }
+    return `${hours}h`;
+  };
+
   const trimmedGenre = genre.trim();
   const genreRequiredMissing = isPublic && trimmedGenre.length === 0;
   const canSubmit =
@@ -225,7 +233,18 @@ export default function CreateLeaguePage() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={10} style={styles.headerBtn}>
+        <TouchableOpacity
+          onPress={() => Alert.alert(
+            'Discard league?',
+            'Your progress will be lost if you leave now.',
+            [
+              { text: 'Keep editing', style: 'cancel' },
+              { text: 'Discard', style: 'destructive', onPress: () => router.back() },
+            ],
+          )}
+          hitSlop={10}
+          style={styles.headerBtn}
+        >
           <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>CREATE LEAGUE</Text>
@@ -615,7 +634,7 @@ export default function CreateLeaguePage() {
               <View style={styles.summaryIcon}><Ionicons name="cloud-upload-outline" size={18} color={INK} /></View>
               <View style={styles.summaryContent}>
                 <Text style={styles.summaryLabel}>Submission time</Text>
-                <Text style={styles.summaryValue}>{submissionHours}h</Text>
+                <Text style={styles.summaryValue}>{formatDuration(submissionHours)}</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={FAINT} />
             </TouchableOpacity>
@@ -624,7 +643,7 @@ export default function CreateLeaguePage() {
               <View style={styles.summaryIcon}><Ionicons name="checkbox-outline" size={18} color={INK} /></View>
               <View style={styles.summaryContent}>
                 <Text style={styles.summaryLabel}>Voting time</Text>
-                <Text style={styles.summaryValue}>{votingHours}h</Text>
+                <Text style={styles.summaryValue}>{formatDuration(votingHours)}</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={FAINT} />
             </TouchableOpacity>
@@ -653,7 +672,7 @@ export default function CreateLeaguePage() {
                   <View style={styles.summaryIcon}><Ionicons name="time-outline" size={18} color={INK} /></View>
                   <View style={styles.summaryContent}>
                     <Text style={styles.summaryLabel}>Start first round in</Text>
-                    <Text style={styles.summaryValue}>{startsInHours}h</Text>
+                    <Text style={styles.summaryValue}>{formatDuration(startsInHours)}</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color={FAINT} />
                 </TouchableOpacity>
