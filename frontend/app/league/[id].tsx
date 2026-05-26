@@ -43,11 +43,15 @@ import {
   getResults,
   joinPublicLeague,
   getMySubmissions,
+  likeSong,
+  unlikeSong,
+  getLikedSongs,
   League,
   Round,
   LeagueStandings,
   MySubmission,
 } from '../../src/services/api';
+import { PreviewPlayButton } from '../../src/components/PreviewPlayButton';
 import { format } from 'date-fns';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -68,6 +72,7 @@ export default function LeagueDetailScreen() {
   const [standings, setStandings] = useState<LeagueStandings | null>(null);
   const [lastRoundPoints, setLastRoundPoints] = useState<{ [userId: string]: number }>({});
   const [mySubmissions, setMySubmissions] = useState<MySubmission[] | null>(null);
+  const [likedIds, setLikedIds] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [creatingRound, setCreatingRound] = useState(false);
@@ -207,6 +212,14 @@ export default function LeagueDetailScreen() {
         setMySubmissions(subsRes.data.submissions.filter((s) => s.league_id === id));
       } catch {
         // Non-fatal — submissions tab will show empty
+      }
+
+      // Fetch liked songs for heart state
+      try {
+        const likesRes = await getLikedSongs(200);
+        setLikedIds(new Set(likesRes.data.data.songs.map((s) => s.deezer_id)));
+      } catch {
+        // Non-fatal
       }
     } catch (error: any) {
       const status = error?.response?.status;
@@ -1285,6 +1298,22 @@ export default function LeagueDetailScreen() {
 
               const tappable = cardState !== 'locked';
 
+              const puckBg = (cardState === 'active_played' || cardState === 'active_unplayed')
+                ? '#7C3AED' : '#2A2A2A';
+              const puckTextColor = (cardState === 'active_played' || cardState === 'active_unplayed')
+                ? '#FFFFFF'
+                : cardState === 'locked' ? 'rgba(255,255,255,0.38)' : '#B3B3B3';
+              const labelColor = cardState === 'forfeited' ? '#EF4444'
+                : isRoundLive ? '#22C55E'
+                : cardState === 'locked' ? 'rgba(255,255,255,0.38)' : '#B3B3B3';
+              const themeTextColor = cardState === 'locked' ? 'rgba(255,255,255,0.5)' : '#FFFFFF';
+
+              const formatDur = (sec: number) => {
+                const m = Math.floor(sec / 60);
+                const s = sec % 60;
+                return `${m}:${s < 10 ? '0' : ''}${s}`;
+              };
+
               return (
                 <TouchableOpacity
                   key={round.id}
@@ -1293,55 +1322,119 @@ export default function LeagueDetailScreen() {
                   onPress={tappable ? () => router.push(`/round/${round.id}`) : undefined}
                   disabled={!tappable}
                 >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <Text style={{ color: '#B3B3B3', fontSize: 11, fontWeight: '700', letterSpacing: 0.5 }}>
-                      ROUND {round.round_number}
-                    </Text>
-                    <Text style={{
-                      fontSize: 10,
-                      fontWeight: '800',
-                      letterSpacing: 0.5,
-                      color: cardState === 'forfeited' ? '#EF4444'
-                        : isRoundLive ? '#22C55E'
-                        : '#B3B3B3',
-                    }}>
-                      {stateLabel}
-                    </Text>
+                  {/* Header zone */}
+                  <View style={styles.subHeader}>
+                    <View style={[styles.subPuck, { backgroundColor: puckBg }]}>
+                      <Text style={[styles.subPuckText, { color: puckTextColor }]}>{round.round_number}</Text>
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <View style={styles.subLabelRow}>
+                        {isRoundLive && <View style={[styles.subLiveDot, cardState === 'active_played' && { backgroundColor: '#22C55E' }]} />}
+                        <Text style={[styles.subLabel, { color: labelColor }]}>
+                          ROUND {round.round_number} · {stateLabel}
+                        </Text>
+                      </View>
+                      <Text style={[styles.subTheme, { color: themeTextColor }]} numberOfLines={1}>
+                        {round.theme?.trim() || `Round ${round.round_number}`}
+                      </Text>
+                    </View>
                   </View>
 
-                  <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '700', marginBottom: 4 }} numberOfLines={1}>
-                    {round.theme?.trim() || `Round ${round.round_number}`}
-                  </Text>
+                  {/* Divider */}
+                  <View style={styles.subDivider} />
 
-                  {sub && (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
-                      <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 12.5, fontWeight: '500', flex: 1, marginRight: 8 }} numberOfLines={1}>
-                        {sub.song.title} — {sub.song.artist}
-                      </Text>
-                      {isRoundDone && (
-                        <Text style={{ color: '#7C3AED', fontSize: 13, fontWeight: '800' }}>
-                          +{sub.points_earned ?? sub.points ?? 0} PTS
+                  {/* Song zone: finished_played */}
+                  {cardState === 'finished_played' && sub && (
+                    <View style={styles.subSongRow}>
+                      <Image source={{ uri: sub.song.cover_url }} style={styles.subCover} />
+                      <View style={{ flex: 1, marginLeft: 10 }}>
+                        <Text style={styles.subSongTitle} numberOfLines={1}>{sub.song.title}</Text>
+                        <Text style={styles.subSongMeta} numberOfLines={1}>
+                          {sub.song.artist} · {formatDur(sub.song.duration)}
                         </Text>
-                      )}
+                      </View>
+                      <TouchableOpacity
+                        style={styles.subHeartBtn}
+                        activeOpacity={0.7}
+                        onPress={async () => {
+                          const did = sub.song.deezer_id;
+                          const wasLiked = likedIds.has(did);
+                          setLikedIds((prev) => { const next = new Set(prev); wasLiked ? next.delete(did) : next.add(did); return next; });
+                          try {
+                            if (wasLiked) { await unlikeSong(did); }
+                            else { await likeSong({ deezer_id: did, title: sub.song.title, artist: sub.song.artist, album: sub.song.album, cover_url: sub.song.cover_url, preview_url: sub.song.preview_url }); }
+                          } catch {
+                            setLikedIds((prev) => { const rev = new Set(prev); wasLiked ? rev.add(did) : rev.delete(did); return rev; });
+                          }
+                        }}
+                      >
+                        <Ionicons name={likedIds.has(sub.song.deezer_id) ? 'heart' : 'heart-outline'} size={18} color={likedIds.has(sub.song.deezer_id) ? '#EF4444' : '#B3B3B3'} />
+                      </TouchableOpacity>
+                      <View style={styles.subPlayBtn}>
+                        <PreviewPlayButton previewUrl={sub.song.preview_url} deezerId={sub.song.deezer_id} songId={`league-sub-${round.id}`} size={14} />
+                      </View>
+                      <View style={styles.subScoreBadge}>
+                        <Text style={styles.subScoreText}>+{sub.points_earned ?? sub.points ?? 0} PTS</Text>
+                      </View>
                     </View>
                   )}
 
+                  {/* Song zone: active_played */}
+                  {cardState === 'active_played' && sub && (
+                    <View style={styles.subSongRow}>
+                      <Image source={{ uri: sub.song.cover_url }} style={styles.subCover} />
+                      <View style={{ flex: 1, marginLeft: 10 }}>
+                        <Text style={styles.subSongTitle} numberOfLines={1}>{sub.song.title}</Text>
+                        <Text style={styles.subSongMeta} numberOfLines={1}>
+                          {sub.song.artist} · {formatDur(sub.song.duration)}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.subHeartBtn}
+                        activeOpacity={0.7}
+                        onPress={async () => {
+                          const did = sub.song.deezer_id;
+                          const wasLiked = likedIds.has(did);
+                          setLikedIds((prev) => { const next = new Set(prev); wasLiked ? next.delete(did) : next.add(did); return next; });
+                          try {
+                            if (wasLiked) { await unlikeSong(did); }
+                            else { await likeSong({ deezer_id: did, title: sub.song.title, artist: sub.song.artist, album: sub.song.album, cover_url: sub.song.cover_url, preview_url: sub.song.preview_url }); }
+                          } catch {
+                            setLikedIds((prev) => { const rev = new Set(prev); wasLiked ? rev.add(did) : rev.delete(did); return rev; });
+                          }
+                        }}
+                      >
+                        <Ionicons name={likedIds.has(sub.song.deezer_id) ? 'heart' : 'heart-outline'} size={18} color={likedIds.has(sub.song.deezer_id) ? '#EF4444' : '#B3B3B3'} />
+                      </TouchableOpacity>
+                      <View style={styles.subPlayBtn}>
+                        <PreviewPlayButton previewUrl={sub.song.preview_url} deezerId={sub.song.deezer_id} songId={`league-sub-${round.id}`} size={14} />
+                      </View>
+                    </View>
+                  )}
+
+                  {/* CTA zone: active_unplayed */}
                   {cardState === 'active_unplayed' && (
-                    <Text style={{ color: '#7C3AED', fontSize: 12.5, fontWeight: '700', marginTop: 4 }}>
-                      Submit your song →
-                    </Text>
+                    <View style={styles.subSubmitCta}>
+                      <Text style={styles.subSubmitCtaText}>Submit your song</Text>
+                      <View style={styles.subSubmitKnob}>
+                        <Ionicons name="chevron-forward" size={16} color="#7C3AED" />
+                      </View>
+                    </View>
                   )}
 
+                  {/* Lock zone */}
                   {cardState === 'locked' && (
-                    <Text style={{ color: 'rgba(255,255,255,0.38)', fontSize: 12, fontWeight: '500', marginTop: 2 }}>
-                      Opens when R{round.round_number - 1} ends
-                    </Text>
+                    <View style={styles.subLockRow}>
+                      <View style={styles.subLockCircle}>
+                        <Ionicons name="lock-closed" size={14} color="#6A6A6A" />
+                      </View>
+                      <Text style={styles.subLockText}>Opens when R{round.round_number - 1} ends</Text>
+                    </View>
                   )}
 
+                  {/* Forfeited zone */}
                   {cardState === 'forfeited' && (
-                    <Text style={{ color: 'rgba(255,255,255,0.38)', fontSize: 12, fontWeight: '500', marginTop: 2 }}>
-                      No submission
-                    </Text>
+                    <Text style={styles.subForfeitText}>You didn't submit this round.</Text>
                   )}
                 </TouchableOpacity>
               );
@@ -1992,9 +2085,148 @@ const styles = StyleSheet.create({
   },
   subCard: {
     backgroundColor: '#1a1a1a',
-    borderRadius: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
     padding: 14,
     marginBottom: 10,
+  },
+  subHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  subPuck: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  subPuckText: {
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  subLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  subLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  subLiveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#EF4444',
+  },
+  subTheme: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  subDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    marginVertical: 12,
+  },
+  subSongRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  subCover: {
+    width: 46,
+    height: 46,
+    borderRadius: 8,
+    backgroundColor: '#2A2A2A',
+  },
+  subSongTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  subSongMeta: {
+    fontSize: 11.5,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.55)',
+    marginTop: 2,
+  },
+  subScoreBadge: {
+    backgroundColor: '#7C3AED',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginLeft: 8,
+  },
+  subScoreText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  subHeartBtn: {
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 6,
+  },
+  subPlayBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#2A2A2A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+  subSubmitCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#7C3AED',
+    borderRadius: 12,
+    height: 44,
+    paddingLeft: 16,
+    paddingRight: 4,
+  },
+  subSubmitCtaText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  subSubmitKnob: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  subLockRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  subLockCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#2A2A2A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  subLockText: {
+    fontSize: 12.5,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.55)',
+  },
+  subForfeitText: {
+    fontSize: 12.5,
+    fontWeight: '500',
+    fontStyle: 'italic',
+    color: 'rgba(255,255,255,0.38)',
   },
   emptyState: {
     flex: 1,
