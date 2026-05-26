@@ -480,24 +480,22 @@ export default function LeagueDetailScreen() {
     const isCompleted = item.status === 'completed' || isSkipped;
     const isLive = item.status === 'submission' || item.status === 'voting';
 
-    // Non-member gate: for any round that isn't fully closed, render
-    // only the round name. No status text, no time remaining, no
-    // submission counts, no tap-through. Completed/skipped rounds
-    // fall through to the existing full row below.
     if (!isMember && !isCompleted) {
       return (
         <View style={styles.roundCard}>
           <View style={styles.roundContent}>
             <View style={styles.roundRow}>
-              <View style={[styles.roundNumberBadge, { backgroundColor: '#3A3A3A' }]}>
-                <Text style={styles.roundNumberBadgeText}>{item.round_number}</Text>
+              <View style={[styles.roundNumberBadge, styles.roundPuckDim]}>
+                <Text style={[styles.roundNumberBadgeText, { color: 'rgba(255,255,255,0.38)' }]}>{item.round_number}</Text>
               </View>
               <View style={styles.roundInfo}>
-                <Text style={[styles.roundThemeSubheader, { color: '#FFFFFF' }]} numberOfLines={1}>
+                <Text style={[styles.roundThemeSubheader, { color: 'rgba(255,255,255,0.5)' }]} numberOfLines={1}>
                   {`Round ${item.round_number}`}
                 </Text>
               </View>
-              <Ionicons name="lock-closed" size={16} color="#6A6A6A" />
+              <View style={styles.roundTrailingCircle}>
+                <Ionicons name="lock-closed" size={14} color="#6A6A6A" />
+              </View>
             </View>
           </View>
         </View>
@@ -535,7 +533,7 @@ export default function LeagueDetailScreen() {
           ? item.submission_deadline
           : item.voting_deadline;
       const timeLeft = deadline ? getTimeRemaining(deadline) : '';
-      statusText = `${item.submissions_count} songs · ${timeLeft} left`;
+      statusText = `${item.submissions_count} songs · ${timeLeft}`;
     }
 
     const onPress = () => {
@@ -577,6 +575,12 @@ export default function LeagueDetailScreen() {
       }
     };
 
+    const puckStyle = (isLive || isReady) ? styles.roundPuckAccent : styles.roundPuckDim;
+    const puckTextStyle = (isLocked || isScheduled)
+      ? { color: 'rgba(255,255,255,0.38)' }
+      : (isCompleted ? { color: '#B3B3B3' } : { color: '#FFFFFF' });
+    const themeColor = (isLocked || isScheduled) ? 'rgba(255,255,255,0.5)' : '#FFFFFF';
+
     return (
       <View style={styles.roundCard}>
         <TouchableOpacity
@@ -585,24 +589,34 @@ export default function LeagueDetailScreen() {
           activeOpacity={isReady ? 1 : 0.7}
         >
           <View style={styles.roundRow}>
-            <View style={[styles.roundNumberBadge, { backgroundColor: badgeColor }]}>
-              <Text style={styles.roundNumberBadgeText}>{item.round_number}</Text>
+            <View style={[styles.roundNumberBadge, puckStyle]}>
+              <Text style={[styles.roundNumberBadgeText, puckTextStyle]}>{item.round_number}</Text>
             </View>
             <View style={styles.roundInfo}>
               <Text
-                style={[styles.roundThemeSubheader, { color: nameColor }]}
+                style={[styles.roundThemeSubheader, { color: themeColor }]}
                 numberOfLines={1}
               >
                 {displayName}
               </Text>
-              <Text style={styles.roundMetaText} numberOfLines={2}>
-                {statusText}
-              </Text>
+              {isLive && (
+                <View style={styles.roundLiveChip}>
+                  <View style={styles.roundLiveDot} />
+                  <Text style={styles.roundLiveChipText}>
+                    {item.status === 'voting' ? 'VOTING' : 'SUBMIT'} · {statusText}
+                  </Text>
+                </View>
+              )}
+              {!isLive && (
+                <Text style={styles.roundMetaText} numberOfLines={2}>
+                  {(isLocked ? '\u{1F512} ' : '')}{statusText}
+                </Text>
+              )}
             </View>
-            {isLocked ? (
-              <Ionicons name="lock-closed" size={18} color="#6A6A6A" />
-            ) : isScheduled ? (
-              <Ionicons name="time-outline" size={18} color="#6A6A6A" />
+            {isLocked || isScheduled ? (
+              <View style={styles.roundTrailingCircle}>
+                <Ionicons name="lock-closed" size={14} color="#6A6A6A" />
+              </View>
             ) : isReady && isCreator ? (
               <TouchableOpacity
                 style={styles.startRoundInline}
@@ -616,8 +630,14 @@ export default function LeagueDetailScreen() {
                   <Text style={styles.startRoundInlineText}>Start Round</Text>
                 )}
               </TouchableOpacity>
-            ) : isReady ? null : (
-              <Ionicons name="chevron-forward" size={20} color="#6A6A6A" />
+            ) : isReady ? null : isCompleted ? (
+              <View style={styles.roundTrailingCircle}>
+                <Ionicons name="chevron-forward" size={16} color="#B3B3B3" />
+              </View>
+            ) : (
+              <View style={styles.roundTrailingAccent}>
+                <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
+              </View>
             )}
           </View>
         </TouchableOpacity>
@@ -1720,17 +1740,13 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   roundCard: {
-    backgroundColor: '#181818',
-    borderRadius: 8,
-    marginBottom: 8,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 16,
+    marginBottom: 10,
     overflow: 'hidden',
   },
   roundContent: {
-    padding: 16,
-  },
-  roundHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    padding: 14,
   },
   roundRow: {
     flexDirection: 'row',
@@ -1738,59 +1754,75 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   roundNumberBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  roundPuckAccent: {
+    backgroundColor: '#7C3AED',
+  },
+  roundPuckDim: {
+    backgroundColor: '#2A2A2A',
+  },
   roundNumberBadgeText: {
-    color: '#FFFFFF',
     fontWeight: '800',
-    fontSize: 14,
+    fontSize: 16,
   },
   roundInfo: {
     flex: 1,
   },
-  roundNumberHeader: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#7C3AED',
-  },
   roundThemeSubheader: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 14.5,
+    fontWeight: '700',
     color: '#FFFFFF',
-    marginBottom: 2,
-  },
-  roundMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    marginTop: 8,
-  },
-  roundStatusText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#B3B3B3',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    marginBottom: 3,
   },
   roundMetaText: {
-    fontSize: 12,
-    fontWeight: '400',
-    color: '#B3B3B3',
+    fontSize: 11.5,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.55)',
   },
-  roundMetaTextStrong: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#FFFFFF',
+  roundLiveChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#2A2A2A',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    gap: 6,
+    marginTop: 2,
   },
-  roundMetaDot: {
-    fontSize: 12,
-    fontWeight: '400',
-    color: '#6A6A6A',
-    marginHorizontal: 6,
+  roundLiveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#EF4444',
+  },
+  roundLiveChipText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: 'rgba(255,255,255,0.55)',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  roundTrailingCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#2A2A2A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  roundTrailingAccent: {
+    width: 44,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#7C3AED',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   advanceButton: {
     flexDirection: 'row',
@@ -1800,8 +1832,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#7C3AED',
     borderTopWidth: 0,
     gap: 6,
-    borderBottomLeftRadius: 8,
-    borderBottomRightRadius: 8,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
   },
   advanceButtonText: {
     fontSize: 13,
