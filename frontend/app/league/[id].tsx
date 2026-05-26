@@ -1303,15 +1303,17 @@ export default function LeagueDetailScreen() {
           >
             {sortedRounds.map((round) => {
               const sub = mySubmissions?.find((s) => s.round_id === round.id);
-              const isRoundLocked = round.status === 'locked' || round.status === 'scheduled';
               const isRoundLive = round.status === 'submission' || round.status === 'voting';
               const isRoundDone = round.status === 'completed' || round.status === 'skipped';
 
               let cardState: string;
               let stateLabel: string;
-              if (isRoundLocked) {
+              if (round.status === 'locked') {
                 cardState = 'locked';
                 stateLabel = 'LOCKED';
+              } else if (round.status === 'ready' || round.status === 'scheduled') {
+                cardState = 'not_started';
+                stateLabel = 'NOT STARTED';
               } else if (isRoundLive && sub) {
                 cardState = 'active_played';
                 stateLabel = round.status === 'voting' ? 'VOTING OPEN' : 'SUBMISSIONS OPEN';
@@ -1326,17 +1328,18 @@ export default function LeagueDetailScreen() {
                 stateLabel = 'FORFEITED';
               }
 
-              const tappable = cardState !== 'locked';
+              const isPreStart = cardState === 'locked' || cardState === 'not_started';
+              const tappable = !isPreStart;
 
               const puckBg = (cardState === 'active_played' || cardState === 'active_unplayed')
                 ? '#7C3AED' : '#2A2A2A';
               const puckTextColor = (cardState === 'active_played' || cardState === 'active_unplayed')
                 ? '#FFFFFF'
-                : cardState === 'locked' ? 'rgba(255,255,255,0.38)' : '#B3B3B3';
+                : isPreStart ? 'rgba(255,255,255,0.38)' : '#B3B3B3';
               const labelColor = cardState === 'forfeited' ? '#EF4444'
                 : isRoundLive ? '#22C55E'
-                : cardState === 'locked' ? 'rgba(255,255,255,0.38)' : '#B3B3B3';
-              const themeTextColor = cardState === 'locked' ? 'rgba(255,255,255,0.5)' : '#FFFFFF';
+                : isPreStart ? 'rgba(255,255,255,0.38)' : '#B3B3B3';
+              const themeTextColor = isPreStart ? 'rgba(255,255,255,0.5)' : '#FFFFFF';
 
               const formatDur = (sec: number) => {
                 const m = Math.floor(sec / 60);
@@ -1459,6 +1462,16 @@ export default function LeagueDetailScreen() {
                         <Ionicons name="lock-closed" size={14} color="#6A6A6A" />
                       </View>
                       <Text style={styles.subLockText}>Opens when R{round.round_number - 1} ends</Text>
+                    </View>
+                  )}
+
+                  {/* Not started zone */}
+                  {cardState === 'not_started' && (
+                    <View style={styles.subLockRow}>
+                      <View style={styles.subLockCircle}>
+                        <Ionicons name="time-outline" size={14} color="#6A6A6A" />
+                      </View>
+                      <Text style={styles.subLockText}>This round hasn't started yet.</Text>
                     </View>
                   )}
 
