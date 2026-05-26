@@ -526,28 +526,53 @@ export default function CreateLeaguePage() {
 
           {step === 2 && (
           <>
-          {themes.map((theme, i) => (
-            <View key={i} style={styles.themeRow}>
-              <View style={styles.themePill}>
-                <Text style={styles.themePillText}>R{i + 1}</Text>
+          {themes.map((theme, i) => {
+            const filled = theme.trim().length > 0;
+            const prevFilled = i > 0 && themes[i - 1].trim().length > 0;
+            const isLast = i === themes.length - 1;
+            return (
+              <View key={i} style={styles.themeRow}>
+                <View style={styles.themeStatusCol}>
+                  {i > 0 && (
+                    <View style={[styles.themeConnector, { backgroundColor: prevFilled ? ACCENT : CHIP_BG }]} />
+                  )}
+                  <View style={[
+                    styles.themeCircle,
+                    filled
+                      ? { backgroundColor: ACCENT }
+                      : { backgroundColor: CHIP_BG, borderWidth: 1, borderColor: HAIRLINE },
+                  ]}>
+                    {filled ? (
+                      <Ionicons name="checkmark" size={16} color={INK} />
+                    ) : (
+                      <Text style={{ color: MUTED, fontSize: 12, fontWeight: '700' }}>{i + 1}</Text>
+                    )}
+                  </View>
+                  {!isLast && (
+                    <View style={[styles.themeConnectorBelow, { backgroundColor: filled ? ACCENT : CHIP_BG }]} />
+                  )}
+                </View>
+                <View style={[styles.themeCard, filled && styles.themeCardFilled]}>
+                  <Text style={styles.themeCardLabel}>ROUND {i + 1}</Text>
+                  <TextInput
+                    style={styles.themeCardInput}
+                    placeholder="Tap to add a prompt..."
+                    placeholderTextColor={FAINT}
+                    value={theme}
+                    onChangeText={(v) => {
+                      setThemes((prev) => {
+                        const next = [...prev];
+                        next[i] = v;
+                        return next;
+                      });
+                    }}
+                    maxLength={100}
+                    returnKeyType={i === themes.length - 1 ? 'done' : 'next'}
+                  />
+                </View>
               </View>
-              <TextInput
-                style={styles.themeInput}
-                placeholder={`Round ${i + 1} theme`}
-                placeholderTextColor={FAINT}
-                value={theme}
-                onChangeText={(v) => {
-                  setThemes((prev) => {
-                    const next = [...prev];
-                    next[i] = v;
-                    return next;
-                  });
-                }}
-                maxLength={100}
-                returnKeyType={i === themes.length - 1 ? 'done' : 'next'}
-              />
-            </View>
-          ))}
+            );
+          })}
           </>
           )}
 
@@ -968,36 +993,56 @@ const styles = StyleSheet.create({
   chipTextSelected: {
     color: INK,
   },
-  themesBlock: {
-    marginTop: 14,
-  },
   themeRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 10,
+    alignItems: 'stretch',
   },
-  themePill: {
-    width: 44,
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: '#7C3AED',
+  themeStatusCol: {
+    width: 30,
     alignItems: 'center',
   },
-  themePillText: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-    letterSpacing: 0.5,
-    fontSize: 13,
+  themeCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  themeInput: {
+  themeConnector: {
+    width: 2,
+    height: 10,
+    borderRadius: 1,
+  },
+  themeConnectorBelow: {
+    width: 2,
     flex: 1,
-    backgroundColor: '#181818',
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    color: '#FFFFFF',
+    borderRadius: 1,
+  },
+  themeCard: {
+    flex: 1,
+    backgroundColor: CARD_BG,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: HAIRLINE,
+    padding: 14,
+    marginLeft: 12,
+    marginBottom: 6,
+  },
+  themeCardFilled: {
+    borderColor: 'rgba(255,255,255,0.16)',
+  },
+  themeCardLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    color: MUTED,
+    marginBottom: 8,
+  },
+  themeCardInput: {
+    color: INK,
+    fontWeight: '600',
     fontSize: 14,
+    padding: 0,
   },
 
   cta: {
