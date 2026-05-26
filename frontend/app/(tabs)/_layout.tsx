@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Animated, Easing, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../src/context/AuthContext';
 import { useInboxData } from '../../src/context/InboxDataContext';
@@ -18,6 +18,58 @@ const TAB_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
 
 const VISIBLE_TABS = new Set(Object.keys(TAB_ICONS));
 
+function TabButton({
+  route,
+  active,
+  iconName,
+  onPress,
+  showBadge,
+  badgeCount,
+}: {
+  route: any;
+  active: boolean;
+  iconName: keyof typeof Ionicons.glyphMap;
+  onPress: () => void;
+  showBadge: boolean;
+  badgeCount: number;
+}) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const fillOpacity = useRef(new Animated.Value(active ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.timing(fillOpacity, {
+      toValue: active ? 1 : 0,
+      duration: 160,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  }, [active]);
+
+  return (
+    <TouchableOpacity
+      style={styles.tab}
+      activeOpacity={0.7}
+      onPress={onPress}
+      onPressIn={() => {
+        Animated.timing(scale, { toValue: 0.94, duration: 80, useNativeDriver: true }).start();
+      }}
+      onPressOut={() => {
+        Animated.timing(scale, { toValue: 1, duration: 160, easing: Easing.out(Easing.ease), useNativeDriver: true }).start();
+      }}
+    >
+      <Animated.View style={[styles.tabInner, { transform: [{ scale }] }]}>
+        <Animated.View style={[styles.tabFill, { opacity: fillOpacity }]} />
+        <Ionicons name={iconName} size={22} color={active ? '#FFFFFF' : '#6A6A6A'} />
+        {showBadge && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{badgeCount > 99 ? '99+' : badgeCount}</Text>
+          </View>
+        )}
+      </Animated.View>
+    </TouchableOpacity>
+  );
+}
+
 function FloatingTabBar({ state, navigation }: any) {
   const insets = useSafeAreaInsets();
   const { totalUnread } = useInboxData();
@@ -27,27 +79,21 @@ function FloatingTabBar({ state, navigation }: any) {
       {state.routes.map((route: any, index: number) => {
         if (!VISIBLE_TABS.has(route.name)) return null;
         const active = state.index === index;
-        const iconName = TAB_ICONS[route.name];
-
         return (
-          <TouchableOpacity
+          <TabButton
             key={route.key}
-            style={[styles.tab, active && styles.tabActive]}
-            activeOpacity={0.7}
+            route={route}
+            active={active}
+            iconName={TAB_ICONS[route.name]}
             onPress={() => {
               const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
               if (!event.defaultPrevented && !active) {
                 navigation.navigate(route.name);
               }
             }}
-          >
-            <Ionicons name={iconName} size={22} color={active ? '#FFFFFF' : '#6A6A6A'} />
-            {route.name === 'inbox' && totalUnread > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{totalUnread > 99 ? '99+' : totalUnread}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
+            showBadge={route.name === 'inbox' && totalUnread > 0}
+            badgeCount={totalUnread}
+          />
         );
       })}
     </View>
@@ -96,11 +142,17 @@ const styles = StyleSheet.create({
   tab: {
     width: 40,
     height: 40,
+  },
+  tabInner: {
+    width: 40,
+    height: 40,
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tabActive: {
+  tabFill: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 20,
     backgroundColor: '#2A2A2A',
   },
   badge: {
