@@ -608,9 +608,11 @@ export default function DiscoverScreen() {
       songsRef.current = next;
       setSongs(next);
 
-      if (reset && !silent) {
+      if (reset) {
         currentIdxRef.current = 0;
-        flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+        if (!silent) {
+          flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+        }
         if (shuffled.length > 0) {
           if (autoplayTimeoutRef.current) {
             clearTimeout(autoplayTimeoutRef.current);
@@ -621,7 +623,7 @@ export default function DiscoverScreen() {
             autoplayTimeoutRef.current = null;
             if (!isFocusedRef.current) return;
             if (id === fetchCounterRef.current) playPreviewFnRef.current(shuffled[0]);
-          }, 400);
+          }, 120);
           trackTimeout(h);
           autoplayTimeoutRef.current = h;
         }
