@@ -72,7 +72,7 @@ function TabButton({
 
 function FloatingTabBar({ state, navigation }: any) {
   const insets = useSafeAreaInsets();
-  const { totalUnread } = useInboxData();
+  const { totalUnread, loading } = useInboxData();
 
   return (
     <View style={[styles.pill, { bottom: insets.bottom + 12 }]}>
@@ -91,7 +91,7 @@ function FloatingTabBar({ state, navigation }: any) {
                 navigation.navigate(route.name);
               }
             }}
-            showBadge={route.name === 'inbox' && totalUnread > 0}
+            showBadge={route.name === 'inbox' && !loading && totalUnread > 0}
             badgeCount={totalUnread}
           />
         );
