@@ -599,14 +599,22 @@ export default function LeagueDetailScreen() {
               >
                 {displayName}
               </Text>
-              {isLive && (
-                <View style={styles.roundLiveChip}>
-                  <View style={styles.roundLiveDot} />
-                  <Text style={styles.roundLiveChipText}>
-                    {item.status === 'voting' ? 'VOTING' : 'SUBMIT'} · {statusText}
-                  </Text>
-                </View>
-              )}
+              {isLive && (() => {
+                const userDone = item.status === 'submission'
+                  ? !!item.has_user_submitted
+                  : !!item.has_user_voted;
+                const chipLabel = item.status === 'submission'
+                  ? (userDone ? 'SUBMITTED' : 'SUBMIT')
+                  : (userDone ? 'VOTED' : 'VOTE');
+                return (
+                  <View style={styles.roundLiveChip}>
+                    <View style={[styles.roundLiveDot, userDone && { backgroundColor: '#22C55E' }]} />
+                    <Text style={styles.roundLiveChipText}>
+                      {chipLabel} · {statusText}
+                    </Text>
+                  </View>
+                );
+              })()}
               {!isLive && (
                 <Text style={styles.roundMetaText} numberOfLines={2}>
                   {(isLocked ? '\u{1F512} ' : '')}{statusText}
