@@ -25,6 +25,21 @@ import LeagueAvatar from '../src/components/LeagueAvatar';
 import LeagueCreatedSuccess from '../src/components/LeagueCreatedSuccess';
 import { leagueDraft } from '../src/utils/leagueDraft';
 
+const PAGE_BG = '#0a0a0a';
+const CARD_BG = '#1a1a1a';
+const HAIRLINE = 'rgba(255,255,255,0.08)';
+const CHIP_BG = '#2A2A2A';
+const INK = '#FFFFFF';
+const MUTED = 'rgba(255,255,255,0.55)';
+const FAINT = '#6A6A6A';
+const ACCENT = '#7C3AED';
+
+const STEP_TITLES: { title: string; subtitle: string }[] = [
+  { title: 'Set up your league', subtitle: 'Name it and give it a look.' },
+  { title: 'Rounds & settings', subtitle: 'Set the cadence and options.' },
+  { title: 'Review & create', subtitle: 'Check everything looks right.' },
+];
+
 const ROUND_CHOICES = [2, 3, 4, 5, 6, 7, 8, 9, 10];
 // Time choices must match the backend's ALLOWED_PHASE_HOURS (12, 24, 48,
 // 72, 168). Anything outside this set is rejected server-side.
@@ -226,8 +241,43 @@ export default function CreateLeaguePage() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Text style={{ color: '#B3B3B3', fontSize: 13, fontWeight: '600', textAlign: 'center', marginBottom: 8 }}>
-            Step {step} of 3
+          {/* Stepper */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, marginBottom: 22 }}>
+            {[1, 2, 3].map((s, i) => {
+              const completed = s < step;
+              const current = s === step;
+              const pending = s > step;
+              return (
+                <React.Fragment key={s}>
+                  {i > 0 && (
+                    <View style={{ flex: 1, height: 2, marginHorizontal: 6, backgroundColor: s <= step ? ACCENT : CHIP_BG, borderRadius: 1 }} />
+                  )}
+                  {current ? (
+                    <View style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 4, borderColor: 'rgba(124,58,237,0.25)', alignItems: 'center', justifyContent: 'center' }}>
+                      <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: ACCENT, alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ color: INK, fontSize: 13, fontWeight: '800' }}>{s}</Text>
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: completed ? ACCENT : CHIP_BG, alignItems: 'center', justifyContent: 'center' }}>
+                      {completed ? (
+                        <Ionicons name="checkmark" size={16} color={INK} />
+                      ) : (
+                        <Text style={{ color: MUTED, fontSize: 13, fontWeight: '700' }}>{s}</Text>
+                      )}
+                    </View>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </View>
+
+          {/* Step title */}
+          <Text style={{ fontSize: 28, fontWeight: '800', color: INK, letterSpacing: -0.7 }}>
+            {STEP_TITLES[step - 1].title}
+          </Text>
+          <Text style={{ fontSize: 14, fontWeight: '500', color: MUTED, marginTop: 4, marginBottom: 8 }}>
+            {STEP_TITLES[step - 1].subtitle}
           </Text>
 
           {step === 1 && (
@@ -575,7 +625,7 @@ function ChipRow<T extends string | number>({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212' },
+  container: { flex: 1, backgroundColor: PAGE_BG },
   header: {
     paddingHorizontal: 14,
     paddingTop: 4,
