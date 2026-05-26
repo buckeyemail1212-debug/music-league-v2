@@ -62,6 +62,7 @@ export default function CreateLeaguePage() {
   const [startsInHours, setStartsInHours] = useState(24);
   const [memberCap, setMemberCap] = useState<number>(DEFAULT_MEMBER_CAP);
   const [memberCapPickerOpen, setMemberCapPickerOpen] = useState(false);
+  const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [genreError, setGenreError] = useState<string | null>(null);
   const [createdLeague, setCreatedLeague] = useState<League | null>(null);
@@ -225,6 +226,12 @@ export default function CreateLeaguePage() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          <Text style={{ color: '#B3B3B3', fontSize: 13, fontWeight: '600', textAlign: 'center', marginBottom: 8 }}>
+            Step {step} of 3
+          </Text>
+
+          {step === 1 && (
+          <>
           {/* Photo */}
           <View style={styles.photoWrap}>
             <TouchableOpacity
@@ -283,7 +290,11 @@ export default function CreateLeaguePage() {
             returnKeyType="done"
           />
           {genreError && <Text style={styles.inlineError}>{genreError}</Text>}
+          </>
+          )}
 
+          {step >= 2 && (
+          <>
           {/* Rounds */}
           <Text style={styles.label}>Number of Rounds</Text>
           <ChipRow
@@ -418,21 +429,45 @@ export default function CreateLeaguePage() {
               </View>
             </TouchableOpacity>
           </Modal>
+          </>
+          )}
 
-          <TouchableOpacity
-            style={[styles.cta, !canSubmit && styles.ctaDisabled]}
-            onPress={handleCreate}
-            disabled={!canSubmit}
-            activeOpacity={0.85}
-          >
-            {submitting ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.ctaText}>
-                {themesOn ? 'NEXT — SET ROUND THEMES' : 'CREATE LEAGUE'}
-              </Text>
-            )}
-          </TouchableOpacity>
+          {step === 1 ? (
+            <TouchableOpacity
+              style={[styles.cta, !(name.trim().length > 0 && !genreRequiredMissing) && styles.ctaDisabled]}
+              onPress={() => {
+                if (name.trim().length > 0 && !genreRequiredMissing) setStep(2);
+              }}
+              disabled={!(name.trim().length > 0 && !genreRequiredMissing)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.ctaText}>NEXT</Text>
+            </TouchableOpacity>
+          ) : (
+            <>
+              <TouchableOpacity
+                style={[styles.cta, !canSubmit && styles.ctaDisabled]}
+                onPress={handleCreate}
+                disabled={!canSubmit}
+                activeOpacity={0.85}
+              >
+                {submitting ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.ctaText}>
+                    {themesOn ? 'NEXT — SET ROUND THEMES' : 'CREATE LEAGUE'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setStep(step - 1)}
+                activeOpacity={0.7}
+                style={{ alignItems: 'center', marginTop: 14 }}
+              >
+                <Text style={{ color: '#B3B3B3', fontWeight: '700', fontSize: 14 }}>Back</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
