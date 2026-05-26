@@ -7745,6 +7745,70 @@ async def get_inbox_feed(current_user: dict = Depends(get_current_user)):
     items.sort(key=lambda x: x["timestamp"], reverse=True)
     return {"data": {"items": items}}
 
+# ==================== SPLASH STATS ENDPOINT ====================
+
+@api_router.get("/home/splash-stats")
+async def get_splash_stats(current_user: dict = Depends(get_current_user)):
+    me_id = current_user["id"]
+    now = datetime.now(timezone.utc)
+
+    leagues = await db.leagues.find(
+        {
+            "members.id": me_id,
+            "$or": [{"deleted_at": {"$exists": False}}, {"deleted_at": None}],
+        },
+        {"_id": 0, "id": 1, "status": 1},
+    ).to_list(500)
+
+    active_leagues = [l for l in leagues if l.get("status") != "completed"]
+    active_league_ids = [l["id"] for l in active_leagues]
+
+    if not active_league_ids:
+        return {"data": {"active_leagues": 0, "submissions_due": 0, "voting_now": 0}}
+
+    all_rounds = await db.rounds.find(
+        {"league_id": {"$in": active_league_ids}},
+        {"_id": 0, "id": 1, "status": 1, "submission_deadline": 1, "voting_deadline": 1},
+    ).to_list(2000)
+
+    all_round_ids = [r["id"] for r in all_rounds]
+
+    has_submitted: set[str] = set()
+    has_voted: set[str] = set()
+    if all_round_ids:
+        sub_docs, vote_docs = await asyncio.gather(
+            db.submissions.find(
+                {"round_id": {"$in": all_round_ids}, "user_id": me_id},
+                {"_id": 0, "round_id": 1},
+            ).to_list(2000),
+            db.votes.find(
+                {"round_id": {"$in": all_round_ids}, "voter_id": me_id},
+                {"_id": 0, "round_id": 1},
+            ).to_list(2000),
+        )
+        has_submitted = {d["round_id"] for d in sub_docs}
+        has_voted = {d["round_id"] for d in vote_docs}
+
+    submissions_due = 0
+    voting_now = 0
+    for r in all_rounds:
+        eff_status = r.get("status")
+        sub_deadline = ensure_utc(r.get("submission_deadline")) if r.get("submission_deadline") else None
+        vote_deadline = ensure_utc(r.get("voting_deadline")) if r.get("voting_deadline") else None
+
+        if eff_status == "submission" and sub_deadline and sub_deadline < now:
+            eff_status = "voting"
+        if eff_status == "voting" and vote_deadline and vote_deadline < now:
+            eff_status = "completed"
+
+        if eff_status == "submission" and r["id"] not in has_submitted:
+            submissions_due += 1
+        elif eff_status == "voting" and r["id"] not in has_voted:
+            voting_now += 1
+
+    return {"data": {"active_leagues": len(active_leagues), "submissions_due": submissions_due, "voting_now": voting_now}}
+
+
 # ==================== DIRECT MESSAGE ENDPOINTS ====================
 
 @api_router.post("/dm/conversations")
