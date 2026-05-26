@@ -47,6 +47,7 @@ import {
   LeagueStandings,
 } from '../../src/services/api';
 import { format } from 'date-fns';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const AVATAR_COLORS = ['#7C3AED', '#10B981', '#F59E0B', '#EF4444', '#3B82F6', '#EC4899', '#14B8A6', '#F97316'];
 const avatarColor = (seed: string) => {
@@ -99,6 +100,7 @@ export default function LeagueDetailScreen() {
   // Members modal state
   const [showMembersModal, setShowMembersModal] = useState(false);
 
+  const [overflowOpen, setOverflowOpen] = useState(false);
   // Share modal state — opens the redesigned share UI with view
   // toggles (Story / Square / Top 3) and the SHARE TO grid.
   const [showShareModal, setShowShareModal] = useState(false);
@@ -349,18 +351,16 @@ export default function LeagueDetailScreen() {
     );
   };
 
+  const startedRound = rounds.some(
+    (r) =>
+      r.status === 'submission' ||
+      r.status === 'voting' ||
+      r.status === 'completed' ||
+      r.status === 'skipped',
+  );
+
   const handleDeleteLeague = () => {
     if (!league) return;
-    // Once any round has reached the submission phase, deleting ends the
-    // league early and writes a "NOT FINISHED" past-league snapshot
-    // instead of hard-deleting. Match the copy to that behavior.
-    const startedRound = rounds.some(
-      (r) =>
-        r.status === 'submission' ||
-        r.status === 'voting' ||
-        r.status === 'completed' ||
-        r.status === 'skipped',
-    );
     const title = startedRound ? 'End League Early?' : 'Delete League?';
     const body = startedRound
       ? 'This will end the league immediately. Members will see it in Past Leagues marked as "NOT FINISHED". Final results will not be calculated. This cannot be undone.'
@@ -662,24 +662,49 @@ export default function LeagueDetailScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color="rgba(255,255,255,0.75)" />
+      {/* Top bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.topBarBtn} onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
         </TouchableOpacity>
-        <View style={styles.headerInfo}>
-          <View style={styles.headerTitleRow}>
-            <Text style={styles.leagueName} numberOfLines={1}>{league.name}</Text>
-            {loading && dataLoaded.current && (
-              <ActivityIndicator size="small" color="rgba(255,255,255,0.4)" />
-            )}
+        <View style={{ flex: 1 }} />
+        {loading && dataLoaded.current && (
+          <ActivityIndicator size="small" color="rgba(255,255,255,0.4)" style={{ marginRight: 8 }} />
+        )}
+        <View style={styles.topBarActions}>
+          <TouchableOpacity style={styles.topBarBtn} onPress={() => setShowMembersModal(true)}>
+            <Ionicons name="people-outline" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
+          {isMember && (
+            <TouchableOpacity style={styles.topBarBtn} onPress={() => setShowChatModal(true)}>
+              <Ionicons name="chatbubble-outline" size={20} color="#FFFFFF" />
+              {hasUnread && <View style={styles.topBarBadge} />}
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity style={styles.topBarBtn} onPress={() => setOverflowOpen(!overflowOpen)}>
+            <Ionicons name="ellipsis-horizontal" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Cover card */}
+      <View style={styles.coverCard}>
+        {league.league_image ? (
+          <Image source={{ uri: league.league_image }} style={styles.coverImage} />
+        ) : (
+          <View style={styles.coverEmpty}>
+            <Text style={styles.coverInitial}>
+              {league.name.trim() ? league.name.trim()[0].toUpperCase() : '?'}
+            </Text>
           </View>
-          <View style={styles.headerSubRow}>
-            <Text style={styles.headerSubText} numberOfLines={1}>
+        )}
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.75)']}
+          style={styles.coverGradient}
+        >
+          <View style={styles.coverLivePill}>
+            <Text style={styles.coverLivePillText}>
               {(() => {
-                // Derive a single-line round-state summary from the
-                // loaded rounds. "Not started" = no active round AND
-                // nothing completed yet. "Completed" = every planned
-                // round is done. Otherwise show current round + phase.
                 const total = league.total_rounds || 0;
                 const active = rounds.find(
                   (r) => r.status === 'submission' || r.status === 'voting',
@@ -689,73 +714,18 @@ export default function LeagueDetailScreen() {
                 ).length;
                 if (total > 0 && completedCount >= total) return 'Completed';
                 if (active) {
-                  const base = `Round ${active.round_number} of ${total > 0 ? total : '?'}`;
-                  return active.status === 'voting' ? `${base} · voting` : base;
+                  const phase = active.status === 'voting' ? 'Voting open' : 'Submitting open';
+                  return `Round ${active.round_number} of ${total > 0 ? total : '?'} · ${phase}`;
                 }
                 return 'Not started';
               })()}
             </Text>
-            {league.current_round === 0 && (
-              <TouchableOpacity onPress={handleCopyCode} style={styles.headerCode}>
-                <Text style={styles.headerCodeText}>{league.league_code}</Text>
-                <Ionicons name="copy-outline" size={12} color="#B3B3B3" />
-              </TouchableOpacity>
-            )}
           </View>
-        </View>
-        <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.headerButton} onPress={() => setShowMembersModal(true)}>
-            <Ionicons name="people" size={22} color="rgba(255,255,255,0.60)" />
-          </TouchableOpacity>
-          {/* Chat is a member-only surface. Non-members reach this
-              screen via profile navigation; they're not part of the
-              conversation. */}
-          {isMember && (
-            <TouchableOpacity style={styles.headerButton} onPress={() => setShowChatModal(true)}>
-              <Ionicons name="chatbubble-outline" size={22} color="rgba(255,255,255,0.60)" />
-              {hasUnread && <View style={styles.unreadBadge} />}
-            </TouchableOpacity>
-          )}
-          {isMember && (() => {
-            // Creators always get the Delete affordance — admin can
-            // delete at any point in the league's lifecycle, with
-            // mid-flight deletions becoming "NOT FINISHED" past leagues.
-            // Non-creators get the Leave icon, which freezes their
-            // points and removes them from active play. Non-members
-            // get neither — the spec hides both affordances.
-            if (isCreator) {
-              return (
-                <TouchableOpacity
-                  style={styles.headerButton}
-                  onPress={handleDeleteLeague}
-                >
-                  <Ionicons
-                    name="trash-outline"
-                    size={22}
-                    color="rgba(255,255,255,0.60)"
-                  />
-                </TouchableOpacity>
-              );
-            }
-            return (
-              <TouchableOpacity
-                style={styles.headerButton}
-                onPress={handleLeaveLeague}
-                accessibilityLabel="Leave league"
-              >
-                <Ionicons
-                  name="log-out-outline"
-                  size={22}
-                  color="rgba(255,255,255,0.60)"
-                />
-              </TouchableOpacity>
-            );
-          })()}
-        </View>
+          <Text style={styles.coverTitle}>{league.name}</Text>
+        </LinearGradient>
       </View>
 
-      {/* Join CTA for non-members viewing a public league. Private
-          leagues stay invite-code-only, so the button is hidden. */}
+      {/* Join CTA for non-members viewing a public league */}
       {!isMember && league.is_public && (
         <TouchableOpacity
           style={styles.joinPublicCta}
@@ -1411,65 +1381,86 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#B3B3B3',
   },
-  header: {
+  topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
-  backButton: {
-    padding: 8,
-  },
-  headerInfo: {
-    flex: 1,
-    marginLeft: 8,
-  },
-  headerTitleRow: {
+  topBarActions: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
-  leagueName: {
-    fontSize: 20,
+  topBarBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topBarBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#EF4444',
+  },
+  coverCard: {
+    marginHorizontal: 16,
+    borderRadius: 24,
+    overflow: 'hidden',
+    aspectRatio: 1.1,
+    backgroundColor: '#1a1a1a',
+  },
+  coverImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  } as any,
+  coverEmpty: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#7C3AED',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  coverInitial: {
+    fontSize: 64,
     fontWeight: '800',
     color: '#FFFFFF',
-    letterSpacing: 0.2,
-    flexShrink: 1,
   },
-  headerSubRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 2,
+  coverGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 18,
+    paddingBottom: 18,
+    paddingTop: 60,
   },
-  headerSubText: {
-    fontSize: 12,
-    color: '#B3B3B3',
-    fontWeight: '500',
+  coverLivePill: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    marginBottom: 8,
   },
-  headerCode: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    gap: 4,
-  },
-  headerCodeText: {
-    fontSize: 12,
-    fontWeight: '500',
+  coverLivePillText: {
+    fontSize: 11,
+    fontWeight: '700',
     color: '#FFFFFF',
-    letterSpacing: 1,
   },
-  headerActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  headerButton: {
-    padding: 8,
+  coverTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   codeBar: {
     flexDirection: 'row',
