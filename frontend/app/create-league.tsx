@@ -368,87 +368,106 @@ export default function CreateLeaguePage() {
 
           {step === 2 && (
           <>
-          {/* Rounds */}
-          <Text style={styles.label}>Number of Rounds</Text>
-          <ChipRow
-            options={ROUND_CHOICES.map((n) => ({ label: String(n), value: n }))}
-            value={rounds}
-            onChange={setRounds}
-          />
+          {/* Cadence section */}
+          <Text style={styles.sectionLabel}>CADENCE</Text>
+          <View style={styles.settingsCard}>
+            <Text style={styles.cardFieldLabel}>Number of Rounds</Text>
+            <ChipRow
+              options={ROUND_CHOICES.map((n) => ({ label: String(n), value: n }))}
+              value={rounds}
+              onChange={setRounds}
+            />
 
-          {/* Submission time */}
-          <Text style={styles.label}>Submission Time per Round</Text>
-          <ChipRow
-            options={TIME_CHOICES.map((t) => ({ label: t.label, value: t.hours }))}
-            value={submissionHours}
-            onChange={setSubmissionHours}
-          />
+            <View style={styles.cardDivider} />
 
-          {/* Voting time */}
-          <Text style={styles.label}>Voting Time per Round</Text>
-          <ChipRow
-            options={TIME_CHOICES.map((t) => ({ label: t.label, value: t.hours }))}
-            value={votingHours}
-            onChange={setVotingHours}
-          />
-          <Text style={styles.helperNote}>
-            Suggested: 2 days for submission, 3 days for voting.
-          </Text>
+            <Text style={styles.cardFieldLabel}>Submission Time per Round</Text>
+            <ChipRow
+              options={TIME_CHOICES.map((t) => ({ label: t.label, value: t.hours }))}
+              value={submissionHours}
+              onChange={setSubmissionHours}
+            />
+
+            <View style={styles.cardDivider} />
+
+            <Text style={styles.cardFieldLabel}>Voting Time per Round</Text>
+            <ChipRow
+              options={TIME_CHOICES.map((t) => ({ label: t.label, value: t.hours }))}
+              value={votingHours}
+              onChange={setVotingHours}
+            />
+
+            <View style={styles.hintStrip}>
+              <View style={styles.hintStripIcon}>
+                <Ionicons name="star" size={12} color={INK} />
+              </View>
+              <Text style={styles.hintStripText}>
+                Suggested: 2 days for submission, 3 days for voting.
+              </Text>
+            </View>
+          </View>
+
+          {/* Options section */}
+          <Text style={styles.sectionLabel}>OPTIONS</Text>
 
           {/* Themes toggle */}
-          <View style={styles.themeToggleRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.themeToggleTitle}>Rounds will have themes</Text>
-              <Text style={styles.themeToggleSub}>
-                Set a prompt for each round (e.g. “Songs about fire”).
+          <View style={styles.toggleCard}>
+            <View style={styles.toggleIcon}>
+              <Ionicons name="color-palette-outline" size={18} color={INK} />
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={styles.toggleTitle}>Rounds will have themes</Text>
+              <Text style={styles.toggleSub}>
+                Set a prompt for each round (e.g. "Songs about fire").
               </Text>
             </View>
             <Switch
               value={themesOn}
               onValueChange={setThemesOn}
-              trackColor={{ false: '#3A3A3A', true: '#7C3AED' }}
-              thumbColor="#FFFFFF"
+              trackColor={{ false: CHIP_BG, true: ACCENT }}
+              thumbColor={INK}
             />
           </View>
 
           {/* Public league toggle */}
-          <View style={styles.themeToggleRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.themeToggleTitle}>Public league</Text>
-              <Text style={styles.themeToggleSub}>
+          <View style={[styles.toggleCard, { marginTop: 10 }]}>
+            <View style={styles.toggleIcon}>
+              <Ionicons name="globe-outline" size={18} color={INK} />
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={styles.toggleTitle}>Public league</Text>
+              <Text style={styles.toggleSub}>
                 Listed on Public Leagues. No invite code · Round 1 auto-starts on timer.
               </Text>
             </View>
             <Switch
               value={isPublic}
               onValueChange={setIsPublic}
-              trackColor={{ false: '#3A3A3A', true: '#7C3AED' }}
-              thumbColor="#FFFFFF"
+              trackColor={{ false: CHIP_BG, true: ACCENT }}
+              thumbColor={INK}
             />
           </View>
 
           {isPublic && (
             <>
-              <Text style={styles.label}>Start first round in</Text>
+              <Text style={[styles.cardFieldLabel, { marginTop: 18 }]}>Start first round in</Text>
               <ChipRow
                 options={STARTS_IN_CHOICES.map((t) => ({ label: t.label, value: t.hours }))}
                 value={startsInHours}
                 onChange={setStartsInHours}
               />
 
-              <Text style={styles.label}>Max members</Text>
+              <Text style={[styles.cardFieldLabel, { marginTop: 16 }]}>Max members</Text>
               <TouchableOpacity
                 style={styles.pickerField}
                 activeOpacity={0.8}
                 onPress={() => setMemberCapPickerOpen(true)}
               >
                 <Text style={styles.pickerFieldText}>{memberCap}</Text>
-                <Ionicons name="chevron-down" size={18} color="#B3B3B3" />
+                <Ionicons name="chevron-down" size={18} color={MUTED} />
               </TouchableOpacity>
             </>
           )}
 
-          {/* Member cap picker modal — scrollable list of 10..100 in 10s. */}
           <Modal
             visible={memberCapPickerOpen}
             transparent
@@ -491,7 +510,7 @@ export default function CreateLeaguePage() {
                           <Ionicons
                             name="checkmark"
                             size={18}
-                            color="#FFFFFF"
+                            color={INK}
                           />
                         )}
                       </TouchableOpacity>
@@ -725,22 +744,96 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     fontWeight: '600',
   },
-  helperNote: {
-    marginTop: 8,
-    fontSize: 12,
-    color: '#6A6A6A',
-    fontStyle: 'italic',
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    color: MUTED,
+    marginTop: 22,
+    marginBottom: 10,
+  },
+  settingsCard: {
+    backgroundColor: CARD_BG,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: HAIRLINE,
+    padding: 16,
+  },
+  cardFieldLabel: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: INK,
+    letterSpacing: -0.2,
+    marginBottom: 10,
+  },
+  cardDivider: {
+    height: 1,
+    backgroundColor: HAIRLINE,
+    marginVertical: 14,
+  },
+  hintStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: CHIP_BG,
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    marginTop: 14,
+    gap: 8,
+  },
+  hintStripIcon: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: ACCENT,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hintStripText: {
+    flex: 1,
+    fontSize: 11.5,
+    color: MUTED,
+  },
+  toggleCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: CARD_BG,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: HAIRLINE,
+    padding: 16,
+  },
+  toggleIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: CHIP_BG,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toggleTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: INK,
+  },
+  toggleSub: {
+    fontSize: 11.5,
+    fontWeight: '500',
+    color: MUTED,
+    marginTop: 2,
   },
   pickerField: {
-    backgroundColor: '#181818',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
+    backgroundColor: CARD_BG,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: HAIRLINE,
+    paddingHorizontal: 16,
+    height: 52,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  pickerFieldText: { color: '#FFFFFF', fontSize: 15, fontWeight: '600' },
+  pickerFieldText: { color: INK, fontSize: 15, fontWeight: '600' },
   pickerBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.55)',
@@ -750,16 +843,18 @@ const styles = StyleSheet.create({
   pickerSheet: {
     width: '72%',
     maxHeight: '60%',
-    backgroundColor: '#1E1E1E',
-    borderRadius: 14,
+    backgroundColor: CARD_BG,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: HAIRLINE,
     paddingVertical: 10,
     paddingHorizontal: 6,
   },
   pickerHeader: {
     fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 1.2,
-    color: '#B3B3B3',
+    letterSpacing: 0.6,
+    color: MUTED,
     paddingHorizontal: 14,
     paddingVertical: 10,
     textTransform: 'uppercase',
@@ -770,13 +865,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 12,
     paddingHorizontal: 14,
-    borderRadius: 8,
+    borderRadius: 10,
   },
   pickerRowSelected: {
     backgroundColor: 'rgba(124,58,237,0.18)',
   },
-  pickerRowText: { color: '#FFFFFF', fontSize: 15, fontWeight: '600' },
-  pickerRowTextSelected: { color: '#FFFFFF' },
+  pickerRowText: { color: INK, fontSize: 15, fontWeight: '600' },
+  pickerRowTextSelected: { color: INK },
   input: {
     backgroundColor: CARD_BG,
     borderRadius: 18,
@@ -815,42 +910,24 @@ const styles = StyleSheet.create({
   chip: {
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 999,
-    backgroundColor: '#181818',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 14,
+    backgroundColor: CHIP_BG,
   },
   chipSelected: {
-    backgroundColor: '#7C3AED',
-    borderColor: '#7C3AED',
+    backgroundColor: ACCENT,
+    shadowColor: ACCENT,
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
   },
   chipText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#B3B3B3',
+    color: MUTED,
   },
   chipTextSelected: {
-    color: '#FFFFFF',
-  },
-
-  themeToggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 26,
-    padding: 14,
-    backgroundColor: '#181818',
-    borderRadius: 12,
-    gap: 12,
-  },
-  themeToggleTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  themeToggleSub: {
-    fontSize: 12,
-    color: '#B3B3B3',
-    marginTop: 2,
+    color: INK,
   },
   themesBlock: {
     marginTop: 14,
