@@ -886,4 +886,8 @@ export interface InboxFeedItem {
 export const getInboxFeed = () =>
   api.get<{ data: { items: InboxFeedItem[] } }>('/inbox/feed');
 
+export interface SplashStats { active_leagues: number; submissions_due: number; voting_now: number; }
+export const getSplashStats = () =>
+  api.get<{ data: SplashStats }>('/home/splash-stats');
+
 export default api;

@@ -473,6 +473,13 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
+      <TouchableOpacity
+        style={{ backgroundColor: '#7C3AED', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, alignSelf: 'flex-start', marginBottom: 8 }}
+        onPress={() => router.push('/welcome-splash' as any)}
+      >
+        <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>TEST: Splash</Text>
+      </TouchableOpacity>
+
       {/* Primary / secondary CTA pills — Create League + Join With Code.
           Replaced the header "+" entry to the action sheet. */}
       <View style={styles.ctaRow}>

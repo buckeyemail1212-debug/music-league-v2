@@ -44,6 +44,7 @@ export default function RootLayout() {
           <Stack.Screen name="league-chat" options={{ headerShown: false, animation: 'slide_from_right' }} />
           <Stack.Screen name="dm/[id]" options={{ headerShown: false, animation: 'slide_from_right' }} />
           <Stack.Screen name="new-message" options={{ headerShown: false, animation: 'slide_from_right' }} />
+          <Stack.Screen name="welcome-splash" options={{ headerShown: false, animation: 'fade' }} />
         </Stack>
         </InboxDataProvider>
         </AuthProvider>
