@@ -360,32 +360,18 @@ export default function CreateLeaguePage() {
               {genre.length}/{GENRE_MAX_LENGTH}
             </Text>
           </View>
-          {trimmedGenre ? (
-            <View style={[styles.input, styles.inputActive, { flexDirection: 'row', alignItems: 'center' }]}>
-              <View style={styles.genrePill}>
-                <Text style={styles.genrePillText}>{trimmedGenre}</Text>
-                <TouchableOpacity
-                  onPress={() => { setGenre(''); if (genreError) setGenreError(null); }}
-                  hitSlop={8}
-                >
-                  <Ionicons name="close" size={14} color="rgba(255,255,255,0.7)" />
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : (
-            <TextInput
-              style={styles.input}
-              placeholder="e.g., Indie Rock, 90s Hip-Hop, Chill Vibes"
-              placeholderTextColor={FAINT}
-              value={genre}
-              onChangeText={(v) => {
-                setGenre(v);
-                if (genreError) setGenreError(null);
-              }}
-              maxLength={GENRE_MAX_LENGTH}
-              returnKeyType="done"
-            />
-          )}
+          <TextInput
+            style={[styles.input, genre.length > 0 && styles.inputActive]}
+            placeholder="e.g., Indie Rock, 90s Hip-Hop, Chill Vibes"
+            placeholderTextColor={FAINT}
+            value={genre}
+            onChangeText={(v) => {
+              setGenre(v);
+              if (genreError) setGenreError(null);
+            }}
+            maxLength={GENRE_MAX_LENGTH}
+            returnKeyType="done"
+          />
           {genreError && <Text style={styles.inlineError}>{genreError}</Text>}
 
           {/* Cadence section */}
@@ -1027,21 +1013,6 @@ const styles = StyleSheet.create({
   inputActive: {
     borderColor: 'rgba(255,255,255,0.16)',
   },
-  genrePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: ACCENT,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  genrePillText: {
-    color: INK,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
