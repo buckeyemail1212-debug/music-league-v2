@@ -30,7 +30,6 @@ export default function RootLayout() {
           <Stack.Screen name="how-to-play" options={{ headerShown: false, animation: 'slide_from_right' }} />
           <Stack.Screen name="glossary/[term]" options={{ headerShown: false, animation: 'slide_from_right' }} />
           <Stack.Screen name="create-league" options={{ headerShown: false, animation: 'slide_from_right' }} />
-          <Stack.Screen name="set-round-themes" options={{ headerShown: false, animation: 'slide_from_right' }} />
           <Stack.Screen name="join-league" options={{ headerShown: false, animation: 'slide_from_right' }} />
           <Stack.Screen name="past-league/[id]" options={{ headerShown: false, animation: 'slide_from_right' }} />
           <Stack.Screen name="past-leagues" options={{ headerShown: false, animation: 'slide_from_right' }} />
