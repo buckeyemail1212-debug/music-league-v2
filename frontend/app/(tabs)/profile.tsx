@@ -85,47 +85,46 @@ export default function ProfileScreen() {
             </View>
           </ExpandableImage>
           {user?.id ? (
-            <View style={styles.statsRow}>
-              <TouchableOpacity
-                style={styles.statItem}
-                activeOpacity={0.7}
-                onPress={() => router.push(`/user/${user.id}/followers` as any)}
-              >
-                <Text style={styles.statValue}>
-                  {followCounts ? followCounts.followers.toLocaleString() : '—'}
-                </Text>
-                <Text style={styles.statLabel}>followers</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.statItem}
-                activeOpacity={0.7}
-                onPress={() => router.push(`/user/${user.id}/following` as any)}
-              >
-                <Text style={styles.statValue}>
-                  {followCounts ? followCounts.following.toLocaleString() : '—'}
-                </Text>
-                <Text style={styles.statLabel}>following</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.statItem}
-                activeOpacity={0.7}
-                onPress={() => router.push('/(tabs)/leaderboard' as any)}
-              >
-                <Text style={styles.statValue}>
-                  {ranking != null ? `#${ranking}` : '—'}
-                </Text>
-                <Text style={styles.statLabel}>ranking</Text>
-              </TouchableOpacity>
+            <View style={styles.nameStatsCol}>
+              <Text style={styles.displayName}>{displayName}</Text>
+              <View style={styles.statsRow}>
+                <TouchableOpacity
+                  style={styles.statItem}
+                  activeOpacity={0.7}
+                  onPress={() => router.push(`/user/${user.id}/followers` as any)}
+                >
+                  <Text style={styles.statValue}>
+                    {followCounts ? followCounts.followers.toLocaleString() : '—'}
+                  </Text>
+                  <Text style={styles.statLabel}>followers</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.statItem}
+                  activeOpacity={0.7}
+                  onPress={() => router.push(`/user/${user.id}/following` as any)}
+                >
+                  <Text style={styles.statValue}>
+                    {followCounts ? followCounts.following.toLocaleString() : '—'}
+                  </Text>
+                  <Text style={styles.statLabel}>following</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.statItem}
+                  activeOpacity={0.7}
+                  onPress={() => router.push('/(tabs)/leaderboard' as any)}
+                >
+                  <Text style={styles.statValue}>
+                    {ranking != null ? `#${ranking}` : '—'}
+                  </Text>
+                  <Text style={styles.statLabel}>ranking</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           ) : null}
         </View>
 
-        {/* Identity — left-aligned handle + name + optional pronouns
-            + optional bio. Spacing collapses cleanly when either of
-            the optional fields is absent. */}
         <View style={styles.identityBlock}>
           <Text style={styles.handle}>@{user?.username ?? ''}</Text>
-          <Text style={styles.displayName}>{displayName}</Text>
           {user?.pronouns ? (
             <Text style={styles.pronouns}>{user.pronouns}</Text>
           ) : null}
@@ -237,14 +236,16 @@ const styles = StyleSheet.create({
   },
   avatarImg: { width: 88, height: 88, borderRadius: 44 },
 
-  statsRow: {
+  nameStatsCol: {
     flex: 1,
+    marginLeft: 16,
+  },
+  statsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'flex-start',
     gap: 24,
   },
-  statItem: { flex: 1, alignItems: 'center' },
+  statItem: { flex: 1, alignItems: 'flex-start' },
   statValue: { fontSize: 20, fontWeight: '700', color: '#FFFFFF' },
   statLabel: { fontSize: 13, color: '#B3B3B3', marginTop: 2 },
 
@@ -252,13 +253,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginTop: 12,
   },
-  handle: {
-    fontSize: 13, color: '#B3B3B3',
-    marginBottom: 2,
-  },
   displayName: {
-    fontSize: 15, fontWeight: '700', color: '#FFFFFF',
-    marginBottom: 2,
+    fontSize: 18, fontWeight: '800', color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  handle: {
+    fontSize: 14, color: '#B3B3B3',
+    marginBottom: 6,
   },
   pronouns: {
     fontSize: 13, color: '#B3B3B3',
