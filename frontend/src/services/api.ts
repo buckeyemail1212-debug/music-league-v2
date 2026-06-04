@@ -330,6 +330,13 @@ export interface PastLeagueRoundSummary {
   round_number: number | null;
   theme: string | null;
   status: string | null;
+  winner?: {
+    user_id: string;
+    username: string;
+    song: Song | null;
+    total_points: number;
+  } | null;
+  placements?: Record<string, number>;
 }
 
 export interface PastLeague {
