@@ -94,6 +94,12 @@ export default function PastLeaguePage() {
   const activeStandings = league.standings.filter((s) => !s.left);
   const leftStandings = league.standings.filter((s) => s.left);
 
+  const mySubByRoundId: Record<string, typeof league.my_submissions[number]> = {};
+  for (const sub of league.my_submissions) {
+    mySubByRoundId[sub.round_id] = sub;
+  }
+  const userId = user?.id ?? '';
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
@@ -252,48 +258,104 @@ export default function PastLeaguePage() {
           )
         )}
 
-        {/* My submissions */}
+        {/* Per-round results */}
         {segment === 'songs' && (
-          league.my_submissions.length > 0 ? (
+          !league.rounds || league.rounds.length === 0 ? (
             <View style={styles.card}>
-              {league.my_submissions.map((s, i) => (
-                <View
-                  key={s.submission_id}
-                  style={[
-                    styles.subRow,
-                    i !== league.my_submissions.length - 1 && styles.rowBorder,
-                  ]}
-                >
-                  <View style={styles.subArt}>
-                    {s.song?.cover_url ? (
-                      <Image source={{ uri: s.song.cover_url }} style={styles.subArtImg} />
-                    ) : (
-                      <Text style={styles.subArtLetter}>
-                        {(s.song?.title || '?').charAt(0).toUpperCase()}
-                      </Text>
-                    )}
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.subTitle} numberOfLines={1}>
-                      {s.song?.title || '—'}
-                    </Text>
-                    <Text style={styles.subArtist} numberOfLines={1}>
-                      {s.song?.artist}
-                    </Text>
-                    {s.round_theme ? (
-                      <Text style={styles.subTheme} numberOfLines={1}>
-                        R{s.round_number} · {s.round_theme}
-                      </Text>
-                    ) : (
-                      <Text style={styles.subTheme}>R{s.round_number}</Text>
-                    )}
-                  </View>
-                </View>
-              ))}
+              <Text style={styles.emptyText}>No round data available.</Text>
             </View>
           ) : (
-            <View style={styles.card}>
-              <Text style={styles.emptyText}>You didn't submit any songs in this league.</Text>
+            <View style={styles.roundsListWrap}>
+              {league.rounds
+                .filter((r) => r.status === 'completed')
+                .sort((a, b) => (a.round_number ?? 0) - (b.round_number ?? 0))
+                .map((r) => {
+                  const mySub = mySubByRoundId[r.round_id];
+                  const myPlacement = r.placements?.[userId];
+                  const winner = r.winner;
+                  return (
+                    <View key={r.round_id} style={styles.roundCard}>
+                      {/* Round header strip */}
+                      <View style={styles.roundHeader}>
+                        <Text style={styles.roundHeaderText}>
+                          R{r.round_number}{r.theme ? ` · ${r.theme}` : ''}
+                        </Text>
+                        {myPlacement != null && (
+                          <View style={styles.placementChip}>
+                            <Text style={styles.placementChipText}>
+                              You: {ordinal(myPlacement)}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+
+                      {/* Winner block */}
+                      {winner ? (
+                        <View style={styles.winnerBlock}>
+                          <View style={styles.winnerArt}>
+                            {winner.song?.cover_url ? (
+                              <Image
+                                source={{ uri: winner.song.cover_url }}
+                                style={styles.winnerArtImg}
+                              />
+                            ) : (
+                              <Text style={styles.winnerArtLetter}>
+                                {(winner.song?.title || '?').charAt(0).toUpperCase()}
+                              </Text>
+                            )}
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.winnerLabel}>WINNER</Text>
+                            <Text style={styles.winnerTitle} numberOfLines={1}>
+                              {winner.song?.title || '—'}
+                            </Text>
+                            <Text style={styles.winnerArtist} numberOfLines={1}>
+                              {winner.song?.artist || ''}
+                            </Text>
+                            <Text style={styles.winnerByLine} numberOfLines={1}>
+                              Won by {winner.username}
+                            </Text>
+                          </View>
+                        </View>
+                      ) : (
+                        <Text style={styles.noWinnerText}>No winner — round had no votes.</Text>
+                      )}
+
+                      {/* Your submission line */}
+                      <View style={styles.yourSubBlock}>
+                        {mySub && mySub.song ? (
+                          <>
+                            <View style={styles.yourSubArt}>
+                              {mySub.song.cover_url ? (
+                                <Image
+                                  source={{ uri: mySub.song.cover_url }}
+                                  style={styles.yourSubArtImg}
+                                />
+                              ) : (
+                                <Text style={styles.yourSubArtLetter}>
+                                  {(mySub.song.title || '?').charAt(0).toUpperCase()}
+                                </Text>
+                              )}
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.yourSubLabel}>YOUR SUBMISSION</Text>
+                              <Text style={styles.yourSubTitle} numberOfLines={1}>
+                                {mySub.song.title || '—'}
+                              </Text>
+                              <Text style={styles.yourSubArtist} numberOfLines={1}>
+                                {mySub.song.artist || ''}
+                              </Text>
+                            </View>
+                          </>
+                        ) : (
+                          <Text style={styles.yourSubMissingText}>
+                            You didn't submit for this round.
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                  );
+                })}
             </View>
           )
         )}
@@ -603,5 +665,130 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: 4,
     letterSpacing: 0.5,
+  },
+
+  roundsListWrap: {
+    marginHorizontal: 16,
+    marginTop: 20,
+  },
+  roundCard: {
+    backgroundColor: '#161618',
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 12,
+  },
+  roundHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  roundHeaderText: {
+    color: '#7C3AED',
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+    flexShrink: 1,
+  },
+  placementChip: {
+    backgroundColor: 'rgba(124, 58, 237, 0.18)',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginLeft: 8,
+  },
+  placementChipText: {
+    color: '#7C3AED',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  winnerBlock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  winnerArt: {
+    width: 56,
+    height: 56,
+    borderRadius: 8,
+    backgroundColor: '#2A2A2D',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    marginRight: 12,
+  },
+  winnerArtImg: { width: 56, height: 56, borderRadius: 8 },
+  winnerArtLetter: { color: '#FFFFFF', fontWeight: '700' },
+  winnerLabel: {
+    color: '#F5A524',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
+    marginBottom: 2,
+  },
+  winnerTitle: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  winnerArtist: {
+    color: '#B3B3B3',
+    fontSize: 13,
+    marginTop: 1,
+  },
+  winnerByLine: {
+    color: '#9A9A9A',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  noWinnerText: {
+    color: '#9A9A9A',
+    fontSize: 13,
+    fontStyle: 'italic',
+    paddingVertical: 12,
+  },
+  yourSubBlock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.07)',
+  },
+  yourSubArt: {
+    width: 44,
+    height: 44,
+    borderRadius: 6,
+    backgroundColor: '#2A2A2D',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    marginRight: 12,
+  },
+  yourSubArtImg: { width: 44, height: 44, borderRadius: 6 },
+  yourSubArtLetter: { color: '#FFFFFF', fontWeight: '700' },
+  yourSubLabel: {
+    color: '#9A9A9A',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
+    marginBottom: 2,
+  },
+  yourSubTitle: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  yourSubArtist: {
+    color: '#9A9A9A',
+    fontSize: 12,
+    marginTop: 1,
+  },
+  yourSubMissingText: {
+    color: '#9A9A9A',
+    fontSize: 13,
+    fontStyle: 'italic',
+    paddingVertical: 12,
   },
 });
