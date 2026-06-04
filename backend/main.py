@@ -5233,13 +5233,18 @@ async def _build_past_league_snapshot(
             "rounds_played": 0,
         }
 
+    # Per-round result data — winner + competition-rank placements. Keyed
+    # by round_id. Populated during the point-scoring loop below so the
+    # rounds_snapshot can carry it forward to the frontend.
+    round_results: dict[str, dict] = {}
+
     # N-1 point system across all completed rounds.
     all_subs = []
     all_votes = []
     if completed_round_ids:
         all_subs = await db.submissions.find(
             {"round_id": {"$in": completed_round_ids}},
-            {"_id": 0, "id": 1, "round_id": 1, "user_id": 1},
+            {"_id": 0},
         ).to_list(5000)
         all_votes = await db.votes.find(
             {"round_id": {"$in": completed_round_ids}},
@@ -5296,6 +5301,49 @@ async def _build_past_league_snapshot(
                 user_stats[uid]["rounds_played"] += 1
                 if p == max_pts and max_pts > 0:
                     user_stats[uid]["wins"] += 1
+
+        # Standard competition ranking (1, 2, 2, 4) for this round, keyed
+        # by user_id. Sort by (-points, user_id) for deterministic tiebreak.
+        sorted_subs = sorted(
+            subs,
+            key=lambda s: (-points.get(s["id"], 0), s["user_id"]),
+        )
+        placements: dict[str, int] = {}
+        rank = 0
+        last_p: Optional[int] = None
+        for idx, s in enumerate(sorted_subs):
+            p = points.get(s["id"], 0)
+            if p != last_p:
+                rank = idx + 1
+                last_p = p
+            placements[s["user_id"]] = rank
+
+        winner_entry = None
+        if max_pts > 0:
+            winning_sub = next(
+                (s for s in subs if points.get(s["id"], 0) == max_pts),
+                None,
+            )
+            if winning_sub is not None:
+                w_uid = winning_sub["user_id"]
+                w_username = (
+                    (user_stats.get(w_uid) or {}).get("username")
+                    or next(
+                        (m["username"] for m in members_input if m["id"] == w_uid),
+                        "",
+                    )
+                )
+                winner_entry = {
+                    "user_id": w_uid,
+                    "username": w_username,
+                    "song": winning_sub.get("song"),
+                    "total_points": max_pts,
+                }
+
+        round_results[r["id"]] = {
+            "winner": winner_entry,
+            "placements": placements,
+        }
 
     active_standings = sorted(
         user_stats.values(),
@@ -5392,6 +5440,8 @@ async def _build_past_league_snapshot(
             "round_number": r.get("round_number"),
             "theme": r.get("theme"),
             "status": r.get("status"),
+            "winner": round_results.get(r["id"], {}).get("winner"),
+            "placements": round_results.get(r["id"], {}).get("placements") or {},
         }
         for r in rounds
     ]
