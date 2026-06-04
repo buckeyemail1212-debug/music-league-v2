@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -34,6 +35,17 @@ export default function PastLeaguePage() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [league, setLeague] = useState<PastLeague | null>(null);
+  const [segment, setSegment] = useState<'standings' | 'songs'>('standings');
+  const [trackWidth, setTrackWidth] = useState(0);
+  const thumbPos = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(thumbPos, {
+      toValue: segment === 'standings' ? 0 : 1,
+      duration: 240,
+      useNativeDriver: false,
+    }).start();
+  }, [segment]);
 
   useEffect(() => {
     let cancelled = false;
@@ -93,6 +105,13 @@ export default function PastLeaguePage() {
   const activeStandings = league.standings.filter((s) => !s.left);
   const leftStandings = league.standings.filter((s) => s.left);
 
+  const TOGGLE_PADDING = 4;
+  const thumbWidth = trackWidth > 0 ? (trackWidth - TOGGLE_PADDING * 2) / 2 : 0;
+  const thumbLeft = thumbPos.interpolate({
+    inputRange: [0, 1],
+    outputRange: [TOGGLE_PADDING, TOGGLE_PADDING + thumbWidth],
+  });
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
@@ -149,136 +168,175 @@ export default function PastLeaguePage() {
           </View>
         )}
 
+        <View
+          style={styles.toggleTrack}
+          onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
+        >
+          {thumbWidth > 0 && (
+            <Animated.View
+              style={[styles.toggleThumb, { width: thumbWidth, left: thumbLeft }]}
+            />
+          )}
+          <TouchableOpacity
+            style={styles.toggleSegment}
+            activeOpacity={0.7}
+            onPress={() => setSegment('standings')}
+          >
+            <Text
+              style={[
+                styles.toggleLabel,
+                segment === 'standings' && styles.toggleLabelActive,
+              ]}
+            >
+              Standings
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.toggleSegment}
+            activeOpacity={0.7}
+            onPress={() => setSegment('songs')}
+          >
+            <Text
+              style={[
+                styles.toggleLabel,
+                segment === 'songs' && styles.toggleLabelActive,
+              ]}
+            >
+              Songs you submitted
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Final standings */}
-        <Text style={styles.sectionLabel}>
-          {isNotFinished ? 'STANDINGS WHEN LEAGUE ENDED' : 'FINAL STANDINGS'}
-        </Text>
-        <View style={styles.card}>
-          {league.standings.length === 0 ? (
-            <Text style={styles.emptyText}>No standings recorded.</Text>
-          ) : (
-            <>
-              {activeStandings.map((s, i) => {
-                const isMe = s.user_id === user?.id;
-                const isLast =
-                  i === activeStandings.length - 1 && leftStandings.length === 0;
-                return (
-                  <View
-                    key={s.user_id}
-                    style={[styles.standingRow, !isLast && styles.rowBorder]}
-                  >
-                    <Text
-                      style={[
-                        styles.rank,
-                        i === 0 && !isNotFinished && styles.rankGold,
-                      ]}
+        {segment === 'standings' && (
+          <View style={styles.card}>
+            {league.standings.length === 0 ? (
+              <Text style={styles.emptyText}>No standings recorded.</Text>
+            ) : (
+              <>
+                {activeStandings.map((s, i) => {
+                  const isMe = s.user_id === user?.id;
+                  const isLast =
+                    i === activeStandings.length - 1 && leftStandings.length === 0;
+                  return (
+                    <View
+                      key={s.user_id}
+                      style={[styles.standingRow, !isLast && styles.rowBorder]}
                     >
-                      #{i + 1}
-                    </Text>
-                    <View style={styles.memberAvatar}>
-                      {s.profile_photo ? (
-                        <Image source={{ uri: s.profile_photo }} style={styles.memberAvatarImg} />
-                      ) : (
-                        <Text style={styles.memberAvatarLetter}>
-                          {s.username.charAt(0).toUpperCase()}
-                        </Text>
-                      )}
-                    </View>
-                    <Text style={[styles.memberName, isMe && styles.me]} numberOfLines={1}>
-                      {s.username}
-                      {isMe ? '  (you)' : ''}
-                    </Text>
-                    <Text style={styles.memberPoints}>{s.total_points}</Text>
-                  </View>
-                );
-              })}
-              {leftStandings.map((s, i) => {
-                const isMe = s.user_id === user?.id;
-                const isLast = i === leftStandings.length - 1;
-                return (
-                  <View
-                    key={`left-${s.user_id}`}
-                    style={[
-                      styles.standingRow,
-                      styles.standingRowLeft,
-                      !isLast && styles.rowBorder,
-                    ]}
-                  >
-                    <Text style={[styles.rank, styles.rankMuted]}>—</Text>
-                    <View style={[styles.memberAvatar, { opacity: 0.55 }]}>
-                      {s.profile_photo ? (
-                        <Image source={{ uri: s.profile_photo }} style={styles.memberAvatarImg} />
-                      ) : (
-                        <Text style={styles.memberAvatarLetter}>
-                          {s.username.charAt(0).toUpperCase()}
-                        </Text>
-                      )}
-                    </View>
-                    <View style={styles.memberLeftWrap}>
                       <Text
-                        style={[styles.memberName, styles.memberNameLeft, isMe && styles.me]}
-                        numberOfLines={1}
+                        style={[
+                          styles.rank,
+                          i === 0 && !isNotFinished && styles.rankGold,
+                        ]}
                       >
+                        #{i + 1}
+                      </Text>
+                      <View style={styles.memberAvatar}>
+                        {s.profile_photo ? (
+                          <Image source={{ uri: s.profile_photo }} style={styles.memberAvatarImg} />
+                        ) : (
+                          <Text style={styles.memberAvatarLetter}>
+                            {s.username.charAt(0).toUpperCase()}
+                          </Text>
+                        )}
+                      </View>
+                      <Text style={[styles.memberName, isMe && styles.me]} numberOfLines={1}>
                         {s.username}
                         {isMe ? '  (you)' : ''}
                       </Text>
-                      <View style={styles.leftBadge}>
-                        <Text style={styles.leftBadgeText}>LEFT</Text>
-                      </View>
+                      <Text style={styles.memberPoints}>{s.total_points}</Text>
                     </View>
-                    <Text style={[styles.memberPoints, styles.memberPointsLeft]}>
-                      {s.total_points}
-                    </Text>
-                  </View>
-                );
-              })}
-            </>
-          )}
-        </View>
+                  );
+                })}
+                {leftStandings.map((s, i) => {
+                  const isMe = s.user_id === user?.id;
+                  const isLast = i === leftStandings.length - 1;
+                  return (
+                    <View
+                      key={`left-${s.user_id}`}
+                      style={[
+                        styles.standingRow,
+                        styles.standingRowLeft,
+                        !isLast && styles.rowBorder,
+                      ]}
+                    >
+                      <Text style={[styles.rank, styles.rankMuted]}>—</Text>
+                      <View style={[styles.memberAvatar, { opacity: 0.55 }]}>
+                        {s.profile_photo ? (
+                          <Image source={{ uri: s.profile_photo }} style={styles.memberAvatarImg} />
+                        ) : (
+                          <Text style={styles.memberAvatarLetter}>
+                            {s.username.charAt(0).toUpperCase()}
+                          </Text>
+                        )}
+                      </View>
+                      <View style={styles.memberLeftWrap}>
+                        <Text
+                          style={[styles.memberName, styles.memberNameLeft, isMe && styles.me]}
+                          numberOfLines={1}
+                        >
+                          {s.username}
+                          {isMe ? '  (you)' : ''}
+                        </Text>
+                        <View style={styles.leftBadge}>
+                          <Text style={styles.leftBadgeText}>LEFT</Text>
+                        </View>
+                      </View>
+                      <Text style={[styles.memberPoints, styles.memberPointsLeft]}>
+                        {s.total_points}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </>
+            )}
+          </View>
+        )}
 
         {/* My submissions */}
-        {league.my_submissions.length > 0 && (
-        <Text style={styles.sectionLabel}>SONGS YOU SUBMITTED</Text>
-        )}
-        {league.my_submissions.length > 0 && (
-        <View style={styles.card}>
-          {(
-            league.my_submissions.map((s, i) => (
-              <View
-                key={s.submission_id}
-                style={[
-                  styles.subRow,
-                  i !== league.my_submissions.length - 1 && styles.rowBorder,
-                ]}
-              >
-                <View style={styles.subArt}>
-                  {s.song?.cover_url ? (
-                    <Image source={{ uri: s.song.cover_url }} style={styles.subArtImg} />
-                  ) : (
-                    <Text style={styles.subArtLetter}>
-                      {(s.song?.title || '?').charAt(0).toUpperCase()}
+        {segment === 'songs' && (
+          league.my_submissions.length > 0 ? (
+            <View style={styles.card}>
+              {league.my_submissions.map((s, i) => (
+                <View
+                  key={s.submission_id}
+                  style={[
+                    styles.subRow,
+                    i !== league.my_submissions.length - 1 && styles.rowBorder,
+                  ]}
+                >
+                  <View style={styles.subArt}>
+                    {s.song?.cover_url ? (
+                      <Image source={{ uri: s.song.cover_url }} style={styles.subArtImg} />
+                    ) : (
+                      <Text style={styles.subArtLetter}>
+                        {(s.song?.title || '?').charAt(0).toUpperCase()}
+                      </Text>
+                    )}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.subTitle} numberOfLines={1}>
+                      {s.song?.title || '—'}
                     </Text>
-                  )}
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.subTitle} numberOfLines={1}>
-                    {s.song?.title || '—'}
-                  </Text>
-                  <Text style={styles.subArtist} numberOfLines={1}>
-                    {s.song?.artist}
-                  </Text>
-                  {s.round_theme ? (
-                    <Text style={styles.subTheme} numberOfLines={1}>
-                      R{s.round_number} · {s.round_theme}
+                    <Text style={styles.subArtist} numberOfLines={1}>
+                      {s.song?.artist}
                     </Text>
-                  ) : (
-                    <Text style={styles.subTheme}>R{s.round_number}</Text>
-                  )}
+                    {s.round_theme ? (
+                      <Text style={styles.subTheme} numberOfLines={1}>
+                        R{s.round_number} · {s.round_theme}
+                      </Text>
+                    ) : (
+                      <Text style={styles.subTheme}>R{s.round_number}</Text>
+                    )}
+                  </View>
                 </View>
-              </View>
-            ))
-          )}
-        </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.card}>
+              <Text style={styles.emptyText}>You didn't submit any songs in this league.</Text>
+            </View>
+          )
         )}
       </ScrollView>
     </SafeAreaView>
@@ -367,6 +425,39 @@ const styles = StyleSheet.create({
     color: '#7C5CFF',
     letterSpacing: -1,
     lineHeight: 60,
+  },
+
+  toggleTrack: {
+    flexDirection: 'row',
+    height: 50,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    marginHorizontal: 20,
+    marginTop: 8,
+    marginBottom: 16,
+    position: 'relative',
+  },
+  toggleThumb: {
+    position: 'absolute',
+    top: 4,
+    bottom: 4,
+    backgroundColor: '#7C5CFF',
+    borderRadius: 12,
+  },
+  toggleSegment: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  toggleLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#9A9A9A',
+    letterSpacing: 0.3,
+  },
+  toggleLabelActive: {
+    color: '#FFFFFF',
   },
 
   sectionLabel: {
