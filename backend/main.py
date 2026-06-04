@@ -5183,6 +5183,99 @@ def _iso(dt) -> Optional[str]:
     return ensure_utc(dt).isoformat()
 
 
+def _compute_round_results(
+    round_doc: dict,
+    subs: list[dict],
+    votes: list[dict],
+    user_lookup: dict[str, str],
+) -> dict:
+    """Compute per-round points, winner, and placements for one round.
+
+    Inputs:
+      round_doc: the round document (used for forfeit_missing_voter_pools flag).
+      subs: full submission documents for this round (need song + user_id + id).
+      votes: vote documents for this round (need voter_id + rankings).
+      user_lookup: user_id -> username, used to populate winner.username.
+
+    Returns a dict shaped:
+      {
+        "points": {sub_id: int},
+        "winner": {"user_id", "username", "song", "total_points"} or None,
+        "placements": {user_id: int_rank},  # competition ranking (1,2,2,4)
+      }
+    """
+    if not subs:
+        return {"points": {}, "winner": None, "placements": {}}
+
+    num_subs = len(subs)
+    num_to_rank = max(0, num_subs - 1)
+    points: dict[str, int] = {s["id"]: 0 for s in subs}
+    submitter_ids = {s["id"]: s["user_id"] for s in subs}
+    voters_who_voted: set[str] = set()
+    for v in votes:
+        voters_who_voted.add(v.get("voter_id"))
+        for idx, sid in enumerate(v.get("rankings", [])):
+            pts = num_to_rank - idx
+            if sid in points:
+                points[sid] += pts
+    # See _finalize_round_lifetime: only pre-flag rounds still get the
+    # redistribute-missing-voter treatment. New rounds forfeit the pool.
+    if not round_doc.get("forfeit_missing_voter_pools"):
+        submitter_user_ids = set(submitter_ids.values())
+        non_voters = submitter_user_ids - voters_who_voted
+        if non_voters and num_subs > 1:
+            total_pts_per_voter = sum(range(1, num_to_rank + 1))
+            for nv_id in non_voters:
+                nv_sub_id = next((s["id"] for s in subs if s["user_id"] == nv_id), None)
+                others = [s["id"] for s in subs if s["id"] != nv_sub_id]
+                num_other = len(others)
+                if num_other > 0:
+                    per = total_pts_per_voter // num_other
+                    rem = total_pts_per_voter % num_other
+                    for sid in others:
+                        points[sid] += per
+                    for i in range(rem):
+                        points[others[i]] += 1
+    max_pts = max(points.values()) if points else 0
+
+    # Standard competition ranking (1, 2, 2, 4) keyed by user_id. Sort by
+    # (-points, user_id) for deterministic tiebreak.
+    sorted_subs = sorted(
+        subs,
+        key=lambda s: (-points.get(s["id"], 0), s["user_id"]),
+    )
+    placements: dict[str, int] = {}
+    rank = 0
+    last_p: Optional[int] = None
+    for idx, s in enumerate(sorted_subs):
+        p = points.get(s["id"], 0)
+        if p != last_p:
+            rank = idx + 1
+            last_p = p
+        placements[s["user_id"]] = rank
+
+    winner_entry = None
+    if max_pts > 0:
+        winning_sub = next(
+            (s for s in subs if points.get(s["id"], 0) == max_pts),
+            None,
+        )
+        if winning_sub is not None:
+            w_uid = winning_sub["user_id"]
+            winner_entry = {
+                "user_id": w_uid,
+                "username": user_lookup.get(w_uid, ""),
+                "song": winning_sub.get("song"),
+                "total_points": max_pts,
+            }
+
+    return {
+        "points": points,
+        "winner": winner_entry,
+        "placements": placements,
+    }
+
+
 async def _build_past_league_snapshot(
     league: dict,
     *,
@@ -5258,41 +5351,20 @@ async def _build_past_league_snapshot(
     for v in all_votes:
         votes_by_round.setdefault(v["round_id"], []).append(v)
 
+    user_lookup: dict[str, str] = {
+        m["id"]: m["username"] for m in members_input
+    }
+
     for r in completed_rounds:
         subs = subs_by_round.get(r["id"], [])
         votes = votes_by_round.get(r["id"], [])
         if not subs:
             continue
-        num_subs = len(subs)
-        num_to_rank = max(0, num_subs - 1)
-        points: dict[str, int] = {s["id"]: 0 for s in subs}
-        submitter_ids = {s["id"]: s["user_id"] for s in subs}
-        voters_who_voted: set[str] = set()
-        for v in votes:
-            voters_who_voted.add(v.get("voter_id"))
-            for idx, sid in enumerate(v.get("rankings", [])):
-                pts = num_to_rank - idx
-                if sid in points:
-                    points[sid] += pts
-        # See _finalize_round_lifetime: only pre-flag rounds still get the
-        # redistribute-missing-voter treatment. New rounds forfeit the pool.
-        if not r.get("forfeit_missing_voter_pools"):
-            submitter_user_ids = set(submitter_ids.values())
-            non_voters = submitter_user_ids - voters_who_voted
-            if non_voters and num_subs > 1:
-                total_pts_per_voter = sum(range(1, num_to_rank + 1))
-                for nv_id in non_voters:
-                    nv_sub_id = next((s["id"] for s in subs if s["user_id"] == nv_id), None)
-                    others = [s["id"] for s in subs if s["id"] != nv_sub_id]
-                    num_other = len(others)
-                    if num_other > 0:
-                        per = total_pts_per_voter // num_other
-                        rem = total_pts_per_voter % num_other
-                        for sid in others:
-                            points[sid] += per
-                        for i in range(rem):
-                            points[others[i]] += 1
+
+        result = _compute_round_results(r, subs, votes, user_lookup)
+        points = result["points"]
         max_pts = max(points.values()) if points else 0
+
         for s in subs:
             uid = s["user_id"]
             if uid in user_stats:
@@ -5302,47 +5374,9 @@ async def _build_past_league_snapshot(
                 if p == max_pts and max_pts > 0:
                     user_stats[uid]["wins"] += 1
 
-        # Standard competition ranking (1, 2, 2, 4) for this round, keyed
-        # by user_id. Sort by (-points, user_id) for deterministic tiebreak.
-        sorted_subs = sorted(
-            subs,
-            key=lambda s: (-points.get(s["id"], 0), s["user_id"]),
-        )
-        placements: dict[str, int] = {}
-        rank = 0
-        last_p: Optional[int] = None
-        for idx, s in enumerate(sorted_subs):
-            p = points.get(s["id"], 0)
-            if p != last_p:
-                rank = idx + 1
-                last_p = p
-            placements[s["user_id"]] = rank
-
-        winner_entry = None
-        if max_pts > 0:
-            winning_sub = next(
-                (s for s in subs if points.get(s["id"], 0) == max_pts),
-                None,
-            )
-            if winning_sub is not None:
-                w_uid = winning_sub["user_id"]
-                w_username = (
-                    (user_stats.get(w_uid) or {}).get("username")
-                    or next(
-                        (m["username"] for m in members_input if m["id"] == w_uid),
-                        "",
-                    )
-                )
-                winner_entry = {
-                    "user_id": w_uid,
-                    "username": w_username,
-                    "song": winning_sub.get("song"),
-                    "total_points": max_pts,
-                }
-
         round_results[r["id"]] = {
-            "winner": winner_entry,
-            "placements": placements,
+            "winner": result["winner"],
+            "placements": result["placements"],
         }
 
     active_standings = sorted(
