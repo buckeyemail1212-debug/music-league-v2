@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,13 +7,17 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
+  Modal,
+  TouchableWithoutFeedback,
+  Animated,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getPastLeagues, PastLeague } from '../../src/services/api';
 import { useAuth } from '../../src/context/AuthContext';
-import LeagueAvatar from '../../src/components/LeagueAvatar';
 
 const formatDate = (iso: string | null) => {
   if (!iso) return '';
@@ -35,6 +39,8 @@ export default function PastLeaguePage() {
   const [loading, setLoading] = useState(true);
   const [league, setLeague] = useState<PastLeague | null>(null);
   const [segment, setSegment] = useState<'standings' | 'songs'>('standings');
+  const [showMembersModal, setShowMembersModal] = useState(false);
+  const infoPulse = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     let cancelled = false;
@@ -54,6 +60,21 @@ export default function PastLeaguePage() {
       cancelled = true;
     };
   }, [id]);
+
+  const isNotFinished = league?.ended_status === 'not_finished';
+
+  useEffect(() => {
+    if (!isNotFinished) return;
+    Animated.sequence([
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(infoPulse, { toValue: 1.25, duration: 400, useNativeDriver: true }),
+          Animated.timing(infoPulse, { toValue: 1, duration: 400, useNativeDriver: true }),
+        ]),
+        { iterations: 3 }
+      ),
+    ]).start();
+  }, [isNotFinished]);
 
   if (loading) {
     return (
@@ -88,7 +109,6 @@ export default function PastLeaguePage() {
   }
 
   const finishedAt = formatDate(league.finished_at);
-  const isNotFinished = league.ended_status === 'not_finished';
   // Active players competed for placement; left users render at the
   // bottom but not in the rank column.
   const activeStandings = league.standings.filter((s) => !s.left);
@@ -102,57 +122,76 @@ export default function PastLeaguePage() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={10} style={styles.headerBtn}>
-          <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.topBarBtn} onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>PAST LEAGUE</Text>
-        <View style={{ width: 26 }} />
+        <View style={{ flex: 1 }} />
+        <View style={styles.topBarActions}>
+          {isNotFinished && (
+            <TouchableOpacity
+              style={styles.topBarBtn}
+              onPress={() =>
+                Alert.alert(
+                  'League ended early',
+                  `League ended early${league.creator_username ? ` by ${league.creator_username}` : ''}. Final results not available.`,
+                  [{ text: 'Got it', style: 'default' }]
+                )
+              }
+            >
+              <Animated.View style={{ transform: [{ scale: infoPulse }] }}>
+                <Ionicons name="information-circle-outline" size={22} color="#FFFFFF" />
+              </Animated.View>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity style={styles.topBarBtn} onPress={() => setShowMembersModal(true)}>
+            <Ionicons name="people-outline" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Top card */}
-        <View style={styles.topCard}>
-          <View style={styles.thumbWrap}>
-            <LeagueAvatar
-              image={league.league_image}
-              name={league.name}
-              size={280}
-              imageBorderRadius={56}
-            />
-          </View>
-          <Text style={styles.leagueName}>{league.name}</Text>
-          <View style={styles.metaRow}>
-            {isNotFinished && (
-              <View style={styles.notFinishedPill}>
-                <Text style={styles.notFinishedText}>NOT FINISHED</Text>
-              </View>
-            )}
-            <View style={styles.pill}>
-              <Text style={styles.pillText}>
-                {league.rounds_completed}/{league.total_rounds} ROUNDS
+        {/* Cover card */}
+        <View style={styles.coverCard}>
+          {league.league_image ? (
+            <Image source={{ uri: league.league_image }} style={styles.coverImage} />
+          ) : (
+            <View style={styles.coverEmpty}>
+              <Text style={styles.coverInitial}>
+                {league.name.trim() ? league.name.trim()[0].toUpperCase() : '?'}
               </Text>
             </View>
-            {finishedAt ? (
-              <Text style={styles.metaDate}>{finishedAt}</Text>
-            ) : null}
-          </View>
-          {!isNotFinished && league.my_place != null && (
-            <View style={styles.placeWrap}>
-              <Text style={styles.placeLabel}>YOUR FINAL PLACE</Text>
-              <Text style={styles.placeValue}>{ordinal(league.my_place)}</Text>
-            </View>
           )}
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.85)']}
+            style={styles.coverGradient}
+          >
+            <View
+              style={[
+                styles.coverStatusPill,
+                isNotFinished ? styles.coverStatusPillNotFinished : styles.coverStatusPillCompleted,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.coverStatusPillText,
+                  isNotFinished ? styles.coverStatusPillTextNotFinished : styles.coverStatusPillTextCompleted,
+                ]}
+              >
+                {isNotFinished ? 'NOT FINISHED' : 'COMPLETED'}
+              </Text>
+            </View>
+            <Text style={styles.coverTitle} numberOfLines={2}>{league.name}</Text>
+            <Text style={styles.coverMetaLine}>
+              {league.rounds_completed} of {league.total_rounds} rounds{finishedAt ? ` · ${finishedAt}` : ''}
+            </Text>
+          </LinearGradient>
         </View>
 
-        {isNotFinished && (
-          <View style={styles.bannerCard}>
-            <Ionicons name="alert-circle" size={18} color="#B3B3B3" style={{ marginRight: 8 }} />
-            <Text style={styles.bannerText}>
-              League ended early
-              {league.creator_username ? ` by ${league.creator_username}` : ''}.
-              Final results not available.
-            </Text>
+        {!isNotFinished && league.my_place != null && (
+          <View style={styles.placeWrap}>
+            <Text style={styles.placeLabel}>YOUR FINAL PLACE</Text>
+            <Text style={styles.placeValue}>{ordinal(league.my_place)}</Text>
           </View>
         )}
 
@@ -360,6 +399,61 @@ export default function PastLeaguePage() {
           )
         )}
       </ScrollView>
+
+      {/* Members Modal */}
+      <Modal
+        visible={showMembersModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowMembersModal(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowMembersModal(false)}>
+          <View style={styles.membersModalOverlay}>
+            <TouchableWithoutFeedback onPress={() => {}}>
+              <View style={styles.membersModalContent}>
+                <View style={styles.membersModalHeader}>
+                  <Text style={styles.membersModalTitle}>League Members</Text>
+                  <TouchableOpacity onPress={() => setShowMembersModal(false)}>
+                    <Ionicons name="close" size={24} color="#B3B3B3" />
+                  </TouchableOpacity>
+                </View>
+                <ScrollView style={styles.membersList}>
+                  {league.standings.map((m, index) => {
+                    const isCreator = league.creator_id === m.user_id;
+                    return (
+                      <View key={m.user_id} style={styles.memberItem}>
+                        <View style={styles.memberNumber}>
+                          <Text style={styles.memberNumberText}>{index + 1}</Text>
+                        </View>
+                        <View style={styles.modalMemberAvatar}>
+                          {m.profile_photo ? (
+                            <Image source={{ uri: m.profile_photo }} style={styles.modalMemberAvatarImg} />
+                          ) : (
+                            <View style={styles.modalMemberAvatarPlaceholder}>
+                              <Text style={styles.modalMemberInitial}>
+                                {m.username?.charAt(0).toUpperCase()}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                        <View style={styles.memberDetails}>
+                          <Text style={styles.modalMemberName}>{m.username}</Text>
+                          <Text style={styles.modalMemberUsername}>@{m.username}</Text>
+                        </View>
+                        <View style={isCreator ? styles.creatorBadge : styles.memberBadge}>
+                          <Text style={isCreator ? styles.creatorBadgeText : styles.memberBadgeText}>
+                            {isCreator ? 'Creator' : 'Member'}
+                          </Text>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -375,54 +469,99 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerBtn: { padding: 6 },
-  headerTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    letterSpacing: 1.5,
-    color: '#FFFFFF',
-  },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scroll: { paddingBottom: 40 },
   emptyText: { color: '#B3B3B3', padding: 16, textAlign: 'center' },
 
-  topCard: {
-    alignItems: 'center',
-    paddingTop: 24,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-  },
-  thumbWrap: {
-    marginBottom: 22,
-  },
-  leagueName: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    letterSpacing: -0.5,
-  },
-  metaRow: {
+  topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    flexWrap: 'nowrap',
-    justifyContent: 'center',
-    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
-  pill: {
+  topBarActions: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  topBarBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  coverCard: {
+    marginHorizontal: 16,
+    marginTop: 4,
+    borderRadius: 24,
+    overflow: 'hidden',
+    aspectRatio: 1.1,
+    backgroundColor: '#1a1a1a',
+  },
+  coverImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  } as any,
+  coverEmpty: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#7C3AED',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  coverInitial: {
+    fontSize: 96,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  coverGradient: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: 18,
+    paddingTop: 60,
+  },
+  coverStatusPill: {
+    alignSelf: 'flex-start',
     paddingHorizontal: 10,
     paddingVertical: 5,
-    backgroundColor: 'rgba(255,255,255,0.09)',
     borderRadius: 999,
+    marginBottom: 10,
   },
-  pillText: {
+  coverStatusPillNotFinished: {
+    backgroundColor: 'rgba(255,255,255,0.18)',
+  },
+  coverStatusPillCompleted: {
+    backgroundColor: '#7C3AED',
+  },
+  coverStatusPillText: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
-  metaDate: { fontSize: 13, color: '#9A9A9A' },
+  coverStatusPillTextNotFinished: {
+    color: '#FFFFFF',
+  },
+  coverStatusPillTextCompleted: {
+    color: '#FFFFFF',
+  },
+  coverTitle: {
+    fontSize: 30,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -0.5,
+  },
+  coverMetaLine: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.85)',
+    fontWeight: '500',
+    marginTop: 4,
+  },
+
   placeWrap: {
     marginTop: 20,
     alignItems: 'center',
@@ -790,5 +929,114 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontStyle: 'italic',
     paddingVertical: 12,
+  },
+
+  membersModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.90)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  membersModalContent: {
+    width: '85%',
+    maxHeight: '70%',
+    backgroundColor: '#282828',
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  membersModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  membersModalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  membersList: {
+    padding: 16,
+  },
+  memberItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  memberNumber: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(124,58,237,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  memberNumberText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#7C3AED',
+  },
+  modalMemberAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+    overflow: 'hidden',
+  },
+  modalMemberAvatarImg: {
+    width: '100%',
+    height: '100%',
+  } as any,
+  modalMemberAvatarPlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#282828',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalMemberInitial: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#7C3AED',
+  },
+  memberDetails: {
+    flex: 1,
+  },
+  modalMemberName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  modalMemberUsername: {
+    fontSize: 12,
+    color: '#6A6A6A',
+    marginTop: 2,
+  },
+  creatorBadge: {
+    backgroundColor: '#7C3AED',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  creatorBadgeText: {
+    fontSize: 10,
+    fontWeight: '500',
+    color: '#FFFFFF',
+  },
+  memberBadge: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  memberBadgeText: {
+    fontSize: 10,
+    fontWeight: '500',
+    color: '#B3B3B3',
   },
 });
