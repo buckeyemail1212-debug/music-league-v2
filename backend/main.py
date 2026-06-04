@@ -4653,8 +4653,21 @@ async def search_leagues(
         ],
     }
 
-    cursor = db.leagues.find(filt, {"_id": 0}).sort("name", 1).limit(limit)
-    leagues = await cursor.to_list(limit)
+    # $lookup excludes leagues that have transitioned to past_leagues (completed or deleted-not-finished).
+    pipeline = [
+        {"$match": filt},
+        {"$lookup": {
+            "from": "past_leagues",
+            "localField": "id",
+            "foreignField": "id",
+            "as": "_past_match",
+        }},
+        {"$match": {"_past_match": {"$size": 0}}},
+        {"$sort": {"name": 1}},
+        {"$limit": limit},
+        {"$project": {"_id": 0, "_past_match": 0}},
+    ]
+    leagues = await db.leagues.aggregate(pipeline).to_list(limit)
 
     results = []
     user_id = current_user["id"]
