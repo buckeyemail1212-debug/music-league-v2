@@ -529,7 +529,7 @@ const styles = StyleSheet.create({
     width: 88,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: -12,
+    marginLeft: 12,
   },
   swipeDeleteBtn: {
     backgroundColor: '#EF4444',
