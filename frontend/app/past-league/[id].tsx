@@ -110,8 +110,8 @@ export default function PastLeaguePage() {
             <LeagueAvatar
               image={league.league_image}
               name={league.name}
-              size={72}
-              imageBorderRadius={12}
+              size={280}
+              imageBorderRadius={56}
             />
           </View>
           <Text style={styles.leagueName}>{league.name}</Text>
@@ -297,9 +297,9 @@ const styles = StyleSheet.create({
   },
   headerBtn: { padding: 6 },
   headerTitle: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '800',
-    letterSpacing: 1.4,
+    letterSpacing: 1.5,
     color: '#FFFFFF',
   },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
@@ -313,54 +313,60 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   thumbWrap: {
-    marginBottom: 14,
+    marginBottom: 22,
   },
   leagueName: {
-    fontSize: 22,
+    fontSize: 32,
     fontWeight: '800',
     color: '#FFFFFF',
     textAlign: 'center',
+    letterSpacing: -0.5,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    flexWrap: 'wrap',
+    flexWrap: 'nowrap',
     justifyContent: 'center',
     marginTop: 10,
   },
   pill: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    borderRadius: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: 'rgba(255,255,255,0.09)',
+    borderRadius: 999,
   },
   pillText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '800',
-    color: '#B3B3B3',
-    letterSpacing: 0.5,
+    color: '#FFFFFF',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
-  metaDate: { fontSize: 12, color: '#B3B3B3' },
+  metaDate: { fontSize: 13, color: '#9A9A9A' },
   placeWrap: {
-    marginTop: 20,
+    marginTop: 28,
     alignItems: 'center',
-    paddingHorizontal: 22,
-    paddingVertical: 14,
-    borderRadius: 10,
-    backgroundColor: '#181818',
+    alignSelf: 'stretch',
+    paddingHorizontal: 28,
+    paddingVertical: 22,
+    borderRadius: 22,
+    backgroundColor: '#222225',
   },
   placeLabel: {
     fontSize: 11,
     color: '#B3B3B3',
     fontWeight: '700',
-    letterSpacing: 1,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: 6,
   },
   placeValue: {
-    fontSize: 28,
+    fontSize: 54,
     fontWeight: '800',
-    color: '#7C3AED',
-    marginTop: 4,
+    color: '#7C5CFF',
+    letterSpacing: -1,
+    lineHeight: 60,
   },
 
   sectionLabel: {
