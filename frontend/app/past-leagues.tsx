@@ -10,6 +10,7 @@ import {
   Modal,
   Animated,
   Alert,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -51,6 +52,7 @@ export default function PastLeaguesPage() {
   const [leagues, setLeagues] = useState<PastLeague[]>(cached ?? []);
   const [loading, setLoading] = useState(cached == null);
   const [refreshing, setRefreshing] = useState(false);
+  const [query, setQuery] = useState<string>('');
 
   const fetchAll = useCallback(async () => {
     try {
@@ -232,6 +234,17 @@ export default function PastLeaguesPage() {
 
   const count = leagues.length;
 
+  const trimmedQuery = query.trim().toLowerCase();
+  const filteredLeagues = trimmedQuery
+    ? leagues.filter((l) => {
+        if (l.name && l.name.toLowerCase().includes(trimmedQuery)) return true;
+        if (l.winner && l.winner.username.toLowerCase().includes(trimmedQuery)) return true;
+        if (l.standings && l.standings.some((s) => s.username.toLowerCase().includes(trimmedQuery))) return true;
+        if (l.left_members && l.left_members.some((m) => m.username.toLowerCase().includes(trimmedQuery))) return true;
+        return false;
+      })
+    : leagues;
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaView style={styles.container} edges={['top']}>
@@ -252,6 +265,38 @@ export default function PastLeaguesPage() {
           </Text>
         </View>
 
+        {leagues.length > 0 && (
+          <View style={styles.searchBarWrap}>
+            <View style={styles.searchBar}>
+              <Ionicons
+                name="search"
+                size={18}
+                color="#6A6A6A"
+                style={styles.searchIcon}
+              />
+              <TextInput
+                style={styles.searchInput}
+                value={query}
+                onChangeText={setQuery}
+                placeholder="Search by league or member"
+                placeholderTextColor="#8B8B8B"
+                autoCorrect={false}
+                autoCapitalize="none"
+                returnKeyType="search"
+              />
+              {query.length > 0 && (
+                <TouchableOpacity
+                  onPress={() => setQuery('')}
+                  hitSlop={10}
+                  style={styles.searchClearBtn}
+                >
+                  <Ionicons name="close-circle" size={18} color="#8B8B8B" />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        )}
+
         {loading && leagues.length === 0 ? (
           <View style={styles.center}>
             <ActivityIndicator color={PURPLE} />
@@ -262,9 +307,15 @@ export default function PastLeaguesPage() {
               Finished and deleted leagues will show up here.
             </Text>
           </View>
+        ) : trimmedQuery && filteredLeagues.length === 0 ? (
+          <View style={styles.center}>
+            <Text style={styles.emptyText}>
+              No leagues or members match "{query}"
+            </Text>
+          </View>
         ) : (
           <FlatList
-            data={leagues}
+            data={filteredLeagues}
             keyExtractor={(item) => item.id}
             renderItem={renderRow}
             contentContainerStyle={styles.listContent}
@@ -349,6 +400,37 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#B3B3B3',
     marginTop: 6,
+  },
+
+  searchBarWrap: {
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  searchBar: {
+    height: 52,
+    borderRadius: 26,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E1E1E',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    paddingHorizontal: 20,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  searchIcon: { marginRight: 10 },
+  searchInput: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '500',
+    paddingVertical: 0,
+  },
+  searchClearBtn: {
+    marginLeft: 8,
   },
 
   listContent: {
