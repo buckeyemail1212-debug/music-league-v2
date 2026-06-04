@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
-  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -36,16 +35,6 @@ export default function PastLeaguePage() {
   const [loading, setLoading] = useState(true);
   const [league, setLeague] = useState<PastLeague | null>(null);
   const [segment, setSegment] = useState<'standings' | 'songs'>('standings');
-  const [trackWidth, setTrackWidth] = useState(0);
-  const thumbPos = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.timing(thumbPos, {
-      toValue: segment === 'standings' ? 0 : 1,
-      duration: 240,
-      useNativeDriver: false,
-    }).start();
-  }, [segment]);
 
   useEffect(() => {
     let cancelled = false;
@@ -105,13 +94,6 @@ export default function PastLeaguePage() {
   const activeStandings = league.standings.filter((s) => !s.left);
   const leftStandings = league.standings.filter((s) => s.left);
 
-  const TOGGLE_PADDING = 4;
-  const thumbWidth = trackWidth > 0 ? (trackWidth - TOGGLE_PADDING * 2) / 2 : 0;
-  const thumbLeft = thumbPos.interpolate({
-    inputRange: [0, 1],
-    outputRange: [TOGGLE_PADDING, TOGGLE_PADDING + thumbWidth],
-  });
-
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
@@ -168,43 +150,23 @@ export default function PastLeaguePage() {
           </View>
         )}
 
-        <View
-          style={styles.toggleTrack}
-          onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
-        >
-          {thumbWidth > 0 && (
-            <Animated.View
-              style={[styles.toggleThumb, { width: thumbWidth, left: thumbLeft }]}
-            />
-          )}
-          <TouchableOpacity
-            style={styles.toggleSegment}
-            activeOpacity={0.7}
-            onPress={() => setSegment('standings')}
-          >
-            <Text
-              style={[
-                styles.toggleLabel,
-                segment === 'standings' && styles.toggleLabelActive,
-              ]}
-            >
-              Standings
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.toggleSegment}
-            activeOpacity={0.7}
-            onPress={() => setSegment('songs')}
-          >
-            <Text
-              style={[
-                styles.toggleLabel,
-                segment === 'songs' && styles.toggleLabelActive,
-              ]}
-            >
-              Songs you submitted
-            </Text>
-          </TouchableOpacity>
+        <View style={styles.tabContainer}>
+          {(['standings', 'songs'] as const).map((tab) => {
+            const active = segment === tab;
+            const label = tab === 'standings' ? 'Standings' : 'Songs you submitted';
+            return (
+              <TouchableOpacity
+                key={tab}
+                style={[styles.tab, active && styles.tabActive]}
+                onPress={() => setSegment(tab)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.tabText, active && styles.tabTextActive]}>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {/* Final standings */}
@@ -367,7 +329,7 @@ const styles = StyleSheet.create({
   topCard: {
     alignItems: 'center',
     paddingTop: 24,
-    paddingBottom: 24,
+    paddingBottom: 20,
     paddingHorizontal: 20,
   },
   thumbWrap: {
@@ -403,7 +365,7 @@ const styles = StyleSheet.create({
   },
   metaDate: { fontSize: 13, color: '#9A9A9A' },
   placeWrap: {
-    marginTop: 28,
+    marginTop: 20,
     alignItems: 'center',
     alignSelf: 'stretch',
     paddingHorizontal: 28,
@@ -427,36 +389,39 @@ const styles = StyleSheet.create({
     lineHeight: 60,
   },
 
-  toggleTrack: {
+  tabContainer: {
     flexDirection: 'row',
-    height: 50,
-    borderRadius: 15,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    marginHorizontal: 20,
-    marginTop: 8,
-    marginBottom: 16,
-    position: 'relative',
+    marginHorizontal: 16,
+    marginTop: 20,
+    marginBottom: 0,
+    gap: 8,
   },
-  toggleThumb: {
-    position: 'absolute',
-    top: 4,
-    bottom: 4,
-    backgroundColor: '#7C5CFF',
-    borderRadius: 12,
-  },
-  toggleSegment: {
+  tab: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+    backgroundColor: '#2A2A2A',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
-  toggleLabel: {
+  tabActive: {
+    backgroundColor: '#7C3AED',
+    borderColor: '#7C3AED',
+    shadowColor: '#7C3AED',
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
+  },
+  tabText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#9A9A9A',
-    letterSpacing: 0.3,
+    color: '#B3B3B3',
   },
-  toggleLabelActive: {
+  tabTextActive: {
     color: '#FFFFFF',
   },
 
@@ -473,6 +438,7 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: '#181818',
     marginHorizontal: 20,
+    marginTop: 20,
     borderRadius: 12,
     overflow: 'hidden',
   },
