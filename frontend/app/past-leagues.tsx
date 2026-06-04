@@ -260,9 +260,28 @@ export default function PastLeaguesPage() {
 
         <View style={styles.titleBlock}>
           <Text style={styles.title}>PAST LEAGUES</Text>
-          <Text style={styles.subtitle}>
-            {count} archived · Tap league to view results
-          </Text>
+          <View style={styles.subtitleRow}>
+            <Text style={styles.subtitle}>
+              {count} archived · Tap league to view results
+            </Text>
+            <TouchableOpacity
+              hitSlop={10}
+              onPress={() =>
+                Alert.alert(
+                  'About past leagues',
+                  'Tap a past league to see its final standings and the songs you submitted. To permanently delete a league, swipe the row left and press Delete.',
+                  [{ text: 'Got it', style: 'default' }]
+                )
+              }
+              style={styles.infoBtn}
+            >
+              <Ionicons
+                name="information-circle-outline"
+                size={16}
+                color="#B3B3B3"
+              />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {leagues.length > 0 && (
@@ -369,6 +388,7 @@ export default function PastLeaguesPage() {
             </View>
           </View>
         </Modal>
+
       </SafeAreaView>
     </GestureHandlerRootView>
   );
@@ -399,6 +419,14 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 13,
     color: '#B3B3B3',
+    marginTop: 6,
+  },
+  subtitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  infoBtn: {
+    marginLeft: 6,
     marginTop: 6,
   },
 
