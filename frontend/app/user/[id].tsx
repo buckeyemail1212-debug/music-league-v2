@@ -117,6 +117,7 @@ export default function UserProfileScreen() {
   const invalidateAfterFollowChange = () => {
     apiCache.invalidate(profileCacheKey(targetId, viewerId));
     apiCache.invalidate(statusCacheKey(targetId, viewerId));
+    apiCache.invalidate(`follow-counts:${viewerId}`);
   };
 
   const doFollow = async () => {

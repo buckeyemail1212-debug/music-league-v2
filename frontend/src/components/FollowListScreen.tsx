@@ -302,6 +302,7 @@ function RowFollowButton({
   const invalidate = () => {
     apiCache.invalidate(statusCacheKey(rowUserId, viewerId));
     apiCache.invalidate(`user-profile:${rowUserId}:${viewerId}`);
+    apiCache.invalidate(`follow-counts:${viewerId}`);
     onChanged();
   };
 

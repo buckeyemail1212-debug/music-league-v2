@@ -2288,6 +2288,36 @@ def _user_summary(u: dict) -> dict:
     }
 
 
+async def _resolved_follow_status(me_id: str, target_id: str) -> str:
+    """Resolve the relationship between me and target into the vocabulary the
+    frontend FollowStatus type expects ("following", "follows_you", "friends",
+    "requested", "none"). Mirrors the logic in get_follow_status so the
+    follow endpoint and the read endpoints speak the same language."""
+    my_edge, they_edge = await asyncio.gather(
+        db.follows.find_one(
+            {"follower_id": me_id, "followed_id": target_id},
+            {"_id": 0, "status": 1},
+        ),
+        db.follows.find_one(
+            {"follower_id": target_id, "followed_id": me_id, "status": "approved"},
+            {"_id": 1},
+        ),
+    )
+    my_status = my_edge["status"] if my_edge else None
+    they_follow = they_edge is not None
+
+    if my_status == "pending":
+        return "requested"
+    elif my_status == "approved" and they_follow:
+        return "friends"
+    elif my_status == "approved":
+        return "following"
+    elif they_follow:
+        return "follows_you"
+    else:
+        return "none"
+
+
 @api_router.post("/follow")
 async def follow_user(
     body: FollowRequestBody,
@@ -2314,7 +2344,7 @@ async def follow_user(
         {"_id": 0, "status": 1},
     )
     if existing:
-        return {"data": {"status": existing["status"]}}
+        return {"data": {"status": await _resolved_follow_status(me_id, target_id)}}
 
     new_status = "pending" if bool(target.get("is_private", False)) else "approved"
     try:
@@ -2333,7 +2363,7 @@ async def follow_user(
             {"_id": 0, "status": 1},
         )
         if race:
-            return {"data": {"status": race["status"]}}
+            return {"data": {"status": await _resolved_follow_status(me_id, target_id)}}
         raise HTTPException(status_code=500, detail="Failed to create follow")
 
     try:
@@ -2361,7 +2391,7 @@ async def follow_user(
     except Exception as e:
         logger.warning(f"follow notification failed: {e}")
 
-    return {"data": {"status": new_status}}
+    return {"data": {"status": await _resolved_follow_status(me_id, target_id)}}
 
 
 @api_router.delete("/follow/{user_id}")
