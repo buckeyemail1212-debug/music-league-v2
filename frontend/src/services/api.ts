@@ -601,6 +601,13 @@ export interface FollowCounts {
   following: number;
 }
 
+export interface FollowRequestUser {
+  user_id: string;
+  username: string;
+  avatar_url: string | null;
+  is_following_me_back: boolean;
+}
+
 export interface UserProfileStats {
   round_wins: number;
   league_wins: number;
@@ -647,6 +654,18 @@ export const followUser = (userId: string) =>
 
 export const unfollowUser = (userId: string) =>
   api.delete<{ data: { removed: true } }>(`/follow/${userId}`);
+
+export const getMyFollowRequests = (limit = 50, offset = 0) =>
+  api.get<{ data: { users: FollowRequestUser[]; total: number } }>(
+    '/users/me/follow-requests',
+    { params: { limit, offset } },
+  );
+
+export const approveFollowRequest = (userId: string) =>
+  api.post<{ data: { approved: true } }>(`/follow-requests/${userId}/approve`);
+
+export const denyFollowRequest = (userId: string) =>
+  api.post<{ data: { denied: true } }>(`/follow-requests/${userId}/deny`);
 
 export const getUserProfile = (userId: string) =>
   api.get<{ data: UserProfileResponse }>(`/users/${userId}/profile`);
