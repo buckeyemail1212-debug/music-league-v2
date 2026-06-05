@@ -7698,6 +7698,21 @@ async def get_notifications(current_user: dict = Depends(get_current_user)):
     return {"data": {"notifications": rows}}
 
 
+@api_router.post("/notifications/delete")
+async def delete_notifications(body: dict, current_user: dict = Depends(get_current_user)):
+    me_id = current_user["id"]
+    ids = body.get("ids")
+    if not isinstance(ids, list) or not ids:
+        raise HTTPException(status_code=400, detail="ids must be a non-empty list")
+    # Only delete notifications that belong to the requesting user — never
+    # allow deleting someone else's notifications.
+    result = await db.notifications.delete_many({
+        "id": {"$in": ids},
+        "user_id": me_id,
+    })
+    return {"data": {"deleted": result.deleted_count}}
+
+
 @api_router.get("/inbox/feed")
 async def get_inbox_feed(current_user: dict = Depends(get_current_user)):
     me_id = current_user["id"]
