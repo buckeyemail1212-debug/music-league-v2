@@ -118,6 +118,10 @@ export default function UserProfileScreen() {
     apiCache.invalidate(profileCacheKey(targetId, viewerId));
     apiCache.invalidate(statusCacheKey(targetId, viewerId));
     apiCache.invalidate(`follow-counts:${viewerId}`);
+    apiCache.invalidate(`user-following:${viewerId}:${viewerId}`);
+    apiCache.invalidate(`user-followers:${viewerId}:${viewerId}`);
+    apiCache.invalidate(`user-followers:${targetId}:${viewerId}`);
+    apiCache.invalidate(`user-following:${targetId}:${viewerId}`);
   };
 
   const doFollow = async () => {
