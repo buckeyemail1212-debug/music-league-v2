@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { searchUsers, followUser, UserSearchResult } from '../services/api';
+import { searchUsers, followUser, unfollowUser, UserSearchResult } from '../services/api';
 
 const PURPLE = '#7C3AED';
 
@@ -87,6 +87,26 @@ export default function MembersSearchTab({ query }: Props) {
     }
   };
 
+  const onCancelRequest = async (item: UserSearchResult) => {
+    if (followingId) return;
+    setFollowingId(item.id);
+    const prevState = item.follow_state;
+    // Optimistically clear the request
+    setUsers((prev) =>
+      prev.map((u) => (u.id === item.id ? { ...u, follow_state: 'none' } : u)),
+    );
+    try {
+      await unfollowUser(item.id);
+    } catch {
+      setUsers((prev) =>
+        prev.map((u) => (u.id === item.id ? { ...u, follow_state: prevState } : u)),
+      );
+      Alert.alert('Could not cancel', 'Please try again.');
+    } finally {
+      setFollowingId(null);
+    }
+  };
+
   const renderRow = ({ item }: { item: UserSearchResult }) => {
     const initial = (item.username || '?').charAt(0).toUpperCase();
     const inFlight = followingId === item.id;
@@ -117,13 +137,25 @@ export default function MembersSearchTab({ query }: Props) {
           )}
         </TouchableOpacity>
       );
+    } else if (item.follow_state === 'requested') {
+      indicator = (
+        <TouchableOpacity
+          style={styles.mutedTag}
+          activeOpacity={0.85}
+          onPress={() => onCancelRequest(item)}
+          disabled={inFlight}
+          hitSlop={6}
+        >
+          {inFlight ? (
+            <ActivityIndicator color="#FFFFFF" size="small" />
+          ) : (
+            <Text style={styles.mutedTagText}>Requested</Text>
+          )}
+        </TouchableOpacity>
+      );
     } else {
       const label =
-        item.follow_state === 'following'
-          ? 'Following'
-          : item.follow_state === 'friends'
-          ? 'Friends'
-          : 'Requested';
+        item.follow_state === 'following' ? 'Following' : 'Friends';
       indicator = (
         <View style={styles.mutedTag}>
           <Text style={styles.mutedTagText}>{label}</Text>
