@@ -61,25 +61,20 @@ export default function MembersSearchTab({ query }: Props) {
     };
   }, [debouncedQuery]);
 
-  // Tap "Follow" — backend may return 'approved' (public account) or
-  // 'pending' (private account). The new follow_state depends on the
-  // previous state: following someone who already follows you flips
-  // straight to 'friends' (mutual); otherwise to 'following'. A
-  // 'pending' response always means 'requested' regardless of prior.
+  // Tap "Follow" — the backend returns the fully-resolved relationship
+  // status ('following', 'friends', 'requested', etc.), so we trust it
+  // directly. We only fall back to deriving the next state from the
+  // prior one (mutual → 'friends', otherwise 'following') if the server
+  // returns nothing.
   const onFollow = async (item: UserSearchResult) => {
     if (followingId) return;
     setFollowingId(item.id);
     try {
       const res = await followUser(item.id);
       const status = res.data?.data?.status;
-      let next: UserSearchResult['follow_state'];
-      if (status === 'pending') {
-        next = 'requested';
-      } else if (item.follow_state === 'follows_you') {
-        next = 'friends';
-      } else {
-        next = 'following';
-      }
+      const next: UserSearchResult['follow_state'] =
+        (status as UserSearchResult['follow_state']) ??
+        (item.follow_state === 'follows_you' ? 'friends' : 'following');
       setUsers((prev) =>
         prev.map((u) =>
           u.id === item.id ? { ...u, follow_state: next } : u,

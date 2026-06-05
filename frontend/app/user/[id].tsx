@@ -21,6 +21,7 @@ import {
   getFollowStatus,
   getUserProfile,
   unfollowUser,
+  removeFollower,
   startConversation,
   FollowStatus,
   UserProfileResponse,
@@ -235,6 +236,40 @@ export default function UserProfileScreen() {
     );
   };
 
+  const confirmRemoveFollower = () => {
+    if (!profile) return;
+    const username = profile.username;
+    Alert.alert(
+      `Remove @${username} as a follower?`,
+      `@${username} will no longer follow you. They won't be notified.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            const prev = followStatus;
+            // Removing a follower: they stop following us. If we still
+            // follow them it drops friends -> following; otherwise
+            // follows_you -> none.
+            setFollowStatus(followStatus === 'friends' ? 'following' : 'none');
+            try {
+              await removeFollower(profile.user_id);
+            } catch {
+              setFollowStatus(prev);
+              Alert.alert('Could not remove', 'Please try again.');
+              return;
+            }
+            apiCache.invalidate(statusCacheKey(profile.user_id, viewerId));
+            apiCache.invalidate(profileCacheKey(profile.user_id, viewerId));
+            apiCache.invalidate(`user-followers:${viewerId}:${viewerId}`);
+            apiCache.invalidate(`follow-counts:${viewerId}`);
+          },
+        },
+      ],
+    );
+  };
+
   const buildMenuOptions = (): {
     label: string;
     onPress: () => void;
@@ -261,6 +296,13 @@ export default function UserProfileScreen() {
             title: `Cancel follow request to @${username}?`,
             message: '',
           }),
+      });
+    }
+
+    if (followStatus === 'follows_you' || followStatus === 'friends') {
+      opts.push({
+        label: `Remove follower`,
+        onPress: confirmRemoveFollower,
       });
     }
 

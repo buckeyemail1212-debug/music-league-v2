@@ -655,6 +655,9 @@ export const followUser = (userId: string) =>
 export const unfollowUser = (userId: string) =>
   api.delete<{ data: { removed: true } }>(`/follow/${userId}`);
 
+export const removeFollower = (userId: string) =>
+  api.delete<{ data: { removed: true } }>(`/followers/${userId}`);
+
 export const getMyFollowRequests = (limit = 50, offset = 0) =>
   api.get<{ data: { users: FollowRequestUser[]; total: number } }>(
     '/users/me/follow-requests',
