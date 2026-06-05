@@ -661,7 +661,7 @@ const styles = StyleSheet.create({
   headerStatLabel: { fontSize: 12, color: '#B3B3B3', marginTop: 2 },
   headerIdentityBlock: { paddingHorizontal: 20, marginTop: 12 },
 
-  actionRow: { flexDirection: 'row', gap: 10, marginHorizontal: 20, marginBottom: 16, marginTop: 4 },
+  actionRow: { flexDirection: 'row', gap: 10, marginHorizontal: 20, marginBottom: 16, marginTop: 14 },
   actionBtn: { flex: 1, paddingVertical: 11, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
   messageBtn: { backgroundColor: 'rgba(255,255,255,0.08)' },
   messageBtnLabel: { fontSize: 14, fontWeight: '800', letterSpacing: 0.4, color: '#FFFFFF' },
