@@ -4049,6 +4049,12 @@ async def get_user_profile(user_id: str, current_user: dict = Depends(get_curren
         db.follows.count_documents({"follower_id": target_id, "status": "approved"}),
     )
 
+    # All-time leaderboard rank, standard-competition style (ties share a
+    # rank, next distinct score skips ahead) — matches get_leaderboard.
+    # For a single user that's just (#users with strictly more points) + 1.
+    target_points = int(target.get("all_time_points") or 0)
+    rank = await db.users.count_documents({"all_time_points": {"$gt": target_points}}) + 1
+
     base = {
         "user_id": target_id,
         "username": target.get("username"),
@@ -4060,6 +4066,8 @@ async def get_user_profile(user_id: str, current_user: dict = Depends(get_curren
         # private accounts still render with their bio/pronouns visible.
         "pronouns": target.get("pronouns"),
         "bio": target.get("bio"),
+        "display_name": target.get("display_name"),
+        "rank": rank,
     }
 
     if not allow_full:

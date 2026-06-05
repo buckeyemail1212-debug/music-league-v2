@@ -634,6 +634,8 @@ export interface UserProfileResponse {
   is_private: boolean;
   follower_count: number;
   following_count: number;
+  display_name?: string | null;
+  rank?: number | null;
   is_limited: boolean;
   pronouns?: string | null;
   bio?: string | null;
