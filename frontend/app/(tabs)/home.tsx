@@ -467,6 +467,13 @@ export default function HomeScreen() {
 
         <TouchableOpacity
           style={styles.headerIconBtn}
+          onPress={() => router.push('/home-search' as any)}
+        >
+          <Ionicons name="search" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.headerIconBtn}
           onPress={() => router.push('/how-to-play' as any)}
         >
           <Ionicons name="help-circle-outline" size={24} color="#FFFFFF" />
@@ -493,24 +500,9 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      <View style={{ marginTop: 4, marginBottom: 22 }}>
+      <View style={{ marginTop: 4, marginBottom: 10 }}>
         <StoriesRing currentUser={user} />
       </View>
-
-      {/* Search-bar tap target — opens /home-search. Not a live input. */}
-      <TouchableOpacity
-        style={styles.homeSearchBar}
-        activeOpacity={0.75}
-        onPress={() => router.push('/home-search' as any)}
-      >
-        <Ionicons
-          name="search"
-          size={18}
-          color="#6A6A6A"
-          style={styles.homeSearchIcon}
-        />
-        <Text style={styles.homeSearchText}>Search leagues and members</Text>
-      </TouchableOpacity>
 
       {/* Active leagues — page section title, matches INBOX */}
       {activeCount > 0 && (
@@ -686,7 +678,7 @@ const styles = StyleSheet.create({
   ctaRow: {
     flexDirection: 'row',
     gap: 10,
-    marginBottom: 18,
+    marginBottom: 12,
   },
   ctaPrimary: {
     flex: 1,
@@ -787,7 +779,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    marginBottom: 14,
+    marginBottom: 10,
     marginTop: 4,
   },
   activeLeaguesTitle: {
