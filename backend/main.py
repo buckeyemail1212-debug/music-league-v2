@@ -2405,6 +2405,17 @@ async def unfollow_user(user_id: str, current_user: dict = Depends(get_current_u
     return {"data": {"removed": True}}
 
 
+@api_router.delete("/followers/{user_id}")
+async def remove_follower(user_id: str, current_user: dict = Depends(get_current_user)):
+    follower_id = _validate_uuid(user_id)
+    me_id = current_user["id"]
+
+    result = await db.follows.delete_one({"follower_id": follower_id, "followed_id": me_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="This user is not following you")
+    return {"data": {"removed": True}}
+
+
 async def _list_follow_edges(
     *,
     me_id: str,

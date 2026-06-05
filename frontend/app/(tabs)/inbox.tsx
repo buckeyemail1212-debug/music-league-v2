@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '../../src/context/AuthContext';
 import { useInboxData } from '../../src/context/InboxDataContext';
-import { hideConversation, DmConversation, InboxFeedItem } from '../../src/services/api';
+import { hideConversation, getMyFollowRequests, DmConversation, InboxFeedItem } from '../../src/services/api';
 import { markCategoryViewed } from '../../src/services/inboxReadState';
 import { setPendingInboxCategory, InboxCategoryItem } from '../../src/services/pendingInboxCategory';
 import { FLOATING_NAV_CLEARANCE } from './_layout';
@@ -53,10 +53,24 @@ export default function InboxScreen() {
   const { notifs, serverNotifs, conversations, categoryViews, loading, refresh } = useInboxData();
 
   const [refreshing, setRefreshing] = useState(false);
+  const [pendingRequests, setPendingRequests] = useState(0);
   const navigatingRef = useRef(false);
 
   useFocusEffect(
     useCallback(() => { refresh(); }, [refresh]),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        try {
+          const res = await getMyFollowRequests();
+          setPendingRequests(res.data.data.total ?? res.data.data.users.length);
+        } catch {
+          // leave the count unchanged on error
+        }
+      })();
+    }, []),
   );
 
   const onRefresh = async () => {
@@ -253,6 +267,27 @@ export default function InboxScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#7C3AED" />}
         showsVerticalScrollIndicator={false}
       >
+        {pendingRequests > 0 && (
+          <TouchableOpacity
+            style={styles.categoryRow}
+            onPress={() => router.push('/follow-requests')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.categoryIcon, { backgroundColor: '#7C3AED' }]}>
+              <Ionicons name="person-add" size={24} color="#FFFFFF" />
+            </View>
+            <View style={styles.categoryBody}>
+              <Text style={styles.categoryLabel}>Follow Requests</Text>
+              <Text style={styles.categoryPreview} numberOfLines={1}>
+                {`${pendingRequests} pending`}
+              </Text>
+            </View>
+            <View style={styles.countBadge}>
+              <Text style={styles.countText}>{pendingRequests}</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+
         {categoryData.map(cat => (
           <TouchableOpacity
             key={cat.key}
