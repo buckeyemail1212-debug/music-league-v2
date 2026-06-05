@@ -449,7 +449,7 @@ export default function UserProfileScreen() {
               : 'Requested';
     return (
       <TouchableOpacity
-        style={[styles.followBtn, primary ? styles.followBtnPrimary : styles.followBtnSecondary]}
+        style={[styles.actionBtn, primary ? styles.followBtnPrimary : styles.followBtnSecondary]}
         onPress={onFollowButtonPress}
         activeOpacity={0.8}
         disabled={busy}
@@ -470,7 +470,6 @@ export default function UserProfileScreen() {
     <SafeAreaView style={styles.container}>
       <Header
         onBack={() => router.back()}
-        onMessage={messageVisible ? handleMessage : undefined}
         onMenu={menuVisible ? handleMenuPress : undefined}
       />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
@@ -527,7 +526,20 @@ export default function UserProfileScreen() {
           {profile.bio ? <Text style={styles.headerBio}>{profile.bio}</Text> : null}
         </View>
 
-        {followBtn}
+        {followStatus !== null && followStatus !== 'self' ? (
+          <View style={styles.actionRow}>
+            {followBtn}
+            {messageVisible ? (
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.messageBtn]}
+                onPress={handleMessage}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.messageBtnLabel}>Message</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        ) : null}
 
         {profile.is_limited ? (
           /* Private + not-approved: lock surface in place of tabs.
@@ -658,7 +670,12 @@ const styles = StyleSheet.create({
   headerStatItem: { flex: 1, alignItems: 'flex-start' },
   headerStatValue: { fontSize: 17, fontWeight: '700', color: '#FFFFFF' },
   headerStatLabel: { fontSize: 12, color: '#B3B3B3', marginTop: 2 },
-  headerIdentityBlock: { paddingHorizontal: 18, marginTop: 12 },
+  headerIdentityBlock: { paddingHorizontal: 20, marginTop: 12 },
+
+  actionRow: { flexDirection: 'row', gap: 10, marginHorizontal: 20, marginBottom: 14, marginTop: 4 },
+  actionBtn: { flex: 1, paddingVertical: 11, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
+  messageBtn: { backgroundColor: 'rgba(255,255,255,0.08)' },
+  messageBtnLabel: { fontSize: 14, fontWeight: '800', letterSpacing: 0.4, color: '#FFFFFF' },
   headerDisplayName: { fontSize: 16, fontWeight: '800', color: '#FFFFFF' },
   headerHandle: { fontSize: 14, color: '#B3B3B3', marginBottom: 6 },
   headerPronouns: { fontSize: 13, color: '#B3B3B3' },
