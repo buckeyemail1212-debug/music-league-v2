@@ -246,15 +246,15 @@ const styles = StyleSheet.create({
     gap: 24,
   },
   statItem: { flex: 1, alignItems: 'flex-start' },
-  statValue: { fontSize: 20, fontWeight: '700', color: '#FFFFFF' },
-  statLabel: { fontSize: 13, color: '#B3B3B3', marginTop: 2 },
+  statValue: { fontSize: 17, fontWeight: '700', color: '#FFFFFF' },
+  statLabel: { fontSize: 12, color: '#B3B3B3', marginTop: 2 },
 
   identityBlock: {
     paddingHorizontal: 20,
     marginTop: 12,
   },
   displayName: {
-    fontSize: 18, fontWeight: '800', color: '#FFFFFF',
+    fontSize: 16, fontWeight: '800', color: '#FFFFFF',
     marginBottom: 8,
   },
   handle: {
@@ -281,8 +281,6 @@ const styles = StyleSheet.create({
 
   tabBar: {
     flexDirection: 'row',
-    borderTopWidth: 0.5,
-    borderTopColor: 'rgba(255,255,255,0.08)',
     borderBottomWidth: 0.5,
     borderBottomColor: 'rgba(255,255,255,0.08)',
     marginTop: 16,
@@ -299,5 +297,5 @@ const styles = StyleSheet.create({
   },
   tabItemActive: { borderBottomColor: '#FFFFFF' },
 
-  tabContent: { paddingTop: 12 },
+  tabContent: { paddingTop: 16 },
 });

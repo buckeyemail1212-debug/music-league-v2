@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     paddingHorizontal: 20,
     gap: 10,
-    marginBottom: 6,
+    marginBottom: 0,
   },
   statTile: {
     width: '48%',
@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 12, fontWeight: '700', color: '#B3B3B3',
     letterSpacing: 1.2,
-    marginHorizontal: 20, marginTop: 18, marginBottom: 8,
+    marginHorizontal: 20, marginTop: 16, marginBottom: 8,
     textTransform: 'uppercase',
   },
   group: {

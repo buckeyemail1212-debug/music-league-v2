@@ -661,7 +661,7 @@ const styles = StyleSheet.create({
   headerStatLabel: { fontSize: 12, color: '#B3B3B3', marginTop: 2 },
   headerIdentityBlock: { paddingHorizontal: 20, marginTop: 12 },
 
-  actionRow: { flexDirection: 'row', gap: 10, marginHorizontal: 20, marginBottom: 14, marginTop: 4 },
+  actionRow: { flexDirection: 'row', gap: 10, marginHorizontal: 20, marginBottom: 16, marginTop: 4 },
   actionBtn: { flex: 1, paddingVertical: 11, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
   messageBtn: { backgroundColor: 'rgba(255,255,255,0.08)' },
   messageBtnLabel: { fontSize: 14, fontWeight: '800', letterSpacing: 0.4, color: '#FFFFFF' },
@@ -732,7 +732,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderBottomWidth: 0.5,
     borderBottomColor: 'rgba(255,255,255,0.08)',
-    marginTop: 4,
+    marginTop: 0,
   },
   tabItem: {
     flex: 1,
@@ -744,7 +744,7 @@ const styles = StyleSheet.create({
   },
   tabItemActive: { borderBottomColor: '#FFFFFF' },
 
-  tabContent: { paddingTop: 12 },
+  tabContent: { paddingTop: 16 },
 
   lockBox: {
     alignItems: 'center',
