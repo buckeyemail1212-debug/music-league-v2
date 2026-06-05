@@ -560,9 +560,8 @@ export default function HomeScreen() {
   );
 
   const showPublicRow = publicCount > 0;
-  const showPastRow = pastLeagues.length > 0;
   const listFooter =
-    showPublicRow || showPastRow ? (
+    showPublicRow ? (
       <View style={{ marginTop: 24, gap: 10 }}>
         {showPublicRow && (
           <TouchableOpacity
@@ -576,24 +575,6 @@ export default function HomeScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.navRowTitle}>Public leagues</Text>
               <Text style={styles.navRowSub}>Browse open leagues to join</Text>
-            </View>
-            <View style={styles.navRowChevron}>
-              <Ionicons name="chevron-forward" size={18} color="#B3B3B3" />
-            </View>
-          </TouchableOpacity>
-        )}
-        {showPastRow && (
-          <TouchableOpacity
-            style={styles.navRowCard}
-            onPress={() => router.push('/past-leagues' as any)}
-            activeOpacity={0.85}
-          >
-            <View style={styles.navRowIconTile}>
-              <Ionicons name="time-outline" size={22} color="#FFFFFF" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.navRowTitle}>Past leagues</Text>
-              <Text style={styles.navRowSub}>Your finished competitions</Text>
             </View>
             <View style={styles.navRowChevron}>
               <Ionicons name="chevron-forward" size={18} color="#B3B3B3" />

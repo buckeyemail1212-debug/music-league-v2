@@ -318,6 +318,22 @@ export default function StatsTab() {
           </Text>
         )}
       </View>
+
+      {/* Past leagues nav */}
+      <TouchableOpacity
+        style={[styles.group, styles.navRow]}
+        activeOpacity={0.75}
+        onPress={() => router.push('/past-leagues' as any)}
+      >
+        <View style={styles.navIcon}>
+          <Ionicons name="time-outline" size={20} color="#FFFFFF" />
+        </View>
+        <View style={styles.submissionInfo}>
+          <Text style={styles.submissionTitle}>Past leagues</Text>
+          <Text style={styles.submissionArtist}>Your finished competitions</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color="#6A6A6A" />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -419,5 +435,14 @@ const styles = StyleSheet.create({
   submissionContext: { color: '#B3B3B3', fontSize: 11, marginTop: 6 },
   submissionState: {
     color: '#6A6A6A', fontSize: 11, marginTop: 2, fontWeight: '600',
+  },
+
+  navRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 14, paddingVertical: 12, gap: 12,
+  },
+  navIcon: {
+    width: 48, height: 48, borderRadius: 6, backgroundColor: '#282828',
+    alignItems: 'center', justifyContent: 'center',
   },
 });
