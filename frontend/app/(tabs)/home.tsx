@@ -743,7 +743,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  listContent: { paddingHorizontal: 20, paddingBottom: FLOATING_NAV_CLEARANCE, flexGrow: 1 },
+  listContent: { paddingHorizontal: 20, paddingBottom: FLOATING_NAV_CLEARANCE + 20, flexGrow: 1 },
   skeletonCard: { opacity: 0.6, backgroundColor: '#181818' },
   skeletonLineLong: {
     height: 14, width: '60%', borderRadius: 4, backgroundColor: '#282828', marginBottom: 8,
