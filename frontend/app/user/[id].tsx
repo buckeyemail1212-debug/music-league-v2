@@ -474,49 +474,57 @@ export default function UserProfileScreen() {
         onMenu={menuVisible ? handleMenuPress : undefined}
       />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        {/* Identity block */}
-        <View style={styles.identity}>
-          {/* Avatar tap is a no-op; long-press expands to a full-size
-              modal via ExpandableImage. */}
+        {/* Top row — avatar left, name + stats right */}
+        <View style={styles.headerTopRow}>
           <ExpandableImage source={profile.avatar_url ? { uri: profile.avatar_url } : null}>
-            <View style={[styles.bigAvatar, { backgroundColor: pickColor(profile.user_id) }]}>
+            <View style={styles.headerAvatar}>
               {profile.avatar_url ? (
-                <Image source={{ uri: profile.avatar_url }} style={styles.bigAvatarImg} />
+                <Image source={{ uri: profile.avatar_url }} style={styles.headerAvatarImg} />
               ) : (
-                <Text style={styles.bigAvatarInitial}>
+                <Text style={styles.headerAvatarInitial}>
                   {(profile.username || '?').charAt(0).toUpperCase()}
                 </Text>
               )}
             </View>
           </ExpandableImage>
-          <Text style={styles.username}>@{profile.username}</Text>
-          {profile.pronouns ? (
-            <Text style={styles.pronouns}>{profile.pronouns}</Text>
-          ) : null}
-          {profile.bio ? (
-            <Text style={styles.bio}>{profile.bio}</Text>
-          ) : null}
+          <View style={styles.headerNameStatsCol}>
+            <Text style={styles.headerDisplayName} numberOfLines={1}>
+              {profile.display_name || profile.username}
+            </Text>
+            <View style={styles.headerStatsRow}>
+              <TouchableOpacity
+                style={styles.headerStatItem}
+                activeOpacity={0.7}
+                onPress={() => router.push(`/user/${profile.user_id}/followers` as any)}
+              >
+                <Text style={styles.headerStatValue}>{profile.follower_count.toLocaleString()}</Text>
+                <Text style={styles.headerStatLabel}>followers</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.headerStatItem}
+                activeOpacity={0.7}
+                onPress={() => router.push(`/user/${profile.user_id}/following` as any)}
+              >
+                <Text style={styles.headerStatValue}>{profile.following_count.toLocaleString()}</Text>
+                <Text style={styles.headerStatLabel}>following</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.headerStatItem}
+                activeOpacity={0.7}
+                onPress={() => router.push('/(tabs)/leaderboard' as any)}
+              >
+                <Text style={styles.headerStatValue}>{profile.rank != null ? `#${profile.rank}` : '—'}</Text>
+                <Text style={styles.headerStatLabel}>ranking</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
 
-        {/* Counts row */}
-        <View style={styles.countsRow}>
-          <TouchableOpacity
-            style={styles.countItem}
-            activeOpacity={0.7}
-            onPress={() => router.push(`/user/${profile.user_id}/followers` as any)}
-          >
-            <Text style={styles.countValue}>{profile.follower_count.toLocaleString()}</Text>
-            <Text style={styles.countLabel}>Followers</Text>
-          </TouchableOpacity>
-          <View style={styles.countDivider} />
-          <TouchableOpacity
-            style={styles.countItem}
-            activeOpacity={0.7}
-            onPress={() => router.push(`/user/${profile.user_id}/following` as any)}
-          >
-            <Text style={styles.countValue}>{profile.following_count.toLocaleString()}</Text>
-            <Text style={styles.countLabel}>Following</Text>
-          </TouchableOpacity>
+        {/* Handle + pronouns + bio below */}
+        <View style={styles.headerIdentityBlock}>
+          <Text style={styles.headerHandle}>@{profile.username}</Text>
+          {profile.pronouns ? <Text style={styles.headerPronouns}>{profile.pronouns}</Text> : null}
+          {profile.bio ? <Text style={styles.headerBio}>{profile.bio}</Text> : null}
         </View>
 
         {followBtn}
@@ -640,6 +648,21 @@ function TabIcon({
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#121212' },
   scroll: { paddingBottom: 48 },
+
+  headerTopRow: { flexDirection: 'row', alignItems: 'center', paddingLeft: 20, paddingRight: 20, paddingTop: 4 },
+  headerAvatar: { width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: '#282828' },
+  headerAvatarImg: { width: 88, height: 88, borderRadius: 44 },
+  headerAvatarInitial: { fontSize: 36, fontWeight: '800', color: '#FFFFFF' },
+  headerNameStatsCol: { flex: 1, marginLeft: 16 },
+  headerStatsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 24, marginTop: 8 },
+  headerStatItem: { flex: 1, alignItems: 'flex-start' },
+  headerStatValue: { fontSize: 17, fontWeight: '700', color: '#FFFFFF' },
+  headerStatLabel: { fontSize: 12, color: '#B3B3B3', marginTop: 2 },
+  headerIdentityBlock: { paddingHorizontal: 18, marginTop: 12 },
+  headerDisplayName: { fontSize: 16, fontWeight: '800', color: '#FFFFFF' },
+  headerHandle: { fontSize: 14, color: '#B3B3B3', marginBottom: 6 },
+  headerPronouns: { fontSize: 13, color: '#B3B3B3' },
+  headerBio: { fontSize: 14, color: '#FFFFFF', marginTop: 4 },
 
   header: {
     flexDirection: 'row',
