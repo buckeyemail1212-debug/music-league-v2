@@ -28,11 +28,10 @@ import {
 } from '../../src/services/api';
 import { apiCache } from '../../src/services/apiCache';
 import UserStatsTab from '../../src/components/user-profile-tabs/UserStatsTab';
-import UserLeaguesTab from '../../src/components/user-profile-tabs/UserLeaguesTab';
 import UserLikedSongsTab from '../../src/components/user-profile-tabs/UserLikedSongsTab';
 import ExpandableImage from '../../src/components/ExpandableImage';
 
-type TabKey = 'stats' | 'leagues' | 'liked';
+type TabKey = 'stats' | 'liked';
 
 const PROFILE_TTL_MS = 60 * 1000;
 
@@ -563,13 +562,6 @@ export default function UserProfileScreen() {
                 label="Stats"
               />
               <TabIcon
-                iconActive="trophy"
-                iconInactive="trophy-outline"
-                active={tab === 'leagues'}
-                onPress={() => setTab('leagues')}
-                label="Leagues"
-              />
-              <TabIcon
                 iconActive="heart"
                 iconInactive="heart-outline"
                 active={tab === 'liked'}
@@ -580,9 +572,6 @@ export default function UserProfileScreen() {
 
             <View style={styles.tabContent}>
               {tab === 'stats' ? <UserStatsTab profile={profile} /> : null}
-              {tab === 'leagues' ? (
-                <UserLeaguesTab targetId={profile.user_id} viewerId={viewerId} />
-              ) : null}
               {tab === 'liked' ? (
                 <UserLikedSongsTab targetId={profile.user_id} viewerId={viewerId} />
               ) : null}
@@ -741,8 +730,6 @@ const styles = StyleSheet.create({
 
   tabBar: {
     flexDirection: 'row',
-    borderTopWidth: 0.5,
-    borderTopColor: 'rgba(255,255,255,0.08)',
     borderBottomWidth: 0.5,
     borderBottomColor: 'rgba(255,255,255,0.08)',
     marginTop: 4,
