@@ -69,7 +69,7 @@ export default function ProfileScreen() {
           >
             <Ionicons name="add" size={30} color="#FFFFFF" />
           </TouchableOpacity>
-          <Text style={styles.topBarUsername} numberOfLines={1}>@{user?.username ?? ''}</Text>
+          <Text style={styles.topBarUsername} numberOfLines={1} pointerEvents="none">@{user?.username ?? ''}</Text>
           <TouchableOpacity
             onPress={() => router.push('/settings' as any)}
             hitSlop={10}
