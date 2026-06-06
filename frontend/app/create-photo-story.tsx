@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,7 @@ import Animated, {
 import { Song, createStory, uploadImage } from '../src/services/api';
 import { consumePendingSong } from '../src/services/pendingSong';
 import { useAuth } from '../src/context/AuthContext';
+import { playPreview, stopPreview } from '../src/components/PreviewPlayButton';
 
 export default function CreatePhotoStoryScreen() {
   const router = useRouter();
@@ -170,6 +171,25 @@ export default function CreatePhotoStoryScreen() {
     }, []),
   );
 
+  useEffect(() => {
+    if (selectedSong?.deezer_id) {
+      playPreview(
+        selectedSong.deezer_id,
+        selectedSong.preview_url,
+        `compose-${selectedSong.deezer_id}`,
+        { loop: true },
+      );
+    } else {
+      stopPreview();
+    }
+  }, [selectedSong]);
+
+  useFocusEffect(
+    useCallback(() => {
+      return () => { stopPreview(); };
+    }, []),
+  );
+
   const takePhoto = async () => {
     console.log('[PHOTO] picker opening');
     const perm = await ImagePicker.requestCameraPermissionsAsync();
@@ -261,6 +281,7 @@ export default function CreatePhotoStoryScreen() {
             }
           : null,
       });
+      stopPreview();
       router.back();
     } catch {
       setPosting(false);
