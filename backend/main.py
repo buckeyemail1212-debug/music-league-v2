@@ -8040,6 +8040,12 @@ async def send_dm_message(conversation_id: str, body: dict, current_user: dict =
     if me_id not in conv.get("participant_ids", []):
         raise HTTPException(status_code=403, detail="Not a participant")
 
+    # Re-verify mutual friendship — sending into an existing thread requires
+    # the users still be friends, consistent with conversation creation.
+    other_id = next((p for p in conv.get("participant_ids", []) if p != me_id), None)
+    if not other_id or not await _are_mutual_friends(me_id, other_id):
+        raise HTTPException(status_code=403, detail="not_friends")
+
     text = (body.get("text") or "").strip()
     if not text:
         raise HTTPException(status_code=400, detail="Text cannot be empty")
