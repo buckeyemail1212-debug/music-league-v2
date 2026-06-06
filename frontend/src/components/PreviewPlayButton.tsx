@@ -47,6 +47,55 @@ const getFreshPreviewUrl = async (deezerId: string): Promise<string | null> => {
   return null;
 };
 
+export const stopPreview = async () => {
+  await stopGlobalAudio();
+};
+
+export const playPreview = async (
+  deezerId: number,
+  previewUrl: string,
+  songId: string,
+  opts?: { loop?: boolean },
+): Promise<boolean> => {
+  // Returns true if playback started, false otherwise.
+  try {
+    await stopGlobalAudio();
+    await Audio.setAudioModeAsync({
+      allowsRecordingIOS: false,
+      playsInSilentModeIOS: true,
+      staysActiveInBackground: false,
+    });
+    let urlToPlay = await getFreshPreviewUrl(String(deezerId));
+    if (!urlToPlay) urlToPlay = previewUrl;
+    if (!urlToPlay || urlToPlay.length === 0) return false;
+    const { sound } = await Audio.Sound.createAsync(
+      { uri: urlToPlay },
+      { shouldPlay: true, positionMillis: 0, isLooping: !!opts?.loop },
+    );
+    globalCurrentSound = sound;
+    globalCurrentId = songId;
+    notifyListeners();
+    sound.setOnPlaybackStatusUpdate((status) => {
+      // When not looping, clear state on finish. When looping, it just repeats.
+      if (status.isLoaded && status.didJustFinish && !opts?.loop) {
+        try { sound.unloadAsync(); } catch {}
+        if (globalCurrentSound === sound) {
+          globalCurrentSound = null;
+          globalCurrentId = null;
+        }
+        notifyListeners();
+      }
+    });
+    return true;
+  } catch (e) {
+    console.error('playPreview error:', e);
+    globalCurrentSound = null;
+    globalCurrentId = null;
+    notifyListeners();
+    return false;
+  }
+};
+
 interface PreviewPlayButtonProps {
   previewUrl: string;
   deezerId: number; // Deezer track ID for fetching fresh URLs
@@ -96,85 +145,26 @@ export const PreviewPlayButton: React.FC<PreviewPlayButtonProps> = ({
   }, [songId]);
 
   const handlePress = async () => {
-    try {
-      // If this song is currently playing, stop it
-      if (globalCurrentId === songId) {
-        await stopGlobalAudio();
-        if (mountedRef.current) {
-          setIsPlaying(false);
-          setIsLoading(false);
-        }
-        return;
-      }
-
-      // Stop whatever is currently playing
-      await stopGlobalAudio();
-
-      if (mountedRef.current) {
-        setIsLoading(true);
-      }
-
-      // Set audio mode fresh every time
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: false,
-      });
-
-      // Always fetch a fresh preview URL from Deezer (stored URLs expire)
-      let urlToPlay = await getFreshPreviewUrl(String(deezerId));
-      
-      // Fallback to stored URL only if fresh fetch fails
-      if (!urlToPlay) {
-        urlToPlay = previewUrl;
-      }
-
-      if (!urlToPlay || urlToPlay.length === 0) {
-        console.error('No preview URL available for track:', deezerId);
-        if (mountedRef.current) {
-          setIsLoading(false);
-        }
-        return;
-      }
-
-      // Create and play new sound
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: urlToPlay },
-        { shouldPlay: true, positionMillis: 0 }
-      );
-
-      globalCurrentSound = sound;
-      globalCurrentId = songId;
-
-      if (mountedRef.current) {
-        setIsPlaying(true);
-        setIsLoading(false);
-      }
-      notifyListeners();
-
-      // Handle playback completion
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded && status.didJustFinish) {
-          try { sound.unloadAsync(); } catch {}
-          if (globalCurrentSound === sound) {
-            globalCurrentSound = null;
-            globalCurrentId = null;
-          }
-          if (mountedRef.current) {
-            setIsPlaying(false);
-          }
-          notifyListeners();
-        }
-      });
-    } catch (error) {
-      console.error('PreviewPlayButton error:', error);
+    // If this song is currently playing, stop it
+    if (globalCurrentId === songId) {
+      await stopPreview();
       if (mountedRef.current) {
         setIsPlaying(false);
         setIsLoading(false);
       }
-      globalCurrentSound = null;
-      globalCurrentId = null;
-      notifyListeners();
+      return;
+    }
+
+    if (mountedRef.current) {
+      setIsLoading(true);
+    }
+
+    // The button does not loop — omit opts so loop defaults false.
+    const started = await playPreview(deezerId, previewUrl, songId);
+
+    if (mountedRef.current) {
+      setIsPlaying(started);
+      setIsLoading(false);
     }
   };
 
