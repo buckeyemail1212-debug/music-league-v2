@@ -233,7 +233,7 @@ export default function InboxScreen() {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
-          <Text style={styles.title}>INBOX</Text>
+          <Text style={styles.title}>Inbox</Text>
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#7C3AED" />
@@ -265,7 +265,7 @@ export default function InboxScreen() {
     <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.title}>INBOX</Text>
+        <Text style={styles.title}>Inbox</Text>
         <TouchableOpacity onPress={() => router.push('/new-message' as any)} hitSlop={8}>
           <Ionicons name="create-outline" size={24} color="#FFFFFF" />
         </TouchableOpacity>
@@ -382,10 +382,9 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   title: {
-    fontSize: 26,
+    fontSize: 30,
     fontWeight: '800',
     color: '#FFFFFF',
-    letterSpacing: 1,
   },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   listContent: {
