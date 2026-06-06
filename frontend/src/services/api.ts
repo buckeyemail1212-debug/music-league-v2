@@ -861,6 +861,9 @@ export const getNotifications = () =>
 export const deleteNotifications = (ids: string[]) =>
   api.post<{ data: { deleted: number } }>('/notifications/delete', { ids });
 
+export const dismissInboxItems = (ids: string[]) =>
+  api.post<{ data: { dismissed: number } }>('/inbox/feed/dismiss', { ids });
+
 export interface DmConversation {
   id: string;
   participant_ids: string[];

@@ -15,7 +15,7 @@ import {
   PendingInboxCategory,
   InboxCategoryItem,
 } from '../src/services/pendingInboxCategory';
-import { deleteNotifications } from '../src/services/api';
+import { deleteNotifications, dismissInboxItems } from '../src/services/api';
 
 function relativeTime(ts: number): string {
   const diff = Date.now() - ts;
@@ -39,6 +39,13 @@ export default function InboxCategoryScreen() {
     setData(d);
     setItems(d?.items ?? []);
   }, []);
+
+  const category = data?.category;
+  const canSelect =
+    category === 'follows' ||
+    category === 'system' ||
+    category === 'results' ||
+    category === 'league';
 
   const handlePress = (item: InboxCategoryItem) => {
     if (item.tapType === 'user' && item.tapId) {
@@ -76,12 +83,15 @@ export default function InboxCategoryScreen() {
     if (selectedIds.size === 0) return;
     const ids = [...selectedIds];
     try {
-      await deleteNotifications(ids);
-      const removed = new Set(ids);
-      setItems(prev => prev.filter(it => !removed.has(it.id)));
+      if (category === 'results' || category === 'league') {
+        await dismissInboxItems(ids);
+      } else {
+        await deleteNotifications(ids);
+      }
+      setItems(prev => prev.filter(it => !selectedIds.has(it.id)));
       exitSelectMode();
-    } catch (e) {
-      Alert.alert("Couldn't delete. Try again.");
+    } catch {
+      Alert.alert("Couldn't delete", 'Please try again.');
     }
   };
 
@@ -144,7 +154,7 @@ export default function InboxCategoryScreen() {
               />
             </TouchableOpacity>
           </View>
-        ) : items.length > 0 ? (
+        ) : canSelect && items.length > 0 ? (
           <TouchableOpacity onPress={enterSelectMode} hitSlop={8}>
             <Ionicons name="ellipsis-horizontal" size={24} color="#FFFFFF" />
           </TouchableOpacity>
