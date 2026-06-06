@@ -858,6 +858,9 @@ export interface AppNotification {
 export const getNotifications = () =>
   api.get<{ data: { notifications: AppNotification[] } }>('/notifications');
 
+export const deleteNotifications = (ids: string[]) =>
+  api.post<{ data: { deleted: number } }>('/notifications/delete', { ids });
+
 export interface DmConversation {
   id: string;
   participant_ids: string[];
