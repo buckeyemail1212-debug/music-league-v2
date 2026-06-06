@@ -471,6 +471,7 @@ export default function UserProfileScreen() {
       <Header
         onBack={() => router.back()}
         onMenu={menuVisible ? handleMenuPress : undefined}
+        username={profile.username}
       />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         {/* Top row — avatar left, name + stats right */}
@@ -487,9 +488,7 @@ export default function UserProfileScreen() {
             </View>
           </ExpandableImage>
           <View style={styles.headerNameStatsCol}>
-            <Text style={styles.headerDisplayName} numberOfLines={1}>
-              {profile.display_name || profile.username}
-            </Text>
+            <Text style={styles.headerDisplayName} numberOfLines={1}>{profile.display_name || profile.username}</Text>
             <View style={styles.headerStatsRow}>
               <TouchableOpacity
                 style={styles.headerStatItem}
@@ -521,7 +520,6 @@ export default function UserProfileScreen() {
 
         {/* Handle + pronouns + bio below */}
         <View style={styles.headerIdentityBlock}>
-          <Text style={styles.headerHandle}>@{profile.username}</Text>
           {profile.pronouns ? <Text style={styles.headerPronouns}>{profile.pronouns}</Text> : null}
           {profile.bio ? <Text style={styles.headerBio}>{profile.bio}</Text> : null}
         </View>
@@ -588,25 +586,30 @@ function Header({
   onBack,
   onMessage,
   onMenu,
+  username,
 }: {
   onBack: () => void;
   onMessage?: () => void;
   onMenu?: () => void;
+  username?: string;
 }) {
   return (
     <View style={styles.header}>
-      <TouchableOpacity onPress={onBack} hitSlop={8} style={styles.headerBtn}>
-        <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
-      </TouchableOpacity>
+      <View style={styles.headerLeft}>
+        <TouchableOpacity onPress={onBack} hitSlop={8} style={styles.headerBtn}>
+          <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
+        </TouchableOpacity>
+        {username ? <Text style={styles.headerUsername} numberOfLines={1}>@{username}</Text> : null}
+      </View>
       <View style={styles.headerActions}>
         {onMessage ? (
           <TouchableOpacity hitSlop={8} style={styles.headerBtn} onPress={onMessage}>
-            <Ionicons name="paper-plane-outline" size={22} color="#FFFFFF" />
+            <Ionicons name="paper-plane-outline" size={26} color="#FFFFFF" />
           </TouchableOpacity>
         ) : null}
         {onMenu ? (
           <TouchableOpacity hitSlop={8} style={styles.headerBtn} onPress={onMenu}>
-            <Ionicons name="ellipsis-horizontal" size={22} color="#FFFFFF" />
+            <Ionicons name="ellipsis-horizontal" size={26} color="#FFFFFF" />
           </TouchableOpacity>
         ) : (
           <View style={styles.headerBtn} />
@@ -651,7 +654,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#121212' },
   scroll: { paddingBottom: 48 },
 
-  headerTopRow: { flexDirection: 'row', alignItems: 'center', paddingLeft: 20, paddingRight: 20, paddingTop: 4 },
+  headerTopRow: { flexDirection: 'row', alignItems: 'center', paddingLeft: 20, paddingRight: 20, paddingTop: 16 },
   headerAvatar: { width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: '#282828' },
   headerAvatarImg: { width: 88, height: 88, borderRadius: 44 },
   headerAvatarInitial: { fontSize: 36, fontWeight: '800', color: '#FFFFFF' },
@@ -666,8 +669,9 @@ const styles = StyleSheet.create({
   actionBtn: { flex: 1, paddingVertical: 11, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
   messageBtn: { backgroundColor: 'rgba(255,255,255,0.08)' },
   messageBtnLabel: { fontSize: 14, fontWeight: '800', letterSpacing: 0.4, color: '#FFFFFF' },
-  headerDisplayName: { fontSize: 16, fontWeight: '800', color: '#FFFFFF' },
+  headerDisplayName: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
   headerHandle: { fontSize: 14, color: '#B3B3B3', marginBottom: 6 },
+  headerIdentityName: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', marginBottom: 4 },
   headerPronouns: { fontSize: 13, color: '#B3B3B3' },
   headerBio: { fontSize: 14, color: '#FFFFFF', marginTop: 4 },
 
@@ -680,6 +684,10 @@ const styles = StyleSheet.create({
   },
   headerBtn: { minWidth: 40, minHeight: 40, alignItems: 'center', justifyContent: 'center' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  headerUsername: {
+    fontSize: 18, fontWeight: '700', color: '#FFFFFF',
+  },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 },
 
   identity: {
     alignItems: 'center',

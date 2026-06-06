@@ -62,12 +62,21 @@ export default function ProfileScreen() {
             anchored by the avatar block below. */}
         <View style={styles.topBar}>
           <TouchableOpacity
+            onPress={() => router.push('/create-league' as any)}
+            hitSlop={10}
+            style={styles.gearBtn}
+            accessibilityLabel="Create league"
+          >
+            <Ionicons name="add" size={30} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Text style={styles.topBarUsername} numberOfLines={1}>@{user?.username ?? ''}</Text>
+          <TouchableOpacity
             onPress={() => router.push('/settings' as any)}
             hitSlop={10}
             style={styles.gearBtn}
             accessibilityLabel="Open settings"
           >
-            <Ionicons name="settings-outline" size={22} color="#FFFFFF" />
+            <Ionicons name="settings-outline" size={26} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
 
@@ -124,7 +133,6 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.identityBlock}>
-          <Text style={styles.handle}>@{user?.username ?? ''}</Text>
           {user?.pronouns ? (
             <Text style={styles.pronouns}>{user.pronouns}</Text>
           ) : null}
@@ -212,7 +220,8 @@ const styles = StyleSheet.create({
 
   topBar: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 12,
     paddingTop: 4,
   },
@@ -220,13 +229,17 @@ const styles = StyleSheet.create({
     minWidth: 40, minHeight: 40,
     alignItems: 'center', justifyContent: 'center',
   },
+  topBarUsername: {
+    position: 'absolute', left: 0, right: 0,
+    textAlign: 'center', fontSize: 18, fontWeight: '700', color: '#FFFFFF',
+  },
 
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingLeft: 20,
     paddingRight: 20,
-    paddingTop: 4,
+    paddingTop: 16,
   },
   avatar: {
     width: 88, height: 88, borderRadius: 44,
@@ -254,12 +267,16 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   displayName: {
-    fontSize: 16, fontWeight: '800', color: '#FFFFFF',
+    fontSize: 16, fontWeight: '700', color: '#FFFFFF',
     marginBottom: 8,
   },
   handle: {
     fontSize: 14, color: '#B3B3B3',
     marginBottom: 6,
+  },
+  identityName: {
+    fontSize: 16, fontWeight: '700', color: '#FFFFFF',
+    marginBottom: 4,
   },
   pronouns: {
     fontSize: 13, color: '#B3B3B3',
