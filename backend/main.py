@@ -8163,9 +8163,13 @@ async def list_dm_conversations(current_user: dict = Depends(get_current_user)):
 async def root():
     return {"message": "Music League API", "version": "2.1.0"}
 
-@api_router.get("/admin/reset-database")
-async def reset_database():
-    """Temporary endpoint to clear all data. Remove after use."""
+@api_router.post("/admin/reset-database")
+async def reset_database(current_user: dict = Depends(get_current_user)):
+    # Hard gate: this endpoint is disabled unless ALLOW_DB_RESET is explicitly
+    # set in the environment (it is NOT set in production). Without it, the
+    # endpoint behaves as if it does not exist.
+    if os.environ.get("ALLOW_DB_RESET") != "true":
+        raise HTTPException(status_code=404, detail="Not found")
     collections = await db.list_collection_names()
     for col in collections:
         await db[col].delete_many({})
