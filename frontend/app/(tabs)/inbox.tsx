@@ -57,7 +57,10 @@ export default function InboxScreen() {
   const navigatingRef = useRef(false);
 
   useFocusEffect(
-    useCallback(() => { refresh(); }, [refresh]),
+    useCallback(() => {
+      navigatingRef.current = false;
+      refresh();
+    }, [refresh]),
   );
 
   useFocusEffect(
@@ -113,6 +116,8 @@ export default function InboxScreen() {
   };
 
   const handleCategoryPress = async (catKey: string, catLabel: string) => {
+    if (navigatingRef.current) return;
+
     let items: InboxCategoryItem[] = [];
 
     if (catKey === 'follows') {
@@ -168,10 +173,13 @@ export default function InboxScreen() {
     }
 
     items.sort((a, b) => b.timestamp - a.timestamp);
+    if (navigatingRef.current) return;
+    navigatingRef.current = true;
     setPendingInboxCategory({ category: catKey, label: catLabel, items });
-    await markCategoryViewed(userId, catKey);
-    await refresh();
     router.push('/inbox-category');
+    // Bookkeeping after navigation — do not block the push on these.
+    markCategoryViewed(userId, catKey).catch(() => {});
+    refresh();
   };
 
   const categoryData = useMemo(() => {
