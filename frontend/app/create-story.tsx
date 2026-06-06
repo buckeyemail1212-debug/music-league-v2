@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Alert,
   View,
@@ -13,9 +13,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Song, createStory } from '../src/services/api';
 import SongList from '../src/components/SongList';
+import { playPreview, stopPreview } from '../src/components/PreviewPlayButton';
 
 export default function CreateStoryScreen() {
   const router = useRouter();
@@ -27,6 +28,25 @@ export default function CreateStoryScreen() {
   const onSelectSong = (s: Song) => {
     setSelectedSong(s);
   };
+
+  useEffect(() => {
+    if (selectedSong?.deezer_id) {
+      playPreview(
+        selectedSong.deezer_id,
+        selectedSong.preview_url,
+        `compose-${selectedSong.deezer_id}`,
+        { loop: true },
+      );
+    } else {
+      stopPreview();
+    }
+  }, [selectedSong]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      return () => { stopPreview(); };
+    }, [])
+  );
 
   const onSubmit = async () => {
     if (posting) return;
@@ -47,6 +67,7 @@ export default function CreateStoryScreen() {
         photo_url: null,
         caption: caption.trim() || null,
       });
+      stopPreview();
       router.back();
     } catch {
       setPosting(false);
