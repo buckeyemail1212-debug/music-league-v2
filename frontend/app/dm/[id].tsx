@@ -12,6 +12,7 @@ import {
   Platform,
   Keyboard,
   TouchableWithoutFeedback,
+  Alert,
 } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
@@ -79,8 +80,14 @@ export default function DmConversationScreen() {
         });
         setTimeout(() => chatListRef.current?.scrollToEnd({ animated: true }), 100);
       }
-    } catch {
+    } catch (e: any) {
       setNewMessage(text);
+      if (e?.response?.status === 403 && e?.response?.data?.detail === 'not_friends') {
+        Alert.alert(
+          'Not friends yet',
+          "You can only message someone you're friends with — you both need to follow each other.",
+        );
+      }
     } finally {
       setSending(false);
     }
