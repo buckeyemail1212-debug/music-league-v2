@@ -610,9 +610,6 @@ export default function HomeScreen() {
             ) : (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyTitle}>No active leagues</Text>
-                <Text style={styles.emptyText}>
-                  Tap + to create a league or join one.
-                </Text>
               </View>
             )
           }
