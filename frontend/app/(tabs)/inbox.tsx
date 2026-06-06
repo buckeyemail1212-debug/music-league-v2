@@ -91,6 +91,7 @@ export default function InboxScreen() {
         id: conv.id,
         username: conv.other_user.username,
         avatar: conv.other_user.avatar_url ?? '',
+        otherUserId: conv.other_user.user_id,
       },
     });
     setTimeout(() => { navigatingRef.current = false; }, 800);

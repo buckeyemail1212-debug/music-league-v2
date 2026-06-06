@@ -374,6 +374,7 @@ export default function UserProfileScreen() {
           id: conversation.id,
           username: profile.username,
           avatar: profile.avatar_url ?? '',
+          otherUserId: targetId,
         },
       });
     } catch (e: any) {

@@ -50,6 +50,7 @@ export default function NewMessageScreen() {
           id: conversation.id,
           username: item.username,
           avatar: item.avatar_url ?? '',
+          otherUserId: item.user_id,
         },
       });
     } catch {

@@ -23,7 +23,7 @@ import { getDmMessages, sendDmMessage, DmMessage } from '../../src/services/api'
 import { apiCache } from '../../src/services/apiCache';
 
 export default function DmConversationScreen() {
-  const { id, username, avatar } = useLocalSearchParams<{ id: string; username: string; avatar?: string }>();
+  const { id, username, avatar, otherUserId } = useLocalSearchParams<{ id: string; username: string; avatar?: string; otherUserId?: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -115,14 +115,21 @@ export default function DmConversationScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
           </TouchableOpacity>
-          {avatar ? (
-            <Image source={{ uri: avatar }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatar, styles.avatarFallback]}>
-              <Ionicons name="person" size={16} color="#B3B3B3" />
-            </View>
-          )}
-          <Text style={styles.headerTitle} numberOfLines={1}>{username}</Text>
+          <TouchableOpacity
+            style={styles.headerUserTap}
+            activeOpacity={0.7}
+            onPress={() => { if (otherUserId) router.push(`/user/${otherUserId}` as any); }}
+            disabled={!otherUserId}
+          >
+            {avatar ? (
+              <Image source={{ uri: avatar }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatar, styles.avatarFallback]}>
+                <Ionicons name="person" size={16} color="#B3B3B3" />
+              </View>
+            )}
+            <Text style={styles.headerTitle} numberOfLines={1}>{username}</Text>
+          </TouchableOpacity>
           <View style={{ width: 32 }} />
         </View>
 
@@ -194,6 +201,12 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     padding: 4,
+  },
+  headerUserTap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
   },
   avatar: {
     width: 32,
