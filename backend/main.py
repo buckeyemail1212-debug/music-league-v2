@@ -7719,6 +7719,11 @@ async def get_inbox_feed(current_user: dict = Depends(get_current_user)):
     now = datetime.now(timezone.utc)
     now_ms = int(now.timestamp() * 1000)
 
+    dismissed_docs = await db.dismissed_inbox_items.find(
+        {"user_id": me_id}, {"_id": 0, "item_id": 1},
+    ).to_list(length=None)
+    dismissed_ids = {d["item_id"] for d in dismissed_docs}
+
     def _dt_to_ms(dt) -> int:
         if dt is None:
             return 0
@@ -7763,6 +7768,7 @@ async def get_inbox_feed(current_user: dict = Depends(get_current_user)):
                 "timestamp": _dt_to_ms(sub.get("submitted_at")),
                 "onTap": "round",
             })
+        result_items = [it for it in result_items if it["id"] not in dismissed_ids]
         result_items.sort(key=lambda x: x["timestamp"], reverse=True)
         return {"data": {"items": result_items}}
 
@@ -7903,8 +7909,28 @@ async def get_inbox_feed(current_user: dict = Depends(get_current_user)):
             "onTap": "round",
         })
 
+    items = [it for it in items if it["id"] not in dismissed_ids]
     items.sort(key=lambda x: x["timestamp"], reverse=True)
     return {"data": {"items": items}}
+
+
+@api_router.post("/inbox/feed/dismiss")
+async def dismiss_inbox_items(body: dict, current_user: dict = Depends(get_current_user)):
+    me_id = current_user["id"]
+    ids = body.get("ids")
+    if not isinstance(ids, list) or not ids:
+        raise HTTPException(status_code=400, detail="ids must be a non-empty list")
+    now = datetime.now(timezone.utc)
+    # Idempotent upsert per id so re-dismissing is harmless.
+    for item_id in ids:
+        if not isinstance(item_id, str):
+            continue
+        await db.dismissed_inbox_items.update_one(
+            {"user_id": me_id, "item_id": item_id},
+            {"$setOnInsert": {"user_id": me_id, "item_id": item_id, "dismissed_at": now}},
+            upsert=True,
+        )
+    return {"data": {"dismissed": len(ids)}}
 
 # ==================== SPLASH STATS ENDPOINT ====================
 
