@@ -25,6 +25,7 @@ interface InboxData {
   loading: boolean;
   totalUnread: number;
   refresh: () => Promise<void>;
+  markConversationRead: (conversationId: string) => void;
 }
 
 const InboxDataContext = createContext<InboxData | null>(null);
@@ -61,6 +62,12 @@ export function InboxDataProvider({ children }: { children: ReactNode }) {
     } catch {}
     if (mountedRef.current) setLoading(false);
   }, [userId]);
+
+  const markConversationRead = useCallback((conversationId: string) => {
+    setConversations(prev =>
+      prev.map(c => (c.id === conversationId ? { ...c, unread_count: 0 } : c))
+    );
+  }, []);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -103,7 +110,8 @@ export function InboxDataProvider({ children }: { children: ReactNode }) {
     loading,
     totalUnread,
     refresh,
-  }), [notifs, serverNotifs, conversations, categoryViews, loading, totalUnread, refresh]);
+    markConversationRead,
+  }), [notifs, serverNotifs, conversations, categoryViews, loading, totalUnread, refresh, markConversationRead]);
 
   return (
     <InboxDataContext.Provider value={value}>

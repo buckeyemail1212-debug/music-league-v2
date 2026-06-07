@@ -50,7 +50,7 @@ export default function InboxScreen() {
   const { user } = useAuth();
   const router = useRouter();
   const userId = user?.id ?? '';
-  const { notifs, serverNotifs, conversations, categoryViews, loading, refresh } = useInboxData();
+  const { notifs, serverNotifs, conversations, categoryViews, loading, refresh, markConversationRead } = useInboxData();
 
   const [refreshing, setRefreshing] = useState(false);
   const [pendingRequests, setPendingRequests] = useState(0);
@@ -85,6 +85,7 @@ export default function InboxScreen() {
   const openDmConversation = (conv: DmConversation) => {
     if (navigatingRef.current) return;
     navigatingRef.current = true;
+    markConversationRead(conv.id);
     router.push({
       pathname: '/dm/[id]',
       params: {
