@@ -445,7 +445,7 @@ export default function LeagueDetailScreen() {
     if (!league) return;
     
     const deepLink = Linking.createURL(`/join/${league.league_code}`);
-    const message = `Join my Music Leeg "${league.name}"!\n\nCode: ${league.league_code}\n\nOr click this link: ${deepLink}`;
+    const message = `Join my Music Comp "${league.name}"!\n\nCode: ${league.league_code}\n\nOr click this link: ${deepLink}`;
     
     try {
       await Share.share({

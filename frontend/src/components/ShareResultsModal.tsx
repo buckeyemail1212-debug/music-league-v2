@@ -418,7 +418,7 @@ function StoryCard({
       </View>
 
       <View style={storyStyles.footer}>
-        <Text style={storyStyles.footerText}>music leeg</Text>
+        <Text style={storyStyles.footerText}>music comp</Text>
       </View>
     </View>
   );
@@ -577,7 +577,7 @@ function Top3Card({
         })}
       </View>
       <View style={top3Styles.footer}>
-        <Text style={top3Styles.footerText}>music leeg</Text>
+        <Text style={top3Styles.footerText}>music comp</Text>
       </View>
     </View>
   );

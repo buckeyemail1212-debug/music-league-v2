@@ -9,7 +9,6 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
-  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -49,12 +48,8 @@ export default function LoginScreen() {
       >
         <View style={styles.content}>
           <View style={styles.header}>
-            <Image
-              source={require('../../assets/images/icon.png')}
-              style={styles.appIcon}
-              resizeMode="contain"
-            />
-            <Text style={styles.title}>Music Leeg</Text>
+            <Text style={styles.welcome}>Welcome to</Text>
+            <Text style={styles.title}>Music <Text style={styles.titleItalic}>Comp</Text></Text>
           </View>
 
           <View style={styles.form}>
@@ -140,16 +135,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 48,
   },
-  appIcon: {
-    width: 96,
-    height: 96,
-    borderRadius: 20,
+  welcome: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginTop: 16,
+    fontSize: 38,
+    fontWeight: '800',
+    color: '#7C3AED',
+    marginTop: 4,
+  },
+  titleItalic: {
+    fontStyle: 'italic',
   },
   form: {
     gap: 12,
@@ -194,12 +193,12 @@ const styles = StyleSheet.create({
   },
   footerText: {
     color: '#B3B3B3',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '400',
   },
   footerLink: {
     color: '#7C3AED',
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });
