@@ -202,7 +202,7 @@ export default function CreatePhotoStoryScreen() {
     try {
       const result = await ImagePicker.launchCameraAsync({
         quality: 0.7,
-        allowsEditing: true,
+        allowsEditing: false,
         base64: true,
       });
       console.log('[PHOTO] picker result:', JSON.stringify(result));
@@ -230,7 +230,7 @@ export default function CreatePhotoStoryScreen() {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'] as any,
         quality: 0.7,
-        allowsEditing: true,
+        allowsEditing: false,
         base64: true,
       });
       console.log('[PHOTO] picker result:', JSON.stringify(result));
@@ -506,7 +506,7 @@ export default function CreatePhotoStoryScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#121212' },
-  photoBoxWrap: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: '#121212' },
+  photoBoxWrap: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: '#000000' },
 
   topOverlay: { position: 'absolute', top: 0, left: 0, right: 0 },
   topRow: {

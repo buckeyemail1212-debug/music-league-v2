@@ -691,7 +691,7 @@ const styles = StyleSheet.create({
 
   dragLayer: { flex: 1 },
 
-  contentArea: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: '#121212' },
+  contentArea: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: '#000000' },
   fullPhoto: { width: '100%', height: '100%' },
 
   songOnly: {

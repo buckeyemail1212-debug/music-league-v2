@@ -18,6 +18,7 @@ import {
 } from '../utils/likedSongs';
 import LikeButton from './LikeButton';
 import { PreviewPlayButton } from './PreviewPlayButton';
+import { apiCache } from '../services/apiCache';
 import { useAuth } from '../context/AuthContext';
 
 type BrowseFilter = 'new' | 'liked';
@@ -32,7 +33,9 @@ export default function SongList({ onSelectSong, songIdPrefix }: SongListProps) 
 
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Song[]>([]);
-  const [radar, setRadar] = useState<Song[]>([]);
+  const [radar, setRadar] = useState<Song[]>(
+    () => apiCache.getStale<Song[]>('songs-radar') ?? []
+  );
   const [searching, setSearching] = useState(false);
   const [filter, setFilter] = useState<BrowseFilter>('new');
   const [likedList, setLikedList] = useState<LikedSong[]>(() =>
@@ -46,7 +49,10 @@ export default function SongList({ onSelectSong, songIdPrefix }: SongListProps) 
     (async () => {
       try {
         const res = await getSongsRadar();
-        if (!cancelled) setRadar(res.data.data);
+        if (!cancelled) {
+          setRadar(res.data.data);
+          apiCache.set('songs-radar', res.data.data);
+        }
       } catch {
         // Empty radar — non-fatal.
       }
