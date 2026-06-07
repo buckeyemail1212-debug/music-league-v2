@@ -2641,7 +2641,8 @@ async def get_leaderboard(
     me_id = current_user["id"]
 
     if scope == "all":
-        user_filter: dict = {}
+        blocked_ids = await _blocked_ids_for(me_id)
+        user_filter: dict = {"id": {"$nin": list(blocked_ids)}} if blocked_ids else {}
     else:
         following_rows = await db.follows.find(
             {"follower_id": me_id, "status": "approved"},
@@ -3377,6 +3378,18 @@ async def _is_blocked_either_direction(user_a_id: str, user_b_id: str) -> bool:
         {"_id": 1},
     )
     return doc is not None
+
+
+async def _blocked_ids_for(user_id: str) -> set:
+    """All user ids that are blocked either direction relative to user_id."""
+    rows = await db.blocks.find(
+        {"$or": [{"blocker_id": user_id}, {"blocked_id": user_id}]},
+        {"_id": 0, "blocker_id": 1, "blocked_id": 1},
+    ).to_list(length=None)
+    ids = set()
+    for r in rows:
+        ids.add(r["blocked_id"] if r["blocker_id"] == user_id else r["blocker_id"])
+    return ids
 
 
 async def _are_mutual_friends(user_a: str, user_b: str) -> bool:
@@ -8127,6 +8140,13 @@ async def list_dm_conversations(current_user: dict = Depends(get_current_user)):
         .sort("last_message_at", -1)
         .to_list(200)
     )
+
+    blocked_ids = await _blocked_ids_for(me_id)
+    if blocked_ids:
+        conversations = [
+            c for c in conversations
+            if not any(pid in blocked_ids for pid in c.get("participant_ids", []) if pid != me_id)
+        ]
 
     other_ids = []
     for c in conversations:
