@@ -55,7 +55,7 @@ export default function ProfileScreen() {
   const displayName = user?.display_name || user?.username || '';
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         {/* Top bar — Settings gear in the top right. Replaces the old
             "MY GAME" header text entirely; the screen is now visually
