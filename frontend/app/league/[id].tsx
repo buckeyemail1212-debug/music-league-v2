@@ -320,7 +320,7 @@ export default function LeagueDetailScreen() {
       variant: 'standings',
       leagueName: league.name,
       entries,
-      shareLink: `https://musicleeg.com/league/${league.id}`,
+      shareLink: `https://musiccompapp.com/league/${league.id}`,
       viewerPlace: viewerEntry?.rank ?? null,
     };
   };

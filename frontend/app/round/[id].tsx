@@ -752,7 +752,7 @@ export default function RoundScreen() {
       roundNumber: round.round_number,
       theme: round.theme,
       entries,
-      shareLink: `https://musicleeg.com/round/${round.id}`,
+      shareLink: `https://musiccompapp.com/round/${round.id}`,
       viewerPlace: viewerEntry?.rank ?? null,
     };
   };
