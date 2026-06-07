@@ -31,7 +31,6 @@ export default function DmConversationScreen() {
     () => apiCache.getStale<DmMessage[]>(`dm-messages:${id}`) ?? []
   );
   const [newMessage, setNewMessage] = useState('');
-  const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(
     () => !apiCache.getStale(`dm-messages:${id}`)
   );
@@ -57,7 +56,7 @@ export default function DmConversationScreen() {
   };
 
   useEffect(() => {
-    fetchMessages();
+    fetchMessages(apiCache.getStale(`dm-messages:${id}`) != null);
     pollRef.current = setInterval(() => fetchMessages(true), 3000);
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
@@ -65,22 +64,45 @@ export default function DmConversationScreen() {
   }, [id]);
 
   const handleSend = async () => {
-    if (!newMessage.trim() || sending) return;
     const text = newMessage.trim();
+    if (!text) return;
     setNewMessage('');
-    setSending(true);
+
+    // Optimistic message — show it immediately with a temp id.
+    const tempId = `temp-${Date.now()}`;
+    const optimistic: DmMessage = {
+      id: tempId,
+      conversation_id: id!,
+      sender_id: user?.id ?? '',
+      text,
+      created_at: new Date().toISOString(),
+      read_by: [user?.id ?? ''],
+    };
+    setMessages(prev => {
+      const next = [...prev, optimistic];
+      apiCache.set(`dm-messages:${id}`, next);
+      return next;
+    });
+    setTimeout(() => chatListRef.current?.scrollToEnd({ animated: true }), 50);
+
     try {
       const res = await sendDmMessage(id!, text);
-      const msg = res.data?.data?.message;
-      if (msg) {
+      const real = res.data?.data?.message;
+      if (real) {
+        // Replace the temp message with the server's real one.
         setMessages(prev => {
-          const next = [...prev, msg];
+          const next = prev.map(m => (m.id === tempId ? real : m));
           apiCache.set(`dm-messages:${id}`, next);
           return next;
         });
-        setTimeout(() => chatListRef.current?.scrollToEnd({ animated: true }), 100);
       }
     } catch (e: any) {
+      // Remove the optimistic message and restore the text.
+      setMessages(prev => {
+        const next = prev.filter(m => m.id !== tempId);
+        apiCache.set(`dm-messages:${id}`, next);
+        return next;
+      });
       setNewMessage(text);
       if (e?.response?.status === 403 && e?.response?.data?.detail === 'not_friends') {
         Alert.alert(
@@ -88,8 +110,6 @@ export default function DmConversationScreen() {
           "You can only message someone you're friends with — you both need to follow each other.",
         );
       }
-    } finally {
-      setSending(false);
     }
   };
 
@@ -168,15 +188,11 @@ export default function DmConversationScreen() {
             onSubmitEditing={handleSend}
           />
           <TouchableOpacity
-            style={[styles.sendButton, (!newMessage.trim() || sending) && styles.sendButtonDisabled]}
+            style={[styles.sendButton, !newMessage.trim() && styles.sendButtonDisabled]}
             onPress={handleSend}
-            disabled={!newMessage.trim() || sending}
+            disabled={!newMessage.trim()}
           >
-            {sending ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <Ionicons name="send" size={18} color="#FFFFFF" />
-            )}
+            <Ionicons name="send" size={18} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
