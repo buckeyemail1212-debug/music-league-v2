@@ -55,11 +55,19 @@ export default function InboxScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [pendingRequests, setPendingRequests] = useState(0);
   const navigatingRef = useRef(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       navigatingRef.current = false;
       refresh();
+      pollRef.current = setInterval(() => { refresh(); }, 4000);
+      return () => {
+        if (pollRef.current) {
+          clearInterval(pollRef.current);
+          pollRef.current = null;
+        }
+      };
     }, [refresh]),
   );
 
