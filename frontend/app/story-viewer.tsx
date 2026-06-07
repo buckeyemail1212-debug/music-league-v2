@@ -695,7 +695,7 @@ const styles = StyleSheet.create({
   fullPhoto: { width: '100%', height: '100%' },
 
   songOnly: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: '#121212',
     alignItems: 'center',
     justifyContent: 'center',

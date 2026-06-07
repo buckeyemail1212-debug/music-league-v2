@@ -10,6 +10,8 @@ import {
   Keyboard,
   TouchableWithoutFeedback,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,9 +19,11 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Song, createStory } from '../src/services/api';
 import SongList from '../src/components/SongList';
 import { playPreview, stopPreview } from '../src/components/PreviewPlayButton';
+import { useAuth } from '../src/context/AuthContext';
 
 export default function CreateStoryScreen() {
   const router = useRouter();
+  const { user } = useAuth();
 
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [caption, setCaption] = useState('');
@@ -78,79 +82,126 @@ export default function CreateStoryScreen() {
   const submitDisabled = !selectedSong || posting;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.closeBtn}
-          activeOpacity={0.75}
-        >
-          <Ionicons name="close" size={28} color="#FFFFFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Add Music</Text>
-        {/* Right-side spacer keeps the title perfectly centered. */}
-        <View style={styles.closeBtn} />
-      </View>
-
+    <SafeAreaView style={styles.container} edges={[]}>
       {selectedSong ? (
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-          <View style={styles.composerBody}>
-            <View style={styles.selectedCard}>
-              {selectedSong.cover_url ? (
-                <Image source={{ uri: selectedSong.cover_url }} style={styles.selectedCover} />
-              ) : (
-                <View style={[styles.selectedCover, styles.selectedCoverFallback]}>
-                  <Ionicons name="musical-note" size={28} color="#B3B3B3" />
-                </View>
-              )}
-              <View style={styles.selectedText}>
-                <Text style={styles.selectedTitle} numberOfLines={1}>{selectedSong.title}</Text>
-                <Text style={styles.selectedArtist} numberOfLines={1}>{selectedSong.artist}</Text>
+        <View style={styles.composerRoot}>
+          {/* Center content: big cover + title + artist, matching the viewer's songOnly */}
+          <View style={styles.songOnly}>
+            {selectedSong.cover_url ? (
+              <Image source={{ uri: selectedSong.cover_url }} style={styles.bigCover} />
+            ) : (
+              <View style={[styles.bigCover, styles.bigCoverFallback]}>
+                <Ionicons name="musical-note" size={60} color="#B3B3B3" />
               </View>
-              <TouchableOpacity onPress={() => setSelectedSong(null)} activeOpacity={0.75}>
-                <Text style={styles.changeBtnText}>Change</Text>
-              </TouchableOpacity>
-            </View>
+            )}
+            <Text style={styles.songTitle} numberOfLines={2}>{selectedSong.title}</Text>
+            <Text style={styles.songArtist} numberOfLines={1}>{selectedSong.artist}</Text>
+          </View>
 
-            <View style={styles.captionWrap}>
+          {/* Bottom overlay: caption + Your story + Post */}
+          <KeyboardAvoidingView
+            style={StyleSheet.absoluteFillObject}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            pointerEvents="box-none"
+          >
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+              <View style={styles.dismissArea} />
+            </TouchableWithoutFeedback>
+            <SafeAreaView style={styles.bottomOverlay} edges={['bottom']} pointerEvents="box-none">
               <TextInput
-                style={styles.captionInput}
+                style={styles.captionInputOverlay}
                 placeholder="Add a caption... (optional)"
-                placeholderTextColor="#6A6A6A"
+                placeholderTextColor="rgba(255,255,255,0.6)"
                 value={caption}
                 onChangeText={setCaption}
                 maxLength={200}
                 multiline
               />
-              <Text style={styles.captionCounter}>{caption.length}/200</Text>
-            </View>
-          </View>
-        </TouchableWithoutFeedback>
-      ) : (
-        <SongList onSelectSong={onSelectSong} songIdPrefix="createstory" />
-      )}
+              <View style={styles.shareRow}>
+                <View style={styles.shareIdentity}>
+                  {user?.profile_photo ? (
+                    <Image source={{ uri: user.profile_photo }} style={styles.shareAvatar} />
+                  ) : (
+                    <View style={[styles.shareAvatar, styles.shareAvatarFallback]}>
+                      <Text style={styles.shareAvatarInitial}>{(user?.username || '?').charAt(0).toUpperCase()}</Text>
+                    </View>
+                  )}
+                  <Text style={styles.shareIdentityLabel}>Your story</Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.sendBtn, submitDisabled && styles.sendBtnDisabled]}
+                  onPress={onSubmit}
+                  disabled={posting}
+                  activeOpacity={posting ? 1 : 0.85}
+                >
+                  {posting ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Text style={styles.sendBtnLabel}>Post</Text>
+                      <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </SafeAreaView>
+          </KeyboardAvoidingView>
 
-      <TouchableOpacity
-        style={[styles.submitBtn, submitDisabled && styles.submitBtnDisabled]}
-        activeOpacity={posting ? 1 : 0.75}
-        onPress={onSubmit}
-        disabled={posting}
-      >
-        {posting ? (
-          <ActivityIndicator color="#FFFFFF" />
-        ) : (
-          <>
-            <Text style={styles.submitBtnLabel}>Post</Text>
-            <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
-          </>
-        )}
-      </TouchableOpacity>
+          {/* Top overlay last so its buttons stay tappable: close left, Change music right */}
+          <SafeAreaView style={styles.topOverlay} edges={['top']} pointerEvents="box-none">
+            <View style={styles.topRow}>
+              <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()} activeOpacity={0.75}>
+                <Ionicons name="close" size={28} color="#FFFFFF" />
+              </TouchableOpacity>
+              <View style={{ flex: 1 }} />
+              <TouchableOpacity style={styles.changeMusicBtn} onPress={() => setSelectedSong(null)} activeOpacity={0.85}>
+                <Text style={styles.changeMusicBtnLabel}>Change music</Text>
+              </TouchableOpacity>
+            </View>
+          </SafeAreaView>
+        </View>
+      ) : (
+        <SafeAreaView style={styles.container} edges={['top']}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn} activeOpacity={0.75}>
+              <Ionicons name="close" size={28} color="#FFFFFF" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Add Music</Text>
+            <View style={styles.closeBtn} />
+          </View>
+          <SongList onSelectSong={onSelectSong} songIdPrefix="createstory" />
+        </SafeAreaView>
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#121212' },
+
+  composerRoot: { flex: 1, backgroundColor: '#121212' },
+  songOnly: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 },
+  bigCover: { width: 240, height: 240, borderRadius: 12 },
+  bigCoverFallback: { backgroundColor: '#2A2A2A', alignItems: 'center', justifyContent: 'center' },
+  songTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '700', textAlign: 'center', marginTop: 20 },
+  songArtist: { color: '#B3B3B3', fontSize: 15, textAlign: 'center', marginTop: 4 },
+  topOverlay: { position: 'absolute', top: 0, left: 0, right: 0 },
+  topRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingTop: 8 },
+  iconBtn: { padding: 6 },
+  changeMusicBtn: { backgroundColor: '#7C3AED', paddingHorizontal: 16, paddingVertical: 9, borderRadius: 20 },
+  changeMusicBtnLabel: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
+  dismissArea: { flex: 1 },
+  bottomOverlay: { paddingHorizontal: 16, paddingBottom: 8 },
+  captionInputOverlay: { color: '#FFFFFF', fontSize: 16, backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, maxHeight: 120, marginBottom: 12 },
+  shareRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  shareIdentity: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  shareAvatar: { width: 36, height: 36, borderRadius: 18 },
+  shareAvatarFallback: { backgroundColor: '#7C3AED', alignItems: 'center', justifyContent: 'center' },
+  shareAvatarInitial: { color: '#FFFFFF', fontWeight: '700', fontSize: 16 },
+  shareIdentityLabel: { color: '#FFFFFF', fontSize: 15, fontWeight: '600' },
+  sendBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#7C3AED', paddingHorizontal: 22, paddingVertical: 12, borderRadius: 24 },
+  sendBtnDisabled: { opacity: 0.5 },
+  sendBtnLabel: { color: '#FFFFFF', fontWeight: '700', fontSize: 16 },
 
   header: {
     flexDirection: 'row',
