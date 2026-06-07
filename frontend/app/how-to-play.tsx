@@ -41,7 +41,7 @@ export default function HowToPlayPage() {
 
         <Text style={styles.intro}>
           Do you have the best taste in music? Do you always know the perfect song for the perfect moment?
-          If so, get ready to play Music Leeg. Get a group of friends, submit songs, vote, and
+          If so, get ready to play Music Comp. Get a group of friends, submit songs, vote, and
           find out whose taste ranks on top.
         </Text>
 
@@ -75,8 +75,18 @@ export default function HowToPlayPage() {
           />
         </View>
 
+        <View style={styles.moreWrap}>
+          <Text style={styles.moreHeader}>More than a league</Text>
+          <Text style={styles.moreBlurb}>
+            Not in an active round? Post a tune to your story and let everyone hear what you're vibing to. Music Comp is about sharing taste, not just competing.
+          </Text>
+          <Text style={styles.moreBlurb}>
+            Climb the global leaderboard, build out your profile, and show off your stats — wins, rounds played, and your all-time taste breakdown. Follow friends and see how your ear stacks up.
+          </Text>
+        </View>
+
         <View style={styles.ctaWrap}>
-          <Text style={styles.cta}>PROVE IT.</Text>
+          <Text style={styles.cta}>SHOW YOUR TASTE.</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -196,4 +206,7 @@ const styles = StyleSheet.create({
     color: PURPLE,
     letterSpacing: 4,
   },
+  moreWrap: { marginTop: 36, gap: 12 },
+  moreHeader: { color: PURPLE, fontWeight: '800', fontSize: 16, marginBottom: 6 },
+  moreBlurb: { fontSize: 14, lineHeight: 21, color: '#D9D9D9' },
 });
