@@ -56,6 +56,9 @@ interface ViewerGroup {
 
 const STORY_DURATION_MS = 30000;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
+const { width: SCREEN_W } = Dimensions.get('window');
+const PHOTO_BOX_W = SCREEN_W;
+const PHOTO_BOX_H = SCREEN_W * 16 / 9;
 
 export default function StoryViewerScreen() {
   const router = useRouter();
@@ -475,7 +478,7 @@ export default function StoryViewerScreen() {
           <>
             <ExpoImage
               source={{ uri: story.photo_url }}
-              style={styles.fullPhoto}
+              style={{ width: PHOTO_BOX_W, height: PHOTO_BOX_H }}
               contentFit="contain"
               transition={150}
               cachePolicy="memory-disk"
@@ -688,7 +691,7 @@ const styles = StyleSheet.create({
 
   dragLayer: { flex: 1 },
 
-  contentArea: { ...StyleSheet.absoluteFillObject },
+  contentArea: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: '#121212' },
   fullPhoto: { width: '100%', height: '100%' },
 
   songOnly: {

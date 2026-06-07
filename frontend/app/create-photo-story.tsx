@@ -12,6 +12,7 @@ import {
   Keyboard,
   TouchableWithoutFeedback,
   Platform,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -201,7 +202,7 @@ export default function CreatePhotoStoryScreen() {
     try {
       const result = await ImagePicker.launchCameraAsync({
         quality: 0.7,
-        allowsEditing: false,
+        allowsEditing: true,
         base64: true,
       });
       console.log('[PHOTO] picker result:', JSON.stringify(result));
@@ -229,7 +230,7 @@ export default function CreatePhotoStoryScreen() {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'] as any,
         quality: 0.7,
-        allowsEditing: false,
+        allowsEditing: true,
         base64: true,
       });
       console.log('[PHOTO] picker result:', JSON.stringify(result));
@@ -255,10 +256,22 @@ export default function CreatePhotoStoryScreen() {
       Alert.alert('Unable to post', 'Choosing a song is required.');
       return;
     }
-    if (!photoUri || !photoBase64) return;
+    if (!photoUri) return;
     setPosting(true);
     try {
-      const dataUri = `data:image/jpeg;base64,${photoBase64}`;
+      // Read base64 from the cropped photoUri (the picker's base64 field
+      // doesn't reliably reflect the allowsEditing crop, but the uri does).
+      const dataUri = await new Promise<string>((resolve, reject) => {
+        fetch(photoUri)
+          .then((r) => r.blob())
+          .then((blob) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          })
+          .catch(reject);
+      });
       const uploadRes = await uploadImage(dataUri);
       const hostedUrl = uploadRes.data.data.url;
       await createStory({
@@ -291,15 +304,21 @@ export default function CreatePhotoStoryScreen() {
 
   const submitDisabled = !selectedSong || posting;
 
+  const { width: SCREEN_W } = Dimensions.get('window');
+  const BOX_WIDTH = SCREEN_W;
+  const BOX_HEIGHT = SCREEN_W * 16 / 9;
+
   return (
     <View style={styles.container}>
       {photoUri ? (
         <>
-          <Image
-            source={{ uri: photoUri }}
-            style={StyleSheet.absoluteFillObject}
-            resizeMode="contain"
-          />
+          <View style={styles.photoBoxWrap}>
+            <Image
+              source={{ uri: photoUri }}
+              style={{ width: BOX_WIDTH, height: BOX_HEIGHT }}
+              resizeMode="contain"
+            />
+          </View>
 
           {/* Centered music control — floats over the upper portion of the
               photo. Above the KAV/dismiss layer because it's rendered later
@@ -486,7 +505,8 @@ export default function CreatePhotoStoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000000' },
+  container: { flex: 1, backgroundColor: '#121212' },
+  photoBoxWrap: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: '#121212' },
 
   topOverlay: { position: 'absolute', top: 0, left: 0, right: 0 },
   topRow: {
