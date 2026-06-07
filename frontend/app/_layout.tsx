@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider } from '../src/context/AuthContext';
 import { InboxDataProvider } from '../src/context/InboxDataContext';
+import { ThemeProvider } from '../src/context/ThemeContext';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native';
@@ -11,6 +12,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.container}>
       <SafeAreaProvider>
+        <ThemeProvider>
         <AuthProvider>
         <InboxDataProvider>
         <StatusBar style="light" />
@@ -48,6 +50,7 @@ export default function RootLayout() {
         </Stack>
         </InboxDataProvider>
         </AuthProvider>
+        </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
