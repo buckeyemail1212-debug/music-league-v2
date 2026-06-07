@@ -1795,11 +1795,11 @@ async def get_league_wins_stat(current_user: dict = Depends(get_current_user)):
 
 @api_router.get("/users/me/stats/rounds-played")
 async def get_rounds_played_stat(current_user: dict = Depends(get_current_user)):
-    """Count of distinct rounds this user has submitted to. Includes rounds
-    from soft-deleted leagues (the submission record persists). One submission
-    per round is enforced upstream, so this is effectively the user's
-    submission count post-clear-cutoff — the set() guards against legacy
-    duplicates."""
+    """Count of distinct COMPLETED rounds this user has submitted to. Includes
+    rounds from soft-deleted leagues (the submission record persists). One
+    submission per round is enforced upstream, so this is effectively the user's
+    submission count post-clear-cutoff, filtered down to rounds whose status is
+    "completed" — the set() guards against legacy duplicates."""
     user_id = current_user["id"]
     cleared_at = _effective_cleared_at(current_user)
 
@@ -1809,8 +1809,14 @@ async def get_rounds_played_stat(current_user: dict = Depends(get_current_user))
     rows = await db.submissions.find(
         sub_query, {"_id": 0, "round_id": 1},
     ).to_list(20000)
-    count = len({r["round_id"] for r in rows if r.get("round_id")})
-    return {"data": {"count": count}}
+    submitted_round_ids = list({r["round_id"] for r in rows if r.get("round_id")})
+    if not submitted_round_ids:
+        return {"data": {"count": 0}}
+    completed = await db.rounds.find(
+        {"id": {"$in": submitted_round_ids}, "status": "completed"},
+        {"_id": 0, "id": 1},
+    ).to_list(20000)
+    return {"data": {"count": len(completed)}}
 
 
 @api_router.get("/users/me/stats/top-voters")
@@ -3927,7 +3933,7 @@ async def _compute_profile_stats(user_doc: dict, recent_submissions: list[dict])
         sub_query, {"_id": 0, "round_id": 1, "id": 1},
     ).to_list(20000)
     sub_round_ids = list({r["round_id"] for r in submission_round_ids_rows if r.get("round_id")})
-    rounds_played = len(sub_round_ids)
+    rounds_played = 0
 
     # Full round-wins recount across all of the user's completed rounds.
     if sub_round_ids:
@@ -3936,6 +3942,7 @@ async def _compute_profile_stats(user_doc: dict, recent_submissions: list[dict])
             {"_id": 0, "id": 1},
         ).to_list(20000)
         completed_ids = [r["id"] for r in completed]
+        rounds_played = len(completed_ids)
         if completed_ids:
             all_round_subs = await db.submissions.find(
                 {"round_id": {"$in": completed_ids}},
