@@ -2548,9 +2548,11 @@ async def search_users(
     # query so users can't inject regex operators — same safe pattern
     # as /leagues/public and /leagues/search.
     pattern = {"$regex": re.escape(q.strip()), "$options": "i"}
+    blocked_ids = await _blocked_ids_for(current_user["id"])
+    exclude_ids = [current_user["id"], *blocked_ids]
     filt = {
         "username": pattern,
-        "id": {"$ne": current_user["id"]},
+        "id": {"$nin": exclude_ids},
     }
 
     cursor = (

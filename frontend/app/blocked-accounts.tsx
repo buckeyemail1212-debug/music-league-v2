@@ -38,6 +38,9 @@ export default function BlockedAccountsScreen() {
 
   const [users, setUsers] = useState<BlockedUser[] | null>(null);
   const [loadError, setLoadError] = useState<'network' | null>(null);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [unblocking, setUnblocking] = useState(false);
 
   const load = useCallback(() => {
     if (!viewerId) return;
@@ -83,14 +86,80 @@ export default function BlockedAccountsScreen() {
     );
   };
 
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const allIds = (users ?? []).map((u) => u.user_id);
+  const allSelected = allIds.length > 0 && allIds.every((id) => selectedIds.has(id));
+  const toggleSelectAll = () => {
+    setSelectedIds(allSelected ? new Set() : new Set(allIds));
+  };
+  const exitSelectMode = () => { setSelectMode(false); setSelectedIds(new Set()); };
+  const onUnblockSelected = () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    Alert.alert(
+      'Unblock selected',
+      `Unblock ${ids.length} ${ids.length === 1 ? 'account' : 'accounts'}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Unblock',
+          style: 'destructive',
+          onPress: async () => {
+            setUnblocking(true);
+            try {
+              for (const id of ids) {
+                await unblockUser(id);
+              }
+              apiCache.clear?.(cacheKey(viewerId));
+              exitSelectMode();
+              load();
+            } catch {
+              Alert.alert('Could not unblock', 'Some accounts may not have been unblocked. Please try again.');
+              load();
+            } finally {
+              setUnblocking(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={8} style={styles.headerBtn}>
-          <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Blocked accounts</Text>
-        <View style={styles.headerBtn} />
+        {selectMode ? (
+          <>
+            <TouchableOpacity onPress={exitSelectMode} hitSlop={8} style={styles.headerBtn}>
+              <Text style={styles.headerActionText}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>{selectedIds.size} selected</Text>
+            <TouchableOpacity onPress={toggleSelectAll} hitSlop={8} style={styles.headerBtn}>
+              <Text style={styles.headerActionText}>{allSelected ? 'None' : 'All'}</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <TouchableOpacity onPress={() => router.back()} hitSlop={8} style={styles.headerBtn}>
+              <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Blocked accounts</Text>
+            <TouchableOpacity
+              onPress={() => setSelectMode(true)}
+              hitSlop={8}
+              style={styles.headerBtn}
+              disabled={(users ?? []).length === 0}
+            >
+              <Ionicons name="ellipsis-horizontal" size={22} color={(users ?? []).length === 0 ? '#3A3A3A' : '#FFFFFF'} />
+            </TouchableOpacity>
+          </>
+        )}
       </View>
 
       {users === null && !loadError ? (
@@ -117,29 +186,49 @@ export default function BlockedAccountsScreen() {
           contentContainerStyle={styles.listContent}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           renderItem={({ item }) => (
-            <View style={styles.row}>
+            <TouchableOpacity
+              style={styles.row}
+              activeOpacity={selectMode ? 0.7 : 1}
+              onPress={selectMode ? () => toggleSelect(item.user_id) : undefined}
+            >
+              {selectMode && (
+                <Ionicons
+                  name={selectedIds.has(item.user_id) ? 'checkmark-circle' : 'ellipse-outline'}
+                  size={24}
+                  color={selectedIds.has(item.user_id) ? '#7C3AED' : '#6A6A6A'}
+                  style={{ marginRight: 12 }}
+                />
+              )}
               <View style={[styles.avatar, { backgroundColor: pickColor(item.user_id) }]}>
                 {item.avatar_url ? (
                   <Image source={{ uri: item.avatar_url }} style={styles.avatarImg} />
                 ) : (
-                  <Text style={styles.avatarInitial}>
-                    {(item.username || '?').charAt(0).toUpperCase()}
-                  </Text>
+                  <Text style={styles.avatarInitial}>{(item.username || '?').charAt(0).toUpperCase()}</Text>
                 )}
               </View>
               <View style={styles.rowInfo}>
                 <Text style={styles.rowUsername} numberOfLines={1}>@{item.username}</Text>
               </View>
-              <TouchableOpacity
-                style={styles.unblockBtn}
-                onPress={() => onUnblock(item)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.unblockBtnText}>Unblock</Text>
-              </TouchableOpacity>
-            </View>
+              {!selectMode && (
+                <TouchableOpacity style={styles.unblockBtn} onPress={() => onUnblock(item)} activeOpacity={0.8}>
+                  <Text style={styles.unblockBtnText}>Unblock</Text>
+                </TouchableOpacity>
+              )}
+            </TouchableOpacity>
           )}
         />
+      )}
+
+      {selectMode && selectedIds.size > 0 && (
+        <View style={styles.actionBar}>
+          <TouchableOpacity style={styles.actionUnblockBtn} onPress={onUnblockSelected} disabled={unblocking} activeOpacity={0.85}>
+            {unblocking ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.actionUnblockText}>Unblock {selectedIds.size}</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       )}
     </SafeAreaView>
   );
@@ -158,6 +247,7 @@ const styles = StyleSheet.create({
   },
   headerBtn: { minWidth: 40, minHeight: 40, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { flex: 1, fontSize: 17, fontWeight: '700', color: '#FFFFFF' },
+  headerActionText: { color: '#7C3AED', fontSize: 16, fontWeight: '600' },
 
   center: {
     flex: 1,
@@ -215,4 +305,8 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.4,
   },
+
+  actionBar: { padding: 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#2A2A2A' },
+  actionUnblockBtn: { backgroundColor: '#EF4444', borderRadius: 24, paddingVertical: 14, alignItems: 'center' },
+  actionUnblockText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
 });
