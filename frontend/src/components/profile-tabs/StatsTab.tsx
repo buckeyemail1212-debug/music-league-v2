@@ -204,35 +204,39 @@ export default function StatsTab() {
             Once others vote your songs to the top of their rankings, they&rsquo;ll show up here.
           </Text>
         ) : (
-          <View style={styles.topVotersRow}>
-            {topVoters.map((v) => (
-              <TouchableOpacity
-                key={v.user_id}
-                style={styles.topVoterItem}
-                activeOpacity={0.7}
-                onPress={() => router.push(`/user/${v.user_id}` as any)}
-              >
-                <ExpandableImage source={v.avatar_url ? { uri: v.avatar_url } : null}>
-                  <View
-                    style={[styles.topVoterAvatar, { backgroundColor: pickColor(v.user_id) }]}
-                  >
-                    {v.avatar_url ? (
-                      <Image source={{ uri: v.avatar_url }} style={styles.topVoterAvatarImg} />
-                    ) : (
-                      <Text style={styles.topVoterInitial}>
-                        {(v.username || '?').charAt(0).toUpperCase()}
-                      </Text>
+          <View>
+            {topVoters.map((v, idx) => {
+              const maxVotes = topVoters[0]?.vote_count || 1;
+              const pct = Math.max(8, Math.round((v.vote_count / maxVotes) * 100));
+              return (
+                <TouchableOpacity
+                  key={v.user_id}
+                  style={styles.voterRow}
+                  activeOpacity={0.7}
+                  onPress={() => router.push(`/user/${v.user_id}` as any)}
+                >
+                  <View style={styles.voterAvatarWrap}>
+                    <View style={[styles.topVoterAvatar, { backgroundColor: pickColor(v.user_id) }]}>
+                      {v.avatar_url ? (
+                        <Image source={{ uri: v.avatar_url }} style={styles.topVoterAvatarImg} />
+                      ) : (
+                        <Text style={styles.topVoterInitial}>{(v.username || '?').charAt(0).toUpperCase()}</Text>
+                      )}
+                    </View>
+                    {idx === 0 && (
+                      <View style={styles.voterBadge}><Text style={styles.voterBadgeText}>1</Text></View>
                     )}
                   </View>
-                </ExpandableImage>
-                <Text style={styles.topVoterName} numberOfLines={1}>
-                  {(v.username || '').slice(0, 8)}
-                </Text>
-                <Text style={styles.topVoterCount}>
-                  {v.vote_count} {v.vote_count === 1 ? 'vote' : 'votes'}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <View style={styles.voterInfo}>
+                    <Text style={styles.voterName} numberOfLines={1}>{v.username}</Text>
+                    <View style={styles.voterBarTrack}>
+                      <View style={[styles.voterBarFill, { width: `${pct}%` }]} />
+                    </View>
+                  </View>
+                  <Text style={styles.voterCount}>{v.vote_count}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         )}
       </View>
@@ -417,6 +421,15 @@ const styles = StyleSheet.create({
     fontSize: 11, fontWeight: '700', color: '#B3B3B3',
     marginTop: 2, letterSpacing: 0.4,
   },
+  voterRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
+  voterAvatarWrap: { position: 'relative', marginRight: 12 },
+  voterBadge: { position: 'absolute', top: -2, right: -2, backgroundColor: '#7C3AED', width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#181818' },
+  voterBadgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '800' },
+  voterInfo: { flex: 1, marginRight: 12 },
+  voterName: { color: '#FFFFFF', fontSize: 14, fontWeight: '600', marginBottom: 6 },
+  voterBarTrack: { height: 6, backgroundColor: '#282828', borderRadius: 3, overflow: 'hidden' },
+  voterBarFill: { height: '100%', backgroundColor: '#7C3AED', borderRadius: 3 },
+  voterCount: { color: '#B3B3B3', fontSize: 14, fontWeight: '700' },
 
   submissionRow: {
     flexDirection: 'row', alignItems: 'center',
