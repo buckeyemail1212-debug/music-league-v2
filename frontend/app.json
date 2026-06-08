@@ -15,8 +15,8 @@
       "bundleIdentifier": "com.musicleeg.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSPhotoLibraryUsageDescription": "Allow Music Leeg to access your photos to set your profile and league images.",
-        "NSCameraUsageDescription": "Allow Music Leeg to use your camera to take profile and league photos."
+        "NSPhotoLibraryUsageDescription": "Allow Music Comp to access your photos to set your profile and league images.",
+        "NSCameraUsageDescription": "Allow Music Comp to use your camera to take profile and league photos."
       }
     },
     "android": {
