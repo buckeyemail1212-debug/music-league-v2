@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { searchUsers, followUser, unfollowUser, UserSearchResult } from '../services/api';
+import { searchUsers, followUser, unfollowUser, invalidateFollowCaches, UserSearchResult } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const PURPLE = '#7C3AED';
 
@@ -21,6 +22,7 @@ interface Props {
 
 export default function MembersSearchTab({ query }: Props) {
   const router = useRouter();
+  const { user } = useAuth();
 
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [users, setUsers] = useState<UserSearchResult[]>([]);
@@ -80,6 +82,7 @@ export default function MembersSearchTab({ query }: Props) {
           u.id === item.id ? { ...u, follow_state: next } : u,
         ),
       );
+      if (user?.id) invalidateFollowCaches(user.id, item.id);
     } catch {
       Alert.alert('Could not follow', 'Please try again.');
     } finally {
@@ -97,6 +100,7 @@ export default function MembersSearchTab({ query }: Props) {
     );
     try {
       await unfollowUser(item.id);
+      if (user?.id) invalidateFollowCaches(user.id, item.id);
     } catch {
       setUsers((prev) =>
         prev.map((u) => (u.id === item.id ? { ...u, follow_state: prevState } : u)),

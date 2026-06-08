@@ -10,6 +10,16 @@ const invalidateMyStats = () => {
   apiCache.invalidate('users-me-stats-');
 };
 
+export const invalidateFollowCaches = (viewerId: string, targetId?: string) => {
+  // Prefix invalidation clears all variants (the lists are keyed user-following:${a}:${b})
+  apiCache.invalidate(`follow-counts:${viewerId}`);
+  apiCache.invalidate(`user-following:${viewerId}`);
+  apiCache.invalidate(`user-followers:${viewerId}`);
+  if (targetId) {
+    apiCache.invalidate(`follow-counts:${targetId}`);
+  }
+};
+
 export const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'https://music-league-v2-production.up.railway.app';
 
 const api = axios.create({
