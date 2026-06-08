@@ -125,9 +125,6 @@ export default function UserStatsTab({ profile }: { profile: UserProfileResponse
                         <Text style={styles.topVoterInitial}>{(v.username || '?').charAt(0).toUpperCase()}</Text>
                       )}
                     </View>
-                    {idx === 0 && (
-                      <View style={styles.voterBadge}><Text style={styles.voterBadgeText}>1</Text></View>
-                    )}
                   </View>
                   <View style={styles.voterInfo}>
                     <Text style={styles.voterName} numberOfLines={1}>{v.username}</Text>
