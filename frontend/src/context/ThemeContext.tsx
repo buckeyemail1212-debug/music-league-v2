@@ -15,6 +15,7 @@ export interface ThemeColors {
   icon: string;
   iconMuted: string;
   inputBg: string;
+  skeleton: string;
 }
 
 const DARK: ThemeColors = {
@@ -29,6 +30,7 @@ const DARK: ThemeColors = {
   icon: '#FFFFFF',
   iconMuted: '#B3B3B3',
   inputBg: '#3E3E3E',
+  skeleton: '#2A2A2A',
 };
 
 const LIGHT: ThemeColors = {
@@ -43,6 +45,7 @@ const LIGHT: ThemeColors = {
   icon: '#1A1A1A',
   iconMuted: '#6A6A6A',
   inputBg: '#F2F2F2',
+  skeleton: '#E5E5E5',
 };
 
 const PALETTES: Record<ThemeName, ThemeColors> = { dark: DARK, light: LIGHT };

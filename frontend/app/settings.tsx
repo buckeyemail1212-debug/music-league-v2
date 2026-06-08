@@ -30,10 +30,12 @@ import {
 } from '../src/services/api';
 import { apiCache } from '../src/services/apiCache';
 import { leagueEvents } from '../src/utils/leagueEvents';
+import { useTheme } from '../src/context/ThemeContext';
 
 export default function SettingsPage() {
   const router = useRouter();
   const { user, logout, updateUser } = useAuth();
+  const { theme, setTheme } = useTheme();
   const [uploading, setUploading] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editName, setEditName] = useState('');
@@ -360,6 +362,17 @@ export default function SettingsPage() {
             label="Privacy policy"
             onPress={() => setLegalOpen('privacy')}
             last
+          />
+        </View>
+
+        {/* Appearance */}
+        <Text style={styles.sectionLabel}>Appearance</Text>
+        <View style={styles.group}>
+          <SwitchRow
+            icon="moon-outline"
+            label="Light mode"
+            value={theme === 'light'}
+            onValueChange={(next) => setTheme(next ? 'light' : 'dark')}
           />
         </View>
 
