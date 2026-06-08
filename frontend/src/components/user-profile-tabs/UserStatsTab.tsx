@@ -183,11 +183,7 @@ export default function UserStatsTab({ profile }: { profile: UserProfileResponse
               showScored && placement != null && totalInRound != null
                 ? `${ordinal(placement)} of ${totalInRound}`
                 : null;
-            const pointsText =
-              showScored && points != null
-                ? `${points} ${points === 1 ? 'pt' : 'pts'}`
-                : null;
-            const labelParts = [labelPrimary, placementText, pointsText].filter(Boolean).join(' · ');
+            const labelParts = [labelPrimary, placementText].filter(Boolean).join(' · ');
             const roundContext = `Round ${sub.round_number} · ${sub.league_name || 'League'}`;
 
             // Intentionally non-tappable. Tapping would route into
@@ -214,6 +210,11 @@ export default function UserStatsTab({ profile }: { profile: UserProfileResponse
                   <Text style={styles.submissionContext} numberOfLines={1}>{roundContext}</Text>
                   <Text style={styles.submissionState} numberOfLines={1}>{labelParts}</Text>
                 </View>
+                {showScored && points != null && (
+                  <View style={styles.pointsPill}>
+                    <Text style={styles.pointsPillText}>{points} {points === 1 ? 'pt' : 'pts'}</Text>
+                  </View>
+                )}
               </View>
             );
           })
@@ -307,6 +308,8 @@ const styles = StyleSheet.create({
   voterBarTrack: { height: 6, backgroundColor: '#282828', borderRadius: 3, overflow: 'hidden' },
   voterBarFill: { height: '100%', backgroundColor: '#7C3AED', borderRadius: 3 },
   voterCount: { color: '#B3B3B3', fontSize: 14, fontWeight: '700' },
+  pointsPill: { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#FFFFFF', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, marginLeft: 4 },
+  pointsPillText: { fontSize: 12, fontWeight: '800', color: '#FFFFFF' },
 
   submissionRow: {
     flexDirection: 'row', alignItems: 'center',
