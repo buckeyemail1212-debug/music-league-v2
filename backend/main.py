@@ -5180,12 +5180,14 @@ def _score_round_points(submissions: list[dict], votes: list[dict], round_doc: d
                 share = total_per_voter / len(other_subs)
                 for sid in other_subs:
                     points[sid] += share
-    # −1 penalty per non-voter, applied to their own submission, regardless of
-    # the forfeit flag. Stacks; no floor.
-    for nv_id in non_voters:
-        nv_sub_id = next((s["id"] for s in submissions if s["user_id"] == nv_id), None)
-        if nv_sub_id is not None and nv_sub_id in points:
-            points[nv_sub_id] -= 1
+    # −1 penalty per non-voter — but ONLY when voting was actually possible.
+    # A round with fewer than 2 submissions has nothing to vote on (you can't
+    # rank yourself), so a sole submitter is NOT penalized for "not voting".
+    if num_subs >= 2:
+        for nv_id in non_voters:
+            nv_sub_id = next((s["id"] for s in submissions if s["user_id"] == nv_id), None)
+            if nv_sub_id is not None and nv_sub_id in points:
+                points[nv_sub_id] -= 1
     return points
 
 
