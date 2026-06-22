@@ -21,6 +21,7 @@ import {
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import * as Linking from 'expo-linking';
+import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -38,6 +39,7 @@ import {
   deleteLeague,
   leaveLeague,
   invalidateLeagueDataCaches,
+  updateLeagueImage,
   getLeagueStandings,
   getChatStatus,
   getResults,
@@ -460,6 +462,33 @@ export default function LeagueDetailScreen() {
     }
   };
 
+  const handleEditLeagueImage = async () => {
+    setOverflowOpen(false);
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Allow photo access to change the league image.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.15,
+      base64: true,
+    });
+    if (!result.canceled && result.assets[0].base64) {
+      const dataUri = `data:image/jpeg;base64,${result.assets[0].base64}`;
+      try {
+        await updateLeagueImage(id!, dataUri);
+        // Refresh local league state so the cover updates immediately.
+        setLeague((prev: any) => prev ? { ...prev, league_image: dataUri } : prev);
+        leagueEvents.emit();
+      } catch (e: any) {
+        Alert.alert('Error', e?.response?.data?.detail || 'Failed to update league image');
+      }
+    }
+  };
+
   const isCreator = league?.creator_id === user?.id;
   // Non-member gating: the league screen is reachable through profile
   // surfaces, so anyone could land here. Members see the full screen;
@@ -801,6 +830,19 @@ export default function LeagueDetailScreen() {
                   </TouchableOpacity>
                 )}
               </TouchableOpacity>
+            )}
+            {isCreator && (
+              <>
+                <View style={styles.overflowDivider} />
+                <TouchableOpacity
+                  style={styles.overflowItem}
+                  activeOpacity={0.7}
+                  onPress={handleEditLeagueImage}
+                >
+                  <Ionicons name="image-outline" size={20} color="#FFFFFF" />
+                  <Text style={styles.overflowItemText}>Edit league image</Text>
+                </TouchableOpacity>
+              </>
             )}
             {isMember && (
               <>
@@ -1903,6 +1945,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#EF4444',
+  },
+  overflowItemText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   codeBar: {
     flexDirection: 'row',

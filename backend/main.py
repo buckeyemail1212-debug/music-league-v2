@@ -5802,6 +5802,30 @@ async def update_league(league_id: str, update_data: LeagueUpdate, current_user:
     await _upsert_league_snapshot(league_id, league.get("name"), league.get("league_image"))
     return LeagueResponse(**add_league_defaults(league))
 
+
+class LeagueImageUpdate(BaseModel):
+    league_image: str
+
+@api_router.patch("/leagues/{league_id}/image")
+async def update_league_image(league_id: str, body: LeagueImageUpdate, current_user: dict = Depends(get_current_user)):
+    """Update a league's cover image. Only the league creator may do this."""
+    league = await db.leagues.find_one({"id": league_id})
+    if not league:
+        raise HTTPException(status_code=404, detail="League not found")
+    if league.get("creator_id") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Only the league creator can change the league image.")
+    await db.leagues.update_one(
+        {"id": league_id},
+        {"$set": {"league_image": body.league_image}},
+    )
+    # Keep the durable snapshot in sync so the inbox shows the latest photo.
+    updated = await db.leagues.find_one({"id": league_id})
+    try:
+        await _upsert_league_snapshot(league_id, updated.get("name"), updated.get("league_image"))
+    except Exception:
+        pass
+    return LeagueResponse(**add_league_defaults(updated))
+
 async def _compute_points_for_user(league_id: str, user_id: str) -> int:
     """Compute the user's accumulated points across every completed
     round of the league, using the same N-1 system as the standings

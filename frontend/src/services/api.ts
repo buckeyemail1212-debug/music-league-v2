@@ -289,6 +289,9 @@ export const updateLeague = (id: string, data: {
   league_image?: string | null;
 }) => api.put<League>(`/leagues/${id}`, data);
 
+export const updateLeagueImage = (leagueId: string, leagueImage: string) =>
+  api.patch(`/leagues/${leagueId}/image`, { league_image: leagueImage });
+
 export const getLeagues = () => api.get<League[]>('/leagues');
 
 export const getLeague = (id: string) => api.get<League>(`/leagues/${id}`);
