@@ -15,6 +15,7 @@ import { useAuth } from '../../src/context/AuthContext';
 import { getLeaderboard, LeaderboardEntry } from '../../src/services/api';
 import { apiCache } from '../../src/services/apiCache';
 import Skeleton from '../../src/components/Skeleton';
+import { formatPoints } from '../../src/utils/formatPoints';
 import { FLOATING_NAV_CLEARANCE } from './_layout';
 
 type Scope = 'all' | 'following' | 'friends';
@@ -109,7 +110,7 @@ export default function LeaderboardScreen() {
         <Text style={styles.username} numberOfLines={1}>
           @{item.username}
         </Text>
-        <Text style={styles.points}>{item.all_time_points}</Text>
+        <Text style={styles.points}>{formatPoints(item.all_time_points)}</Text>
       </TouchableOpacity>
     );
   };

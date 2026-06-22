@@ -29,6 +29,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { leagueEvents } from '../../src/utils/leagueEvents';
 import { pluralize } from '../../src/utils/pluralize';
 import { getOrdinalSuffix } from '../../src/utils/ordinal';
+import { formatPoints } from '../../src/utils/formatPoints';
 import { pastLeaguesCache } from '../../src/utils/pastLeaguesCache';
 import { publicLeaguesCache } from '../../src/utils/publicLeaguesCache';
 import LeagueAvatar from '../../src/components/LeagueAvatar';
@@ -424,7 +425,7 @@ export default function HomeScreen() {
                           // filtered out of `activeOnly`, so `leaderPoints`
                           // is the right comparison anchor.
                           const behind = Math.max(0, leaderPoints - myPoints);
-                          return `${behind} ${behind === 1 ? 'pt' : 'pts'} behind`;
+                          return `${formatPoints(behind)} ${behind === 1 ? 'pt' : 'pts'} behind`;
                         })()}
                 </Text>
                 <View style={styles.progressBarTrack}>

@@ -15,6 +15,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as Sharing from 'expo-sharing';
 import * as MediaLibrary from 'expo-media-library';
 import ViewShot from 'react-native-view-shot';
+import { formatPoints } from '../utils/formatPoints';
 
 // Solid app primary purple — match the existing theme so the share card
 // reads as part of the brand.
@@ -345,7 +346,7 @@ function StoryCard({
                 ) : null}
               </View>
               <View style={storyStyles.pointsPill}>
-                <Text style={storyStyles.pointsPillText}>{w.points} PTS</Text>
+                <Text style={storyStyles.pointsPillText}>{formatPoints(w.points)} PTS</Text>
               </View>
             </View>
           ))}
@@ -371,7 +372,7 @@ function StoryCard({
                 <Text style={storyStyles.placementNum}>{winner.rank}</Text>
               </View>
               <View style={storyStyles.pointsPill}>
-                <Text style={storyStyles.pointsPillText}>{winner.points} PTS</Text>
+                <Text style={storyStyles.pointsPillText}>{formatPoints(winner.points)} PTS</Text>
               </View>
             </View>
           </View>
@@ -407,11 +408,11 @@ function StoryCard({
               <Text style={storyStyles.miniSub} numberOfLines={1}>
                 {variant === 'round' && o.songTitle
                   ? `@${o.username}`
-                  : `${o.points} pts`}
+                  : `${formatPoints(o.points)} pts`}
               </Text>
             </View>
             <View style={storyStyles.miniPts}>
-              <Text style={storyStyles.miniPtsText}>{o.points}</Text>
+              <Text style={storyStyles.miniPtsText}>{formatPoints(o.points)}</Text>
             </View>
           </View>
         ))}
@@ -472,7 +473,7 @@ function SquareCard({
                   ) : null}
                 </View>
                 <View style={squareStyles.pointsPill}>
-                  <Text style={squareStyles.pointsPillText}>{w.points} PTS</Text>
+                  <Text style={squareStyles.pointsPillText}>{formatPoints(w.points)} PTS</Text>
                 </View>
               </View>
             ))}
@@ -496,7 +497,7 @@ function SquareCard({
               </Text>
             ) : null}
             <View style={squareStyles.pointsPill}>
-              <Text style={squareStyles.pointsPillText}>{winner.points} PTS</Text>
+              <Text style={squareStyles.pointsPillText}>{formatPoints(winner.points)} PTS</Text>
             </View>
           </View>
         </View>
@@ -566,7 +567,7 @@ function Top3Card({
                   @{e.username}
                 </Text>
               </View>
-              <Text style={top3Styles.pts}>{e.points}</Text>
+              <Text style={top3Styles.pts}>{formatPoints(e.points)}</Text>
               {rowIsTied && (
                 <View style={top3Styles.tiePill}>
                   <Text style={top3Styles.tiePillText}>TIE</Text>

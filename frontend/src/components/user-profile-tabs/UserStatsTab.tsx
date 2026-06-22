@@ -10,6 +10,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { UserProfileResponse } from '../../services/api';
 import ExpandableImage from '../ExpandableImage';
+import { formatPoints } from '../../utils/formatPoints';
 
 const TASTE_COLORS: Record<string, string> = {
   Indie: '#7C3AED',
@@ -49,7 +50,7 @@ export default function UserStatsTab({ profile }: { profile: UserProfileResponse
     <View>
       <View style={styles.statsGrid}>
         <StatTile label="LEAGUES PLAYED" value={stats?.leagues_count ?? null} />
-        <StatTile label="TOTAL PTS" value={stats?.total_points ?? null} />
+        <StatTile label="TOTAL PTS" value={stats?.total_points ?? null} format={formatPoints} />
         <StatTile label="ROUND WINS" value={stats?.round_wins ?? null} />
         <StatTile label="SUBMISSIONS" value={stats?.submissions_count ?? null} />
         <StatTile label="LEAGUE WINS" value={stats?.league_wins ?? null} />
@@ -209,7 +210,7 @@ export default function UserStatsTab({ profile }: { profile: UserProfileResponse
                 </View>
                 {showScored && points != null && (
                   <View style={styles.pointsPill}>
-                    <Text style={styles.pointsPillText}>{points} {points === 1 ? 'pt' : 'pts'}</Text>
+                    <Text style={styles.pointsPillText}>{formatPoints(points)} {points === 1 ? 'pt' : 'pts'}</Text>
                   </View>
                 )}
               </View>
@@ -221,10 +222,20 @@ export default function UserStatsTab({ profile }: { profile: UserProfileResponse
   );
 }
 
-function StatTile({ label, value }: { label: string; value: number | null }) {
+function StatTile({
+  label,
+  value,
+  format,
+}: {
+  label: string;
+  value: number | null;
+  format?: (n: number) => string;
+}) {
   return (
     <View style={styles.statTile}>
-      <Text style={styles.statTileValue}>{value === null ? '—' : value.toLocaleString()}</Text>
+      <Text style={styles.statTileValue}>
+        {value === null ? '—' : format ? format(value) : value.toLocaleString()}
+      </Text>
       <Text style={styles.statTileLabel}>{label}</Text>
     </View>
   );

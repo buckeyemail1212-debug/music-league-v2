@@ -28,6 +28,7 @@ import {
 } from '../../services/api';
 import { apiCache } from '../../services/apiCache';
 import { leagueEvents } from '../../utils/leagueEvents';
+import { formatPoints } from '../../utils/formatPoints';
 import Skeleton from '../Skeleton';
 
 const TASTE_COLORS: Record<string, string> = {
@@ -140,7 +141,7 @@ export default function StatsTab() {
       {/* Stat tiles */}
       <View style={styles.statsGrid}>
         <StatTile label="LEAGUES PLAYED" value={userStats?.leagues_count ?? leaguesCount} />
-        <StatTile label="TOTAL PTS" value={lifetimeStats?.all_time_points ?? null} />
+        <StatTile label="TOTAL PTS" value={lifetimeStats?.all_time_points ?? null} format={formatPoints} />
         <StatTile label="ROUND WINS" value={roundWinsCount} />
         <StatTile label="SUBMISSIONS" value={lifetimeStats?.total_submissions ?? null} />
         <StatTile label="LEAGUE WINS" value={leagueWins} />
@@ -307,7 +308,7 @@ export default function StatsTab() {
                 </View>
                 {showScored && points != null && (
                   <View style={styles.pointsPill}>
-                    <Text style={styles.pointsPillText}>{points} {points === 1 ? 'pt' : 'pts'}</Text>
+                    <Text style={styles.pointsPillText}>{formatPoints(points)} {points === 1 ? 'pt' : 'pts'}</Text>
                   </View>
                 )}
                 <Ionicons name="chevron-forward" size={18} color="#6A6A6A" />
@@ -340,12 +341,20 @@ export default function StatsTab() {
   );
 }
 
-function StatTile({ label, value }: { label: string; value: number | null }) {
+function StatTile({
+  label,
+  value,
+  format,
+}: {
+  label: string;
+  value: number | null;
+  format?: (n: number) => string;
+}) {
   return (
     <View style={styles.statTile}>
       {value === null
         ? <Skeleton width={50} height={26} borderRadius={6} />
-        : <Text style={styles.statTileValue}>{value.toLocaleString()}</Text>}
+        : <Text style={styles.statTileValue}>{format ? format(value) : value.toLocaleString()}</Text>}
       <Text style={styles.statTileLabel}>{label}</Text>
     </View>
   );

@@ -52,6 +52,7 @@ import {
   MySubmission,
 } from '../../src/services/api';
 import { PreviewPlayButton } from '../../src/components/PreviewPlayButton';
+import { formatPoints } from '../../src/utils/formatPoints';
 import { format } from 'date-fns';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -1111,7 +1112,7 @@ export default function LeagueDetailScreen() {
                       </View>
                     )}
                     <Text style={standingStyles.podiumName} numberOfLines={1}>{displayName}</Text>
-                    <Text style={standingStyles.podiumPoints}>{sharedPoints}</Text>
+                    <Text style={standingStyles.podiumPoints}>{formatPoints(sharedPoints)}</Text>
                     <View style={[standingStyles.podiumBox, { height: podiumHeight }, podiumStyle]}>
                       <Text style={standingStyles.podiumPlace}>{placeLabel}</Text>
                     </View>
@@ -1202,7 +1203,7 @@ export default function LeagueDetailScreen() {
                               </Text>
                             </View>
                           )}
-                          <Text style={standingStyles.listPts}>{player.total_points}</Text>
+                          <Text style={standingStyles.listPts}>{formatPoints(player.total_points)}</Text>
                         </View>
                       </View>
                     );
@@ -1249,7 +1250,7 @@ export default function LeagueDetailScreen() {
                           <Text
                             style={[standingStyles.listPts, standingStyles.listPtsLeft]}
                           >
-                            {player.total_points}
+                            {formatPoints(player.total_points)}
                           </Text>
                         </View>
                       </View>
@@ -1407,7 +1408,7 @@ export default function LeagueDetailScreen() {
                         <PreviewPlayButton previewUrl={sub.song.preview_url} deezerId={sub.song.deezer_id} songId={`league-sub-${round.id}`} size={14} />
                       </View>
                       <View style={styles.subScoreBadge}>
-                        <Text style={styles.subScoreText}>+{sub.points_earned ?? sub.points ?? 0} PTS</Text>
+                        <Text style={styles.subScoreText}>+{formatPoints(sub.points_earned ?? sub.points ?? 0)} PTS</Text>
                       </View>
                     </View>
                   )}
