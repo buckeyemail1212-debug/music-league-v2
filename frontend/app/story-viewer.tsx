@@ -40,7 +40,7 @@ interface StoryItem {
     y: number;
     scale?: number;
     rotation?: number;
-    style?: 'card' | 'album';
+    style?: 'rich' | 'card' | 'album';
   } | null;
   created_at: string;
   expires_at: string;
@@ -494,6 +494,19 @@ export default function StoryViewerScreen() {
                       { scale: story.sticker.scale ?? 1 },
                       { rotate: `${story.sticker.rotation ?? 0}rad` },
                     ];
+                    if (variant === 'rich') {
+                      return (
+                        <View style={[styles.stickerRich, { transform }]}>
+                          {story.song.cover_url ? (
+                            <Image source={{ uri: story.song.cover_url }} style={styles.stickerRichCover} />
+                          ) : (
+                            <View style={[styles.stickerRichCover, styles.stickerRichFallback]} />
+                          )}
+                          <Text style={styles.stickerRichTitle} numberOfLines={2}>{story.song.title}</Text>
+                          <Text style={styles.stickerRichArtist} numberOfLines={1}>{story.song.artist}</Text>
+                        </View>
+                      );
+                    }
                     if (variant === 'album') {
                       return (
                         <View style={[styles.stickerAlbum, { transform }]}>
@@ -781,6 +794,11 @@ const styles = StyleSheet.create({
   stickerAlbumFallback: {
     backgroundColor: '#282828',
   },
+  stickerRich: { alignItems: 'center', justifyContent: 'center' },
+  stickerRichCover: { width: 200, height: 200, borderRadius: 12 },
+  stickerRichFallback: { backgroundColor: '#2A2A2A', alignItems: 'center', justifyContent: 'center' },
+  stickerRichTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '700', textAlign: 'center', marginTop: 16, textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 6 },
+  stickerRichArtist: { color: '#E0E0E0', fontSize: 15, textAlign: 'center', marginTop: 4, textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 6 },
 
   photoOverlay: {
     position: 'absolute',

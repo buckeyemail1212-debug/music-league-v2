@@ -43,23 +43,26 @@ export default function CreatePhotoStoryScreen() {
   // on-screen transform every frame; the React state is the committed
   // snapshot persisted with the post. Style is a JS-only choice (no
   // shared value) since it doesn't animate.
-  type StickerStyle = 'card' | 'album';
+  type StickerStyle = 'rich' | 'card' | 'album';
   const [sticker, setSticker] = useState<{
     x: number;
     y: number;
     scale: number;
     rotation: number;
     style: StickerStyle;
-  }>({ x: 0, y: 0, scale: 1, rotation: 0, style: 'card' });
+  }>({ x: 0, y: 0, scale: 1, rotation: 0, style: 'rich' });
 
   // Tap toggles the sticker style. Lives outside the gesture so its
   // closure reads the latest state via setSticker's functional form,
   // avoiding the gesture-handler closure-capture footgun.
   const toggleStickerStyle = () =>
-    setSticker((prev) => ({
-      ...prev,
-      style: prev.style === 'card' ? 'album' : 'card',
-    }));
+    setSticker((prev) => {
+      const next: StickerStyle =
+        prev.style === 'rich' ? 'card'
+        : prev.style === 'card' ? 'album'
+        : 'rich';
+      return { ...prev, style: next };
+    });
   const stickerX = useSharedValue(0);
   const stickerY = useSharedValue(0);
   const stickerStartX = useSharedValue(0);
@@ -388,7 +391,19 @@ export default function CreatePhotoStoryScreen() {
           {selectedSong && (
             <View style={styles.stickerAnchor} pointerEvents="box-none">
               <GestureDetector gesture={stickerGesture}>
-                {sticker.style === 'album' ? (
+                {sticker.style === 'rich' ? (
+                  <Animated.View style={[styles.stickerRich, stickerAnimatedStyle]}>
+                    {selectedSong.cover_url ? (
+                      <Image source={{ uri: selectedSong.cover_url }} style={styles.stickerRichCover} />
+                    ) : (
+                      <View style={[styles.stickerRichCover, styles.stickerRichFallback]}>
+                        <Ionicons name="musical-note" size={60} color="#B3B3B3" />
+                      </View>
+                    )}
+                    <Text style={styles.stickerRichTitle} numberOfLines={2}>{selectedSong.title}</Text>
+                    <Text style={styles.stickerRichArtist} numberOfLines={1}>{selectedSong.artist}</Text>
+                  </Animated.View>
+                ) : sticker.style === 'album' ? (
                   <Animated.View style={[styles.stickerAlbum, stickerAnimatedStyle]}>
                     {selectedSong.cover_url ? (
                       <Image source={{ uri: selectedSong.cover_url }} style={styles.stickerAlbumImage} />
@@ -603,6 +618,11 @@ const styles = StyleSheet.create({
   stickerAlbumFallback: {
     backgroundColor: '#282828',
   },
+  stickerRich: { alignItems: 'center', justifyContent: 'center' },
+  stickerRichCover: { width: 200, height: 200, borderRadius: 12 },
+  stickerRichFallback: { backgroundColor: '#2A2A2A', alignItems: 'center', justifyContent: 'center' },
+  stickerRichTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '700', textAlign: 'center', marginTop: 16, textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 6 },
+  stickerRichArtist: { color: '#E0E0E0', fontSize: 15, textAlign: 'center', marginTop: 4, textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 6 },
 
   bottomOverlay: {
     paddingHorizontal: 16,
