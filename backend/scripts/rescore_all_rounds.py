@@ -47,9 +47,9 @@ sys.path.insert(0, str(BACKEND_DIR))
 from main import db, _score_round_points  # noqa: E402
 
 
-async def rescore(apply: bool) -> None:
+async def rescore(apply: bool, debug: bool = False) -> None:
     mode = "APPLY" if apply else "DRY-RUN"
-    print(f"=== rescore_all_rounds ({mode}) ===")
+    print(f"=== rescore_all_rounds ({mode}{', DEBUG' if debug else ''}) ===")
 
     # ── 1. SNAPSHOT (writes; apply only) ────────────────────────────────
     # Back up the current lifetime totals before touching anything, tagged
@@ -93,6 +93,21 @@ async def rescore(apply: bool) -> None:
     completed_rounds = await db.rounds.find({"status": "completed"}).to_list(100000)
     print(f"Recomputing across {len(completed_rounds)} completed rounds...")
 
+    # Debug-only: one id->username lookup for human-readable per-round dumps,
+    # plus a per-user round-by-round ledger. None of this affects scoring.
+    uname_by_id: dict[str, str] = {}
+    user_round_log: dict[str, list] = {}
+    if debug:
+        all_user_docs = await db.users.find(
+            {}, {"_id": 0, "id": 1, "username": 1}
+        ).to_list(100000)
+        uname_by_id = {u["id"]: u.get("username", u["id"]) for u in all_user_docs}
+        print()
+        print("=== Per-round detail ===")
+
+    def _name(uid: str) -> str:
+        return uname_by_id.get(uid, uid)
+
     new_points: dict[str, float] = {}
     new_wins: dict[str, int] = {}
     sub_row_updates = 0
@@ -110,6 +125,25 @@ async def rescore(apply: bool) -> None:
         points = _score_round_points(submissions, votes, round_doc)
         max_pts = max(points.values()) if points else 0
 
+        if debug:
+            # Recompute voters/non-voters the SAME way the helper does, purely
+            # for tracing — submitter ids minus the ids that cast a vote.
+            submitter_ids = {s["user_id"] for s in submissions}
+            voters_who_voted = {v.get("voter_id") for v in votes}
+            non_voters = submitter_ids - voters_who_voted
+            print()
+            print(f"Round {round_doc.get('round_number', '?')} "
+                  f"(round_id={rid}, league_id={round_doc.get('league_id')})")
+            print(f"  submissions: {len(submissions)}")
+            print(f"  submitters : {sorted(_name(u) for u in submitter_ids)}")
+            print(f"  voted      : {sorted(_name(u) for u in voters_who_voted if u)}")
+            print(f"  non-voters : {sorted(_name(u) for u in non_voters)}")
+            pts_by_name = {
+                _name(s["user_id"]): round(points.get(s["id"], 0.0), 2)
+                for s in submissions
+            }
+            print(f"  points     : {pts_by_name}")
+
         for sub in submissions:
             uid = sub["user_id"]
             p = points.get(sub["id"], 0.0)
@@ -118,6 +152,17 @@ async def rescore(apply: bool) -> None:
                 new_wins[uid] = new_wins.get(uid, 0) + 1
             else:
                 new_wins.setdefault(uid, new_wins.get(uid, 0))
+            if debug:
+                # A submitter who didn't cast a vote took the −1 own-submission
+                # penalty this round (mirrors the helper's non_voters set).
+                penalized = uid not in {v.get("voter_id") for v in votes}
+                user_round_log.setdefault(uid, []).append({
+                    "round_number": round_doc.get("round_number"),
+                    "round_id": rid,
+                    "league_id": round_doc.get("league_id"),
+                    "points": round(p, 2),
+                    "penalized": penalized,
+                })
             if apply:
                 await db.user_submissions.update_one(
                     {"submission_id": sub["id"]},
@@ -125,6 +170,20 @@ async def rescore(apply: bool) -> None:
                               "updated_at": datetime.now(timezone.utc)}},
                 )
                 sub_row_updates += 1
+
+    if debug:
+        # Key view: scan one user's per-round contributions at a glance —
+        # including which rounds docked them via the −1 non-voter penalty.
+        print()
+        print("=== Per-user round-by-round ===")
+        for uid in sorted(user_round_log, key=lambda x: _name(x).lower()):
+            rounds = user_round_log[uid]
+            total = round(sum(r["points"] for r in rounds), 2)
+            print(f"{_name(uid)} (total {total} across {len(rounds)} rounds):")
+            for r in sorted(rounds, key=lambda r: (r["round_number"] is None, r["round_number"])):
+                tag = " [NON-VOTER -1]" if r["penalized"] else ""
+                print(f"  Round {r['round_number']} (league {r['league_id']}): "
+                      f"{r['points']}{tag}")
 
     # ── 4. AUDIT + WRITE lifetime totals ($set, not $inc) ───────────────
     # Pull current totals + usernames for everyone we recomputed so we can
@@ -181,12 +240,15 @@ def _parse_args() -> argparse.Namespace:
                    help="Preview before/after without writing (default).")
     g.add_argument("--apply", action="store_true",
                    help="Snapshot, flip flags, and rewrite lifetime totals.")
+    p.add_argument("--debug", action="store_true",
+                   help="Print per-round and per-user point detail (read-only). "
+                        "Combines with --dry-run or --apply.")
     return p.parse_args()
 
 
 def main() -> None:
     args = _parse_args()
-    asyncio.run(rescore(apply=args.apply))
+    asyncio.run(rescore(apply=args.apply, debug=args.debug))
 
 
 if __name__ == "__main__":
