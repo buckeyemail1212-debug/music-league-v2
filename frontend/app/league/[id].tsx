@@ -589,18 +589,35 @@ export default function LeagueDetailScreen() {
 
     const onStart = async () => {
       if (!league || starting === item.id) return;
-      setStarting(item.id);
-      try {
-        await startRound(league.id, item.round_number);
-        await fetchData();
-      } catch (e: any) {
+
+      const doStart = async () => {
+        setStarting(item.id);
+        try {
+          await startRound(league.id, item.round_number);
+          await fetchData();
+        } catch (e: any) {
+          Alert.alert(
+            'Error',
+            e?.response?.data?.detail || 'Failed to start round',
+          );
+        } finally {
+          setStarting(null);
+        }
+      };
+
+      if (item.round_number === 1) {
         Alert.alert(
-          'Error',
-          e?.response?.data?.detail || 'Failed to start round',
+          'Start the first round?',
+          "Once the first round begins, no new members can join this league. Make sure everyone's in before you start.",
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Start Round', style: 'default', onPress: doStart },
+          ]
         );
-      } finally {
-        setStarting(null);
+        return;
       }
+
+      doStart();
     };
 
     const puckStyle = (isLive || isReady) ? styles.roundPuckAccent : styles.roundPuckDim;
