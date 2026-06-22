@@ -72,7 +72,7 @@ async def rescore(apply: bool, debug: bool = False) -> None:
                 }
                 for u in all_users
             ]
-            await db._rescore_backup.insert_many(backup_docs)
+            await db['_rescore_backup'].insert_many(backup_docs)
         print(f"Backed up {len(all_users)} users to _rescore_backup (run_id={run_id})")
     else:
         print("Skipping snapshot (dry-run — no writes).")
