@@ -528,6 +528,77 @@ async def _finalize_round_lifetime(round_id: str):
             {"$set": {"points": round(pts, 2), "finalized": True, "updated_at": datetime.now(timezone.utc)}},
         )
 
+    # ── League-activity notifications: who didn't submit / didn't vote ──
+    # Fire-and-forget; never let a notification failure block finalization.
+    try:
+        members = (league_doc or {}).get("members", []) if league_doc else []
+        if members:
+            num_subs = len(submissions)
+            submitter_ids = {s["user_id"] for s in submissions}
+
+            # Build username lookup for offenders from member docs + user_submissions.
+            member_name = {m["id"]: m.get("username", "") for m in members}
+
+            # Round label for the notification title.
+            round_label = round_doc.get("name") or round_doc.get("theme") \
+                or (f"Round {round_doc.get('round_number')}" if round_doc.get("round_number") else "Round complete")
+
+            # Non-submitters: members who submitted nothing this round.
+            non_submitter_ids = [m["id"] for m in members if m["id"] not in submitter_ids]
+
+            # Non-voters: submitters who didn't cast a vote — ONLY when voting
+            # was possible (>=2 submissions; you can't vote in a solo round).
+            non_voter_ids = []
+            if num_subs >= 2:
+                voters_who_voted = {v.get("voter_id") for v in votes}
+                non_voter_ids = [uid for uid in submitter_ids if uid not in voters_who_voted]
+
+            # Resolve usernames for any offenders missing from member_name.
+            offender_ids = set(non_submitter_ids) | set(non_voter_ids)
+            missing_names = [oid for oid in offender_ids if not member_name.get(oid)]
+            if missing_names:
+                udocs = await db.users.find(
+                    {"id": {"$in": missing_names}}, {"_id": 0, "id": 1, "username": 1}
+                ).to_list(500)
+                for u in udocs:
+                    member_name[u["id"]] = u.get("username", "")
+
+            recipient_ids = [m["id"] for m in members]
+
+            # Emit one notification per (recipient, offender, event), skipping
+            # notifying a member about themselves.
+            for offender_id in non_submitter_ids:
+                oname = member_name.get(offender_id) or "A member"
+                for rid_user in recipient_ids:
+                    if rid_user == offender_id:
+                        continue
+                    await create_notification(
+                        user_id=rid_user,
+                        type="round_no_submission",
+                        category="league",
+                        title=round_label,
+                        body=f"{oname} didn't submit a song",
+                        actor_id=offender_id,
+                        ref_id=round_id,
+                    )
+
+            for offender_id in non_voter_ids:
+                oname = member_name.get(offender_id) or "A member"
+                for rid_user in recipient_ids:
+                    if rid_user == offender_id:
+                        continue
+                    await create_notification(
+                        user_id=rid_user,
+                        type="round_no_vote",
+                        category="league",
+                        title=round_label,
+                        body=f"{oname} didn't vote",
+                        actor_id=offender_id,
+                        ref_id=round_id,
+                    )
+    except Exception as e:
+        logger.warning(f"round-close activity notifications failed: {e}")
+
     await db.rounds.update_one({"id": round_id}, {"$set": {"stats_finalized": True}})
 
 
