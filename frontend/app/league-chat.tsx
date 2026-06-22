@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../src/context/AuthContext';
 import { getLeagueMessages, sendLeagueMessage } from '../src/services/api';
 import { apiCache } from '../src/services/apiCache';
+import { markCategoryViewed } from '../src/services/inboxReadState';
 
 interface ChatMessage {
   id: string;
@@ -70,6 +71,14 @@ export default function LeagueChatScreen() {
       if (pollRef.current) clearInterval(pollRef.current);
     };
   }, [leagueId]);
+
+  // Opening the chat counts as reading the league category — clear the
+  // inbox's COMMENT/unread indicator (it re-reads category views on poll/focus).
+  useEffect(() => {
+    if (user?.id) {
+      markCategoryViewed(user.id, 'league');
+    }
+  }, [user?.id, leagueId]);
 
   const handleSend = async () => {
     const text = newMessage.trim();
