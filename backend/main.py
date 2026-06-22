@@ -507,7 +507,7 @@ async def _finalize_round_lifetime(round_id: str):
         pts = points.get(sub["id"], 0)
         won = (max_points > 0 and pts == max_points)
 
-        inc = {"all_time_points": int(pts)}
+        inc = {"all_time_points": round(pts, 2)}
         if won:
             inc["total_wins"] = 1
         await db.users.update_one({"id": uid}, {"$inc": inc})
@@ -525,7 +525,7 @@ async def _finalize_round_lifetime(round_id: str):
             )
         await db.user_submissions.update_one(
             {"submission_id": sub["id"]},
-            {"$set": {"points": int(pts), "finalized": True, "updated_at": datetime.now(timezone.utc)}},
+            {"$set": {"points": round(pts, 2), "finalized": True, "updated_at": datetime.now(timezone.utc)}},
         )
 
     await db.rounds.update_one({"id": round_id}, {"$set": {"stats_finalized": True}})
@@ -1663,7 +1663,7 @@ async def get_lifetime_stats(current_user: dict = Depends(get_current_user)):
         actual_subs_query["submitted_at"] = {"$gt": cleared_at}
     actual_subs = await db.user_submissions.count_documents(actual_subs_query)
     user_doc = await db.users.find_one({"id": user_id}) or {}
-    all_time_points = int(user_doc.get("all_time_points", 0))
+    all_time_points = round(float(user_doc.get("all_time_points", 0) or 0), 2)
     total_wins = int(user_doc.get("total_wins", 0))
     total_submissions = max(int(user_doc.get("total_submissions", 0)), actual_subs)
     if total_submissions != user_doc.get("total_submissions"):
@@ -1695,7 +1695,7 @@ async def get_weekly_points(current_user: dict = Depends(get_current_user)):
         },
         {"_id": 0, "points": 1},
     ).to_list(2000)
-    total = sum(int(r.get("points") or 0) for r in rows)
+    total = round(sum(float(r.get("points") or 0) for r in rows), 2)
     return {"weekly_points": total}
 
 
@@ -2589,7 +2589,7 @@ async def get_leaderboard(
     # tiebreaker. Missing all_time_points is treated as 0.
     users.sort(
         key=lambda u: (
-            -int(u.get("all_time_points") or 0),
+            -float(u.get("all_time_points") or 0),
             (u.get("username") or "").lower(),
         )
     )
@@ -2604,7 +2604,7 @@ async def get_leaderboard(
     prev_points: Optional[int] = None
     prev_rank = 0
     for idx, u in enumerate(users):
-        pts = int(u.get("all_time_points") or 0)
+        pts = round(float(u.get("all_time_points") or 0), 2)
         if prev_points is not None and pts == prev_points:
             rank = prev_rank
         else:
@@ -2623,7 +2623,7 @@ async def get_leaderboard(
     entries = []
     for i, u in enumerate(page):
         row = _user_summary(u)
-        row["all_time_points"] = int(u.get("all_time_points") or 0)
+        row["all_time_points"] = round(float(u.get("all_time_points") or 0), 2)
         row["rank"] = ranks[offset + i]
         entries.append(row)
 
@@ -3920,7 +3920,7 @@ async def _compute_profile_stats(user_doc: dict, recent_submissions: list[dict])
             "$or": [{"deleted_at": {"$exists": False}}, {"deleted_at": None}],
         })
 
-    total_points = int(user_doc.get("all_time_points", 0))
+    total_points = round(float(user_doc.get("all_time_points", 0) or 0), 2)
     submissions_count = max(
         int(user_doc.get("total_submissions", 0)),
         len(submission_round_ids_rows),
@@ -3964,7 +3964,7 @@ async def get_user_profile(user_id: str, current_user: dict = Depends(get_curren
     # All-time leaderboard rank, standard-competition style (ties share a
     # rank, next distinct score skips ahead) — matches get_leaderboard.
     # For a single user that's just (#users with strictly more points) + 1.
-    target_points = int(target.get("all_time_points") or 0)
+    target_points = round(float(target.get("all_time_points") or 0), 2)
     rank = await db.users.count_documents({"all_time_points": {"$gt": target_points}}) + 1
 
     base = {
@@ -5144,15 +5144,17 @@ def _iso(dt) -> Optional[str]:
     return ensure_utc(dt).isoformat()
 
 
-def _score_round_points(submissions: list[dict], votes: list[dict], round_doc: dict | None = None) -> dict[str, int]:
+def _score_round_points(submissions: list[dict], votes: list[dict], round_doc: dict | None = None) -> dict[str, float]:
     """Compute {submission_id: points} for one round. Single source of truth
     for round scoring. Per-rank: a voter's 1st pick gets (num_to_rank) pts,
     down to 1. Non-voter handling: unless the round is flagged
     forfeit_missing_voter_pools, redistribute each non-voter's would-be pool
-    evenly across the other submissions (remainder distributed one-by-one).
-    Pure function — does not write to the DB.
+    evenly across the other submissions (true division, full float precision —
+    display rounds later). Additionally, each non-voter takes a −1 penalty on
+    their own submission, regardless of the forfeit flag (stacks, no floor —
+    can go negative). Pure function — does not write to the DB.
     """
-    points: dict[str, int] = {s["id"]: 0 for s in submissions}
+    points: dict[str, float] = {s["id"]: 0.0 for s in submissions}
     if not submissions:
         return points
     num_subs = len(submissions)
@@ -5164,23 +5166,26 @@ def _score_round_points(submissions: list[dict], votes: list[dict], round_doc: d
         for idx, sid in enumerate(v.get("rankings", [])):
             if sid in points:
                 points[sid] += (num_to_rank - idx)
-    # Redistribute non-voter pools unless the round opted into forfeit.
     forfeit = bool(round_doc.get("forfeit_missing_voter_pools")) if round_doc else False
-    if not forfeit:
-        submitter_ids = set(sub_owners.values())
-        non_voters = submitter_ids - voters_who_voted
-        if non_voters and num_subs > 1:
-            total_per_voter = sum(range(1, num_to_rank + 1))
-            for nv_id in non_voters:
-                nv_sub_id = next((s["id"] for s in submissions if s["user_id"] == nv_id), None)
-                other_subs = [s["id"] for s in submissions if s["id"] != nv_sub_id]
-                if other_subs:
-                    base = total_per_voter // len(other_subs)
-                    rem = total_per_voter % len(other_subs)
-                    for sid in other_subs:
-                        points[sid] += base
-                    for i in range(rem):
-                        points[other_subs[i]] += 1
+    submitter_ids = set(sub_owners.values())
+    non_voters = submitter_ids - voters_who_voted
+    # Redistribute non-voter pools (full float share) unless the round opted
+    # into forfeit.
+    if not forfeit and non_voters and num_subs > 1:
+        total_per_voter = sum(range(1, num_to_rank + 1))
+        for nv_id in non_voters:
+            nv_sub_id = next((s["id"] for s in submissions if s["user_id"] == nv_id), None)
+            other_subs = [s["id"] for s in submissions if s["id"] != nv_sub_id]
+            if other_subs:
+                share = total_per_voter / len(other_subs)
+                for sid in other_subs:
+                    points[sid] += share
+    # −1 penalty per non-voter, applied to their own submission, regardless of
+    # the forfeit flag. Stacks; no floor.
+    for nv_id in non_voters:
+        nv_sub_id = next((s["id"] for s in submissions if s["user_id"] == nv_id), None)
+        if nv_sub_id is not None and nv_sub_id in points:
+            points[nv_sub_id] -= 1
     return points
 
 
@@ -5369,7 +5374,7 @@ async def _build_past_league_snapshot(
         left_rows.append({
             "user_id": uid,
             "username": lm.get("username", ""),
-            "total_points": int(lm.get("points_at_leave") or 0),
+            "total_points": round(float(lm.get("points_at_leave") or 0), 2),
             "wins": 0,
             "rounds_played": 0,
             "left": True,
@@ -5775,7 +5780,7 @@ async def _compute_points_for_user(league_id: str, user_id: str) -> int:
         for s in subs:
             if s["user_id"] == user_id:
                 total += points.get(s["id"], 0)
-    return int(total)
+    return total
 
 
 @api_router.post("/leagues/{league_id}/leave")
@@ -5846,7 +5851,7 @@ async def leave_league(league_id: str, current_user: dict = Depends(get_current_
                     "left_members": {
                         "user_id": user_id,
                         "username": username,
-                        "points_at_leave": int(points_at_leave),
+                        "points_at_leave": round(points_at_leave, 2),
                         "left_at": now,
                     }
                 },
@@ -5859,7 +5864,7 @@ async def leave_league(league_id: str, current_user: dict = Depends(get_current_
         return {
             "message": "Left league successfully",
             "left_active_league": True,
-            "points_at_leave": int(points_at_leave),
+            "points_at_leave": round(points_at_leave, 2),
         }
 
     if league_active and is_creator:
@@ -6673,7 +6678,7 @@ async def get_league_standings(league_id: str, current_user: dict = Depends(get_
                 {
                     "user_id": lm.get("user_id"),
                     "username": lm.get("username", ""),
-                    "total_points": int(lm.get("points_at_leave") or 0),
+                    "total_points": round(float(lm.get("points_at_leave") or 0), 2),
                     "wins": 0,
                     "rounds_played": 0,
                     "left": True,
