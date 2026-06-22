@@ -1607,24 +1607,18 @@ async def get_user_stats(current_user: dict = Depends(get_current_user)):
     submissions = await db.submissions.find(sub_query).to_list(1000)
     rounds_played = len(submissions)
 
-    # leagues_count: count distinct leagues the user has submitted to
-    # since the clear cutoff. With no cutoff, fall back to "active
-    # leagues I'm currently a member of".
-    if cleared_at:
-        if submissions:
-            post_clear_round_ids = list({s["round_id"] for s in submissions})
-            round_league_rows = await db.rounds.find(
-                {"id": {"$in": post_clear_round_ids}},
-                {"_id": 0, "league_id": 1},
-            ).to_list(2000)
-            leagues_count = len({r["league_id"] for r in round_league_rows})
-        else:
-            leagues_count = 0
+    # leagues_count = distinct leagues the user has submitted to. Durable —
+    # persists even if the league is later deleted or the user leaves, so
+    # historical "leagues played" credit is never lost.
+    if submissions:
+        sub_round_ids = list({s["round_id"] for s in submissions})
+        round_league_rows = await db.rounds.find(
+            {"id": {"$in": sub_round_ids}},
+            {"_id": 0, "league_id": 1},
+        ).to_list(2000)
+        leagues_count = len({r["league_id"] for r in round_league_rows})
     else:
-        leagues_count = await db.leagues.count_documents({
-            "members.id": user_id,
-            "$or": [{"deleted_at": {"$exists": False}}, {"deleted_at": None}],
-        })
+        leagues_count = 0
 
     if not submissions:
         return {
@@ -3975,21 +3969,15 @@ async def _compute_profile_stats(user_doc: dict, recent_submissions: list[dict])
         league_wins_query["finished_at"] = {"$gt": _iso(cleared_at)}
     league_wins = await db.past_leagues.count_documents(league_wins_query)
 
-    # leagues_count — same fallback rule as /auth/stats.
-    if cleared_at:
-        if sub_round_ids:
-            round_league_rows = await db.rounds.find(
-                {"id": {"$in": sub_round_ids}},
-                {"_id": 0, "league_id": 1},
-            ).to_list(20000)
-            leagues_count = len({r["league_id"] for r in round_league_rows})
-        else:
-            leagues_count = 0
+    # Durable leagues_count — distinct leagues submitted to (see /auth/stats).
+    if sub_round_ids:
+        round_league_rows = await db.rounds.find(
+            {"id": {"$in": sub_round_ids}},
+            {"_id": 0, "league_id": 1},
+        ).to_list(20000)
+        leagues_count = len({r["league_id"] for r in round_league_rows})
     else:
-        leagues_count = await db.leagues.count_documents({
-            "members.id": user_id,
-            "$or": [{"deleted_at": {"$exists": False}}, {"deleted_at": None}],
-        })
+        leagues_count = 0
 
     total_points = round(float(user_doc.get("all_time_points", 0) or 0), 2)
     submissions_count = max(

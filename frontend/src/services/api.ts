@@ -20,6 +20,17 @@ export const invalidateFollowCaches = (viewerId: string, targetId?: string) => {
   }
 };
 
+export const invalidateLeagueDataCaches = (viewerId: string) => {
+  // League membership changed (deleted/left) — refresh anything that counts
+  // or lists leagues, plus lifetime stats and the leaderboard.
+  apiCache.invalidate('leagues:');
+  apiCache.invalidate(`leagues:${viewerId}`);
+  apiCache.invalidate('user-leagues:');
+  apiCache.invalidate('users-me-stats-');
+  apiCache.invalidate('auth-');
+  apiCache.invalidate('leaderboard:');
+};
+
 export const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'https://music-league-v2-production.up.railway.app';
 
 const api = axios.create({

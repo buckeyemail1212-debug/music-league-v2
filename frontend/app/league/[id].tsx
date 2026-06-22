@@ -38,6 +38,7 @@ import {
   startRound,
   deleteLeague,
   leaveLeague,
+  invalidateLeagueDataCaches,
   getLeagueStandings,
   getChatStatus,
   getResults,
@@ -401,6 +402,7 @@ export default function LeagueDetailScreen() {
         onPress: async () => {
           try {
             await deleteLeague(id!);
+            if (user?.id) invalidateLeagueDataCaches(user.id);
             // Fan out to the home / past-leagues / profile subscribers
             // so they refetch before/as the user lands back there. Without
             // this, the active-league count and the past-league row
@@ -431,6 +433,7 @@ export default function LeagueDetailScreen() {
           onPress: async () => {
             try {
               await leaveLeague(id!);
+              if (user?.id) invalidateLeagueDataCaches(user.id);
               leagueEvents.emit();
               router.replace('/(tabs)/home' as any);
             } catch (error: any) {
