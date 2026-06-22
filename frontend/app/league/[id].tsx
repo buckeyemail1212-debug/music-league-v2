@@ -752,9 +752,6 @@ export default function LeagueDetailScreen() {
           <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
         </TouchableOpacity>
         <View style={{ flex: 1 }} />
-        {loading && dataLoaded.current && (
-          <ActivityIndicator size="small" color="rgba(255,255,255,0.4)" style={{ marginRight: 8 }} />
-        )}
         <View style={styles.topBarActions}>
           <TouchableOpacity style={styles.topBarBtn} onPress={() => setShowMembersModal(true)}>
             <Ionicons name="people-outline" size={20} color="#FFFFFF" />
