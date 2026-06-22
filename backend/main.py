@@ -6910,12 +6910,11 @@ async def get_results(round_id: str, current_user: dict = Depends(get_current_us
             "rankings": v.get("rankings", []),
         })
 
-    # League members who didn't submit this round. Only populated for
-    # rounds that follow the forfeit-pools rule so the UI doesn't surface
-    # "(no submission)" rows for legacy rounds where those members'
-    # points were still auto-distributed.
+    # League members who didn't submit this round. Always surfaced on
+    # completed round results so the UI can show "(no submission)" rows
+    # for any member who sat the round out.
     non_submitters: list[dict] = []
-    if round_doc.get("forfeit_missing_voter_pools") and league:
+    if league:
         submitter_user_ids = {s["user_id"] for s in submissions}
         member_ids_missing = [
             m["id"] for m in league.get("members", [])
