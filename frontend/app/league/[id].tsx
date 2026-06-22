@@ -1709,7 +1709,15 @@ export default function LeagueDetailScreen() {
             </View>
             <ScrollView style={styles.membersList}>
               {league.members.map((member, index) => (
-                <View key={member.id} style={styles.memberItem}>
+                <TouchableOpacity
+                  key={member.id}
+                  style={styles.memberItem}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    setShowMembersModal(false);
+                    router.push(`/user/${member.id}` as any);
+                  }}
+                >
                   <View style={styles.memberNumber}>
                     <Text style={styles.memberNumberText}>{index + 1}</Text>
                   </View>
@@ -1731,7 +1739,7 @@ export default function LeagueDetailScreen() {
                       <Text style={styles.creatorBadgeText}>Creator</Text>
                     </View>
                   )}
-                </View>
+                </TouchableOpacity>
               ))}
             </ScrollView>
           </View>
