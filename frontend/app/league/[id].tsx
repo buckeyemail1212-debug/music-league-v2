@@ -25,7 +25,6 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
-import { SharedChat } from '../../src/components/SharedChat';
 import ShareResultsModal, {
   ShareResultsData,
 } from '../../src/components/ShareResultsModal';
@@ -106,7 +105,6 @@ export default function LeagueDetailScreen() {
   });
 
   // Chat state
-  const [showChatModal, setShowChatModal] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
   // Members modal state
   const [showMembersModal, setShowMembersModal] = useState(false);
@@ -245,7 +243,7 @@ export default function LeagueDetailScreen() {
 
   // Check for unread messages (silent background check)
   const checkUnreadMessages = async () => {
-    if (!id || showChatModal) return;
+    if (!id) return;
     try {
       const chatStatusRes = await getChatStatus(id);
       setHasUnread(chatStatusRes.data.has_unread);
@@ -258,26 +256,25 @@ export default function LeagueDetailScreen() {
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
     
-    if (id && !showChatModal) {
+    if (id) {
       // Check for unread messages every 5 seconds
       intervalId = setInterval(checkUnreadMessages, 5000);
     }
-    
+
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, [id, showChatModal]);
+  }, [id]);
 
   // Auto-open chat if navigated with openChat param
   useEffect(() => {
     if (openChatParam === 'true' && !loading) {
-      setShowChatModal(true);
+      router.push(`/league-chat?leagueId=${id}&leagueName=${encodeURIComponent(league?.name || 'League Chat')}`);
     }
   }, [openChatParam, loading]);
 
   useFocusEffect(
     useCallback(() => {
-      setShowChatModal(false);
       fetchData();
     }, [id])
   );
@@ -757,7 +754,7 @@ export default function LeagueDetailScreen() {
             <Ionicons name="people-outline" size={20} color="#FFFFFF" />
           </TouchableOpacity>
           {isMember && (
-            <TouchableOpacity style={styles.topBarBtn} onPress={() => setShowChatModal(true)}>
+            <TouchableOpacity style={styles.topBarBtn} onPress={() => router.push(`/league-chat?leagueId=${id}&leagueName=${encodeURIComponent(league?.name || 'League Chat')}`)}>
               <Ionicons name="chatbubble-outline" size={20} color="#FFFFFF" />
               {hasUnread && <View style={styles.topBarBadge} />}
             </TouchableOpacity>
@@ -1667,24 +1664,6 @@ export default function LeagueDetailScreen() {
           </TouchableWithoutFeedback>
           </KeyboardAvoidingView>
         </TouchableWithoutFeedback>
-      </Modal>
-
-      {/* Chat Modal */}
-      <Modal
-        visible={showChatModal}
-        animationType="slide"
-        presentationStyle="fullScreen"
-        onRequestClose={() => setShowChatModal(false)}
-      >
-        <SafeAreaView style={styles.chatModalContainer}>
-          <SharedChat
-            leagueId={id!}
-            leagueName={league?.name || 'League Chat'}
-            onClose={() => {
-              setShowChatModal(false);
-                    }}
-          />
-        </SafeAreaView>
       </Modal>
 
       {/* Members Modal */}
@@ -2691,11 +2670,6 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
     backgroundColor: '#7C3AED',
-  },
-  chatModalContainer: {
-    flex: 1,
-    backgroundColor: '#121212',
-    paddingTop: Platform.OS === 'ios' ? 55 : 0,
   },
   chatModalContent: {
     flex: 1,
