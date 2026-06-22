@@ -49,7 +49,7 @@ export default function LoginScreen() {
         <View style={styles.content}>
           <View style={styles.header}>
             <Text style={styles.welcome}>Welcome to</Text>
-            <Text style={styles.title}>Music <Text style={styles.titleItalic}>Comp</Text></Text>
+            <Text style={styles.title}>Riff</Text>
           </View>
 
           <View style={styles.form}>

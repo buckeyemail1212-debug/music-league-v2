@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Music Comp",
+    "name": "Riff",
     "slug": "music-leeg",
     "version": "1.0.0",
     "runtimeVersion": "1.0.0",
@@ -15,8 +15,8 @@
       "bundleIdentifier": "com.musicleeg.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSPhotoLibraryUsageDescription": "Allow Music Comp to access your photos to set your profile and league images.",
-        "NSCameraUsageDescription": "Allow Music Comp to use your camera to take profile and league photos."
+        "NSPhotoLibraryUsageDescription": "Allow Riff to access your photos to set your profile and league images.",
+        "NSCameraUsageDescription": "Allow Riff to use your camera to take profile and league photos."
       }
     },
     "android": {

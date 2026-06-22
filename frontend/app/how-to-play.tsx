@@ -41,7 +41,7 @@ export default function HowToPlayPage() {
 
         <Text style={styles.intro}>
           Do you have the best taste in music? Do you always know the perfect song for the perfect moment?
-          If so, get ready to play Music Comp. Get a group of friends, submit songs, vote, and
+          If so, get ready to play Riff. Get a group of friends, submit songs, vote, and
           find out whose taste ranks on top.
         </Text>
 
@@ -78,7 +78,7 @@ export default function HowToPlayPage() {
         <View style={styles.moreWrap}>
           <Text style={styles.moreHeader}>More than a league</Text>
           <Text style={styles.moreBlurb}>
-            Not in an active round? Post a tune to your story and let everyone hear what you're vibing to. Music Comp is about sharing taste, not just competing.
+            Not in an active round? Post a tune to your story and let everyone hear what you're vibing to. Riff is about sharing taste, not just competing.
           </Text>
           <Text style={styles.moreBlurb}>
             Climb the global leaderboard, build out your profile, and show off your stats — wins, rounds played, and your all-time taste breakdown. Follow friends and see how your ear stacks up.

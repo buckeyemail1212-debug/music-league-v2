@@ -425,7 +425,7 @@ export default function SettingsPage() {
           />
         </View>
 
-        <Text style={styles.version}>Music Comp v1.0</Text>
+        <Text style={styles.version}>Riff v1.0</Text>
       </ScrollView>
 
       {/* Edit username modal */}
@@ -487,8 +487,8 @@ export default function SettingsPage() {
             <ScrollView style={{ maxHeight: 280 }}>
               <Text style={styles.legalBody}>
                 {legalOpen === 'privacy'
-                  ? 'Music Comp collects your email address, display name, and profile photo to provide the app experience. We do not sell your data to third parties. Song submissions and votes are stored to calculate league results. You can delete your account and all associated data at any time from this screen. By using this app you agree to these terms.'
-                  : 'Music Comp is provided for entertainment purposes. You are responsible for the content you submit including song selections and chat messages. We reserve the right to suspend accounts that violate community standards. Song previews are provided by Deezer for personal use only. We may update these terms at any time and continued use of the app constitutes acceptance.'}
+                  ? 'Riff collects your email address, display name, and profile photo to provide the app experience. We do not sell your data to third parties. Song submissions and votes are stored to calculate league results. You can delete your account and all associated data at any time from this screen. By using this app you agree to these terms.'
+                  : 'Riff is provided for entertainment purposes. You are responsible for the content you submit including song selections and chat messages. We reserve the right to suspend accounts that violate community standards. Song previews are provided by Deezer for personal use only. We may update these terms at any time and continued use of the app constitutes acceptance.'}
               </Text>
             </ScrollView>
             <TouchableOpacity
