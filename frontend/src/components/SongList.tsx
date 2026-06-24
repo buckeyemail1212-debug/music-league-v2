@@ -20,6 +20,7 @@ import LikeButton from './LikeButton';
 import { PreviewPlayButton } from './PreviewPlayButton';
 import { apiCache } from '../services/apiCache';
 import { useAuth } from '../context/AuthContext';
+import { colors } from '../theme/colors';
 
 type BrowseFilter = 'new' | 'liked';
 
@@ -111,7 +112,7 @@ export default function SongList({ onSelectSong, songIdPrefix }: SongListProps) 
           <Image source={{ uri: item.cover_url }} style={styles.resultCover} />
         ) : (
           <View style={[styles.resultCover, styles.resultCoverFallback]}>
-            <Ionicons name="musical-note" size={20} color="#B3B3B3" />
+            <Ionicons name="musical-note" size={20} color={colors.textSecondary} />
           </View>
         )}
         <View style={styles.resultText}>
@@ -147,7 +148,7 @@ export default function SongList({ onSelectSong, songIdPrefix }: SongListProps) 
       <TextInput
         style={styles.searchInput}
         placeholder="Search for a song..."
-        placeholderTextColor="#6A6A6A"
+        placeholderTextColor={colors.textTertiary}
         value={query}
         onChangeText={setQuery}
         autoCorrect={false}
@@ -203,8 +204,8 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   searchInput: {
-    backgroundColor: '#282828',
-    color: '#FFFFFF',
+    backgroundColor: colors.surface3,
+    color: colors.textPrimary,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -224,25 +225,25 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
+    borderColor: colors.borderStrong,
   },
   chipActive: {
-    backgroundColor: '#7C3AED',
-    borderColor: '#7C3AED',
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
   chipLabel: {
-    color: 'rgba(255,255,255,0.85)',
+    color: colors.textSecondary,
     fontSize: 13,
     fontWeight: '700',
   },
   chipLabelActive: {
-    color: '#FFFFFF',
+    color: colors.onAccent,
   },
   searchingWrap: {
     alignItems: 'center',
     paddingTop: 24,
   },
-  searchingText: { color: '#B3B3B3', fontSize: 14 },
+  searchingText: { color: colors.textSecondary, fontSize: 14 },
 
   resultRow: {
     flexDirection: 'row',
@@ -274,11 +275,11 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   resultCoverFallback: {
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
     alignItems: 'center',
     justifyContent: 'center',
   },
   resultText: { flex: 1 },
-  resultTitle: { color: '#FFFFFF', fontSize: 15, fontWeight: '600' },
-  resultArtist: { color: '#B3B3B3', fontSize: 13, marginTop: 2 },
+  resultTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },
+  resultArtist: { color: colors.textSecondary, fontSize: 13, marginTop: 2 },
 });

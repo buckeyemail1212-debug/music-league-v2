@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import LeaguesSearchTab from '../src/components/LeaguesSearchTab';
 import MembersSearchTab from '../src/components/MembersSearchTab';
+import { colors } from '../src/theme/colors';
 
 type Tab = 'leagues' | 'members';
 
@@ -28,7 +29,7 @@ export default function HomeSearchScreen() {
           style={styles.headerBtn}
           activeOpacity={0.75}
         >
-          <Ionicons name="close" size={26} color="#FFFFFF" />
+          <Ionicons name="close" size={26} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Search</Text>
         <View style={styles.headerBtn} />
@@ -63,13 +64,13 @@ export default function HomeSearchScreen() {
         <Ionicons
           name="search"
           size={18}
-          color="#6A6A6A"
+          color={colors.textTertiary}
           style={styles.searchIcon}
         />
         <TextInput
           style={styles.searchInput}
           placeholder={activeTab === 'leagues' ? 'Search all leagues' : 'Search members'}
-          placeholderTextColor="#6A6A6A"
+          placeholderTextColor={colors.textPlaceholder}
           value={query}
           onChangeText={setQuery}
           autoCorrect={false}
@@ -90,7 +91,7 @@ export default function HomeSearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212' },
+  container: { flex: 1, backgroundColor: colors.bg },
 
   header: {
     flexDirection: 'row',
@@ -98,7 +99,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 6,
     borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
+    borderBottomColor: colors.border,
   },
   headerBtn: {
     minWidth: 40,
@@ -110,14 +111,14 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 17,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     textAlign: 'center',
   },
 
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
     borderRadius: 10,
     marginHorizontal: 20,
     marginTop: 12,
@@ -128,7 +129,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 15,
     paddingVertical: 12,
   },
@@ -145,12 +146,12 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#6A6A6A',
+    color: colors.textTertiary,
     paddingVertical: 10,
     letterSpacing: 0.5,
   },
   tabLabelActive: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   tabUnderline: {
     height: 2,
@@ -158,7 +159,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   tabUnderlineActive: {
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
   },
 
   content: {

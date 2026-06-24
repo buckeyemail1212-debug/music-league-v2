@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import type { League } from '../services/api';
+import { colors } from '../theme/colors';
 
 /**
  * Shared post-create confirmation screen used by both the simple Create
@@ -44,12 +45,12 @@ export default function LeagueCreatedSuccess({
         <View style={{ width: 26 }} />
         <View style={{ width: 26 }} />
         <TouchableOpacity onPress={onClose} hitSlop={10} style={styles.headerBtn}>
-          <Ionicons name="close" size={26} color="#FFFFFF" />
+          <Ionicons name="close" size={26} color={colors.textPrimary} />
         </TouchableOpacity>
       </View>
       <View style={styles.successWrap}>
         <View style={styles.successBadge}>
-          <Ionicons name="checkmark-circle" size={48} color="#10B981" />
+          <Ionicons name="checkmark-circle" size={48} color={colors.success} />
         </View>
         <Text style={styles.successTitle}>LEAGUE CREATED</Text>
         <Text style={styles.successName}>{league.name}</Text>
@@ -79,7 +80,7 @@ export default function LeagueCreatedSuccess({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212' },
+  container: { flex: 1, backgroundColor: colors.bg },
   header: {
     paddingHorizontal: 14,
     paddingTop: 4,
@@ -107,43 +108,43 @@ const styles = StyleSheet.create({
   successTitle: {
     fontSize: 26,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     letterSpacing: 1,
   },
   successName: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     marginTop: 8,
     marginBottom: 28,
     textAlign: 'center',
   },
   successPrompt: {
     fontSize: 13,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     marginBottom: 12,
     textAlign: 'center',
   },
   codeBox: {
     borderWidth: 2,
     borderStyle: 'dashed',
-    borderColor: '#7C3AED',
+    borderColor: colors.accent,
     borderRadius: 12,
     paddingHorizontal: 24,
     paddingVertical: 20,
     marginBottom: 24,
-    backgroundColor: 'rgba(124,58,237,0.08)',
+    backgroundColor: colors.accentFaint,
   },
   codeText: {
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     fontSize: 36,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     letterSpacing: 8,
   },
   shareBtn: {
     alignItems: 'center',
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     paddingVertical: 14,
     paddingHorizontal: 36,
     borderRadius: 999,
@@ -151,14 +152,14 @@ const styles = StyleSheet.create({
     minWidth: 180,
   },
   shareBtnText: {
-    color: '#FFFFFF',
+    color: colors.onAccent,
     fontWeight: '800',
     fontSize: 14,
     letterSpacing: 1.4,
   },
   goBtn: { paddingVertical: 14, paddingHorizontal: 32 },
   goBtnText: {
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     fontWeight: '700',
     fontSize: 14,
   },

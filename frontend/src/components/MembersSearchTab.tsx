@@ -13,8 +13,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { searchUsers, followUser, unfollowUser, invalidateFollowCaches, UserSearchResult } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { colors } from '../theme/colors';
 
-const PURPLE = '#7C3AED';
+const PURPLE = colors.accent;
 
 interface Props {
   query: string;
@@ -112,7 +113,6 @@ export default function MembersSearchTab({ query }: Props) {
   };
 
   const renderRow = ({ item }: { item: UserSearchResult }) => {
-    const initial = (item.username || '?').charAt(0).toUpperCase();
     const inFlight = followingId === item.id;
 
     // 'follows_you' is rendered as a plain "Follow" pill too —
@@ -132,10 +132,10 @@ export default function MembersSearchTab({ query }: Props) {
           hitSlop={6}
         >
           {inFlight ? (
-            <ActivityIndicator color="#FFFFFF" size="small" />
+            <ActivityIndicator color={colors.onAccent} size="small" />
           ) : (
             <>
-              <Ionicons name="add" size={14} color="#FFFFFF" />
+              <Ionicons name="add" size={14} color={colors.onAccent} />
               <Text style={styles.followBtnText}>Follow</Text>
             </>
           )}
@@ -151,7 +151,7 @@ export default function MembersSearchTab({ query }: Props) {
           hitSlop={6}
         >
           {inFlight ? (
-            <ActivityIndicator color="#FFFFFF" size="small" />
+            <ActivityIndicator color={colors.textPrimary} size="small" />
           ) : (
             <Text style={styles.mutedTagText}>Requested</Text>
           )}
@@ -177,7 +177,7 @@ export default function MembersSearchTab({ query }: Props) {
           <Image source={{ uri: item.profile_photo }} style={styles.avatar} />
         ) : (
           <View style={[styles.avatar, styles.avatarFallback]}>
-            <Text style={styles.avatarInitial}>{initial}</Text>
+            <Ionicons name="person" size={22} color={colors.textTertiary} />
           </View>
         )}
         <View style={styles.identity}>
@@ -186,7 +186,7 @@ export default function MembersSearchTab({ query }: Props) {
               <Ionicons
                 name="lock-closed"
                 size={12}
-                color="#8B8B8B"
+                color={colors.textTertiary}
                 style={styles.lockIcon}
               />
             )}
@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -258,14 +258,9 @@ const styles = StyleSheet.create({
     borderRadius: 22,
   },
   avatarFallback: {
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface4,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  avatarInitial: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '800',
   },
   identity: { flex: 1 },
   nameRow: {
@@ -274,7 +269,7 @@ const styles = StyleSheet.create({
   },
   lockIcon: { marginRight: 6 },
   username: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 15,
     fontWeight: '600',
     flexShrink: 1,
@@ -291,7 +286,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   followBtnText: {
-    color: '#FFFFFF',
+    color: colors.onAccent,
     fontWeight: '800',
     fontSize: 12,
     letterSpacing: 0.4,
@@ -300,13 +295,13 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     paddingHorizontal: 12,
     borderRadius: 999,
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: 92,
   },
   mutedTagText: {
-    color: '#B3B3B3',
+    color: colors.textPrimary,
     fontWeight: '700',
     fontSize: 12,
     letterSpacing: 0.4,
@@ -318,6 +313,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 24,
   },
-  hintText: { color: '#6A6A6A', fontSize: 14, textAlign: 'center' },
-  emptyText: { color: '#B3B3B3', fontSize: 13, textAlign: 'center' },
+  hintText: { color: colors.textTertiary, fontSize: 14, textAlign: 'center' },
+  emptyText: { color: colors.textSecondary, fontSize: 13, textAlign: 'center' },
 });

@@ -18,8 +18,9 @@ import {
 } from '../services/api';
 import { leagueEvents } from '../utils/leagueEvents';
 import LeagueAvatar from './LeagueAvatar';
+import { colors } from '../theme/colors';
 
-const PURPLE = '#7C3AED';
+const PURPLE = colors.accent;
 
 const parseStartsAt = (s: string): Date =>
   new Date(s.endsWith('Z') || s.includes('+') ? s : s + 'Z');
@@ -189,7 +190,7 @@ export default function LeaguesSearchTab({ query }: Props) {
               <Ionicons
                 name="lock-closed"
                 size={12}
-                color="#B3B3B3"
+                color={colors.textSecondary}
                 style={styles.lockIcon}
               />
             )}
@@ -230,7 +231,7 @@ export default function LeaguesSearchTab({ query }: Props) {
               activeOpacity={0.85}
             >
               {joiningId === item.id ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
+                <ActivityIndicator color={colors.onAccent} size="small" />
               ) : (
                 <Text style={styles.joinBtnText}>Join League</Text>
               )}
@@ -287,7 +288,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 14,
@@ -298,16 +299,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   lockIcon: { marginRight: 6 },
-  name: { color: '#FFFFFF', fontWeight: '700', fontSize: 15, flexShrink: 1 },
+  name: { color: colors.textPrimary, fontWeight: '700', fontSize: 15, flexShrink: 1 },
   genre: {
-    color: '#8B8B8B',
+    color: colors.textTertiary,
     fontSize: 11,
     fontWeight: '600',
     letterSpacing: 0.4,
     textTransform: 'uppercase',
     marginTop: 3,
   },
-  meta: { color: '#B3B3B3', fontSize: 12, marginTop: 4 },
+  meta: { color: colors.textSecondary, fontSize: 12, marginTop: 4 },
   actionWrap: { alignItems: 'flex-end', minWidth: 92 },
   joinBtn: {
     backgroundColor: PURPLE,
@@ -319,7 +320,7 @@ const styles = StyleSheet.create({
     minWidth: 92,
   },
   joinBtnText: {
-    color: '#FFFFFF',
+    color: colors.onAccent,
     fontWeight: '800',
     fontSize: 12,
     letterSpacing: 0.6,
@@ -328,13 +329,13 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 999,
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: 92,
   },
   mutedTagText: {
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     fontWeight: '700',
     fontSize: 12,
     letterSpacing: 0.5,
@@ -346,6 +347,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 24,
   },
-  hintText: { color: '#6A6A6A', fontSize: 14, textAlign: 'center' },
-  emptyText: { color: '#B3B3B3', fontSize: 13, textAlign: 'center' },
+  hintText: { color: colors.textTertiary, fontSize: 14, textAlign: 'center' },
+  emptyText: { color: colors.textSecondary, fontSize: 13, textAlign: 'center' },
 });
