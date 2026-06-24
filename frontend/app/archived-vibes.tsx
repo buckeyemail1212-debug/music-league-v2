@@ -18,6 +18,7 @@ import {
   PendingStoryGroup,
 } from '../src/services/pendingStories';
 import { useAuth } from '../src/context/AuthContext';
+import { colors } from '../src/theme/colors';
 
 const GRID_COLS = 3;
 const HORIZ_PAD = 20;
@@ -104,7 +105,7 @@ export default function ArchivedVibesScreen() {
           style={styles.headerBtn}
           activeOpacity={0.75}
         >
-          <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
+          <Ionicons name="chevron-back" size={26} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Today's Vibes Archive</Text>
         <View style={styles.headerBtn} />
@@ -112,11 +113,11 @@ export default function ArchivedVibesScreen() {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator color="#FFFFFF" />
+          <ActivityIndicator color={colors.textPrimary} />
         </View>
       ) : stories.length === 0 ? (
         <View style={styles.center}>
-          <Ionicons name="archive-outline" size={56} color="#6A6A6A" />
+          <Ionicons name="archive-outline" size={56} color={colors.textTertiary} />
           <Text style={styles.emptyTitle}>No archived vibes yet</Text>
           <Text style={styles.emptyBody}>
             Stories you don't delete appear here after 24 hours.
@@ -137,7 +138,7 @@ export default function ArchivedVibesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212' },
+  container: { flex: 1, backgroundColor: colors.bg },
 
   header: {
     flexDirection: 'row',
@@ -145,7 +146,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 6,
     borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
+    borderBottomColor: colors.border,
   },
   headerBtn: {
     minWidth: 40,
@@ -157,7 +158,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 17,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     textAlign: 'center',
   },
 
@@ -171,11 +172,11 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   emptyBody: {
     fontSize: 13,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 18,
   },
@@ -191,20 +192,20 @@ const styles = StyleSheet.create({
     marginBottom: GAP,
     borderRadius: 8,
     overflow: 'hidden',
-    backgroundColor: '#1E1E1E',
+    backgroundColor: colors.surface,
   },
   tileImg: {
     width: TILE_SIZE,
     height: TILE_SIZE,
   },
   tileImgFallback: {
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
   },
   dateBadge: {
     position: 'absolute',
     top: 6,
     left: 6,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.bg,
     borderRadius: 8,
     paddingHorizontal: 6,
     paddingVertical: 3,
@@ -212,13 +213,13 @@ const styles = StyleSheet.create({
     minWidth: 36,
   },
   dateBadgeDay: {
-    color: '#121212',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '800',
     lineHeight: 18,
   },
   dateBadgeMonth: {
-    color: '#3A3A3A',
+    color: colors.textSecondary,
     fontSize: 9,
     fontWeight: '700',
     letterSpacing: 0.5,

@@ -19,6 +19,7 @@ import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../src/context/AuthContext';
 import ExpandableImage from '../src/components/ExpandableImage';
+import { colors } from '../src/theme/colors';
 
 const PRONOUNS_MAX = 30;
 const BIO_MAX = 75;
@@ -158,7 +159,7 @@ export default function EditProfileScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} hitSlop={10} style={styles.headerBtn}>
-          <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
+          <Ionicons name="chevron-back" size={26} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Edit profile</Text>
         <View style={styles.headerSpacer} />
@@ -184,11 +185,11 @@ export default function EditProfileScreen() {
             >
               <View style={styles.avatar}>
                 {uploading ? (
-                  <ActivityIndicator color="#7C3AED" />
+                  <ActivityIndicator color={colors.accent} />
                 ) : user?.profile_photo ? (
                   <Image source={{ uri: user.profile_photo }} style={styles.avatarImg} />
                 ) : (
-                  <Ionicons name="person" size={48} color="#7C3AED" />
+                  <Ionicons name="person" size={48} color={colors.accent} />
                 )}
               </View>
             </ExpandableImage>
@@ -282,7 +283,7 @@ function Field({
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor="#6A6A6A"
+        placeholderTextColor={colors.textPlaceholder}
         multiline={!!multiline}
         autoCapitalize={autoCapitalize ?? 'sentences'}
         autoCorrect={!multiline ? false : undefined}
@@ -293,7 +294,7 @@ function Field({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212' },
+  container: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
   scroll: { paddingBottom: 48 },
 
@@ -306,7 +307,7 @@ const styles = StyleSheet.create({
   },
   headerBtn: { minWidth: 40, minHeight: 40, alignItems: 'center', justifyContent: 'center' },
   headerSpacer: { minWidth: 40 },
-  headerTitle: { fontSize: 16, fontWeight: '800', color: '#FFFFFF' },
+  headerTitle: { fontSize: 16, fontWeight: '800', color: colors.textPrimary },
 
   avatarBlock: {
     alignItems: 'center',
@@ -318,14 +319,14 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
   avatarImg: { width: 120, height: 120, borderRadius: 60 },
   editPhotoLink: {
-    color: '#7C3AED',
+    color: colors.accent,
     fontSize: 14,
     fontWeight: '700',
     marginTop: 12,
@@ -342,22 +343,22 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
   fieldCounter: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#6A6A6A',
+    color: colors.textTertiary,
   },
   fieldInput: {
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface3,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   fieldInputMultiline: {
     minHeight: 80,
@@ -367,11 +368,11 @@ const styles = StyleSheet.create({
   saveBtn: {
     marginTop: 8,
     marginHorizontal: 20,
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     borderRadius: 999,
     paddingVertical: 14,
     alignItems: 'center',
   },
   saveBtnDisabled: { opacity: 0.6 },
-  saveBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800', letterSpacing: 0.4 },
+  saveBtnText: { color: colors.onAccent, fontSize: 14, fontWeight: '800', letterSpacing: 0.4 },
 });

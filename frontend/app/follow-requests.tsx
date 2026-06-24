@@ -18,13 +18,7 @@ import {
   denyFollowRequest,
   FollowRequestUser,
 } from '../src/services/api';
-
-const SUBMISSION_COLORS = ['#7C3AED', '#10B981', '#F59E0B', '#EF4444', '#3B82F6', '#EC4899'];
-const pickColor = (seed: string) => {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = ((h << 5) - h + seed.charCodeAt(i)) >>> 0;
-  return SUBMISSION_COLORS[h % SUBMISSION_COLORS.length];
-};
+import { colors } from '../src/theme/colors';
 
 export default function FollowRequestsScreen() {
   const router = useRouter();
@@ -83,7 +77,7 @@ export default function FollowRequestsScreen() {
       <Header onBack={() => router.back()} title="Follow Requests" />
       {users === null ? (
         <Centered>
-          <ActivityIndicator color="#FFFFFF" />
+          <ActivityIndicator color={colors.textPrimary} />
         </Centered>
       ) : users.length === 0 ? (
         <Centered>
@@ -115,7 +109,7 @@ function Header({ onBack, title }: { onBack: () => void; title: string }) {
   return (
     <View style={styles.header}>
       <TouchableOpacity onPress={onBack} hitSlop={8} style={styles.headerBtn}>
-        <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
+        <Ionicons name="chevron-back" size={26} color={colors.textPrimary} />
       </TouchableOpacity>
       <Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>
       <View style={styles.headerBtn} />
@@ -147,13 +141,11 @@ function RequestRow({
         onPress={onPress}
         style={styles.rowMain}
       >
-        <View style={[styles.avatar, { backgroundColor: pickColor(row.user_id) }]}>
+        <View style={styles.avatar}>
           {row.avatar_url ? (
             <Image source={{ uri: row.avatar_url }} style={styles.avatarImg} />
           ) : (
-            <Text style={styles.avatarInitial}>
-              {(row.username || '?').charAt(0).toUpperCase()}
-            </Text>
+            <Ionicons name="person" size={22} color={colors.textTertiary} />
           )}
         </View>
         <View style={styles.rowInfo}>
@@ -183,7 +175,7 @@ function RequestRow({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212' },
+  container: { flex: 1, backgroundColor: colors.bg },
 
   header: {
     flexDirection: 'row',
@@ -192,7 +184,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     gap: 4,
     borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
+    borderBottomColor: colors.border,
   },
   headerBtn: {
     minWidth: 40, minHeight: 40,
@@ -200,17 +192,17 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     flex: 1,
-    fontSize: 17, fontWeight: '700', color: '#FFFFFF',
+    fontSize: 17, fontWeight: '700', color: colors.textPrimary,
   },
 
   center: {
     flex: 1, alignItems: 'center', justifyContent: 'center',
     gap: 12, paddingHorizontal: 24,
   },
-  emptyText: { fontSize: 14, color: '#B3B3B3' },
+  emptyText: { fontSize: 14, color: colors.textSecondary },
 
   listContent: { paddingVertical: 4 },
-  separator: { height: 0.5, backgroundColor: 'rgba(255,255,255,0.06)' },
+  separator: { height: 0.5, backgroundColor: colors.borderFaint },
 
   row: {
     flexDirection: 'row',
@@ -229,11 +221,11 @@ const styles = StyleSheet.create({
     width: 44, height: 44, borderRadius: 22,
     alignItems: 'center', justifyContent: 'center',
     overflow: 'hidden',
+    backgroundColor: colors.surface4,
   },
   avatarImg: { width: 44, height: 44, borderRadius: 22 },
-  avatarInitial: { fontSize: 18, fontWeight: '800', color: '#FFFFFF' },
   rowInfo: { flex: 1 },
-  rowUsername: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  rowUsername: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
 
   actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   actionBtn: {
@@ -241,12 +233,12 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: 'center',
   },
-  actionBtnPrimary: { backgroundColor: '#7C3AED' },
+  actionBtnPrimary: { backgroundColor: colors.accent },
   actionBtnSecondary: {
-    backgroundColor: 'transparent',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
+    backgroundColor: colors.surface3,
+    borderWidth: 1, borderColor: colors.borderStrong,
   },
   actionBtnLabel: { fontSize: 12, fontWeight: '800', letterSpacing: 0.4 },
-  actionBtnLabelPrimary: { color: '#FFFFFF' },
-  actionBtnLabelSecondary: { color: '#FFFFFF' },
+  actionBtnLabelPrimary: { color: colors.onAccent },
+  actionBtnLabelSecondary: { color: colors.textPrimary },
 });

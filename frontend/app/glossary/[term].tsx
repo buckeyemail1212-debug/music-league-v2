@@ -9,6 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { colors } from '../../src/theme/colors';
 
 type Term = {
   slug: string;
@@ -59,7 +60,7 @@ export default function GlossaryPage() {
             hitSlop={10}
             style={styles.headerBtn}
           >
-            <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
+            <Ionicons name="chevron-back" size={26} color={colors.textPrimary} />
           </TouchableOpacity>
           <View style={{ width: 26 }} />
         </View>
@@ -81,7 +82,7 @@ export default function GlossaryPage() {
           hitSlop={10}
           style={styles.headerBtn}
         >
-          <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
+          <Ionicons name="chevron-back" size={26} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>GLOSSARY</Text>
         <View style={{ width: 26 }} />
@@ -110,7 +111,7 @@ export default function GlossaryPage() {
               <Text style={styles.nextDisplay}>{next.display}</Text>
               <Text style={styles.nextTagline}>{next.tagline}</Text>
             </View>
-            <Ionicons name="arrow-forward" size={22} color="#FFFFFF" />
+            <Ionicons name="arrow-forward" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
         )}
       </ScrollView>
@@ -119,7 +120,7 @@ export default function GlossaryPage() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212' },
+  container: { flex: 1, backgroundColor: colors.bg },
   header: {
     paddingHorizontal: 14,
     paddingTop: 4,
@@ -133,62 +134,62 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 1.4,
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   scroll: { paddingHorizontal: 24, paddingBottom: 60 },
   display: {
     fontSize: 44,
     fontWeight: '900',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     letterSpacing: -0.5,
     marginTop: 24,
   },
   tagline: {
     fontSize: 16,
     fontStyle: 'italic',
-    color: '#7C3AED',
+    color: colors.accent,
     marginTop: 8,
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: colors.border,
     marginVertical: 22,
   },
   paragraph: {
     fontSize: 15,
     lineHeight: 24,
-    color: '#D9D9D9',
+    color: colors.textSecondary,
     marginBottom: 16,
   },
   nextCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     borderRadius: 14,
     padding: 18,
     gap: 12,
     marginTop: 24,
     borderWidth: 1,
-    borderColor: 'rgba(124,58,237,0.3)',
+    borderColor: colors.accentFaint,
   },
   nextLabel: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#7C3AED',
+    color: colors.accent,
     letterSpacing: 1.5,
     marginBottom: 4,
   },
   nextDisplay: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   nextTagline: {
     fontSize: 13,
     fontStyle: 'italic',
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  emptyText: { color: '#B3B3B3', fontSize: 14 },
+  emptyText: { color: colors.textSecondary, fontSize: 14 },
 });

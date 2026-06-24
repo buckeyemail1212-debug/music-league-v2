@@ -9,8 +9,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { colors } from '../src/theme/colors';
 
-const PURPLE = '#7C3AED';
+const PURPLE = colors.accent;
 
 export default function HowToPlayPage() {
   const router = useRouter();
@@ -25,7 +26,7 @@ export default function HowToPlayPage() {
           hitSlop={10}
           style={styles.headerBtn}
         >
-          <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
+          <Ionicons name="chevron-back" size={26} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>HOW TO PLAY</Text>
         <View style={{ width: 26 }} />
@@ -120,7 +121,7 @@ function StepCard({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212' },
+  container: { flex: 1, backgroundColor: colors.bg },
   header: {
     paddingHorizontal: 14,
     paddingTop: 4,
@@ -134,13 +135,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 1.4,
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   scroll: { paddingHorizontal: 24, paddingBottom: 60 },
   hero: {
     fontSize: 32,
     fontWeight: '900',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     letterSpacing: -0.5,
     lineHeight: 38,
     marginTop: 20,
@@ -151,7 +152,7 @@ const styles = StyleSheet.create({
   intro: {
     fontSize: 15,
     lineHeight: 23,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     marginTop: 20,
     marginBottom: 32,
   },
@@ -162,7 +163,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 14,
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     borderRadius: 14,
     padding: 18,
   },
@@ -175,12 +176,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cardBadgeText: {
-    color: '#FFFFFF',
+    color: colors.onAccent,
     fontWeight: '800',
     fontSize: 15,
   },
   cardTitle: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontWeight: '800',
     fontSize: 16,
     marginBottom: 6,
@@ -188,7 +189,7 @@ const styles = StyleSheet.create({
   stepBody: {
     fontSize: 14,
     lineHeight: 21,
-    color: '#D9D9D9',
+    color: colors.textSecondary,
   },
   link: {
     color: PURPLE,
@@ -208,5 +209,5 @@ const styles = StyleSheet.create({
   },
   moreWrap: { marginTop: 36, gap: 12 },
   moreHeader: { color: PURPLE, fontWeight: '800', fontSize: 16, marginBottom: 6 },
-  moreBlurb: { fontSize: 14, lineHeight: 21, color: '#D9D9D9' },
+  moreBlurb: { fontSize: 14, lineHeight: 21, color: colors.textSecondary },
 });

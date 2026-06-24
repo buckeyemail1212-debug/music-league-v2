@@ -30,6 +30,7 @@ import {
 } from '../src/services/api';
 import { apiCache } from '../src/services/apiCache';
 import { leagueEvents } from '../src/utils/leagueEvents';
+import { colors } from '../src/theme/colors';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -263,7 +264,7 @@ export default function SettingsPage() {
           hitSlop={10}
           style={styles.headerBtn}
         >
-          <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
+          <Ionicons name="chevron-back" size={26} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>SETTINGS</Text>
         <View style={{ width: 26 }} />
@@ -282,15 +283,15 @@ export default function SettingsPage() {
           >
             <View style={styles.avatar}>
               {uploading ? (
-                <ActivityIndicator color="#7C3AED" />
+                <ActivityIndicator color={colors.accent} />
               ) : user?.profile_photo ? (
                 <Image source={{ uri: user.profile_photo }} style={styles.avatarImg} />
               ) : (
-                <Ionicons name="person" size={40} color="#7C3AED" />
+                <Ionicons name="person" size={40} color={colors.accent} />
               )}
             </View>
             <View style={styles.cameraBadge}>
-              <Ionicons name="camera" size={14} color="#FFFFFF" />
+              <Ionicons name="camera" size={14} color={colors.onAccent} />
             </View>
           </ExpandableImage>
           <Text style={styles.profileName}>
@@ -456,7 +457,7 @@ export default function SettingsPage() {
               disabled={saving}
             >
               {saving ? (
-                <ActivityIndicator color="#FFFFFF" />
+                <ActivityIndicator color={colors.onAccent} />
               ) : (
                 <Text style={styles.popupSaveText}>Save</Text>
               )}
@@ -529,7 +530,7 @@ export default function SettingsPage() {
                 disabled={clearBusy}
               >
                 {clearBusy ? (
-                  <ActivityIndicator color="#FFFFFF" />
+                  <ActivityIndicator color={colors.onAccent} />
                 ) : (
                   <Text style={styles.confirmCtaText}>Clear Data</Text>
                 )}
@@ -567,7 +568,7 @@ export default function SettingsPage() {
                 disabled={deleteBusy}
               >
                 {deleteBusy ? (
-                  <ActivityIndicator color="#FFFFFF" />
+                  <ActivityIndicator color={colors.onAccent} />
                 ) : (
                   <Text style={styles.confirmCtaText}>Delete Account</Text>
                 )}
@@ -587,7 +588,7 @@ export default function SettingsPage() {
         <View style={styles.overlay}>
           <View style={styles.popup}>
             <View style={styles.successIcon}>
-              <Ionicons name="checkmark-circle" size={48} color="#10B981" />
+              <Ionicons name="checkmark-circle" size={48} color={colors.success} />
             </View>
             <Text style={styles.successTitle}>Data cleared</Text>
             <Text style={styles.successBody}>
@@ -633,11 +634,11 @@ function Row({
         <Ionicons
           name={icon}
           size={20}
-          color={danger ? '#EF4444' : '#B3B3B3'}
+          color={danger ? colors.danger : colors.textSecondary}
         />
         <Text style={[styles.rowLabel, danger && styles.rowLabelDanger]}>{label}</Text>
       </View>
-      {!danger && <Ionicons name="chevron-forward" size={18} color="#6A6A6A" />}
+      {!danger && <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />}
     </TouchableOpacity>
   );
 }
@@ -658,16 +659,16 @@ function SwitchRow({
   return (
     <View style={styles.row}>
       <View style={styles.rowLeft}>
-        <Ionicons name={icon} size={20} color="#B3B3B3" />
+        <Ionicons name={icon} size={20} color={colors.textSecondary} />
         <Text style={styles.rowLabel}>{label}</Text>
       </View>
       <Switch
         value={value}
         onValueChange={onValueChange}
         disabled={disabled}
-        trackColor={{ false: '#3A3A3A', true: '#7C3AED' }}
-        thumbColor="#FFFFFF"
-        ios_backgroundColor="#3A3A3A"
+        trackColor={{ false: colors.surface3, true: colors.accent }}
+        thumbColor={colors.onAccent}
+        ios_backgroundColor={colors.surface3}
       />
     </View>
   );
@@ -678,7 +679,7 @@ function Separator() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212' },
+  container: { flex: 1, backgroundColor: colors.bg },
   header: {
     paddingHorizontal: 14,
     paddingTop: 4,
@@ -692,7 +693,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 1.4,
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   scroll: { paddingBottom: 60 },
 
@@ -708,7 +709,7 @@ const styles = StyleSheet.create({
     width: 88,
     height: 88,
     borderRadius: 44,
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -725,21 +726,21 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#121212',
+    borderColor: colors.bg,
   },
   profileName: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     marginTop: 14,
   },
   profileEmail: {
     fontSize: 13,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     marginTop: 4,
     maxWidth: '90%',
   },
@@ -749,10 +750,10 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: colors.borderStrong,
   },
   editChipText: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -760,7 +761,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#B3B3B3',
+    color: colors.textTertiary,
     letterSpacing: 1.2,
     marginHorizontal: 20,
     marginTop: 18,
@@ -769,7 +770,7 @@ const styles = StyleSheet.create({
   },
   group: {
     marginHorizontal: 20,
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     borderRadius: 12,
     overflow: 'hidden',
   },
@@ -788,15 +789,15 @@ const styles = StyleSheet.create({
   },
   rowLabel: {
     fontSize: 14,
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontWeight: '500',
   },
   rowLabelDanger: {
-    color: '#EF4444',
+    color: colors.danger,
   },
   separator: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: colors.borderFaint,
     marginLeft: 50,
   },
 
@@ -811,26 +812,26 @@ const styles = StyleSheet.create({
   },
   followCountItem: { alignItems: 'center', minWidth: 80 },
   followCountValue: {
-    fontSize: 18, fontWeight: '800', color: '#FFFFFF',
+    fontSize: 18, fontWeight: '800', color: colors.textPrimary,
   },
   followCountLabel: {
-    fontSize: 11, fontWeight: '700', color: '#B3B3B3',
+    fontSize: 11, fontWeight: '700', color: colors.textSecondary,
     letterSpacing: 0.8, marginTop: 2, textTransform: 'uppercase',
   },
   followCountDivider: {
-    width: 1, height: 28, backgroundColor: 'rgba(255,255,255,0.1)',
+    width: 1, height: 28, backgroundColor: colors.border,
   },
 
   helperCaption: {
     fontSize: 12,
-    color: '#6A6A6A',
+    color: colors.textTertiary,
     lineHeight: 17,
     marginHorizontal: 20,
     marginTop: 8,
   },
   version: {
     fontSize: 11,
-    color: '#6A6A6A',
+    color: colors.textTertiary,
     textAlign: 'center',
     marginTop: 24,
   },
@@ -842,47 +843,47 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   popup: {
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
     borderRadius: 14,
     padding: 20,
   },
   popupTitle: {
     fontSize: 17,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     textAlign: 'center',
     marginBottom: 16,
   },
   popupLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     letterSpacing: 1,
     marginBottom: 8,
   },
   popupInput: {
-    backgroundColor: '#3E3E3E',
+    backgroundColor: colors.surface4,
     borderRadius: 8,
     padding: 14,
     fontSize: 15,
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     marginBottom: 18,
   },
   popupSave: {
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     borderRadius: 999,
     paddingVertical: 14,
     alignItems: 'center',
   },
-  popupSaveText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
+  popupSaveText: { color: colors.onAccent, fontSize: 14, fontWeight: '700' },
   popupCancel: {
     paddingVertical: 12,
     alignItems: 'center',
     marginTop: 6,
   },
-  popupCancelText: { color: '#B3B3B3', fontSize: 13, fontWeight: '600' },
+  popupCancelText: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
   legalBody: {
-    color: '#D9D9D9',
+    color: colors.textSecondary,
     fontSize: 13,
     lineHeight: 20,
     marginBottom: 16,
@@ -895,13 +896,13 @@ const styles = StyleSheet.create({
   successTitle: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     textAlign: 'center',
     marginBottom: 8,
   },
   successBody: {
     fontSize: 14,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: 20,
     lineHeight: 20,
@@ -910,7 +911,7 @@ const styles = StyleSheet.create({
   // Destructive-action confirm modals.
   confirmBody: {
     fontSize: 14,
-    color: '#D9D9D9',
+    color: colors.textSecondary,
     lineHeight: 20,
     marginBottom: 18,
   },
@@ -922,12 +923,12 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
     borderRadius: 999,
-    backgroundColor: '#3A3A3A',
+    backgroundColor: colors.surface4,
     alignItems: 'center',
     justifyContent: 'center',
   },
   confirmCancelText: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontWeight: '700',
     fontSize: 14,
   },
@@ -939,13 +940,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   confirmCtaPurple: {
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
   },
   confirmCtaRed: {
-    backgroundColor: '#EF4444',
+    backgroundColor: colors.danger,
   },
   confirmCtaText: {
-    color: '#FFFFFF',
+    color: colors.onAccent,
     fontWeight: '800',
     fontSize: 14,
     letterSpacing: 0.5,

@@ -19,15 +19,9 @@ import {
   unblockUser,
 } from '../src/services/api';
 import { apiCache } from '../src/services/apiCache';
+import { colors } from '../src/theme/colors';
 
 const TTL_MS = 60 * 1000;
-
-const SUBMISSION_COLORS = ['#7C3AED', '#10B981', '#F59E0B', '#EF4444', '#3B82F6', '#EC4899'];
-const pickColor = (seed: string) => {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = ((h << 5) - h + seed.charCodeAt(i)) >>> 0;
-  return SUBMISSION_COLORS[h % SUBMISSION_COLORS.length];
-};
 
 const cacheKey = (viewerId: string) => `blocked-users:${viewerId}`;
 
@@ -147,7 +141,7 @@ export default function BlockedAccountsScreen() {
         ) : (
           <>
             <TouchableOpacity onPress={() => router.back()} hitSlop={8} style={styles.headerBtn}>
-              <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
+              <Ionicons name="chevron-back" size={26} color={colors.textPrimary} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Blocked accounts</Text>
             <TouchableOpacity
@@ -156,7 +150,7 @@ export default function BlockedAccountsScreen() {
               style={styles.headerBtn}
               disabled={(users ?? []).length === 0}
             >
-              <Ionicons name="ellipsis-horizontal" size={22} color={(users ?? []).length === 0 ? '#3A3A3A' : '#FFFFFF'} />
+              <Ionicons name="ellipsis-horizontal" size={22} color={(users ?? []).length === 0 ? colors.surface4 : colors.textPrimary} />
             </TouchableOpacity>
           </>
         )}
@@ -164,11 +158,11 @@ export default function BlockedAccountsScreen() {
 
       {users === null && !loadError ? (
         <View style={styles.center}>
-          <ActivityIndicator color="#FFFFFF" />
+          <ActivityIndicator color={colors.textPrimary} />
         </View>
       ) : loadError === 'network' ? (
         <View style={styles.center}>
-          <Ionicons name="cloud-offline-outline" size={40} color="#6A6A6A" />
+          <Ionicons name="cloud-offline-outline" size={40} color={colors.textTertiary} />
           <Text style={styles.emptyTitle}>Couldn&rsquo;t load</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={load}>
             <Text style={styles.retryBtnText}>Try again</Text>
@@ -176,7 +170,7 @@ export default function BlockedAccountsScreen() {
         </View>
       ) : (users ?? []).length === 0 ? (
         <View style={styles.center}>
-          <Ionicons name="ban-outline" size={40} color="#6A6A6A" />
+          <Ionicons name="ban-outline" size={40} color={colors.textTertiary} />
           <Text style={styles.emptyText}>You haven&rsquo;t blocked anyone.</Text>
         </View>
       ) : (
@@ -195,15 +189,15 @@ export default function BlockedAccountsScreen() {
                 <Ionicons
                   name={selectedIds.has(item.user_id) ? 'checkmark-circle' : 'ellipse-outline'}
                   size={24}
-                  color={selectedIds.has(item.user_id) ? '#7C3AED' : '#6A6A6A'}
+                  color={selectedIds.has(item.user_id) ? colors.accent : colors.textTertiary}
                   style={{ marginRight: 12 }}
                 />
               )}
-              <View style={[styles.avatar, { backgroundColor: pickColor(item.user_id) }]}>
+              <View style={styles.avatar}>
                 {item.avatar_url ? (
                   <Image source={{ uri: item.avatar_url }} style={styles.avatarImg} />
                 ) : (
-                  <Text style={styles.avatarInitial}>{(item.username || '?').charAt(0).toUpperCase()}</Text>
+                  <Ionicons name="person" size={24} color={colors.textTertiary} />
                 )}
               </View>
               <View style={styles.rowInfo}>
@@ -223,7 +217,7 @@ export default function BlockedAccountsScreen() {
         <View style={styles.actionBar}>
           <TouchableOpacity style={styles.actionUnblockBtn} onPress={onUnblockSelected} disabled={unblocking} activeOpacity={0.85}>
             {unblocking ? (
-              <ActivityIndicator color="#FFFFFF" />
+              <ActivityIndicator color={colors.onAccent} />
             ) : (
               <Text style={styles.actionUnblockText}>Unblock {selectedIds.size}</Text>
             )}
@@ -235,7 +229,7 @@ export default function BlockedAccountsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212' },
+  container: { flex: 1, backgroundColor: colors.bg },
 
   header: {
     flexDirection: 'row',
@@ -243,11 +237,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 6,
     borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
+    borderBottomColor: colors.border,
   },
   headerBtn: { minWidth: 40, minHeight: 40, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { flex: 1, fontSize: 17, fontWeight: '700', color: '#FFFFFF' },
-  headerActionText: { color: '#7C3AED', fontSize: 16, fontWeight: '600' },
+  headerTitle: { flex: 1, fontSize: 17, fontWeight: '700', color: colors.textPrimary },
+  headerActionText: { color: colors.accent, fontSize: 16, fontWeight: '600' },
 
   center: {
     flex: 1,
@@ -256,19 +250,19 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: 24,
   },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
-  emptyText: { fontSize: 14, color: '#B3B3B3', textAlign: 'center' },
+  emptyTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
+  emptyText: { fontSize: 14, color: colors.textSecondary, textAlign: 'center' },
   retryBtn: {
     marginTop: 8,
     paddingHorizontal: 24,
     paddingVertical: 10,
     borderRadius: 999,
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
   },
-  retryBtnText: { color: '#FFFFFF', fontWeight: '800' },
+  retryBtnText: { color: colors.onAccent, fontWeight: '800' },
 
   listContent: { paddingVertical: 4 },
-  separator: { height: 0.5, backgroundColor: 'rgba(255,255,255,0.06)' },
+  separator: { height: 0.5, backgroundColor: colors.borderFaint },
 
   row: {
     flexDirection: 'row',
@@ -284,29 +278,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+    backgroundColor: colors.surface4,
   },
   avatarImg: { width: 44, height: 44, borderRadius: 22 },
-  avatarInitial: { fontSize: 18, fontWeight: '800', color: '#FFFFFF' },
   rowInfo: { flex: 1 },
-  rowUsername: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  rowUsername: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
 
   unblockBtn: {
     paddingHorizontal: 16,
     paddingVertical: 7,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
+    borderColor: colors.borderStrong,
     minWidth: 96,
     alignItems: 'center',
   },
   unblockBtnText: {
-    color: '#FFFFFF',
+    color: colors.danger,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.4,
   },
 
-  actionBar: { padding: 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#2A2A2A' },
-  actionUnblockBtn: { backgroundColor: '#EF4444', borderRadius: 24, paddingVertical: 14, alignItems: 'center' },
-  actionUnblockText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  actionBar: { padding: 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.surface3 },
+  actionUnblockBtn: { backgroundColor: colors.danger, borderRadius: 24, paddingVertical: 14, alignItems: 'center' },
+  actionUnblockText: { color: colors.onAccent, fontSize: 16, fontWeight: '700' },
 });
