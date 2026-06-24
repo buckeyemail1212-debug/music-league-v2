@@ -17,6 +17,7 @@ import { apiCache } from '../../src/services/apiCache';
 import Skeleton from '../../src/components/Skeleton';
 import { formatPoints } from '../../src/utils/formatPoints';
 import { FLOATING_NAV_CLEARANCE } from './_layout';
+import { colors } from '../../src/theme/colors';
 
 type Scope = 'all' | 'following' | 'friends';
 
@@ -104,7 +105,7 @@ export default function LeaderboardScreen() {
           <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
         ) : (
           <View style={[styles.avatar, styles.avatarFallback]}>
-            <Ionicons name="person" size={18} color="#B3B3B3" />
+            <Ionicons name="person" size={18} color={colors.textSecondary} />
           </View>
         )}
         <Text style={styles.username} numberOfLines={1}>
@@ -125,7 +126,7 @@ export default function LeaderboardScreen() {
         activeOpacity={0.75}
       >
         <Text style={styles.scopePillLabel}>{SCOPE_LABELS[scope]}</Text>
-        <Ionicons name="chevron-down" size={16} color="#B3B3B3" />
+        <Ionicons name="chevron-down" size={16} color={colors.textSecondary} />
       </TouchableOpacity>
 
       {entries === null ? (
@@ -140,7 +141,7 @@ export default function LeaderboardScreen() {
         </View>
       ) : entries.length === 0 ? (
         <View style={styles.centerState}>
-          <Ionicons name={EMPTY_ICON[scope]} size={40} color="#6A6A6A" />
+          <Ionicons name={EMPTY_ICON[scope]} size={40} color={colors.textTertiary} />
           <Text style={styles.emptyText}>{EMPTY_TEXT[scope]}</Text>
         </View>
       ) : (
@@ -185,7 +186,7 @@ export default function LeaderboardScreen() {
                   >
                     {SCOPE_LABELS[s]}
                   </Text>
-                  {active && <Ionicons name="checkmark" size={18} color="#7C3AED" />}
+                  {active && <Ionicons name="checkmark" size={18} color={colors.accent} />}
                 </TouchableOpacity>
               );
             })}
@@ -197,17 +198,17 @@ export default function LeaderboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212' },
+  container: { flex: 1, backgroundColor: colors.bg },
   title: {
     fontSize: 30,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 16,
   },
   scopePill: {
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
     borderRadius: 20,
     paddingVertical: 8,
     paddingHorizontal: 16,
@@ -221,7 +222,7 @@ const styles = StyleSheet.create({
   scopePillLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
 
   row: {
@@ -231,16 +232,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     gap: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
+    borderBottomColor: colors.borderFaint,
   },
   rank: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     width: 32,
   },
   rankTop: {
-    color: '#7C3AED',
+    color: colors.accent,
   },
   avatar: {
     width: 40,
@@ -248,7 +249,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   avatarFallback: {
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -256,12 +257,12 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   points: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
 
   centerState: {
@@ -273,22 +274,22 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 14,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
   },
   emptyText: {
     fontSize: 14,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     textAlign: 'center',
   },
 
   menuOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: colors.scrim,
     justifyContent: 'center',
     alignItems: 'center',
   },
   menuCard: {
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     borderRadius: 12,
     paddingVertical: 6,
     minWidth: 240,
@@ -303,9 +304,9 @@ const styles = StyleSheet.create({
   menuOptionLabel: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   menuOptionLabelActive: {
-    color: '#7C3AED',
+    color: colors.accent,
   },
 });

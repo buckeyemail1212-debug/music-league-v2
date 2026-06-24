@@ -1,29 +1,31 @@
-// Palette values extracted from the existing codebase (hex frequency scan
-// across app/ and src/components/). Counts noted next to each entry. Service
-// brand colors (Spotify green, Apple Music red, YouTube red) and per-genre
-// taste-bar colors are intentionally omitted — they're literal brand tokens,
-// not theme tokens.
-
+// Centralized theme tokens for Riff (light theme).
 export const colors = {
-  // Backgrounds
-  bgPrimary: '#121212',    // 38 uses — root screen background
-  bgSecondary: '#181818',  // 54 uses — cards, group containers
-  bgTertiary: '#282828',   // 34 uses — inputs, skeletons, sub-surfaces
-
-  // Text
-  textPrimary: '#FFFFFF',  // 298 uses — primary foreground
-  textSecondary: '#B3B3B3', // 166 uses — captions, secondary text
-  textTertiary: '#6A6A6A',  //  55 uses — disabled / tertiary
-
-  // Brand
-  accent: '#7C3AED',       // 143 uses — primary accent (purple)
-  accentMuted: '#A78BFA',  //   2 uses — muted accent text inside pills
-
-  // Semantic
-  error: '#EF4444',        // 17 uses — destructive / "NOT FINISHED" tag
-  success: '#10B981',      //  9 uses — success states
-  warning: '#F59E0B',      //  8 uses — warning, trophy/highlight gold
-  info: '#3B82F6',         //  4 uses — link / informational blue
+  bg: '#FFFFFF',
+  surface: '#F7F7F7',
+  surface2: '#F2F2F2',
+  surface3: '#E8E8E8',
+  surface4: '#E0E0E0',
+  textPrimary: '#000000',
+  textSecondary: '#666666',
+  textTertiary: '#999999',
+  textPlaceholder: '#999999',
+  border: 'rgba(0,0,0,0.10)',
+  borderStrong: 'rgba(0,0,0,0.20)',
+  borderFaint: 'rgba(0,0,0,0.05)',
+  accent: '#7C3AED',
+  accentFaint: 'rgba(124,58,237,0.15)',
+  success: '#10B981',
+  danger: '#EF4444',
+  onAccent: '#FFFFFF',
+  onMedia: '#FFFFFF',
+  onMediaDim: 'rgba(255,255,255,0.85)',
+  avatarPalette: ['#7C3AED', '#10B981', '#F59E0B', '#EF4444', '#3B82F6', '#EC4899', '#14B8A6', '#F97316'],
+  spotify: '#1DB954',
+  appleMusic: '#FA243C',
+  explicitRed: '#FF0000',
+  scrim: 'rgba(0,0,0,0.6)',
+  scrimLight: 'rgba(0,0,0,0.55)',
+  navBar: '#1a1a1a',
+  navBarText: '#FFFFFF',
 } as const;
-
-export type Color = keyof typeof colors;
+export type AppColors = typeof colors;

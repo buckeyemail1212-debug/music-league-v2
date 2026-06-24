@@ -30,6 +30,7 @@ import { apiCache } from '../../services/apiCache';
 import { leagueEvents } from '../../utils/leagueEvents';
 import { formatPoints } from '../../utils/formatPoints';
 import Skeleton from '../Skeleton';
+import { colors } from '../../theme/colors';
 
 const TASTE_COLORS: Record<string, string> = {
   Indie: '#7C3AED',
@@ -297,7 +298,7 @@ export default function StatsTab() {
                   {sub.song?.cover_url ? (
                     <Image source={{ uri: sub.song.cover_url }} style={styles.submissionArtImage} />
                   ) : (
-                    <Ionicons name="musical-note" size={20} color="#FFFFFF" />
+                    <Ionicons name="musical-note" size={20} color={colors.onMedia} />
                   )}
                 </View>
                 <View style={styles.submissionInfo}>
@@ -311,7 +312,7 @@ export default function StatsTab() {
                     <Text style={styles.pointsPillText}>{formatPoints(points)} {points === 1 ? 'pt' : 'pts'}</Text>
                   </View>
                 )}
-                <Ionicons name="chevron-forward" size={18} color="#6A6A6A" />
+                <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
               </TouchableOpacity>
             );
           })
@@ -329,13 +330,13 @@ export default function StatsTab() {
         onPress={() => router.push('/past-leagues' as any)}
       >
         <View style={styles.navIcon}>
-          <Ionicons name="time-outline" size={20} color="#FFFFFF" />
+          <Ionicons name="time-outline" size={20} color={colors.textPrimary} />
         </View>
         <View style={styles.submissionInfo}>
           <Text style={styles.submissionTitle}>Past leagues</Text>
           <Text style={styles.submissionArtist}>Your finished competitions</Text>
         </View>
-        <Ionicons name="chevron-forward" size={18} color="#6A6A6A" />
+        <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
       </TouchableOpacity>
     </View>
   );
@@ -370,31 +371,31 @@ const styles = StyleSheet.create({
   },
   statTile: {
     width: '48%',
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     borderRadius: 12,
     paddingVertical: 16,
     paddingHorizontal: 16,
   },
-  statTileValue: { fontSize: 26, fontWeight: '800', color: '#FFFFFF' },
+  statTileValue: { fontSize: 26, fontWeight: '800', color: colors.textPrimary },
   statTileLabel: {
-    fontSize: 11, fontWeight: '800', color: '#B3B3B3',
+    fontSize: 11, fontWeight: '800', color: colors.textSecondary,
     letterSpacing: 1, marginTop: 6,
   },
 
   emptyBlurb: {
-    fontSize: 13, color: '#B3B3B3', lineHeight: 19,
+    fontSize: 13, color: colors.textSecondary, lineHeight: 19,
     padding: 16, textAlign: 'center',
   },
-  tasteBarEmpty: { backgroundColor: '#282828' },
+  tasteBarEmpty: { backgroundColor: colors.surface3 },
 
   sectionLabel: {
-    fontSize: 12, fontWeight: '700', color: '#B3B3B3',
+    fontSize: 12, fontWeight: '700', color: colors.textSecondary,
     letterSpacing: 1.2,
     marginHorizontal: 20, marginTop: 16, marginBottom: 8,
     textTransform: 'uppercase',
   },
   group: {
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     marginHorizontal: 20, marginBottom: 8,
     borderRadius: 12, overflow: 'hidden',
   },
@@ -403,13 +404,13 @@ const styles = StyleSheet.create({
   tasteCard: { padding: 16 },
   tasteBar: {
     flexDirection: 'row', height: 12, borderRadius: 6, overflow: 'hidden',
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
   },
   tasteList: { marginTop: 14 },
   tasteRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6 },
   tasteDot: { width: 10, height: 10, borderRadius: 5, marginRight: 10 },
-  tasteGenre: { flex: 1, fontSize: 14, fontWeight: '500', color: '#FFFFFF' },
-  tastePct: { fontSize: 13, fontWeight: '700', color: '#B3B3B3' },
+  tasteGenre: { flex: 1, fontSize: 14, fontWeight: '500', color: colors.textPrimary },
+  tastePct: { fontSize: 13, fontWeight: '700', color: colors.textSecondary },
 
   topVotersCard: { padding: 16 },
   topVotersRow: { flexDirection: 'row', justifyContent: 'center', gap: 12 },
@@ -419,31 +420,31 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
   },
   topVoterAvatarImg: { width: 52, height: 52, borderRadius: 26 },
-  topVoterInitial: { fontSize: 20, fontWeight: '800', color: '#FFFFFF' },
+  topVoterInitial: { fontSize: 20, fontWeight: '800', color: colors.onMedia },
   topVoterName: {
-    fontSize: 12, fontWeight: '700', color: '#FFFFFF',
+    fontSize: 12, fontWeight: '700', color: colors.textPrimary,
     marginTop: 6, textAlign: 'center',
   },
   topVoterCount: {
-    fontSize: 11, fontWeight: '700', color: '#B3B3B3',
+    fontSize: 11, fontWeight: '700', color: colors.textSecondary,
     marginTop: 2, letterSpacing: 0.4,
   },
   voterRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
   voterAvatarWrap: { position: 'relative', marginRight: 12 },
-  voterBadge: { position: 'absolute', top: -2, right: -2, backgroundColor: '#7C3AED', width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#181818' },
-  voterBadgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '800' },
+  voterBadge: { position: 'absolute', top: -2, right: -2, backgroundColor: colors.accent, width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.surface2 },
+  voterBadgeText: { color: colors.onAccent, fontSize: 10, fontWeight: '800' },
   voterInfo: { flex: 1, marginRight: 12 },
-  voterName: { color: '#FFFFFF', fontSize: 14, fontWeight: '600', marginBottom: 6 },
-  voterBarTrack: { height: 6, backgroundColor: '#282828', borderRadius: 3, overflow: 'hidden' },
-  voterBarFill: { height: '100%', backgroundColor: '#7C3AED', borderRadius: 3 },
-  voterCount: { color: '#B3B3B3', fontSize: 14, fontWeight: '700' },
-  pointsPill: { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#FFFFFF', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, marginLeft: 4 },
-  pointsPillText: { fontSize: 12, fontWeight: '800', color: '#FFFFFF' },
+  voterName: { color: colors.textPrimary, fontSize: 14, fontWeight: '600', marginBottom: 6 },
+  voterBarTrack: { height: 6, backgroundColor: colors.surface3, borderRadius: 3, overflow: 'hidden' },
+  voterBarFill: { height: '100%', backgroundColor: colors.accent, borderRadius: 3 },
+  voterCount: { color: colors.textSecondary, fontSize: 14, fontWeight: '700' },
+  pointsPill: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.borderStrong, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, marginLeft: 4 },
+  pointsPillText: { fontSize: 12, fontWeight: '800', color: colors.textPrimary },
 
   submissionRow: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 14, paddingVertical: 12,
-    borderBottomWidth: 0.5, borderBottomColor: 'rgba(255,255,255,0.06)',
+    borderBottomWidth: 0.5, borderBottomColor: colors.borderFaint,
     gap: 12,
   },
   submissionArt: {
@@ -452,11 +453,11 @@ const styles = StyleSheet.create({
   },
   submissionArtImage: { width: 48, height: 48, borderRadius: 6 },
   submissionInfo: { flex: 1, marginRight: 8 },
-  submissionTitle: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
-  submissionArtist: { fontSize: 12, color: '#B3B3B3', marginTop: 2 },
-  submissionContext: { color: '#B3B3B3', fontSize: 11, marginTop: 6 },
+  submissionTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
+  submissionArtist: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  submissionContext: { color: colors.textSecondary, fontSize: 11, marginTop: 6 },
   submissionState: {
-    color: '#6A6A6A', fontSize: 11, marginTop: 2, fontWeight: '600',
+    color: colors.textTertiary, fontSize: 11, marginTop: 2, fontWeight: '600',
   },
 
   navRow: {
@@ -464,7 +465,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 12, gap: 12,
   },
   navIcon: {
-    width: 48, height: 48, borderRadius: 6, backgroundColor: '#282828',
+    width: 48, height: 48, borderRadius: 6, backgroundColor: colors.surface3,
     alignItems: 'center', justifyContent: 'center',
   },
 });

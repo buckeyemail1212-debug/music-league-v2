@@ -17,6 +17,7 @@ import StatsTab from '../../src/components/profile-tabs/StatsTab';
 import LikedSongsTab from '../../src/components/profile-tabs/LikedSongsTab';
 import ExpandableImage from '../../src/components/ExpandableImage';
 import { FLOATING_NAV_CLEARANCE } from './_layout';
+import { colors } from '../../src/theme/colors';
 
 type TabKey = 'stats' | 'liked';
 
@@ -67,7 +68,7 @@ export default function ProfileScreen() {
             style={styles.gearBtn}
             accessibilityLabel="Create league"
           >
-            <Ionicons name="add" size={30} color="#FFFFFF" />
+            <Ionicons name="add" size={30} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.topBarUsername} numberOfLines={1} pointerEvents="none">@{user?.username ?? ''}</Text>
           <TouchableOpacity
@@ -76,7 +77,7 @@ export default function ProfileScreen() {
             style={styles.gearBtn}
             accessibilityLabel="Open settings"
           >
-            <Ionicons name="settings-outline" size={26} color="#FFFFFF" />
+            <Ionicons name="settings-outline" size={26} color={colors.textPrimary} />
           </TouchableOpacity>
         </View>
 
@@ -89,7 +90,7 @@ export default function ProfileScreen() {
               {user?.profile_photo ? (
                 <Image source={{ uri: user.profile_photo }} style={styles.avatarImg} />
               ) : (
-                <Ionicons name="person" size={40} color="#7C3AED" />
+                <Ionicons name="person" size={40} color={colors.accent} />
               )}
             </View>
           </ExpandableImage>
@@ -208,14 +209,14 @@ function TabIcon({
       <Ionicons
         name={active ? iconActive : iconInactive}
         size={22}
-        color={active ? '#FFFFFF' : '#6A6A6A'}
+        color={active ? colors.textPrimary : colors.textTertiary}
       />
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212' },
+  container: { flex: 1, backgroundColor: colors.bg },
   scroll: { paddingBottom: FLOATING_NAV_CLEARANCE },
 
   topBar: {
@@ -231,7 +232,7 @@ const styles = StyleSheet.create({
   },
   topBarUsername: {
     position: 'absolute', left: 0, right: 0,
-    textAlign: 'center', fontSize: 18, fontWeight: '700', color: '#FFFFFF',
+    textAlign: 'center', fontSize: 18, fontWeight: '700', color: colors.textPrimary,
   },
 
   topRow: {
@@ -243,7 +244,7 @@ const styles = StyleSheet.create({
   },
   avatar: {
     width: 88, height: 88, borderRadius: 44,
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     alignItems: 'center', justifyContent: 'center',
     overflow: 'hidden',
   },
@@ -259,47 +260,47 @@ const styles = StyleSheet.create({
     gap: 24,
   },
   statItem: { flex: 1, alignItems: 'flex-start' },
-  statValue: { fontSize: 17, fontWeight: '700', color: '#FFFFFF' },
-  statLabel: { fontSize: 12, color: '#B3B3B3', marginTop: 2 },
+  statValue: { fontSize: 17, fontWeight: '700', color: colors.textPrimary },
+  statLabel: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
 
   identityBlock: {
     paddingHorizontal: 20,
     marginTop: 12,
   },
   displayName: {
-    fontSize: 16, fontWeight: '700', color: '#FFFFFF',
+    fontSize: 16, fontWeight: '700', color: colors.textPrimary,
     marginBottom: 8,
   },
   handle: {
-    fontSize: 14, color: '#B3B3B3',
+    fontSize: 14, color: colors.textSecondary,
     marginBottom: 6,
   },
   identityName: {
-    fontSize: 16, fontWeight: '700', color: '#FFFFFF',
+    fontSize: 16, fontWeight: '700', color: colors.textPrimary,
     marginBottom: 4,
   },
   pronouns: {
-    fontSize: 13, color: '#B3B3B3',
+    fontSize: 13, color: colors.textSecondary,
   },
   bio: {
-    fontSize: 14, color: '#FFFFFF',
+    fontSize: 14, color: colors.textPrimary,
     marginTop: 4,
   },
 
   editBtn: {
     marginHorizontal: 20,
     marginTop: 12,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: colors.border,
     borderRadius: 8,
     paddingVertical: 8,
     alignItems: 'center',
   },
-  editBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '600' },
+  editBtnText: { color: colors.textPrimary, fontSize: 14, fontWeight: '600' },
 
   tabBar: {
     flexDirection: 'row',
     borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
+    borderBottomColor: colors.border,
     marginTop: 16,
   },
   tabItem: {
@@ -312,7 +313,7 @@ const styles = StyleSheet.create({
     // underline sits flush with the divider.
     marginBottom: -0.5,
   },
-  tabItemActive: { borderBottomColor: '#FFFFFF' },
+  tabItemActive: { borderBottomColor: colors.textPrimary },
 
   tabContent: { paddingTop: 16 },
 });

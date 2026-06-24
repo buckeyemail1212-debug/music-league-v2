@@ -17,6 +17,7 @@ import {
   InboxCategoryItem,
 } from '../src/services/pendingInboxCategory';
 import { deleteNotifications, dismissInboxItems, followUser } from '../src/services/api';
+import { colors } from '../src/theme/colors';
 
 function relativeTime(ts: number): string {
   const diff = Date.now() - ts;
@@ -140,7 +141,7 @@ export default function InboxCategoryScreen() {
             <Ionicons
               name={selected ? 'checkmark-circle' : 'ellipse-outline'}
               size={22}
-              color={selected ? '#7C3AED' : '#6A6A6A'}
+              color={selected ? colors.accent : colors.textTertiary}
               style={styles.checkbox}
             />
           )}
@@ -148,7 +149,7 @@ export default function InboxCategoryScreen() {
             <Image source={{ uri: item.avatar }} style={styles.avatar} />
           ) : item.showFollowPill ? (
             <View style={[styles.avatar, styles.avatarFallback]}>
-              <Ionicons name="person" size={20} color="#B3B3B3" />
+              <Ionicons name="person" size={20} color={colors.textTertiary} />
             </View>
           ) : (
             <View style={[styles.avatar, styles.leagueInitialFallback]}>
@@ -194,7 +195,7 @@ export default function InboxCategoryScreen() {
           <Ionicons
             name={selected ? 'checkmark-circle' : 'ellipse-outline'}
             size={22}
-            color={selected ? '#7C3AED' : '#6A6A6A'}
+            color={selected ? colors.accent : colors.textTertiary}
             style={styles.checkbox}
           />
         )}
@@ -215,7 +216,7 @@ export default function InboxCategoryScreen() {
           </TouchableOpacity>
         ) : (
           <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
-            <Ionicons name="chevron-back" size={28} color="#FFFFFF" />
+            <Ionicons name="chevron-back" size={28} color={colors.textPrimary} />
           </TouchableOpacity>
         )}
         <Text style={styles.title} numberOfLines={1}>
@@ -235,13 +236,13 @@ export default function InboxCategoryScreen() {
               <Ionicons
                 name="trash-outline"
                 size={22}
-                color={selectedIds.size > 0 ? '#EF4444' : '#6A6A6A'}
+                color={selectedIds.size > 0 ? colors.danger : colors.textTertiary}
               />
             </TouchableOpacity>
           </View>
         ) : canSelect && items.length > 0 ? (
           <TouchableOpacity onPress={enterSelectMode} hitSlop={8}>
-            <Ionicons name="ellipsis-horizontal" size={24} color="#FFFFFF" />
+            <Ionicons name="ellipsis-horizontal" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
         ) : (
           <View style={styles.headerSpacer} />
@@ -266,7 +267,7 @@ export default function InboxCategoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212' },
+  container: { flex: 1, backgroundColor: colors.bg },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -278,7 +279,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     marginLeft: 12,
   },
   headerSpacer: { width: 28 },
@@ -289,7 +290,7 @@ const styles = StyleSheet.create({
   headerButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   headerTrash: { marginLeft: 16 },
   checkbox: { marginRight: 12 },
@@ -300,7 +301,7 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
+    backgroundColor: colors.bg,
     borderRadius: 12,
     padding: 14,
     marginBottom: 10,
@@ -309,19 +310,19 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     lineHeight: 19,
   },
   itemTime: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#6A6A6A',
+    color: colors.textTertiary,
     marginLeft: 12,
   },
   followCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
+    backgroundColor: colors.bg,
     borderRadius: 12,
     padding: 14,
     marginBottom: 10,
@@ -332,12 +333,12 @@ const styles = StyleSheet.create({
     borderRadius: 24,
   },
   avatarFallback: {
-    backgroundColor: '#3E3E3E',
+    backgroundColor: colors.surface4,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  leagueInitialFallback: { backgroundColor: '#7C3AED', alignItems: 'center', justifyContent: 'center' },
-  leagueInitialText: { color: '#FFFFFF', fontSize: 20, fontWeight: '700' },
+  leagueInitialFallback: { backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
+  leagueInitialText: { color: colors.onAccent, fontSize: 20, fontWeight: '700' },
   followMiddle: {
     flex: 1,
     marginLeft: 12,
@@ -345,21 +346,21 @@ const styles = StyleSheet.create({
   followTitle: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   followSubtitle: {
     fontSize: 13,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   followTime: {
     fontSize: 12,
-    color: '#6A6A6A',
+    color: colors.textTertiary,
     marginLeft: 8,
     marginRight: 8,
   },
   friendsPill: {
-    backgroundColor: '#2A2A2A',
+    backgroundColor: colors.surface3,
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 16,
@@ -367,10 +368,10 @@ const styles = StyleSheet.create({
   friendsPillText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#B3B3B3',
+    color: colors.textSecondary,
   },
   followPill: {
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 16,
@@ -378,7 +379,7 @@ const styles = StyleSheet.create({
   followPillText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.onAccent,
   },
   empty: {
     flex: 1,
@@ -387,6 +388,6 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 15,
-    color: '#6A6A6A',
+    color: colors.textTertiary,
   },
 });

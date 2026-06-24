@@ -21,6 +21,7 @@ import { hideConversation, getMyFollowRequests, DmConversation, InboxFeedItem } 
 import { markCategoryViewed } from '../../src/services/inboxReadState';
 import { setPendingInboxCategory, InboxCategoryItem } from '../../src/services/pendingInboxCategory';
 import { FLOATING_NAV_CLEARANCE } from './_layout';
+import { colors } from '../../src/theme/colors';
 
 const CATEGORIES = [
   { key: 'follows', label: 'New followers', icon: 'people' as const, color: '#3B82F6' },
@@ -263,7 +264,7 @@ export default function InboxScreen() {
           <Text style={styles.title}>Inbox</Text>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#7C3AED" />
+          <ActivityIndicator size="large" color={colors.accent} />
         </View>
       </SafeAreaView>
     );
@@ -282,7 +283,7 @@ export default function InboxScreen() {
           onPress={() => handleHideConversation(convId)}
           activeOpacity={0.8}
         >
-          <Ionicons name="trash" size={20} color="#FFFFFF" />
+          <Ionicons name="trash" size={20} color={colors.onAccent} />
         </TouchableOpacity>
       </Animated.View>
     );
@@ -294,13 +295,13 @@ export default function InboxScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Inbox</Text>
         <TouchableOpacity onPress={() => router.push('/new-message' as any)} hitSlop={8}>
-          <Ionicons name="create-outline" size={24} color="#FFFFFF" />
+          <Ionicons name="create-outline" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
       </View>
 
       <ScrollView
         contentContainerStyle={styles.listContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#7C3AED" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
         showsVerticalScrollIndicator={false}
       >
         {pendingRequests > 0 && (
@@ -309,8 +310,8 @@ export default function InboxScreen() {
             onPress={() => router.push('/follow-requests')}
             activeOpacity={0.7}
           >
-            <View style={[styles.categoryIcon, { backgroundColor: '#7C3AED' }]}>
-              <Ionicons name="person-add" size={24} color="#FFFFFF" />
+            <View style={[styles.categoryIcon, { backgroundColor: colors.accent }]}>
+              <Ionicons name="person-add" size={24} color={colors.onAccent} />
             </View>
             <View style={styles.categoryBody}>
               <Text style={styles.categoryLabel}>Follow Requests</Text>
@@ -332,7 +333,7 @@ export default function InboxScreen() {
             activeOpacity={0.7}
           >
             <View style={[styles.categoryIcon, { backgroundColor: cat.color }]}>
-              <Ionicons name={cat.icon} size={24} color="#FFFFFF" />
+              <Ionicons name={cat.icon} size={24} color={colors.onAccent} />
             </View>
             <View style={styles.categoryBody}>
               <Text style={styles.categoryLabel}>{cat.label}</Text>
@@ -399,7 +400,7 @@ export default function InboxScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212' },
+  container: { flex: 1, backgroundColor: colors.bg },
   header: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -411,7 +412,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 30,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   listContent: {
@@ -421,10 +422,11 @@ const styles = StyleSheet.create({
   categoryRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
+    backgroundColor: colors.bg,
     borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    marginBottom: 2,
   },
   categoryIcon: {
     width: 48,
@@ -440,18 +442,18 @@ const styles = StyleSheet.create({
   categoryLabel: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   categoryPreview: {
     fontSize: 13,
-    color: '#8E8E93',
+    color: colors.textTertiary,
     marginTop: 2,
   },
   countBadge: {
     minWidth: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 6,
@@ -460,12 +462,12 @@ const styles = StyleSheet.create({
   countText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.onAccent,
   },
   sectionHeader: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#8E8E93',
+    color: colors.textTertiary,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
     marginTop: 20,
@@ -473,13 +475,13 @@ const styles = StyleSheet.create({
   },
   dmEmpty: {
     fontSize: 14,
-    color: '#8E8E93',
+    color: colors.textTertiary,
     paddingVertical: 8,
   },
   dmRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
+    backgroundColor: colors.bg,
     borderRadius: 12,
     padding: 12,
     marginBottom: 8,
@@ -490,14 +492,14 @@ const styles = StyleSheet.create({
     borderRadius: 24,
   },
   dmAvatarFallback: {
-    backgroundColor: '#3E3E3E',
+    backgroundColor: colors.surface4,
     alignItems: 'center',
     justifyContent: 'center',
   },
   dmAvatarInitial: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   dmBody: {
     flex: 1,
@@ -506,11 +508,11 @@ const styles = StyleSheet.create({
   dmUsername: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   dmPreview: {
     fontSize: 13,
-    color: '#8E8E93',
+    color: colors.textTertiary,
     marginTop: 2,
   },
   dmRight: {
@@ -520,13 +522,13 @@ const styles = StyleSheet.create({
   },
   dmTime: {
     fontSize: 12,
-    color: '#8E8E93',
+    color: colors.textTertiary,
   },
   dmUnreadBadge: {
     minWidth: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 6,
@@ -534,7 +536,7 @@ const styles = StyleSheet.create({
   dmUnreadText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.onAccent,
   },
   swipeActionWrap: {
     justifyContent: 'center',
@@ -545,7 +547,7 @@ const styles = StyleSheet.create({
   trashBtn: {
     width: 56,
     height: '100%',
-    backgroundColor: '#EF4444',
+    backgroundColor: colors.danger,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
