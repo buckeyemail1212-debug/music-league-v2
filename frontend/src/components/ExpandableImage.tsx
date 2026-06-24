@@ -11,6 +11,7 @@ import {
   StyleProp,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../theme/colors';
 
 // Reusable long-press-to-expand wrapper. Mirrors the inline pattern
 // that lived on home.tsx for the league image popup — fullscreen
@@ -109,7 +110,7 @@ const styles = StyleSheet.create({
   },
   image: { width: '100%', height: '100%' },
   imageFallback: {
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface3,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -18,6 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getPastLeagues, PastLeague } from '../../src/services/api';
 import { useAuth } from '../../src/context/AuthContext';
+import { colors } from '../../src/theme/colors';
 
 const formatDate = (iso: string | null) => {
   if (!iso) return '';
@@ -81,12 +82,12 @@ export default function PastLeaguePage() {
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} hitSlop={10} style={styles.headerBtn}>
-            <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
+            <Ionicons name="chevron-back" size={26} color={colors.textPrimary} />
           </TouchableOpacity>
           <View style={{ width: 26 }} />
         </View>
         <View style={styles.center}>
-          <ActivityIndicator color="#7C3AED" />
+          <ActivityIndicator color={colors.accent} />
         </View>
       </SafeAreaView>
     );
@@ -97,7 +98,7 @@ export default function PastLeaguePage() {
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} hitSlop={10} style={styles.headerBtn}>
-            <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
+            <Ionicons name="chevron-back" size={26} color={colors.textPrimary} />
           </TouchableOpacity>
           <View style={{ width: 26 }} />
         </View>
@@ -124,7 +125,7 @@ export default function PastLeaguePage() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.topBarBtn} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
+          <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <View style={{ flex: 1 }} />
         <View style={styles.topBarActions}>
@@ -140,12 +141,12 @@ export default function PastLeaguePage() {
               }
             >
               <Animated.View style={{ transform: [{ scale: infoPulse }] }}>
-                <Ionicons name="information-circle-outline" size={22} color="#FFFFFF" />
+                <Ionicons name="information-circle-outline" size={22} color={colors.textPrimary} />
               </Animated.View>
             </TouchableOpacity>
           )}
           <TouchableOpacity style={styles.topBarBtn} onPress={() => setShowMembersModal(true)}>
-            <Ionicons name="people-outline" size={20} color="#FFFFFF" />
+            <Ionicons name="people-outline" size={20} color={colors.textPrimary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -414,7 +415,7 @@ export default function PastLeaguePage() {
                 <View style={styles.membersModalHeader}>
                   <Text style={styles.membersModalTitle}>League Members</Text>
                   <TouchableOpacity onPress={() => setShowMembersModal(false)}>
-                    <Ionicons name="close" size={24} color="#B3B3B3" />
+                    <Ionicons name="close" size={24} color={colors.textSecondary} />
                   </TouchableOpacity>
                 </View>
                 <ScrollView style={styles.membersList}>
@@ -459,7 +460,7 @@ export default function PastLeaguePage() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212' },
+  container: { flex: 1, backgroundColor: colors.bg },
   header: {
     paddingHorizontal: 14,
     paddingTop: 4,
@@ -471,7 +472,7 @@ const styles = StyleSheet.create({
   headerBtn: { padding: 6 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scroll: { paddingBottom: 40 },
-  emptyText: { color: '#B3B3B3', padding: 16, textAlign: 'center' },
+  emptyText: { color: colors.textSecondary, padding: 16, textAlign: 'center' },
 
   topBar: {
     flexDirection: 'row',
@@ -487,7 +488,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -498,7 +499,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     overflow: 'hidden',
     aspectRatio: 1.1,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: colors.bg,
   },
   coverImage: {
     width: '100%',
@@ -508,14 +509,14 @@ const styles = StyleSheet.create({
   coverEmpty: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
   coverInitial: {
     fontSize: 96,
     fontWeight: '900',
-    color: '#FFFFFF',
+    color: colors.onAccent,
   },
   coverGradient: {
     position: 'absolute',
@@ -533,10 +534,10 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   coverStatusPillNotFinished: {
-    backgroundColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: colors.borderStrong,
   },
   coverStatusPillCompleted: {
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
   },
   coverStatusPillText: {
     fontSize: 11,
@@ -544,20 +545,20 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   coverStatusPillTextNotFinished: {
-    color: '#FFFFFF',
+    color: colors.onMedia,
   },
   coverStatusPillTextCompleted: {
-    color: '#FFFFFF',
+    color: colors.onMedia,
   },
   coverTitle: {
     fontSize: 30,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: colors.onMedia,
     letterSpacing: -0.5,
   },
   coverMetaLine: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.85)',
+    color: colors.onMediaDim,
     fontWeight: '500',
     marginTop: 4,
   },
@@ -569,11 +570,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     paddingVertical: 22,
     borderRadius: 22,
-    backgroundColor: '#222225',
+    backgroundColor: colors.surface3,
   },
   placeLabel: {
     fontSize: 11,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     fontWeight: '700',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
@@ -601,14 +602,14 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 999,
-    backgroundColor: '#2A2A2A',
+    backgroundColor: colors.surface3,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: colors.border,
   },
   tabActive: {
-    backgroundColor: '#7C3AED',
-    borderColor: '#7C3AED',
-    shadowColor: '#7C3AED',
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+    shadowColor: colors.accent,
     shadowOpacity: 0.35,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 3 },
@@ -617,16 +618,16 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#B3B3B3',
+    color: colors.textSecondary,
   },
   tabTextActive: {
-    color: '#FFFFFF',
+    color: colors.onAccent,
   },
 
   sectionLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     letterSpacing: 1.2,
     marginHorizontal: 20,
     marginTop: 18,
@@ -634,7 +635,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   card: {
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     marginHorizontal: 20,
     marginTop: 20,
     borderRadius: 12,
@@ -642,7 +643,7 @@ const styles = StyleSheet.create({
   },
   rowBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+    borderBottomColor: colors.borderFaint,
   },
 
   standingsListWrap: {
@@ -655,14 +656,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderRadius: 18,
-    backgroundColor: '#1A1A1C',
+    backgroundColor: colors.bg,
     marginBottom: 8,
     borderWidth: 1,
     borderColor: 'transparent',
   },
   standingCardMe: {
     backgroundColor: 'rgba(124, 92, 255, 0.14)',
-    borderColor: '#7C3AED',
+    borderColor: colors.accent,
   },
   standingCardLeft: {
     opacity: 0.55,
@@ -679,13 +680,13 @@ const styles = StyleSheet.create({
     width: 34,
     fontSize: 14,
     fontWeight: '800',
-    color: '#B3B3B3',
+    color: colors.textSecondary,
   },
   rankGold: {
     color: '#F59E0B',
   },
   rankMuted: {
-    color: '#6A6A6A',
+    color: colors.textTertiary,
   },
   standingRowLeft: {
     opacity: 0.7,
@@ -696,35 +697,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   memberNameLeft: {
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     flexShrink: 1,
   },
   memberPointsLeft: {
-    color: '#B3B3B3',
+    color: colors.textSecondary,
   },
   leftBadge: {
     marginLeft: 8,
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 4,
-    backgroundColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: colors.border,
   },
   leftBadgeText: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     letterSpacing: 0.5,
   },
   notFinishedPill: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    backgroundColor: 'rgba(255,255,255,0.07)',
+    backgroundColor: colors.borderFaint,
     borderRadius: 4,
   },
   notFinishedText: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     letterSpacing: 0.5,
   },
   bannerCard: {
@@ -736,9 +737,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: colors.borderFaint,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.10)',
+    borderColor: colors.border,
   },
   bannerText: {
     flex: 1,
@@ -750,22 +751,22 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
   memberAvatarImg: { width: 32, height: 32, borderRadius: 16 },
-  memberAvatarLetter: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
+  memberAvatarLetter: { color: colors.textPrimary, fontWeight: '700', fontSize: 13 },
   memberName: {
     flex: 1,
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontWeight: '500',
     fontSize: 14,
   },
   me: { fontWeight: '800' },
   memberPoints: {
-    color: '#7C3AED',
+    color: colors.accent,
     fontWeight: '800',
     fontSize: 15,
   },
@@ -781,25 +782,25 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 6,
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
   subArtImg: { width: 44, height: 44, borderRadius: 6 },
-  subArtLetter: { color: '#FFFFFF', fontWeight: '700' },
+  subArtLetter: { color: colors.textPrimary, fontWeight: '700' },
   subTitle: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontWeight: '700',
     fontSize: 14,
   },
   subArtist: {
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     fontSize: 12,
     marginTop: 2,
   },
   subTheme: {
-    color: '#7C3AED',
+    color: colors.accent,
     fontSize: 11,
     fontWeight: '700',
     marginTop: 4,
@@ -811,7 +812,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   roundCard: {
-    backgroundColor: '#161618',
+    backgroundColor: colors.bg,
     borderRadius: 18,
     padding: 14,
     marginBottom: 12,
@@ -823,21 +824,21 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   roundHeaderText: {
-    color: '#7C3AED',
+    color: colors.accent,
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 0.3,
     flexShrink: 1,
   },
   placementChip: {
-    backgroundColor: 'rgba(124, 58, 237, 0.18)',
+    backgroundColor: colors.accentFaint,
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 4,
     marginLeft: 8,
   },
   placementChipText: {
-    color: '#7C3AED',
+    color: colors.accent,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.3,
@@ -851,14 +852,14 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 8,
-    backgroundColor: '#2A2A2D',
+    backgroundColor: colors.surface3,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
     marginRight: 12,
   },
   winnerArtImg: { width: 56, height: 56, borderRadius: 8 },
-  winnerArtLetter: { color: '#FFFFFF', fontWeight: '700' },
+  winnerArtLetter: { color: colors.textPrimary, fontWeight: '700' },
   winnerLabel: {
     color: '#F5A524',
     fontSize: 10,
@@ -867,22 +868,22 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   winnerTitle: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 15,
     fontWeight: '700',
   },
   winnerArtist: {
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     fontSize: 13,
     marginTop: 1,
   },
   winnerByLine: {
-    color: '#9A9A9A',
+    color: colors.textTertiary,
     fontSize: 12,
     marginTop: 4,
   },
   noWinnerText: {
-    color: '#9A9A9A',
+    color: colors.textTertiary,
     fontSize: 13,
     fontStyle: 'italic',
     paddingVertical: 12,
@@ -893,39 +894,39 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.07)',
+    borderTopColor: colors.borderFaint,
   },
   yourSubArt: {
     width: 44,
     height: 44,
     borderRadius: 6,
-    backgroundColor: '#2A2A2D',
+    backgroundColor: colors.surface3,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
     marginRight: 12,
   },
   yourSubArtImg: { width: 44, height: 44, borderRadius: 6 },
-  yourSubArtLetter: { color: '#FFFFFF', fontWeight: '700' },
+  yourSubArtLetter: { color: colors.textPrimary, fontWeight: '700' },
   yourSubLabel: {
-    color: '#9A9A9A',
+    color: colors.textTertiary,
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 1,
     marginBottom: 2,
   },
   yourSubTitle: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 14,
     fontWeight: '600',
   },
   yourSubArtist: {
-    color: '#9A9A9A',
+    color: colors.textTertiary,
     fontSize: 12,
     marginTop: 1,
   },
   yourSubMissingText: {
-    color: '#9A9A9A',
+    color: colors.textTertiary,
     fontSize: 13,
     fontStyle: 'italic',
     paddingVertical: 12,
@@ -940,7 +941,7 @@ const styles = StyleSheet.create({
   membersModalContent: {
     width: '85%',
     maxHeight: '70%',
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
     borderRadius: 16,
     overflow: 'hidden',
   },
@@ -950,12 +951,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 16,
     borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
+    borderBottomColor: colors.border,
   },
   membersModalTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   membersList: {
     padding: 16,
@@ -965,13 +966,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
+    borderBottomColor: colors.border,
   },
   memberNumber: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: 'rgba(124,58,237,0.15)',
+    backgroundColor: colors.accentFaint,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -979,7 +980,7 @@ const styles = StyleSheet.create({
   memberNumberText: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#7C3AED',
+    color: colors.accent,
   },
   modalMemberAvatar: {
     width: 40,
@@ -995,14 +996,14 @@ const styles = StyleSheet.create({
   modalMemberAvatarPlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
     alignItems: 'center',
     justifyContent: 'center',
   },
   modalMemberInitial: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#7C3AED',
+    color: colors.accent,
   },
   memberDetails: {
     flex: 1,
@@ -1010,15 +1011,15 @@ const styles = StyleSheet.create({
   modalMemberName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   modalMemberUsername: {
     fontSize: 12,
-    color: '#6A6A6A',
+    color: colors.textTertiary,
     marginTop: 2,
   },
   creatorBadge: {
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
@@ -1026,10 +1027,10 @@ const styles = StyleSheet.create({
   creatorBadgeText: {
     fontSize: 10,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: colors.onAccent,
   },
   memberBadge: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: colors.border,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
@@ -1037,6 +1038,6 @@ const styles = StyleSheet.create({
   memberBadgeText: {
     fontSize: 10,
     fontWeight: '500',
-    color: '#B3B3B3',
+    color: colors.textSecondary,
   },
 });

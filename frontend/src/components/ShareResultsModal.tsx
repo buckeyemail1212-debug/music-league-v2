@@ -16,6 +16,7 @@ import * as Sharing from 'expo-sharing';
 import * as MediaLibrary from 'expo-media-library';
 import ViewShot from 'react-native-view-shot';
 import { formatPoints } from '../utils/formatPoints';
+import { colors } from '../theme/colors';
 
 // Solid app primary purple — match the existing theme so the share card
 // reads as part of the brand.
@@ -67,9 +68,9 @@ const SHARE_BUTTONS: {
   iconColor?: string;
   iconBg?: string;
 }[] = [
-  { key: 'save', label: 'Save image', icon: 'download', iconColor: '#FFFFFF', iconBg: '#7C3AED' },
-  { key: 'copy', label: 'Copy link', icon: 'link', iconColor: '#FFFFFF', iconBg: '#4B5563' },
-  { key: 'more', label: 'More', icon: 'ellipsis-horizontal', iconColor: '#FFFFFF', iconBg: '#3A3A3A' },
+  { key: 'save', label: 'Save image', icon: 'download', iconColor: colors.onAccent, iconBg: colors.accent },
+  { key: 'copy', label: 'Copy link', icon: 'link', iconColor: colors.onAccent, iconBg: '#4B5563' },
+  { key: 'more', label: 'More', icon: 'ellipsis-horizontal', iconColor: colors.onAccent, iconBg: '#3A3A3A' },
 ];
 
 export default function ShareResultsModal({ visible, onClose, data }: Props) {
@@ -193,7 +194,7 @@ export default function ShareResultsModal({ visible, onClose, data }: Props) {
           {/* Header */}
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={onClose} hitSlop={10}>
-              <Ionicons name="close" size={26} color="#FFFFFF" />
+              <Ionicons name="close" size={26} color={colors.textPrimary} />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Share results</Text>
             <View style={{ width: 26 }} />
@@ -271,7 +272,7 @@ export default function ShareResultsModal({ visible, onClose, data }: Props) {
                 >
                   <View style={[styles.shareBtnIcon, { backgroundColor: b.iconBg }]}>
                     {isBusy ? (
-                      <ActivityIndicator color="#FFFFFF" />
+                      <ActivityIndicator color={colors.onAccent} />
                     ) : (
                       <Ionicons name={b.icon} size={22} color={b.iconColor} />
                     )}
@@ -614,7 +615,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: 14,
@@ -628,7 +629,7 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   modalTitle: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontWeight: '700',
     fontSize: 16,
   },
@@ -644,7 +645,7 @@ const styles = StyleSheet.create({
   },
   toggleRow: {
     flexDirection: 'row',
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
     borderRadius: 10,
     padding: 4,
     marginTop: 14,
@@ -657,19 +658,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   toggleBtnActive: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.bg,
   },
   toggleText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     letterSpacing: 0.4,
   },
   toggleTextActive: {
-    color: '#181818',
+    color: colors.textPrimary,
   },
   shareToLabel: {
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1.2,
@@ -696,7 +697,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   shareBtnLabel: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 11,
     fontWeight: '600',
     textAlign: 'center',

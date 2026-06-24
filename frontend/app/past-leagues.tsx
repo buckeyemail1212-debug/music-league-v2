@@ -21,8 +21,9 @@ import { useAuth } from '../src/context/AuthContext';
 import { leagueEvents } from '../src/utils/leagueEvents';
 import { pastLeaguesCache } from '../src/utils/pastLeaguesCache';
 import LeagueAvatar from '../src/components/LeagueAvatar';
+import { colors } from '../src/theme/colors';
 
-const PURPLE = '#7C3AED';
+const PURPLE = colors.accent;
 
 // Format a finish date as "Aug 24" — abbreviated month + 2-digit year.
 function formatFinishShort(iso: string | null): string {
@@ -152,7 +153,7 @@ export default function PastLeaguesPage() {
           activeOpacity={0.85}
           onPress={() => askDelete(item)}
         >
-          <Ionicons name="trash" size={20} color="#FFFFFF" />
+          <Ionicons name="trash" size={20} color={colors.onAccent} />
           <Text style={styles.swipeDeleteText}>Delete</Text>
         </TouchableOpacity>
       </Animated.View>
@@ -166,7 +167,7 @@ export default function PastLeaguesPage() {
     const mePlace = item.my_place;
     const totalPlayers = item.members_count || 0;
     const place = mePlace != null ? ordinalParts(mePlace) : null;
-    const placeColor = place && place.num === '1' ? PURPLE : '#FFFFFF';
+    const placeColor = place && place.num === '1' ? PURPLE : colors.textPrimary;
     const rounds = item.total_rounds || item.rounds_completed || 0;
 
     return (
@@ -224,7 +225,7 @@ export default function PastLeaguesPage() {
                 <Text style={styles.placeOf}>OF {totalPlayers}</Text>
               </>
             ) : (
-              <Ionicons name="chevron-forward" size={18} color="#6A6A6A" />
+              <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
             )}
           </View>
         </TouchableOpacity>
@@ -254,7 +255,7 @@ export default function PastLeaguesPage() {
             onPress={() => router.back()}
             hitSlop={10}
           >
-            <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
+            <Ionicons name="chevron-back" size={26} color={colors.textPrimary} />
           </TouchableOpacity>
         </View>
 
@@ -278,7 +279,7 @@ export default function PastLeaguesPage() {
               <Ionicons
                 name="information-circle-outline"
                 size={16}
-                color="#B3B3B3"
+                color={colors.textSecondary}
               />
             </TouchableOpacity>
           </View>
@@ -290,7 +291,7 @@ export default function PastLeaguesPage() {
               <Ionicons
                 name="search"
                 size={18}
-                color="#6A6A6A"
+                color={colors.textTertiary}
                 style={styles.searchIcon}
               />
               <TextInput
@@ -298,7 +299,7 @@ export default function PastLeaguesPage() {
                 value={query}
                 onChangeText={setQuery}
                 placeholder="Search by league or member"
-                placeholderTextColor="#8B8B8B"
+                placeholderTextColor={colors.textPlaceholder}
                 autoCorrect={false}
                 autoCapitalize="none"
                 returnKeyType="search"
@@ -309,7 +310,7 @@ export default function PastLeaguesPage() {
                   hitSlop={10}
                   style={styles.searchClearBtn}
                 >
-                  <Ionicons name="close-circle" size={18} color="#8B8B8B" />
+                  <Ionicons name="close-circle" size={18} color={colors.textTertiary} />
                 </TouchableOpacity>
               )}
             </View>
@@ -379,7 +380,7 @@ export default function PastLeaguesPage() {
                   activeOpacity={0.85}
                 >
                   {deletingId != null ? (
-                    <ActivityIndicator color="#FFFFFF" />
+                    <ActivityIndicator color={colors.onAccent} />
                   ) : (
                     <Text style={styles.modalConfirmText}>Delete</Text>
                   )}
@@ -395,7 +396,7 @@ export default function PastLeaguesPage() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212' },
+  container: { flex: 1, backgroundColor: colors.bg },
   headerBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -413,12 +414,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 26,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     letterSpacing: 1,
   },
   subtitle: {
     fontSize: 13,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     marginTop: 6,
   },
   subtitleRow: {
@@ -439,9 +440,9 @@ const styles = StyleSheet.create({
     borderRadius: 26,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1E1E1E',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: colors.border,
     paddingHorizontal: 20,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
@@ -452,7 +453,7 @@ const styles = StyleSheet.create({
   searchIcon: { marginRight: 10 },
   searchInput: {
     flex: 1,
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 15,
     fontWeight: '500',
     paddingVertical: 0,
@@ -469,7 +470,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 14,
@@ -484,18 +485,18 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   name: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontWeight: '700',
     fontSize: 15,
     flexShrink: 1,
   },
   meta: {
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     fontSize: 12,
     marginTop: 4,
   },
   wonByYou: {
-    color: PURPLE,
+    color: colors.accent,
     fontWeight: '700',
   },
   deletedTag: {
@@ -505,7 +506,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   deletedTagText: {
-    color: '#EF4444',
+    color: colors.danger,
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 0.5,
@@ -514,10 +515,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: colors.border,
   },
   notFinishedText: {
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.6,
@@ -542,7 +543,7 @@ const styles = StyleSheet.create({
     marginLeft: 1,
   },
   placeOf: {
-    color: '#6A6A6A',
+    color: colors.textTertiary,
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.8,
@@ -550,7 +551,7 @@ const styles = StyleSheet.create({
   },
 
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  emptyText: { color: '#B3B3B3', fontSize: 13, textAlign: 'center' },
+  emptyText: { color: colors.textSecondary, fontSize: 13, textAlign: 'center' },
 
   // Swipe-to-delete action + confirm modal
   swipeActionWrap: {
@@ -560,7 +561,7 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   swipeDeleteBtn: {
-    backgroundColor: '#EF4444',
+    backgroundColor: colors.danger,
     width: 72,
     height: 72,
     borderRadius: 14,
@@ -569,7 +570,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   swipeDeleteText: {
-    color: '#FFFFFF',
+    color: colors.onAccent,
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 0.5,
@@ -581,20 +582,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   modalPopup: {
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
     borderRadius: 14,
     padding: 20,
   },
   modalTitle: {
     fontSize: 17,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     textAlign: 'center',
     marginBottom: 12,
   },
   modalBody: {
     fontSize: 14,
-    color: '#D9D9D9',
+    color: colors.textSecondary,
     lineHeight: 20,
     marginBottom: 18,
   },
@@ -606,21 +607,21 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
     borderRadius: 999,
-    backgroundColor: '#3A3A3A',
+    backgroundColor: colors.surface4,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  modalCancelText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
+  modalCancelText: { color: colors.textPrimary, fontWeight: '700', fontSize: 14 },
   modalConfirm: {
     flex: 1,
     paddingVertical: 14,
     borderRadius: 999,
-    backgroundColor: '#EF4444',
+    backgroundColor: colors.danger,
     alignItems: 'center',
     justifyContent: 'center',
   },
   modalConfirmText: {
-    color: '#FFFFFF',
+    color: colors.onAccent,
     fontWeight: '800',
     fontSize: 14,
     letterSpacing: 0.5,
