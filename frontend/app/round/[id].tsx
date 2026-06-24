@@ -30,6 +30,7 @@ import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import { useAuth } from '../../src/context/AuthContext';
+import { colors } from '../../src/theme/colors';
 import { PreviewPlayButton, stopAllPreviews } from '../../src/components/PreviewPlayButton';
 import LikeButton from '../../src/components/LikeButton';
 import AlbumArt from '../../src/components/AlbumArt';
@@ -502,22 +503,22 @@ export default function RoundScreen() {
           />
           <View style={styles.serviceButtonsSmall}>
             <Pressable
-              style={[styles.serviceButtonSmall, { backgroundColor: '#1DB954' }]}
+              style={[styles.serviceButtonSmall, { backgroundColor: colors.spotify }]}
               onPress={() => openInService(item.song, 'spotify')}
             >
-              <FontAwesome name="spotify" size={12} color="#FFFFFF" />
+              <FontAwesome name="spotify" size={12} color={colors.onAccent} />
             </Pressable>
             <Pressable
-              style={[styles.serviceButtonSmall, { backgroundColor: '#FA243C' }]}
+              style={[styles.serviceButtonSmall, { backgroundColor: colors.appleMusic }]}
               onPress={() => openInService(item.song, 'apple')}
             >
-              <Ionicons name="logo-apple" size={12} color="#FFFFFF" />
+              <Ionicons name="logo-apple" size={12} color={colors.onAccent} />
             </Pressable>
             <Pressable
-              style={[styles.serviceButtonSmall, { backgroundColor: '#FF0000' }]}
+              style={[styles.serviceButtonSmall, { backgroundColor: colors.explicitRed }]}
               onPress={() => openInService(item.song, 'youtube')}
             >
-              <Ionicons name="logo-youtube" size={12} color="#FFFFFF" />
+              <Ionicons name="logo-youtube" size={12} color={colors.onAccent} />
             </Pressable>
           </View>
       </View>
@@ -540,14 +541,14 @@ export default function RoundScreen() {
           <Text style={styles.songTitle} numberOfLines={1}>{submission.song.title}</Text>
           <Text style={styles.artistName} numberOfLines={1}>{submission.song.artist}</Text>
           <View style={styles.musicLinksSmall}>
-            <Pressable style={[styles.musicLinkButtonSmall, { backgroundColor: '#1DB954' }]} onPress={() => openInService(submission.song, 'spotify')}>
-              <FontAwesome name="spotify" size={10} color="#FFFFFF" />
+            <Pressable style={[styles.musicLinkButtonSmall, { backgroundColor: colors.spotify }]} onPress={() => openInService(submission.song, 'spotify')}>
+              <FontAwesome name="spotify" size={10} color={colors.onAccent} />
             </Pressable>
-            <Pressable style={[styles.musicLinkButtonSmall, { backgroundColor: '#FA243C' }]} onPress={() => openInService(submission.song, 'apple')}>
-              <Ionicons name="logo-apple" size={10} color="#FFFFFF" />
+            <Pressable style={[styles.musicLinkButtonSmall, { backgroundColor: colors.appleMusic }]} onPress={() => openInService(submission.song, 'apple')}>
+              <Ionicons name="logo-apple" size={10} color={colors.onAccent} />
             </Pressable>
-            <Pressable style={[styles.musicLinkButtonSmall, { backgroundColor: '#FF0000' }]} onPress={() => openInService(submission.song, 'youtube')}>
-              <Ionicons name="logo-youtube" size={10} color="#FFFFFF" />
+            <Pressable style={[styles.musicLinkButtonSmall, { backgroundColor: colors.explicitRed }]} onPress={() => openInService(submission.song, 'youtube')}>
+              <Ionicons name="logo-youtube" size={10} color={colors.onAccent} />
             </Pressable>
           </View>
         </View>
@@ -582,14 +583,14 @@ export default function RoundScreen() {
           <Text style={styles.songTitle} numberOfLines={1}>{submission.song.title}</Text>
           <Text style={styles.artistName} numberOfLines={1}>{submission.song.artist}</Text>
           <View style={styles.musicLinksSmall}>
-            <Pressable style={[styles.musicLinkButtonSmall, { backgroundColor: '#1DB954' }]} onPress={() => openInService(submission.song, 'spotify')}>
-              <FontAwesome name="spotify" size={10} color="#FFFFFF" />
+            <Pressable style={[styles.musicLinkButtonSmall, { backgroundColor: colors.spotify }]} onPress={() => openInService(submission.song, 'spotify')}>
+              <FontAwesome name="spotify" size={10} color={colors.onAccent} />
             </Pressable>
-            <Pressable style={[styles.musicLinkButtonSmall, { backgroundColor: '#FA243C' }]} onPress={() => openInService(submission.song, 'apple')}>
-              <Ionicons name="logo-apple" size={10} color="#FFFFFF" />
+            <Pressable style={[styles.musicLinkButtonSmall, { backgroundColor: colors.appleMusic }]} onPress={() => openInService(submission.song, 'apple')}>
+              <Ionicons name="logo-apple" size={10} color={colors.onAccent} />
             </Pressable>
-            <Pressable style={[styles.musicLinkButtonSmall, { backgroundColor: '#FF0000' }]} onPress={() => openInService(submission.song, 'youtube')}>
-              <Ionicons name="logo-youtube" size={10} color="#FFFFFF" />
+            <Pressable style={[styles.musicLinkButtonSmall, { backgroundColor: colors.explicitRed }]} onPress={() => openInService(submission.song, 'youtube')}>
+              <Ionicons name="logo-youtube" size={10} color={colors.onAccent} />
             </Pressable>
           </View>
         </View>
@@ -611,7 +612,7 @@ export default function RoundScreen() {
               <Text style={[styles.rankDropdownButtonText, styles.rankDropdownButtonTextDisabled]}>
                 Rank
               </Text>
-              <Ionicons name="lock-closed" size={12} color="#6A6A6A" />
+              <Ionicons name="lock-closed" size={12} color={colors.textTertiary} />
             </TouchableOpacity>
           </View>
         )}
@@ -624,7 +625,7 @@ export default function RoundScreen() {
               <Text style={[styles.rankDropdownButtonText, currentRank ? styles.rankDropdownButtonTextSelected : null]}>
                 {currentRank ? `${currentRank}${getRankSuffix(currentRank)}` : 'Rank'}
               </Text>
-              <Ionicons name={isDropdownOpen ? "chevron-up" : "chevron-down"} size={14} color="#7C3AED" />
+              <Ionicons name={isDropdownOpen ? "chevron-up" : "chevron-down"} size={14} color={colors.accent} />
             </TouchableOpacity>
             {isDropdownOpen && (
               <View style={styles.rankDropdownList}>
@@ -648,7 +649,7 @@ export default function RoundScreen() {
                         {`${rank}${getRankSuffix(rank)}`}
                       </Text>
                       {currentRank === rank && (
-                        <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                        <Ionicons name="checkmark" size={16} color={colors.accent} />
                       )}
                     </TouchableOpacity>
                   ))}
@@ -673,11 +674,11 @@ export default function RoundScreen() {
     
     const getBadgeContent = () => {
       if (isFirst) {
-        return <Ionicons name="trophy" size={16} color="#FFFFFF" />;
+        return <Ionicons name="trophy" size={16} color={colors.textPrimary} />;
       } else if (isSecond) {
-        return <Ionicons name="medal" size={16} color="#B3B3B3" />;
+        return <Ionicons name="medal" size={16} color={colors.textSecondary} />;
       } else if (isThird) {
-        return <Ionicons name="medal" size={16} color="#B3B3B3" />;
+        return <Ionicons name="medal" size={16} color={colors.textSecondary} />;
       } else {
         return <Text style={styles.rankNumberText}>{item.rank}</Text>;
       }
@@ -694,14 +695,14 @@ export default function RoundScreen() {
           <Text style={styles.artistName} numberOfLines={1}>{item.song.artist}</Text>
           <Text style={styles.submittedBy}>by {item.username}</Text>
           <View style={styles.musicLinksSmall}>
-            <Pressable style={[styles.musicLinkButtonSmall, { backgroundColor: '#1DB954' }]} onPress={() => openInService(item.song, 'spotify')}>
-              <FontAwesome name="spotify" size={10} color="#FFFFFF" />
+            <Pressable style={[styles.musicLinkButtonSmall, { backgroundColor: colors.spotify }]} onPress={() => openInService(item.song, 'spotify')}>
+              <FontAwesome name="spotify" size={10} color={colors.onAccent} />
             </Pressable>
-            <Pressable style={[styles.musicLinkButtonSmall, { backgroundColor: '#FA243C' }]} onPress={() => openInService(item.song, 'apple')}>
-              <Ionicons name="logo-apple" size={10} color="#FFFFFF" />
+            <Pressable style={[styles.musicLinkButtonSmall, { backgroundColor: colors.appleMusic }]} onPress={() => openInService(item.song, 'apple')}>
+              <Ionicons name="logo-apple" size={10} color={colors.onAccent} />
             </Pressable>
-            <Pressable style={[styles.musicLinkButtonSmall, { backgroundColor: '#FF0000' }]} onPress={() => openInService(item.song, 'youtube')}>
-              <Ionicons name="logo-youtube" size={10} color="#FFFFFF" />
+            <Pressable style={[styles.musicLinkButtonSmall, { backgroundColor: colors.explicitRed }]} onPress={() => openInService(item.song, 'youtube')}>
+              <Ionicons name="logo-youtube" size={10} color={colors.onAccent} />
             </Pressable>
           </View>
         </View>
@@ -723,7 +724,7 @@ export default function RoundScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#7C3AED" />
+          <ActivityIndicator size="large" color={colors.accent} />
         </View>
       </SafeAreaView>
     );
@@ -762,14 +763,14 @@ export default function RoundScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={24} color="rgba(255,255,255,0.75)" />
+            <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
           <View style={styles.headerInfo}>
             <Text style={styles.roundTitle}>Error</Text>
           </View>
         </View>
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle" size={48} color="#7C3AED" />
+          <Ionicons name="alert-circle" size={48} color={colors.accent} />
           <Text style={styles.errorText}>{error || 'Round not found'}</Text>
           <TouchableOpacity 
             style={styles.retryButton} 
@@ -786,17 +787,17 @@ export default function RoundScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <View style={styles.headerInfo}>
           <Text style={styles.roundTitle}>Round {round.round_number}</Text>
           <Text style={styles.roundTheme}>{round.theme}</Text>
         </View>
         <View style={[styles.statusPill, {
-          backgroundColor: round.status === 'submission' ? 'rgba(124,58,237,0.15)' : round.status === 'voting' ? 'rgba(124,58,237,0.10)' : 'rgba(255,255,255,0.08)',
+          backgroundColor: round.status === 'submission' ? colors.accentFaint : round.status === 'voting' ? colors.accentFaint : colors.border,
         }]}>
           <Text style={[styles.statusPillText, {
-            color: round.status === 'submission' ? '#A78BFA' : round.status === 'voting' ? 'rgba(167,139,250,0.8)' : '#B3B3B3',
+            color: round.status === 'submission' ? colors.accent : round.status === 'voting' ? colors.accent : colors.textSecondary,
           }]}>
             {round.status.charAt(0).toUpperCase() + round.status.slice(1)}
           </Text>
@@ -806,7 +807,7 @@ export default function RoundScreen() {
       {/* Timer */}
       {round.status !== 'completed' && timeRemaining && (
         <View style={styles.timerContainer}>
-          <Ionicons name="time-outline" size={18} color="#FFFFFF" />
+          <Ionicons name="time-outline" size={18} color={colors.textPrimary} />
           <Text style={styles.timerLabel}>
             {round.status === 'submission' ? 'Submission ends in:' : 'Voting ends in:'}
           </Text>
@@ -817,7 +818,7 @@ export default function RoundScreen() {
       {/* Progress Indicator */}
       {round.status !== 'completed' && round.total_members !== undefined && (
         <View style={styles.progressContainer}>
-          <Ionicons name="people" size={16} color="#B3B3B3" />
+          <Ionicons name="people" size={16} color={colors.textSecondary} />
           <Text style={styles.progressText}>
             {round.status === 'submission' 
               ? `${round.submissions_count ?? 0}/${round.total_members} submitted`
@@ -840,7 +841,7 @@ export default function RoundScreen() {
                 style={styles.submitSongButton}
                 onPress={() => setShowSongModal(true)}
               >
-                <Ionicons name="add-circle" size={24} color="#7C3AED" />
+                <Ionicons name="add-circle" size={24} color={colors.accent} />
                 <Text style={styles.submitSongText}>Submit Your Song</Text>
               </TouchableOpacity>
             </>
@@ -848,12 +849,12 @@ export default function RoundScreen() {
             <>
               {round.user_submission_locked ? (
                 <View style={styles.lockedBanner}>
-                  <Ionicons name="lock-closed" size={24} color="#FFFFFF" />
+                  <Ionicons name="lock-closed" size={24} color={colors.textPrimary} />
                   <Text style={styles.lockedText}>Your submission is locked in!</Text>
                 </View>
               ) : (
                 <View style={styles.submittedBanner}>
-                  <Ionicons name="checkmark-circle" size={24} color="#FFFFFF" />
+                  <Ionicons name="checkmark-circle" size={24} color={colors.textPrimary} />
                   <Text style={styles.submittedText}>Song submitted! You can still change it.</Text>
                 </View>
               )}
@@ -868,22 +869,22 @@ export default function RoundScreen() {
                     <Text style={styles.songArtist} numberOfLines={1}>{sub.song.artist}</Text>
                     <View style={styles.musicLinks}>
                       <Pressable
-                        style={[styles.musicLinkButton, { backgroundColor: '#1DB954' }]}
+                        style={[styles.musicLinkButton, { backgroundColor: colors.spotify }]}
                         onPress={() => openInService(sub.song, 'spotify')}
                       >
-                        <FontAwesome name="spotify" size={12} color="#FFFFFF" />
+                        <FontAwesome name="spotify" size={12} color={colors.onAccent} />
                       </Pressable>
                       <Pressable
-                        style={[styles.musicLinkButton, { backgroundColor: '#FA243C' }]}
+                        style={[styles.musicLinkButton, { backgroundColor: colors.appleMusic }]}
                         onPress={() => openInService(sub.song, 'apple')}
                       >
-                        <Ionicons name="logo-apple" size={12} color="#FFFFFF" />
+                        <Ionicons name="logo-apple" size={12} color={colors.onAccent} />
                       </Pressable>
                       <Pressable
-                        style={[styles.musicLinkButton, { backgroundColor: '#FF0000' }]}
+                        style={[styles.musicLinkButton, { backgroundColor: colors.explicitRed }]}
                         onPress={() => openInService(sub.song, 'youtube')}
                       >
-                        <Ionicons name="logo-youtube" size={12} color="#FFFFFF" />
+                        <Ionicons name="logo-youtube" size={12} color={colors.onAccent} />
                       </Pressable>
                     </View>
                   </View>
@@ -904,7 +905,7 @@ export default function RoundScreen() {
                     style={styles.changeSongButton}
                     onPress={() => setShowSongModal(true)}
                   >
-                    <Ionicons name="swap-horizontal" size={20} color="#FFFFFF" />
+                    <Ionicons name="swap-horizontal" size={20} color={colors.textPrimary} />
                     <Text style={styles.changeSongText}>Change Song</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -912,7 +913,7 @@ export default function RoundScreen() {
                     onPress={handleLockSubmission}
                     disabled={submitting}
                   >
-                    <Ionicons name="lock-closed" size={20} color="#FFFFFF" />
+                    <Ionicons name="lock-closed" size={20} color={colors.onAccent} />
                     <Text style={styles.lockSubmissionText}>Lock It In</Text>
                   </TouchableOpacity>
                 </View>
@@ -920,7 +921,7 @@ export default function RoundScreen() {
 
               {/* Show submission count but not actual songs */}
               <View style={styles.otherSubmissionsInfo}>
-                <Ionicons name="people" size={20} color="#B3B3B3" />
+                <Ionicons name="people" size={20} color={colors.textSecondary} />
                 <Text style={styles.otherSubmissionsText}>
                   {round.submissions_count - 1} other{round.submissions_count - 1 !== 1 ? 's have' : ' has'} submitted
                 </Text>
@@ -944,14 +945,14 @@ export default function RoundScreen() {
           ) : round.user_vote_locked ? (
             // Vote is locked
             <View style={styles.lockedBanner}>
-              <Ionicons name="lock-closed" size={24} color="#FFFFFF" />
+              <Ionicons name="lock-closed" size={24} color={colors.textPrimary} />
               <Text style={styles.lockedText}>Your vote is locked in!</Text>
             </View>
           ) : voteSaved ? (
             // Vote saved but not locked - show confirmation
             <View style={styles.voteSavedContainer}>
               <View style={styles.voteSavedBanner}>
-                <Ionicons name="checkmark-circle" size={24} color="#FFFFFF" />
+                <Ionicons name="checkmark-circle" size={24} color={colors.textPrimary} />
                 <Text style={styles.voteSavedText}>Vote saved! Ready to lock in?</Text>
               </View>
               <View style={styles.voteActionButtons}>
@@ -959,7 +960,7 @@ export default function RoundScreen() {
                   style={styles.changeVoteButton}
                   onPress={handleChangeVote}
                 >
-                  <Ionicons name="create-outline" size={20} color="#7C3AED" />
+                  <Ionicons name="create-outline" size={20} color={colors.accent} />
                   <Text style={styles.changeVoteText}>Change Vote</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -968,10 +969,10 @@ export default function RoundScreen() {
                   disabled={votingSubmitting}
                 >
                   {votingSubmitting ? (
-                    <ActivityIndicator color="#FFFFFF" />
+                    <ActivityIndicator color={colors.onAccent} />
                   ) : (
                     <>
-                      <Ionicons name="lock-closed" size={20} color="#FFFFFF" />
+                      <Ionicons name="lock-closed" size={20} color={colors.onAccent} />
                       <Text style={styles.lockVoteText}>Lock It In</Text>
                     </>
                   )}
@@ -996,7 +997,7 @@ export default function RoundScreen() {
               renderItem={renderVotingItem}
               contentContainerStyle={styles.votingListContent}
               refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#7C3AED" />
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
               }
             />
           )}
@@ -1028,7 +1029,7 @@ export default function RoundScreen() {
                 disabled={!allRanksSelected() || votingSubmitting}
               >
                 {votingSubmitting ? (
-                  <ActivityIndicator color="#FFFFFF" />
+                  <ActivityIndicator color={colors.onAccent} />
                 ) : (
                   <Text style={styles.submitVoteText}>
                     {allRanksSelected() ? 'Save Vote' : 'Rank All Songs'}
@@ -1055,7 +1056,7 @@ export default function RoundScreen() {
               style={styles.reopenButton}
               onPress={() => setShowMissingModal(true)}
             >
-              <Ionicons name="person-add-outline" size={20} color="#7C3AED" />
+              <Ionicons name="person-add-outline" size={20} color={colors.accent} />
               <Text style={styles.reopenButtonText}>
                 Reopen Submissions ({missingUsers.length} missing)
               </Text>
@@ -1071,7 +1072,7 @@ export default function RoundScreen() {
             // Winner-hero color scheme: ACCENT (#7C3AED) when the winner is
             // the current user, HOT (#F59E0B) otherwise. Ties always use
             // HOT so we don't need to pick a single user to highlight.
-            const accent = '#7C3AED';
+            const accent = colors.accent;
             const hot = '#F59E0B';
             const mineWon =
               !results.is_tie && results.winners[0]?.user_id === user?.id;
@@ -1269,7 +1270,7 @@ export default function RoundScreen() {
                   <RefreshControl
                     refreshing={refreshing}
                     onRefresh={onRefresh}
-                    tintColor="#7C3AED"
+                    tintColor={colors.accent}
                   />
                 }
                 ListFooterComponent={
@@ -1300,7 +1301,7 @@ export default function RoundScreen() {
                         onPress={() => setShowExpandModal(true)}
                         activeOpacity={0.8}
                       >
-                        <Text style={styles.shareResultsText}>Expand Results</Text>
+                        <Text style={styles.expandResultsText}>Expand Results</Text>
                       </TouchableOpacity>
                     </View>
                   </>
@@ -1335,18 +1336,18 @@ export default function RoundScreen() {
               hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
               style={styles.modalCloseButton}
             >
-              <Ionicons name="close" size={28} color="#FFFFFF" />
+              <Ionicons name="close" size={28} color={colors.textPrimary} />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Select a Song</Text>
             <View style={{ width: 44 }} />
           </View>
 
           <View style={styles.searchContainer}>
-            <Ionicons name="search" size={20} color="#B3B3B3" />
+            <Ionicons name="search" size={20} color={colors.textSecondary} />
             <TextInput
               style={styles.searchInput}
               placeholder="Search songs..."
-              placeholderTextColor="#B3B3B3"
+              placeholderTextColor={colors.textSecondary}
               value={searchQuery}
               onChangeText={handleSearchSongs}
               autoFocus
@@ -1361,14 +1362,14 @@ export default function RoundScreen() {
                 onPress={() => { setSearchQuery(''); setSearchResults([]); }}
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               >
-                <Ionicons name="close-circle" size={22} color="#B3B3B3" />
+                <Ionicons name="close-circle" size={22} color={colors.textSecondary} />
               </TouchableOpacity>
             )}
           </View>
 
           {searching ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#7C3AED" />
+              <ActivityIndicator size="large" color={colors.accent} />
             </View>
           ) : (
             <FlatList
@@ -1394,22 +1395,22 @@ export default function RoundScreen() {
                     />
                     <View style={styles.serviceButtonsSmall}>
                       <Pressable
-                        style={[styles.serviceButtonSmall, { backgroundColor: '#1DB954' }]}
+                        style={[styles.serviceButtonSmall, { backgroundColor: colors.spotify }]}
                         onPress={() => openInService(item, 'spotify')}
                       >
-                        <FontAwesome name="spotify" size={10} color="#FFFFFF" />
+                        <FontAwesome name="spotify" size={10} color={colors.onAccent} />
                       </Pressable>
                       <Pressable
-                        style={[styles.serviceButtonSmall, { backgroundColor: '#FA243C' }]}
+                        style={[styles.serviceButtonSmall, { backgroundColor: colors.appleMusic }]}
                         onPress={() => openInService(item, 'apple')}
                       >
-                        <Ionicons name="logo-apple" size={10} color="#FFFFFF" />
+                        <Ionicons name="logo-apple" size={10} color={colors.onAccent} />
                       </Pressable>
                       <Pressable
-                        style={[styles.serviceButtonSmall, { backgroundColor: '#FF0000' }]}
+                        style={[styles.serviceButtonSmall, { backgroundColor: colors.explicitRed }]}
                         onPress={() => openInService(item, 'youtube')}
                       >
-                        <Ionicons name="logo-youtube" size={10} color="#FFFFFF" />
+                        <Ionicons name="logo-youtube" size={10} color={colors.onAccent} />
                       </Pressable>
                     </View>
                   </View>
@@ -1424,7 +1425,7 @@ export default function RoundScreen() {
                   </View>
                 ) : (
                   <View style={styles.emptyState}>
-                    <Ionicons name="search" size={40} color="#B3B3B3" />
+                    <Ionicons name="search" size={40} color={colors.textSecondary} />
                     <Text style={styles.emptyText}>Search for a song to submit</Text>
                   </View>
                 )
@@ -1449,7 +1450,7 @@ export default function RoundScreen() {
             <View style={styles.missingModalHeader}>
               <Text style={styles.missingModalTitle}>Members Who Missed Submission</Text>
               <TouchableOpacity onPress={() => setShowMissingModal(false)}>
-                <Ionicons name="close" size={24} color="#FFFFFF" />
+                <Ionicons name="close" size={24} color={colors.textPrimary} />
               </TouchableOpacity>
             </View>
             <Text style={styles.missingModalSubtitle}>
@@ -1466,7 +1467,7 @@ export default function RoundScreen() {
                   </View>
                   {missingUser.has_extension ? (
                     <View style={styles.extensionInfo}>
-                      <Ionicons name="time-outline" size={16} color="#B3B3B3" />
+                      <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
                       <Text style={styles.extensionText}>
                         Expires: {new Date(missingUser.extension_deadline!).toLocaleTimeString()}
                       </Text>
@@ -1478,7 +1479,7 @@ export default function RoundScreen() {
                       disabled={reopeningFor === missingUser.user_id}
                     >
                       {reopeningFor === missingUser.user_id ? (
-                        <ActivityIndicator size="small" color="#FFFFFF" />
+                        <ActivityIndicator size="small" color={colors.onAccent} />
                       ) : (
                         <Text style={styles.grantExtensionText}>Grant 2hr Extension</Text>
                       )}
@@ -1488,7 +1489,7 @@ export default function RoundScreen() {
               ))}
               {missingUsers.length === 0 && (
                 <View style={styles.noMissingUsers}>
-                  <Ionicons name="checkmark-circle" size={32} color="#7C3AED" />
+                  <Ionicons name="checkmark-circle" size={32} color={colors.accent} />
                   <Text style={styles.noMissingText}>All members have submitted!</Text>
                 </View>
               )}
@@ -1508,7 +1509,7 @@ export default function RoundScreen() {
             autoStart={true}
             fadeOut={true}
             fallSpeed={2500}
-            colors={['#7C3AED', '#FFFFFF', '#7C3AED', '#FFFFFF', '#7C3AED']}
+            colors={[colors.accent, '#F59E0B', colors.accent, '#F59E0B', colors.accent]}
           />
         </View>
       )}
@@ -1528,7 +1529,7 @@ export default function RoundScreen() {
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               activeOpacity={0.7}
             >
-              <Ionicons name="close" size={26} color="#FFFFFF" />
+              <Ionicons name="close" size={26} color={colors.textPrimary} />
             </TouchableOpacity>
             <Text style={styles.expandModalTitle}>Results Grid</Text>
             <View style={{ width: 44 }} />
@@ -1671,7 +1672,7 @@ function ResultsRankRow({
   onOpenApple: () => void;
   onOpenYoutube: () => void;
 }) {
-  const accent = '#7C3AED';
+  const accent = colors.accent;
   const progress = useRef(new Animated.Value(0)).current;
   const fillPct = Math.max(4, (item.points / maxPoints) * 100);
 
@@ -1698,7 +1699,7 @@ function ResultsRankRow({
       accessibilityLabel={`Rank ${item.rank}, ${item.song.title} by ${item.song.artist}, submitted by ${item.username}, ${item.points} points`}
       style={[
         styles.resultsRow,
-        isMe && { backgroundColor: 'rgba(124,58,237,0.13)', borderColor: accent + '54' },
+        isMe && { backgroundColor: colors.accentFaint, borderColor: accent + '54' },
       ]}
     >
       <Animated.View
@@ -1706,7 +1707,7 @@ function ResultsRankRow({
           styles.resultsBar,
           {
             width: barWidth,
-            backgroundColor: isMe ? 'rgba(124,58,237,0.22)' : 'rgba(255,255,255,0.07)',
+            backgroundColor: isMe ? colors.accentFaint : colors.borderFaint,
           },
         ]}
         pointerEvents="none"
@@ -1726,22 +1727,22 @@ function ResultsRankRow({
           </View>
           <View style={styles.resultsLinksRow}>
             <Pressable
-              style={[styles.resultsLinkBtn, { backgroundColor: '#1DB954' }]}
+              style={[styles.resultsLinkBtn, { backgroundColor: colors.spotify }]}
               onPress={onOpenSpotify}
             >
-              <FontAwesome name="spotify" size={9} color="#FFFFFF" />
+              <FontAwesome name="spotify" size={9} color={colors.onAccent} />
             </Pressable>
             <Pressable
-              style={[styles.resultsLinkBtn, { backgroundColor: '#FA243C' }]}
+              style={[styles.resultsLinkBtn, { backgroundColor: colors.appleMusic }]}
               onPress={onOpenApple}
             >
-              <Ionicons name="logo-apple" size={9} color="#FFFFFF" />
+              <Ionicons name="logo-apple" size={9} color={colors.onAccent} />
             </Pressable>
             <Pressable
-              style={[styles.resultsLinkBtn, { backgroundColor: '#FF0000' }]}
+              style={[styles.resultsLinkBtn, { backgroundColor: colors.explicitRed }]}
               onPress={onOpenYoutube}
             >
-              <Ionicons name="logo-youtube" size={9} color="#FFFFFF" />
+              <Ionicons name="logo-youtube" size={9} color={colors.onAccent} />
             </Pressable>
           </View>
         </View>
@@ -1760,7 +1761,7 @@ function ResultsRankRow({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: colors.bg,
   },
   confettiContainer: {
     position: 'absolute',
@@ -1782,19 +1783,19 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     textAlign: 'center',
     marginTop: 12,
   },
   retryButton: {
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
     marginTop: 8,
   },
   retryButtonText: {
-    color: '#FFFFFF',
+    color: colors.onAccent,
     fontWeight: '700',
     fontSize: 14,
   },
@@ -1805,7 +1806,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 12,
     borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
+    borderBottomColor: colors.border,
   },
   backButton: {
     padding: 8,
@@ -1817,11 +1818,11 @@ const styles = StyleSheet.create({
   roundTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   roundTheme: {
     fontSize: 14,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
   },
   statusPill: {
     paddingHorizontal: 12,
@@ -1844,7 +1845,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     marginHorizontal: 16,
     paddingVertical: 14,
     borderRadius: 50,
@@ -1853,13 +1854,13 @@ const styles = StyleSheet.create({
   submitSongText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.onAccent,
   },
   submittedBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     marginHorizontal: 16,
     paddingVertical: 14,
     paddingHorizontal: 16,
@@ -1869,13 +1870,13 @@ const styles = StyleSheet.create({
   submittedText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   timerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     marginHorizontal: 16,
     marginTop: 12,
     paddingVertical: 12,
@@ -1886,12 +1887,12 @@ const styles = StyleSheet.create({
   timerLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   timerValue: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   progressContainer: {
     flexDirection: 'row',
@@ -1904,12 +1905,12 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 13,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
   },
   sectionTitle: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 1.5,
     marginHorizontal: 16,
@@ -1924,7 +1925,7 @@ const styles = StyleSheet.create({
   submissionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     borderRadius: 8,
     padding: 12,
     marginBottom: 8,
@@ -1946,48 +1947,41 @@ const styles = StyleSheet.create({
   songTitle: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   artistName: {
     fontSize: 13,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     marginTop: 2,
     fontWeight: '400',
   },
   submittedBy: {
     fontSize: 12,
-    color: '#6A6A6A',
+    color: colors.textTertiary,
     marginTop: 4,
   },
   submittedByYou: {
     fontSize: 12,
-    color: '#6A6A6A',
+    color: colors.textTertiary,
     fontStyle: 'italic',
     marginTop: 4,
   },
   duration: {
     fontSize: 11,
-    color: '#6A6A6A',
+    color: colors.textTertiary,
     marginTop: 2,
   },
   playButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: '#7C3AED',
     alignItems: 'center',
     justifyContent: 'center',
   },
   playButtonSmall: {
     width: 32,
     height: 32,
-    borderRadius: 16,
-    backgroundColor: '#7C3AED',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  playingButton: {
-    backgroundColor: 'rgba(255,255,255,0.20)',
   },
   musicLinks: {
     flexDirection: 'row',
@@ -2034,7 +2028,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 14,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     marginTop: 8,
   },
   hiddenSubmissionsNote: {
@@ -2045,20 +2039,20 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingVertical: 16,
     paddingHorizontal: 20,
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     borderRadius: 8,
     gap: 10,
   },
   hiddenSubmissionsText: {
     fontSize: 14,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     flex: 1,
   },
   votingInstructions: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     marginHorizontal: 16,
     marginTop: 12,
     marginBottom: 12,
@@ -2068,7 +2062,7 @@ const styles = StyleSheet.create({
   },
   votingInstructionsText: {
     fontSize: 14,
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontWeight: '600',
   },
   ownSongNote: {
@@ -2081,12 +2075,12 @@ const styles = StyleSheet.create({
   },
   ownSongNoteText: {
     fontSize: 12,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
   },
   votingCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     borderRadius: 8,
     padding: 12,
     marginBottom: 8,
@@ -2096,7 +2090,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
@@ -2104,12 +2098,12 @@ const styles = StyleSheet.create({
   rankNumber: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   rankNumberText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   votingSongInfo: {
     flex: 1,
@@ -2135,12 +2129,12 @@ const styles = StyleSheet.create({
     right: 0,
     padding: 16,
     paddingBottom: 34,
-    backgroundColor: '#121212',
+    backgroundColor: colors.bg,
     borderTopWidth: 0.5,
-    borderTopColor: 'rgba(255,255,255,0.1)',
+    borderTopColor: colors.border,
   },
   submitVoteButton: {
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     paddingVertical: 14,
     borderRadius: 50,
     alignItems: 'center',
@@ -2151,13 +2145,13 @@ const styles = StyleSheet.create({
   submitVoteText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.onAccent,
   },
   lockedBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     marginHorizontal: 16,
     marginTop: 12,
     paddingVertical: 14,
@@ -2168,7 +2162,7 @@ const styles = StyleSheet.create({
   lockedText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   voteSavedContainer: {
     marginHorizontal: 16,
@@ -2180,7 +2174,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     paddingVertical: 16,
     borderRadius: 8,
     gap: 8,
@@ -2188,7 +2182,7 @@ const styles = StyleSheet.create({
   voteSavedText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   voteActionButtons: {
     flexDirection: 'row',
@@ -2199,7 +2193,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     paddingVertical: 14,
     borderRadius: 8,
     gap: 8,
@@ -2207,14 +2201,14 @@ const styles = StyleSheet.create({
   changeVoteText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#7C3AED',
+    color: colors.accent,
   },
   lockVoteButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     paddingVertical: 14,
     borderRadius: 50,
     gap: 8,
@@ -2222,7 +2216,7 @@ const styles = StyleSheet.create({
   lockVoteText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.onAccent,
   },
   lockedRankingsContainer: {
     marginTop: 16,
@@ -2230,7 +2224,7 @@ const styles = StyleSheet.create({
   winnerBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     marginHorizontal: 16,
     marginTop: 8,
     padding: 16,
@@ -2242,7 +2236,7 @@ const styles = StyleSheet.create({
   },
   winnerLabel: {
     fontSize: 12,
-    color: '#7C3AED',
+    color: colors.accent,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 1.5,
@@ -2250,12 +2244,12 @@ const styles = StyleSheet.create({
   winnerSong: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     marginTop: 4,
   },
   winnerUser: {
     fontSize: 14,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   tieBanner: {
@@ -2265,7 +2259,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 0.5,
-    borderTopColor: 'rgba(255,255,255,0.1)',
+    borderTopColor: colors.border,
   },
   tieWinnerRow: {
     flexDirection: 'row',
@@ -2297,8 +2291,6 @@ const styles = StyleSheet.create({
   playButtonWinner: {
     width: 28,
     height: 28,
-    borderRadius: 14,
-    backgroundColor: '#7C3AED',
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 8,
@@ -2306,7 +2298,7 @@ const styles = StyleSheet.create({
   resultCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     borderRadius: 8,
     padding: 12,
     marginBottom: 8,
@@ -2325,7 +2317,7 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   pointsBadge: {
-    backgroundColor: 'rgba(124,58,237,0.12)',
+    backgroundColor: colors.accentFaint,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 4,
@@ -2335,15 +2327,15 @@ const styles = StyleSheet.create({
   pointsText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#7C3AED',
+    color: colors.accent,
   },
   pointsLabel: {
     fontSize: 10,
-    color: 'rgba(124,58,237,0.55)',
+    color: colors.accent,
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: colors.bg,
     paddingTop: Platform.OS === 'ios' ? 55 : 0,
   },
   modalHeader: {
@@ -2351,10 +2343,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 4,
-    paddingBottom: 12,
+    paddingTop: 0,
+    paddingBottom: 10,
     borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
+    borderBottomColor: colors.border,
     minHeight: 48,
   },
   modalCloseButton: {
@@ -2367,12 +2359,12 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#3E3E3E',
+    backgroundColor: colors.surface4,
     marginHorizontal: 16,
     marginVertical: 12,
     borderRadius: 8,
@@ -2382,7 +2374,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     height: 48,
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 16,
   },
   searchResultsList: {
@@ -2392,7 +2384,7 @@ const styles = StyleSheet.create({
   searchResultItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     borderRadius: 8,
     padding: 12,
     marginBottom: 8,
@@ -2408,7 +2400,7 @@ const styles = StyleSheet.create({
   userSubmissionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     borderRadius: 8,
     padding: 14,
     marginHorizontal: 16,
@@ -2425,7 +2417,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     padding: 14,
     borderRadius: 8,
     gap: 8,
@@ -2433,14 +2425,14 @@ const styles = StyleSheet.create({
   changeSongText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   lockSubmissionButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     padding: 14,
     borderRadius: 50,
     gap: 8,
@@ -2448,7 +2440,7 @@ const styles = StyleSheet.create({
   lockSubmissionText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.onAccent,
   },
   otherSubmissionsInfo: {
     flexDirection: 'row',
@@ -2456,17 +2448,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginHorizontal: 16,
     padding: 14,
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     borderRadius: 8,
     gap: 8,
   },
   otherSubmissionsText: {
     fontSize: 14,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
   },
   songArtist: {
     fontSize: 13,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     marginTop: 2,
     fontWeight: '400',
   },
@@ -2479,7 +2471,7 @@ const styles = StyleSheet.create({
   rankDropdownButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
@@ -2488,21 +2480,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   rankDropdownButtonSelected: {
-    backgroundColor: 'rgba(124,58,237,0.15)',
+    backgroundColor: colors.accentFaint,
   },
   rankDropdownButtonText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#B3B3B3',
+    color: colors.textSecondary,
   },
   rankDropdownButtonTextSelected: {
-    color: '#7C3AED',
+    color: colors.accent,
   },
   rankDropdownList: {
     position: 'absolute',
     top: 42,
     right: 0,
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
     borderRadius: 8,
     overflow: 'hidden',
     minWidth: 100,
@@ -2519,23 +2511,23 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
+    borderBottomColor: colors.border,
   },
   rankDropdownItemSelected: {
-    backgroundColor: 'rgba(124,58,237,0.12)',
+    backgroundColor: colors.accentFaint,
   },
   rankDropdownItemText: {
     fontSize: 15,
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontWeight: '500',
   },
   rankDropdownItemTextSelected: {
-    color: '#7C3AED',
+    color: colors.accent,
     fontWeight: '500',
   },
   rankBadgeVoted: {
     marginLeft: 8,
-    backgroundColor: 'rgba(124,58,237,0.15)',
+    backgroundColor: colors.accentFaint,
     borderRadius: 8,
     paddingVertical: 6,
     paddingHorizontal: 10,
@@ -2545,7 +2537,7 @@ const styles = StyleSheet.create({
   rankNumberVoted: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#7C3AED',
+    color: colors.accent,
   },
   votingListContent: {
     paddingHorizontal: 16,
@@ -2558,7 +2550,7 @@ const styles = StyleSheet.create({
   },
   pointsExplanationText: {
     fontSize: 12,
-    color: '#6A6A6A',
+    color: colors.textTertiary,
     textAlign: 'center',
   },
   nonSubmittersSection: {
@@ -2567,16 +2559,16 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     paddingVertical: 10,
     paddingHorizontal: 14,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: colors.borderFaint,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: colors.borderFaint,
   },
   nonSubmittersHeading: {
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1,
-    color: '#6A6A6A',
+    color: colors.textTertiary,
     marginBottom: 8,
   },
   nonSubmitterRow: {
@@ -2588,16 +2580,16 @@ const styles = StyleSheet.create({
   nonSubmitterName: {
     flex: 1,
     fontSize: 14,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   nonSubmitterMeta: {
-    color: '#6A6A6A',
+    color: colors.textTertiary,
     fontWeight: '400',
   },
   nonSubmitterPoints: {
     fontSize: 13,
-    color: '#6A6A6A',
+    color: colors.textTertiary,
     fontWeight: '600',
   },
   forfeitBanner: {
@@ -2621,12 +2613,12 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   rankDropdownButtonDisabled: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: colors.borderFaint,
+    borderColor: colors.border,
     opacity: 0.55,
   },
   rankDropdownButtonTextDisabled: {
-    color: '#6A6A6A',
+    color: colors.textTertiary,
   },
   noSubmissionContainer: {
     flex: 1,
@@ -2638,11 +2630,11 @@ const styles = StyleSheet.create({
   noSubmissionTitle: {
     fontSize: 18,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   noSubmissionText: {
     fontSize: 14,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -2653,19 +2645,19 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: 'rgba(124,58,237,0.12)',
+    backgroundColor: colors.accentFaint,
     borderRadius: 8,
   },
   noSubmissionWarningText: {
     fontSize: 13,
-    color: '#7C3AED',
+    color: colors.accent,
     fontWeight: '500',
   },
   reopenButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     marginHorizontal: 16,
     marginVertical: 12,
     paddingVertical: 14,
@@ -2675,7 +2667,7 @@ const styles = StyleSheet.create({
   reopenButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#7C3AED',
+    color: colors.accent,
   },
   modalOverlay: {
     flex: 1,
@@ -2683,7 +2675,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   missingModalContent: {
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
     paddingTop: 20,
@@ -2700,11 +2692,11 @@ const styles = StyleSheet.create({
   missingModalTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   missingModalSubtitle: {
     fontSize: 13,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     paddingHorizontal: 20,
     marginBottom: 16,
   },
@@ -2717,7 +2709,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 14,
     borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
+    borderBottomColor: colors.border,
   },
   missingUserInfo: {
     flex: 1,
@@ -2725,11 +2717,11 @@ const styles = StyleSheet.create({
   missingUserName: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   extensionBadge: {
     fontSize: 11,
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     marginTop: 2,
   },
   extensionInfo: {
@@ -2739,10 +2731,10 @@ const styles = StyleSheet.create({
   },
   extensionText: {
     fontSize: 12,
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   grantExtensionButton: {
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
@@ -2750,7 +2742,7 @@ const styles = StyleSheet.create({
   grantExtensionText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.onAccent,
   },
   noMissingUsers: {
     alignItems: 'center',
@@ -2759,7 +2751,7 @@ const styles = StyleSheet.create({
   },
   noMissingText: {
     fontSize: 14,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
   },
 
   // ── Share Results button ─────────────────────────────────────────────────
@@ -2774,7 +2766,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     paddingVertical: 14,
     paddingHorizontal: 24,
     borderRadius: 50,
@@ -2784,15 +2776,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#282828',
+    backgroundColor: 'transparent',
     paddingVertical: 14,
     paddingHorizontal: 24,
     borderRadius: 50,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: colors.accent,
   },
   shareResultsText: {
-    color: '#FFFFFF',
+    color: colors.onAccent,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  expandResultsText: {
+    color: colors.accent,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -2800,7 +2797,7 @@ const styles = StyleSheet.create({
   // ── Expand Results modal ─────────────────────────────────────────────────
   expandModalContainer: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: colors.bg,
   },
   expandModalHeader: {
     flexDirection: 'row',
@@ -2817,7 +2814,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   expandModalTitle: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '700',
   },
@@ -2832,7 +2829,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   gridHeaderText: {
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -2852,12 +2849,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   gridSongTitle: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 13,
     fontWeight: '600',
   },
   gridSongArtist: {
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     fontSize: 11,
     marginTop: 2,
   },
@@ -2874,11 +2871,11 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: '#121212',
+    borderColor: colors.bg,
     overflow: 'hidden',
   },
   gridVoterAvatarImage: {
@@ -2889,15 +2886,15 @@ const styles = StyleSheet.create({
   gridVoterAvatarText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   gridVoterAvatarMore: {
-    backgroundColor: '#3A3A3A',
+    backgroundColor: colors.surface4,
   },
   gridVoterAvatarMoreText: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
 
   // ── Off-screen share card (captured by ViewShot) ─────────────────────────
@@ -2908,14 +2905,14 @@ const styles = StyleSheet.create({
   },
   shareCard: {
     width: 360,
-    backgroundColor: '#121212',
+    backgroundColor: colors.bg,
     paddingHorizontal: 28,
     paddingVertical: 32,
   },
   shareCardAppName: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
     textAlign: 'center',
@@ -2923,13 +2920,13 @@ const styles = StyleSheet.create({
   shareCardRoundName: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     textAlign: 'center',
     marginTop: 12,
   },
   shareCardTheme: {
     fontSize: 14,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     textAlign: 'center',
     marginTop: 4,
   },
@@ -2940,38 +2937,38 @@ const styles = StyleSheet.create({
   shareCardWinnerLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#7C3AED',
+    color: colors.accent,
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
   shareCardWinnerSong: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     textAlign: 'center',
     marginTop: 10,
   },
   shareCardWinnerArtist: {
     fontSize: 15,
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     textAlign: 'center',
     marginTop: 4,
   },
   shareCardSubmittedBy: {
     fontSize: 12,
-    color: '#6A6A6A',
+    color: colors.textTertiary,
     textAlign: 'center',
     marginTop: 6,
   },
   shareCardDivider: {
     height: 0.5,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: colors.borderStrong,
     marginVertical: 24,
   },
   shareCardRankingsLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
     marginBottom: 12,
@@ -2985,7 +2982,7 @@ const styles = StyleSheet.create({
   shareCardRankNum: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#7C3AED',
+    color: colors.accent,
     width: 24,
     textAlign: 'center',
   },
@@ -2995,16 +2992,16 @@ const styles = StyleSheet.create({
   shareCardRankSong: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   shareCardRankArtist: {
     fontSize: 12,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   shareCardRankUser: {
     fontSize: 11,
-    color: '#6A6A6A',
+    color: colors.textTertiary,
     marginTop: 2,
   },
 
@@ -3037,7 +3034,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.06)',
+    borderTopColor: colors.borderFaint,
   },
   winnerHeroArtWrap: {
     position: 'relative',
@@ -3052,21 +3049,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#121212',
+    borderColor: colors.bg,
   },
   winnerHeroRankBadgeText: {
-    color: '#FFFFFF',
+    color: colors.onAccent,
     fontWeight: '800',
     fontSize: 11,
   },
   winnerHeroSong: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   winnerHeroArtist: {
     fontSize: 13,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   winnerHeroSubRow: {
@@ -3079,7 +3076,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     marginRight: 8,
   },
   winnerHeroPtsGroup: {
@@ -3096,7 +3093,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 1,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     marginBottom: 4,
   },
 
@@ -3104,7 +3101,7 @@ const styles = StyleSheet.create({
   fullResultsLabel: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     letterSpacing: 1.4,
     textTransform: 'uppercase',
     marginHorizontal: 4,
@@ -3114,7 +3111,7 @@ const styles = StyleSheet.create({
   resultsRow: {
     marginBottom: 8,
     borderRadius: 14,
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     borderWidth: 1,
     borderColor: 'transparent',
     overflow: 'hidden',
@@ -3139,7 +3136,7 @@ const styles = StyleSheet.create({
     width: 22,
     fontSize: 20,
     fontWeight: '800',
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   resultsInfo: {
@@ -3148,7 +3145,7 @@ const styles = StyleSheet.create({
   resultsSong: {
     fontSize: 13.5,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   resultsMetaRow: {
     flexDirection: 'row',
@@ -3158,15 +3155,15 @@ const styles = StyleSheet.create({
   },
   resultsUser: {
     fontSize: 11,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     flexShrink: 1,
   },
   resultsYouTag: {
     fontSize: 9,
     fontWeight: '800',
-    color: '#7C3AED',
+    color: colors.accent,
     letterSpacing: 0.6,
-    backgroundColor: 'rgba(124,58,237,0.18)',
+    backgroundColor: colors.accentFaint,
     paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: 3,
@@ -3187,12 +3184,12 @@ const styles = StyleSheet.create({
   resultsPoints: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     minWidth: 40,
     textAlign: 'right',
   },
   emptyRestText: {
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     fontSize: 13,
     textAlign: 'center',
     padding: 20,

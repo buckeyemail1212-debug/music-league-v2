@@ -77,7 +77,7 @@ export default function LikeButton({
       <Ionicons
         name={liked ? 'heart' : 'heart-outline'}
         size={size}
-        color={liked ? '#EF4444' : '#FFFFFF'}
+        color="#EF4444"
       />
     </TouchableOpacity>
   );

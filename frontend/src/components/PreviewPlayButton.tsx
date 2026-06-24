@@ -110,7 +110,7 @@ export const PreviewPlayButton: React.FC<PreviewPlayButtonProps> = ({
   deezerId,
   songId,
   size = 16,
-  color = '#fff',
+  color = '#000000',
   style,
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -174,7 +174,6 @@ export const PreviewPlayButton: React.FC<PreviewPlayButtonProps> = ({
       hitSlop={14}
       style={[
         styles.button,
-        isPlaying && styles.buttonPlaying,
         style,
       ]}
     >
@@ -182,7 +181,7 @@ export const PreviewPlayButton: React.FC<PreviewPlayButtonProps> = ({
         <ActivityIndicator size="small" color={color} />
       ) : (
         <Ionicons
-          name={isPlaying ? 'pause' : 'play'}
+          name={isPlaying ? 'pause-outline' : 'play-outline'}
           size={size}
           color={color}
         />
@@ -209,12 +208,7 @@ const styles = StyleSheet.create({
   button: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.08)',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  buttonPlaying: {
-    backgroundColor: '#7C3AED',
   },
 });
