@@ -791,7 +791,7 @@ export default function RoundScreen() {
         </TouchableOpacity>
         <View style={styles.headerInfo}>
           <Text style={styles.roundTitle}>Round {round.round_number}</Text>
-          <Text style={styles.roundTheme}>{round.theme}</Text>
+          {round.theme ? <Text style={styles.roundTheme}>{round.theme}</Text> : null}
         </View>
         <View style={[styles.statusPill, {
           backgroundColor: round.status === 'submission' ? colors.accentFaint : round.status === 'voting' ? colors.accentFaint : colors.border,
@@ -1814,6 +1814,7 @@ const styles = StyleSheet.create({
   headerInfo: {
     flex: 1,
     marginLeft: 8,
+    justifyContent: 'center',
   },
   roundTitle: {
     fontSize: 14,
