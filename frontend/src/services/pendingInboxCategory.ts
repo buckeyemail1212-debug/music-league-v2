@@ -5,6 +5,11 @@ export interface InboxCategoryItem {
   tapType: 'user' | 'round' | 'chat' | 'none';
   tapId?: string;
   tapLabel?: string;
+  avatar?: string | null;
+  title?: string;
+  subtitle?: string;
+  actorId?: string;
+  followsBack?: boolean;
 }
 
 export interface PendingInboxCategory {

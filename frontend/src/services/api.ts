@@ -877,6 +877,9 @@ export interface AppNotification {
   ref_id: string | null;
   created_at: string;
   read: boolean;
+  actor_avatar?: string | null;
+  actor_name?: string | null;
+  follows_back?: boolean;
 }
 
 export const getNotifications = () =>

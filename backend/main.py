@@ -7682,6 +7682,36 @@ async def get_notifications(current_user: dict = Depends(get_current_user)):
         .sort("created_at", -1)
         .to_list(length=100)
     )
+
+    # Batch-enrich with actor identity + (for follows) whether I follow them
+    # back, so the inbox can render rich rows without N per-row requests.
+    actor_ids = list({r.get("actor_id") for r in rows if r.get("actor_id")})
+    actor_map = {}
+    if actor_ids:
+        actors = await db.users.find(
+            {"id": {"$in": actor_ids}},
+            {"_id": 0, "id": 1, "username": 1, "display_name": 1, "profile_photo": 1},
+        ).to_list(length=None)
+        actor_map = {a["id"]: a for a in actors}
+
+    following_back = set()
+    if actor_ids:
+        # follows schema (see _are_mutual_friends / _resolved_follow_status):
+        # follower_id -> followed_id, with status == "approved" for live edges.
+        edges = await db.follows.find(
+            {"follower_id": me_id, "followed_id": {"$in": actor_ids}, "status": "approved"},
+            {"_id": 0, "followed_id": 1},
+        ).to_list(length=None)
+        following_back = {e["followed_id"] for e in edges}
+
+    for r in rows:
+        aid = r.get("actor_id")
+        actor = actor_map.get(aid) if aid else None
+        r["actor_avatar"] = (actor or {}).get("profile_photo")
+        r["actor_name"] = (actor or {}).get("display_name") or (actor or {}).get("username")
+        if r.get("category") == "follows" and aid:
+            r["follows_back"] = aid in following_back
+
     return {"data": {"notifications": rows}}
 
 

@@ -139,6 +139,11 @@ export default function InboxScreen() {
           timestamp: parseTs(n.created_at),
           tapType: 'user' as const,
           tapId: n.actor_id ?? undefined,
+          avatar: n.actor_avatar ?? null,
+          title: n.actor_name ?? (n.body || '').split(' ')[0],
+          subtitle: 'started following you',
+          actorId: n.actor_id ?? undefined,
+          followsBack: n.follows_back ?? false,
         }));
     } else if (catKey === 'results') {
       items = notifs

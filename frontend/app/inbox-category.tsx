@@ -5,6 +5,7 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
+  Image,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,7 +16,7 @@ import {
   PendingInboxCategory,
   InboxCategoryItem,
 } from '../src/services/pendingInboxCategory';
-import { deleteNotifications, dismissInboxItems } from '../src/services/api';
+import { deleteNotifications, dismissInboxItems, followUser } from '../src/services/api';
 
 function relativeTime(ts: number): string {
   const diff = Date.now() - ts;
@@ -27,12 +28,28 @@ function relativeTime(ts: number): string {
   return `${d.toLocaleString('en-US', { month: 'short' })} ${d.getDate()}`;
 }
 
+function tiktokTime(ms: number): string {
+  if (!ms) return '';
+  const d = new Date(ms);
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const startOfYesterday = startOfToday - 86400000;
+  if (ms >= startOfToday) return 'Today';
+  if (ms >= startOfYesterday) return 'Yesterday';
+  const sameYear = d.getFullYear() === now.getFullYear();
+  const opts: Intl.DateTimeFormatOptions = sameYear
+    ? { month: 'short', day: 'numeric' }
+    : { month: 'short', day: 'numeric', year: 'numeric' };
+  return d.toLocaleDateString('en-US', opts);
+}
+
 export default function InboxCategoryScreen() {
   const router = useRouter();
   const [data, setData] = useState<PendingInboxCategory | null>(null);
   const [items, setItems] = useState<InboxCategoryItem[]>([]);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [followedNow, setFollowedNow] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const d = consumePendingInboxCategory();
@@ -95,9 +112,71 @@ export default function InboxCategoryScreen() {
     }
   };
 
+  const handleFollowBack = async (item: InboxCategoryItem) => {
+    if (!item.actorId) return;
+    setFollowedNow(prev => ({ ...prev, [item.id]: true }));
+    try {
+      await followUser(item.actorId);
+    } catch {
+      setFollowedNow(prev => ({ ...prev, [item.id]: false }));
+    }
+  };
+
   const renderItem = ({ item }: { item: InboxCategoryItem }) => {
     const tappable = item.tapType !== 'none' && !!item.tapId;
     const selected = selectedIds.has(item.id);
+
+    // Rich follow row (TikTok-style) — only when the mapper supplied a title.
+    if (item.title) {
+      const isFriend = item.followsBack || followedNow[item.id];
+      return (
+        <TouchableOpacity
+          style={styles.followCard}
+          onPress={() => (selectMode ? toggleSelect(item.id) : handlePress(item))}
+          activeOpacity={selectMode || tappable ? 0.7 : 1}
+          disabled={!selectMode && !tappable}
+        >
+          {selectMode && (
+            <Ionicons
+              name={selected ? 'checkmark-circle' : 'ellipse-outline'}
+              size={22}
+              color={selected ? '#7C3AED' : '#6A6A6A'}
+              style={styles.checkbox}
+            />
+          )}
+          {item.avatar ? (
+            <Image source={{ uri: item.avatar }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarFallback]}>
+              <Ionicons name="person" size={20} color="#B3B3B3" />
+            </View>
+          )}
+          <View style={styles.followMiddle}>
+            <Text style={styles.followTitle} numberOfLines={1}>{item.title}</Text>
+            <Text style={styles.followSubtitle} numberOfLines={1}>{item.subtitle}</Text>
+          </View>
+          {item.timestamp > 0 && (
+            <Text style={styles.followTime}>{tiktokTime(item.timestamp)}</Text>
+          )}
+          {isFriend ? (
+            <View style={styles.friendsPill}>
+              <Text style={styles.friendsPillText}>Friends</Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.followPill}
+              onPress={() => handleFollowBack(item)}
+              disabled={selectMode}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.followPillText}>Follow back</Text>
+            </TouchableOpacity>
+          )}
+        </TouchableOpacity>
+      );
+    }
+
+    // Text-only fallback for all other categories — unchanged.
     return (
       <TouchableOpacity
         style={styles.card}
@@ -232,6 +311,66 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#6A6A6A',
     marginLeft: 12,
+  },
+  followCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+  },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  avatarFallback: {
+    backgroundColor: '#3E3E3E',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  followMiddle: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  followTitle: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#FFFFFF',
+  },
+  followSubtitle: {
+    fontSize: 13,
+    color: '#B3B3B3',
+    marginTop: 2,
+  },
+  followTime: {
+    fontSize: 12,
+    color: '#6A6A6A',
+    marginLeft: 8,
+    marginRight: 8,
+  },
+  friendsPill: {
+    backgroundColor: '#2A2A2A',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+  },
+  friendsPillText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#B3B3B3',
+  },
+  followPill: {
+    backgroundColor: '#7C3AED',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+  },
+  followPillText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   empty: {
     flex: 1,
