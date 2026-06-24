@@ -73,6 +73,13 @@ export default function LeagueChatScreen() {
     };
   }, [leagueId]);
 
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidShow', () => {
+      setTimeout(() => chatListRef.current?.scrollToEnd({ animated: true }), 50);
+    });
+    return () => sub.remove();
+  }, []);
+
   // Opening the chat counts as reading the league category — clear the
   // inbox's COMMENT/unread indicator (it re-reads category views on poll/focus).
   useEffect(() => {
@@ -144,7 +151,7 @@ export default function LeagueChatScreen() {
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 20}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
