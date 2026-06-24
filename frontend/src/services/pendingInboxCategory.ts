@@ -10,6 +10,7 @@ export interface InboxCategoryItem {
   subtitle?: string;
   actorId?: string;
   followsBack?: boolean;
+  showFollowPill?: boolean;
 }
 
 export interface PendingInboxCategory {

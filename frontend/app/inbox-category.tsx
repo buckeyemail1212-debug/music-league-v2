@@ -146,9 +146,15 @@ export default function InboxCategoryScreen() {
           )}
           {item.avatar ? (
             <Image source={{ uri: item.avatar }} style={styles.avatar} />
-          ) : (
+          ) : item.showFollowPill ? (
             <View style={[styles.avatar, styles.avatarFallback]}>
               <Ionicons name="person" size={20} color="#B3B3B3" />
+            </View>
+          ) : (
+            <View style={[styles.avatar, styles.leagueInitialFallback]}>
+              <Text style={styles.leagueInitialText}>
+                {item.title && item.title.trim() ? item.title.trim()[0].toUpperCase() : '?'}
+              </Text>
             </View>
           )}
           <View style={styles.followMiddle}>
@@ -158,7 +164,7 @@ export default function InboxCategoryScreen() {
           {item.timestamp > 0 && (
             <Text style={styles.followTime}>{tiktokTime(item.timestamp)}</Text>
           )}
-          {isFriend ? (
+          {item.showFollowPill && (isFriend ? (
             <View style={styles.friendsPill}>
               <Text style={styles.friendsPillText}>Friends</Text>
             </View>
@@ -171,7 +177,7 @@ export default function InboxCategoryScreen() {
             >
               <Text style={styles.followPillText}>Follow back</Text>
             </TouchableOpacity>
-          )}
+          ))}
         </TouchableOpacity>
       );
     }
@@ -330,6 +336,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  leagueInitialFallback: { backgroundColor: '#7C3AED', alignItems: 'center', justifyContent: 'center' },
+  leagueInitialText: { color: '#FFFFFF', fontSize: 20, fontWeight: '700' },
   followMiddle: {
     flex: 1,
     marginLeft: 12,

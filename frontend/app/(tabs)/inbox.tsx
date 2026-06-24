@@ -144,37 +144,50 @@ export default function InboxScreen() {
           subtitle: 'started following you',
           actorId: n.actor_id ?? undefined,
           followsBack: n.follows_back ?? false,
+          showFollowPill: true,
         }));
     } else if (catKey === 'results') {
       items = notifs
         .filter(n => n.type === 'RESULT')
         .map(n => ({
           id: n.id,
-          text: n.leagueName ? `${n.leagueName} — ${n.message}` : n.message,
+          text: n.message,
           timestamp: n.timestamp,
           tapType: n.roundId ? 'round' as const : 'none' as const,
           tapId: n.roundId,
+          avatar: n.leagueImage ?? null,
+          title: n.leagueName || 'League',
+          subtitle: n.message,
+          showFollowPill: false,
         }));
     } else if (catKey === 'reminders') {
       items = notifs
         .filter(n => n.type === 'REMINDER' || n.type === 'SUBMIT')
         .map(n => ({
           id: n.id,
-          text: n.leagueName ? `${n.leagueName} — ${n.message}` : n.message,
+          text: n.message,
           timestamp: n.timestamp,
           tapType: n.roundId ? 'round' as const : 'none' as const,
           tapId: n.roundId,
+          avatar: n.leagueImage ?? null,
+          title: n.leagueName || 'League',
+          subtitle: n.message,
+          showFollowPill: false,
         }));
     } else if (catKey === 'league') {
       items = notifs
         .filter(n => n.type === 'COMMENT')
         .map(n => ({
           id: n.id,
-          text: n.leagueName ? `${n.leagueName} — ${n.message}` : n.message,
+          text: n.message,
           timestamp: n.timestamp,
           tapType: 'chat' as const,
           tapId: n.leagueId,
           tapLabel: n.leagueName,
+          avatar: n.leagueImage ?? null,
+          title: n.leagueName || 'League',
+          subtitle: n.message,
+          showFollowPill: false,
         }));
     } else if (catKey === 'system') {
       items = serverNotifs
