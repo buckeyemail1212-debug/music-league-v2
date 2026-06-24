@@ -31,11 +31,13 @@ export default function DmConversationScreen() {
     () => apiCache.getStale<DmMessage[]>(`dm-messages:${id}`) ?? []
   );
   const [newMessage, setNewMessage] = useState('');
+  const [canSend, setCanSend] = useState(true);
   const [loading, setLoading] = useState(
     () => !apiCache.getStale(`dm-messages:${id}`)
   );
   const chatListRef = useRef<FlatList>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const friendAlertShownRef = useRef(false);
 
   const fetchMessages = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -45,6 +47,15 @@ export default function DmConversationScreen() {
       const hasNew = newMsgs.length > messages.length;
       setMessages(newMsgs);
       apiCache.set(`dm-messages:${id}`, newMsgs);
+      const friendOk = res.data?.data?.is_friend !== false; // treat missing as ok
+      setCanSend(friendOk);
+      if (!friendOk && !friendAlertShownRef.current) {
+        friendAlertShownRef.current = true;
+        Alert.alert(
+          'Not friends yet',
+          "You can only message someone you're friends with — you both need to follow each other.",
+        );
+      }
       if (hasNew || !silent) {
         setTimeout(() => chatListRef.current?.scrollToEnd({ animated: silent }), 100);
       }
@@ -179,18 +190,19 @@ export default function DmConversationScreen() {
         <View style={[styles.inputRow, { paddingBottom: Platform.OS === 'ios' ? insets.bottom : 8 }]}>
           <TextInput
             style={styles.chatInput}
-            placeholder="Type a message..."
+            placeholder={canSend ? "Type a message..." : "You must be friends to send a message"}
             placeholderTextColor="#B3B3B3"
             value={newMessage}
             onChangeText={setNewMessage}
             multiline
             maxLength={2000}
             onSubmitEditing={handleSend}
+            editable={canSend}
           />
           <TouchableOpacity
-            style={[styles.sendButton, !newMessage.trim() && styles.sendButtonDisabled]}
+            style={[styles.sendButton, (!newMessage.trim() || !canSend) && styles.sendButtonDisabled]}
             onPress={handleSend}
-            disabled={!newMessage.trim()}
+            disabled={!newMessage.trim() || !canSend}
           >
             <Ionicons name="send" size={18} color="#FFFFFF" />
           </TouchableOpacity>

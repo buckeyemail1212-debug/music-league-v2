@@ -8078,7 +8078,9 @@ async def get_dm_messages(conversation_id: str, current_user: dict = Depends(get
         {"$addToSet": {"read_by": me_id}},
     )
 
-    return {"data": {"messages": messages}}
+    other_id = next((pid for pid in conv.get("participant_ids", []) if pid != me_id), None)
+    is_friend = await _are_mutual_friends(me_id, other_id) if other_id else False
+    return {"data": {"messages": messages, "is_friend": is_friend}}
 
 
 @api_router.post("/dm/conversations/{conversation_id}/hide")
