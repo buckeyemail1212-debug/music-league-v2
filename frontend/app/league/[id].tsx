@@ -57,8 +57,9 @@ import { PreviewPlayButton } from '../../src/components/PreviewPlayButton';
 import { formatPoints } from '../../src/utils/formatPoints';
 import { format } from 'date-fns';
 import { LinearGradient } from 'expo-linear-gradient';
+import { colors } from '../../src/theme/colors';
 
-const AVATAR_COLORS = ['#7C3AED', '#10B981', '#F59E0B', '#EF4444', '#3B82F6', '#EC4899', '#14B8A6', '#F97316'];
+const AVATAR_COLORS = colors.avatarPalette;
 const avatarColor = (seed: string) => {
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = ((h << 5) - h + seed.charCodeAt(i)) >>> 0;
@@ -540,15 +541,15 @@ export default function LeagueDetailScreen() {
           <View style={styles.roundContent}>
             <View style={styles.roundRow}>
               <View style={[styles.roundNumberBadge, styles.roundPuckDim]}>
-                <Text style={[styles.roundNumberBadgeText, { color: 'rgba(255,255,255,0.38)' }]}>{item.round_number}</Text>
+                <Text style={[styles.roundNumberBadgeText, { color: colors.textTertiary }]}>{item.round_number}</Text>
               </View>
               <View style={styles.roundInfo}>
-                <Text style={[styles.roundThemeSubheader, { color: 'rgba(255,255,255,0.5)' }]} numberOfLines={1}>
+                <Text style={[styles.roundThemeSubheader, { color: colors.textSecondary }]} numberOfLines={1}>
                   {`Round ${item.round_number}`}
                 </Text>
               </View>
               <View style={styles.roundTrailingCircle}>
-                <Ionicons name="lock-closed" size={14} color="#6A6A6A" />
+                <Ionicons name="lock-closed" size={14} color={colors.textTertiary} />
               </View>
             </View>
           </View>
@@ -559,8 +560,8 @@ export default function LeagueDetailScreen() {
     // Badge color: locked or scheduled → gray (not yet open for action);
     // everything else (ready, submission, voting, completed, skipped) →
     // primary purple.
-    const badgeColor = isLocked || isScheduled ? '#3A3A3A' : '#7C3AED';
-    const nameColor = isLocked || isScheduled ? '#6A6A6A' : '#FFFFFF';
+    const badgeColor = isLocked || isScheduled ? colors.surface4 : colors.accent;
+    const nameColor = isLocked || isScheduled ? colors.textTertiary : colors.textPrimary;
     const displayName = item.theme?.trim() || `Round ${item.round_number}`;
     const creatorUsername = league?.creator_username || 'the creator';
 
@@ -648,9 +649,9 @@ export default function LeagueDetailScreen() {
 
     const puckStyle = (isLive || isReady) ? styles.roundPuckAccent : styles.roundPuckDim;
     const puckTextStyle = (isLocked || isScheduled)
-      ? { color: 'rgba(255,255,255,0.38)' }
-      : (isCompleted ? { color: '#B3B3B3' } : { color: '#FFFFFF' });
-    const themeColor = (isLocked || isScheduled) ? 'rgba(255,255,255,0.5)' : '#FFFFFF';
+      ? { color: colors.textTertiary }
+      : (isCompleted ? { color: colors.textSecondary } : { color: colors.onAccent });
+    const themeColor = (isLocked || isScheduled) ? colors.textSecondary : colors.textPrimary;
 
     return (
       <View style={styles.roundCard}>
@@ -703,7 +704,7 @@ export default function LeagueDetailScreen() {
             </View>
             {isLocked || isScheduled ? (
               <View style={styles.roundTrailingCircle}>
-                <Ionicons name="lock-closed" size={14} color="#6A6A6A" />
+                <Ionicons name="lock-closed" size={14} color={colors.textTertiary} />
               </View>
             ) : isReady && isCreator ? (
               <TouchableOpacity
@@ -713,18 +714,18 @@ export default function LeagueDetailScreen() {
                 activeOpacity={0.8}
               >
                 {starting === item.id ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <ActivityIndicator size="small" color={colors.onAccent} />
                 ) : (
                   <Text style={styles.startRoundInlineText}>Start Round</Text>
                 )}
               </TouchableOpacity>
             ) : isReady ? null : isCompleted ? (
               <View style={styles.roundTrailingCircle}>
-                <Ionicons name="chevron-forward" size={16} color="#B3B3B3" />
+                <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
               </View>
             ) : (
               <View style={styles.roundTrailingAccent}>
-                <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
+                <Ionicons name="chevron-forward" size={18} color={colors.onAccent} />
               </View>
             )}
           </View>
@@ -738,7 +739,7 @@ export default function LeagueDetailScreen() {
             disabled={advancing === item.id}
           >
             {advancing === item.id ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
+              <ActivityIndicator size="small" color={colors.onAccent} />
             ) : (
               <Text style={styles.advanceButtonText}>
                 Advance to {item.status === 'submission' ? 'Voting' : 'Results'}
@@ -754,7 +755,7 @@ export default function LeagueDetailScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#7C3AED" />
+          <ActivityIndicator size="large" color={colors.accent} />
         </View>
       </SafeAreaView>
     );
@@ -775,21 +776,21 @@ export default function LeagueDetailScreen() {
       {/* Top bar */}
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.topBarBtn} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
+          <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <View style={{ flex: 1 }} />
         <View style={styles.topBarActions}>
           <TouchableOpacity style={styles.topBarBtn} onPress={() => setShowMembersModal(true)}>
-            <Ionicons name="people-outline" size={20} color="#FFFFFF" />
+            <Ionicons name="people-outline" size={20} color={colors.textPrimary} />
           </TouchableOpacity>
           {isMember && (
             <TouchableOpacity style={styles.topBarBtn} onPress={() => router.push(`/league-chat?leagueId=${id}&leagueName=${encodeURIComponent(league?.name || 'League Chat')}`)}>
-              <Ionicons name="chatbubble-outline" size={20} color="#FFFFFF" />
+              <Ionicons name="chatbubble-outline" size={20} color={colors.textPrimary} />
               {hasUnread && <View style={styles.topBarBadge} />}
             </TouchableOpacity>
           )}
           <TouchableOpacity style={styles.topBarBtn} onPress={() => setOverflowOpen(!overflowOpen)}>
-            <Ionicons name="ellipsis-horizontal" size={20} color="#FFFFFF" />
+            <Ionicons name="ellipsis-horizontal" size={20} color={colors.textPrimary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -826,7 +827,7 @@ export default function LeagueDetailScreen() {
                       setTimeout(() => setCodeCopied(false), 1500);
                     }}
                   >
-                    <Ionicons name="copy-outline" size={16} color="rgba(255,255,255,0.55)" />
+                    <Ionicons name="copy-outline" size={16} color={colors.textSecondary} />
                   </TouchableOpacity>
                 )}
               </TouchableOpacity>
@@ -839,7 +840,7 @@ export default function LeagueDetailScreen() {
                   activeOpacity={0.7}
                   onPress={handleEditLeagueImage}
                 >
-                  <Ionicons name="image-outline" size={20} color="#FFFFFF" />
+                  <Ionicons name="image-outline" size={20} color={colors.textPrimary} />
                   <Text style={styles.overflowItemText}>Edit league image</Text>
                 </TouchableOpacity>
               </>
@@ -853,7 +854,7 @@ export default function LeagueDetailScreen() {
                     activeOpacity={0.7}
                     onPress={() => { setOverflowOpen(false); handleDeleteLeague(); }}
                   >
-                    <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                    <Ionicons name="trash-outline" size={20} color={colors.danger} />
                     <Text style={styles.overflowItemDestructive}>Delete league</Text>
                   </TouchableOpacity>
                 ) : (
@@ -862,7 +863,7 @@ export default function LeagueDetailScreen() {
                     activeOpacity={0.7}
                     onPress={() => { setOverflowOpen(false); handleLeaveLeague(); }}
                   >
-                    <Ionicons name="log-out-outline" size={20} color="#EF4444" />
+                    <Ionicons name="log-out-outline" size={20} color={colors.danger} />
                     <Text style={styles.overflowItemDestructive}>Leave league</Text>
                   </TouchableOpacity>
                 )}
@@ -919,7 +920,7 @@ export default function LeagueDetailScreen() {
           activeOpacity={0.85}
         >
           {joiningPublic ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
+            <ActivityIndicator size="small" color={colors.onAccent} />
           ) : (
             <Text style={styles.joinPublicCtaText}>Join League</Text>
           )}
@@ -987,7 +988,7 @@ export default function LeagueDetailScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor="#7C3AED"
+              tintColor={colors.accent}
             />
           }
         />
@@ -1002,13 +1003,13 @@ export default function LeagueDetailScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor="#7C3AED"
+              tintColor={colors.accent}
             />
           }
         >
           {!isMember && isActive ? (
             <View style={styles.nonMemberStandingsLock}>
-              <Ionicons name="lock-closed-outline" size={40} color="#B3B3B3" />
+              <Ionicons name="lock-closed-outline" size={40} color={colors.textSecondary} />
               <Text style={styles.nonMemberStandingsLockText}>
                 Standings hidden until league completes
               </Text>
@@ -1112,7 +1113,7 @@ export default function LeagueDetailScreen() {
                                   marginLeft: i === 0 ? 0 : -Math.round(aSize * 0.35),
                                   zIndex: shown.length - i,
                                   borderWidth: 2,
-                                  borderColor: '#181818',
+                                  borderColor: colors.surface2,
                                 },
                                 isMe && standingStyles.podiumAvatarMe,
                               ]}
@@ -1133,11 +1134,11 @@ export default function LeagueDetailScreen() {
                                 width: Math.round(size * 0.78),
                                 height: Math.round(size * 0.78),
                                 borderRadius: Math.round(size * 0.78) / 2,
-                                backgroundColor: '#3A3A3A',
+                                backgroundColor: colors.surface4,
                                 marginLeft: -Math.round(size * 0.78 * 0.35),
                                 zIndex: 0,
                                 borderWidth: 2,
-                                borderColor: '#181818',
+                                borderColor: colors.surface2,
                               },
                             ]}
                           >
@@ -1170,7 +1171,7 @@ export default function LeagueDetailScreen() {
                     <Text style={standingStyles.podiumName} numberOfLines={1}>{displayName}</Text>
                     <Text style={standingStyles.podiumPoints}>{formatPoints(sharedPoints)}</Text>
                     <View style={[standingStyles.podiumBox, { height: podiumHeight }, podiumStyle]}>
-                      <Text style={standingStyles.podiumPlace}>{placeLabel}</Text>
+                      <Text style={placeLabel === '1st' ? standingStyles.podiumPlace : standingStyles.podiumPlaceDark}>{placeLabel}</Text>
                     </View>
                   </View>
                 );
@@ -1247,12 +1248,12 @@ export default function LeagueDetailScreen() {
                               <Ionicons
                                 name={delta > 0 ? 'arrow-up' : 'arrow-down'}
                                 size={11}
-                                color={delta > 0 ? '#10B981' : '#EF4444'}
+                                color={delta > 0 ? colors.success : colors.danger}
                               />
                               <Text
                                 style={[
                                   standingStyles.deltaText,
-                                  { color: delta > 0 ? '#10B981' : '#EF4444' },
+                                  { color: delta > 0 ? colors.success : colors.danger },
                                 ]}
                               >
                                 {Math.abs(delta)}
@@ -1348,7 +1349,7 @@ export default function LeagueDetailScreen() {
         if (rounds.length === 0) {
           return (
             <View style={{ padding: 24, alignItems: 'center' }}>
-              <Text style={{ color: '#B3B3B3', fontSize: 14 }}>No rounds yet</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 14 }}>No rounds yet</Text>
             </View>
           );
         }
@@ -1389,14 +1390,14 @@ export default function LeagueDetailScreen() {
               const tappable = !isPreStart;
 
               const puckBg = (cardState === 'active_played' || cardState === 'active_unplayed')
-                ? '#7C3AED' : '#2A2A2A';
+                ? colors.accent : colors.surface3;
               const puckTextColor = (cardState === 'active_played' || cardState === 'active_unplayed')
-                ? '#FFFFFF'
-                : isPreStart ? 'rgba(255,255,255,0.38)' : '#B3B3B3';
-              const labelColor = cardState === 'forfeited' ? '#EF4444'
+                ? colors.onAccent
+                : isPreStart ? colors.textTertiary : colors.textSecondary;
+              const labelColor = cardState === 'forfeited' ? colors.danger
                 : isRoundLive ? '#22C55E'
-                : isPreStart ? 'rgba(255,255,255,0.38)' : '#B3B3B3';
-              const themeTextColor = isPreStart ? 'rgba(255,255,255,0.5)' : '#FFFFFF';
+                : isPreStart ? colors.textTertiary : colors.textSecondary;
+              const themeTextColor = isPreStart ? colors.textSecondary : colors.textPrimary;
 
               const formatDur = (sec: number) => {
                 const m = Math.floor(sec / 60);
@@ -1458,7 +1459,7 @@ export default function LeagueDetailScreen() {
                           }
                         }}
                       >
-                        <Ionicons name={likedIds.has(sub.song.deezer_id) ? 'heart' : 'heart-outline'} size={18} color={likedIds.has(sub.song.deezer_id) ? '#EF4444' : '#B3B3B3'} />
+                        <Ionicons name={likedIds.has(sub.song.deezer_id) ? 'heart' : 'heart-outline'} size={18} color={likedIds.has(sub.song.deezer_id) ? colors.danger : colors.textSecondary} />
                       </TouchableOpacity>
                       <View style={styles.subPlayBtn}>
                         <PreviewPlayButton previewUrl={sub.song.preview_url} deezerId={sub.song.deezer_id} songId={`league-sub-${round.id}`} size={14} />
@@ -1494,7 +1495,7 @@ export default function LeagueDetailScreen() {
                           }
                         }}
                       >
-                        <Ionicons name={likedIds.has(sub.song.deezer_id) ? 'heart' : 'heart-outline'} size={18} color={likedIds.has(sub.song.deezer_id) ? '#EF4444' : '#B3B3B3'} />
+                        <Ionicons name={likedIds.has(sub.song.deezer_id) ? 'heart' : 'heart-outline'} size={18} color={likedIds.has(sub.song.deezer_id) ? colors.danger : colors.textSecondary} />
                       </TouchableOpacity>
                       <View style={styles.subPlayBtn}>
                         <PreviewPlayButton previewUrl={sub.song.preview_url} deezerId={sub.song.deezer_id} songId={`league-sub-${round.id}`} size={14} />
@@ -1507,7 +1508,7 @@ export default function LeagueDetailScreen() {
                     <View style={styles.subSubmitCta}>
                       <Text style={styles.subSubmitCtaText}>Submit your song</Text>
                       <View style={styles.subSubmitKnob}>
-                        <Ionicons name="chevron-forward" size={16} color="#7C3AED" />
+                        <Ionicons name="chevron-forward" size={16} color={colors.accent} />
                       </View>
                     </View>
                   )}
@@ -1516,7 +1517,7 @@ export default function LeagueDetailScreen() {
                   {cardState === 'locked' && (
                     <View style={styles.subLockRow}>
                       <View style={styles.subLockCircle}>
-                        <Ionicons name="lock-closed" size={14} color="#6A6A6A" />
+                        <Ionicons name="lock-closed" size={14} color={colors.textTertiary} />
                       </View>
                       <Text style={styles.subLockText}>Opens when R{round.round_number - 1} ends</Text>
                     </View>
@@ -1526,7 +1527,7 @@ export default function LeagueDetailScreen() {
                   {cardState === 'not_started' && (
                     <View style={styles.subLockRow}>
                       <View style={styles.subLockCircle}>
-                        <Ionicons name="time-outline" size={14} color="#6A6A6A" />
+                        <Ionicons name="time-outline" size={14} color={colors.textTertiary} />
                       </View>
                       <Text style={styles.subLockText}>This round hasn't started yet.</Text>
                     </View>
@@ -1561,7 +1562,7 @@ export default function LeagueDetailScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Start New Round</Text>
               <TouchableOpacity onPress={() => setShowStartRoundModal(false)}>
-                <Ionicons name="close" size={24} color="#FFFFFF" />
+                <Ionicons name="close" size={24} color={colors.textPrimary} />
               </TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
@@ -1583,9 +1584,9 @@ export default function LeagueDetailScreen() {
                   style={styles.dropdownButton}
                   onPress={() => setShowSubmissionPicker(!showSubmissionPicker)}
                 >
-                  <Ionicons name="time" size={20} color="#7C3AED" />
+                  <Ionicons name="time" size={20} color={colors.accent} />
                   <Text style={styles.dropdownButtonText}>{getTimeLabel(submissionHours)}</Text>
-                  <Ionicons name={showSubmissionPicker ? "chevron-up" : "chevron-down"} size={20} color="#7C3AED" />
+                  <Ionicons name={showSubmissionPicker ? "chevron-up" : "chevron-down"} size={20} color={colors.accent} />
                 </TouchableOpacity>
                 {showSubmissionPicker && (
                   <View style={styles.dropdownList}>
@@ -1607,7 +1608,7 @@ export default function LeagueDetailScreen() {
                             submissionHours === option.value && styles.dropdownItemTextSelected
                           ]}>{option.label}</Text>
                           {submissionHours === option.value && (
-                            <Ionicons name="checkmark" size={18} color="#7C3AED" />
+                            <Ionicons name="checkmark" size={18} color={colors.accent} />
                           )}
                         </TouchableOpacity>
                       ))}
@@ -1620,9 +1621,9 @@ export default function LeagueDetailScreen() {
                   style={styles.dropdownButton}
                   onPress={() => setShowVotingPicker(!showVotingPicker)}
                 >
-                  <Ionicons name="time" size={20} color="#7C3AED" />
+                  <Ionicons name="time" size={20} color={colors.accent} />
                   <Text style={styles.dropdownButtonText}>{getTimeLabel(votingHours)}</Text>
-                  <Ionicons name={showVotingPicker ? "chevron-up" : "chevron-down"} size={20} color="#7C3AED" />
+                  <Ionicons name={showVotingPicker ? "chevron-up" : "chevron-down"} size={20} color={colors.accent} />
                 </TouchableOpacity>
                 {showVotingPicker && (
                   <View style={styles.dropdownList}>
@@ -1644,7 +1645,7 @@ export default function LeagueDetailScreen() {
                             votingHours === option.value && styles.dropdownItemTextSelected
                           ]}>{option.label}</Text>
                           {votingHours === option.value && (
-                            <Ionicons name="checkmark" size={18} color="#7C3AED" />
+                            <Ionicons name="checkmark" size={18} color={colors.accent} />
                           )}
                         </TouchableOpacity>
                       ))}
@@ -1695,7 +1696,7 @@ export default function LeagueDetailScreen() {
                   disabled={creatingRound}
                 >
                   {creatingRound ? (
-                    <ActivityIndicator color="#FFFFFF" />
+                    <ActivityIndicator color={colors.onAccent} />
                   ) : (
                     <Text style={styles.submitButtonText}>Start Round</Text>
                   )}
@@ -1722,7 +1723,7 @@ export default function LeagueDetailScreen() {
             <View style={styles.membersModalHeader}>
               <Text style={styles.membersModalTitle}>League Members</Text>
               <TouchableOpacity onPress={() => setShowMembersModal(false)}>
-                <Ionicons name="close" size={24} color="#B3B3B3" />
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.membersList}>
@@ -1772,7 +1773,7 @@ export default function LeagueDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: colors.bg,
   },
   loadingContainer: {
     flex: 1,
@@ -1786,7 +1787,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
   },
   topBar: {
     flexDirection: 'row',
@@ -1802,7 +1803,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1813,14 +1814,14 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#EF4444',
+    backgroundColor: colors.danger,
   },
   coverCard: {
     marginHorizontal: 16,
     borderRadius: 24,
     overflow: 'hidden',
     aspectRatio: 1.1,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: colors.bg,
   },
   coverImage: {
     width: '100%',
@@ -1830,14 +1831,14 @@ const styles = StyleSheet.create({
   coverEmpty: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
   coverInitial: {
     fontSize: 64,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: colors.onAccent,
   },
   coverGradient: {
     position: 'absolute',
@@ -1850,7 +1851,7 @@ const styles = StyleSheet.create({
   },
   coverLivePill: {
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: colors.borderStrong,
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -1859,12 +1860,12 @@ const styles = StyleSheet.create({
   coverLivePillText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.onMedia,
   },
   coverTitle: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: colors.onMedia,
     textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
@@ -1881,10 +1882,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 12,
     zIndex: 100,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: colors.bg,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: colors.border,
     minWidth: 220,
     shadowColor: '#000',
     shadowOpacity: 0.5,
@@ -1896,7 +1897,7 @@ const styles = StyleSheet.create({
   overflowCodeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2A2A2A',
+    backgroundColor: colors.surface3,
     margin: 8,
     borderRadius: 12,
     padding: 12,
@@ -1905,13 +1906,13 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.6,
-    color: 'rgba(255,255,255,0.55)',
+    color: colors.textSecondary,
     textTransform: 'uppercase',
   },
   overflowCodeValue: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     letterSpacing: 2,
     marginTop: 2,
   },
@@ -1919,7 +1920,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 8,
@@ -1927,12 +1928,12 @@ const styles = StyleSheet.create({
   overflowCopiedText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#7C3AED',
+    color: colors.accent,
     marginLeft: 8,
   },
   overflowDivider: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: colors.border,
     marginHorizontal: 8,
   },
   overflowItem: {
@@ -1944,18 +1945,18 @@ const styles = StyleSheet.create({
   overflowItemDestructive: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#EF4444',
+    color: colors.danger,
   },
   overflowItemText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   codeBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     marginHorizontal: 16,
     padding: 16,
     borderRadius: 8,
@@ -1965,7 +1966,7 @@ const styles = StyleSheet.create({
   },
   codeLabel: {
     fontSize: 12,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
   },
   codeRow: {
     flexDirection: 'row',
@@ -1974,7 +1975,7 @@ const styles = StyleSheet.create({
   codeValue: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     letterSpacing: 3,
   },
   memberInfo: {
@@ -1984,7 +1985,7 @@ const styles = StyleSheet.create({
   },
   memberCount: {
     fontSize: 14,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
   },
   memberAvatarsRow: {
     flexDirection: 'row',
@@ -1995,7 +1996,7 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     borderWidth: 2,
-    borderColor: '#121212',
+    borderColor: colors.bg,
     overflow: 'hidden',
   },
   memberAvatarImage: {
@@ -2005,29 +2006,29 @@ const styles = StyleSheet.create({
   memberAvatarPlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
     alignItems: 'center',
     justifyContent: 'center',
   },
   memberAvatarInitial: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: colors.onAccent,
   },
   memberAvatarMore: {
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
     alignItems: 'center',
     justifyContent: 'center',
   },
   memberMoreText: {
     fontSize: 11,
     fontWeight: '500',
-    color: '#B3B3B3',
+    color: colors.textSecondary,
   },
   startRoundButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     marginHorizontal: 16,
     marginTop: 16,
     paddingVertical: 14,
@@ -2039,12 +2040,12 @@ const styles = StyleSheet.create({
   startRoundText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.onAccent,
   },
   sectionTitle: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     paddingHorizontal: 16,
     marginTop: 24,
     marginBottom: 8,
@@ -2056,7 +2057,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   roundCard: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: colors.bg,
     borderRadius: 16,
     marginBottom: 10,
     overflow: 'hidden',
@@ -2077,10 +2078,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   roundPuckAccent: {
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
   },
   roundPuckDim: {
-    backgroundColor: '#2A2A2A',
+    backgroundColor: colors.surface3,
   },
   roundNumberBadgeText: {
     fontWeight: '800',
@@ -2092,19 +2093,19 @@ const styles = StyleSheet.create({
   roundThemeSubheader: {
     fontSize: 14.5,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     marginBottom: 3,
   },
   roundMetaText: {
     fontSize: 11.5,
     fontWeight: '500',
-    color: 'rgba(255,255,255,0.55)',
+    color: colors.textSecondary,
   },
   roundLiveChip: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: '#2A2A2A',
+    backgroundColor: colors.surface3,
     borderRadius: 999,
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -2115,18 +2116,18 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#EF4444',
+    backgroundColor: colors.danger,
   },
   roundLiveChipText: {
     fontSize: 10,
     fontWeight: '800',
-    color: 'rgba(255,255,255,0.55)',
+    color: colors.textSecondary,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
   roundInlineCount: {
     fontSize: 11,
-    color: '#6A6A6A',
+    color: colors.textTertiary,
     fontWeight: '600',
     marginLeft: 8,
     flexShrink: 0,
@@ -2135,7 +2136,7 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: '#2A2A2A',
+    backgroundColor: colors.surface3,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2143,7 +2144,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2152,7 +2153,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     borderTopWidth: 0,
     gap: 6,
     borderBottomLeftRadius: 16,
@@ -2161,28 +2162,28 @@ const styles = StyleSheet.create({
   advanceButtonText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.onAccent,
   },
   startRoundInline: {
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: 92,
   },
   startRoundInlineText: {
-    color: '#FFFFFF',
+    color: colors.onAccent,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.5,
   },
   subCard: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: colors.bg,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: colors.border,
     padding: 14,
     marginBottom: 10,
   },
@@ -2215,7 +2216,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#EF4444',
+    backgroundColor: colors.danger,
   },
   subTheme: {
     fontSize: 14,
@@ -2224,7 +2225,7 @@ const styles = StyleSheet.create({
   },
   subDivider: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: colors.border,
     marginVertical: 12,
   },
   subSongRow: {
@@ -2235,21 +2236,21 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 8,
-    backgroundColor: '#2A2A2A',
+    backgroundColor: colors.surface3,
   },
   subSongTitle: {
     fontSize: 13.5,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   subSongMeta: {
     fontSize: 11.5,
     fontWeight: '500',
-    color: 'rgba(255,255,255,0.55)',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   subScoreBadge: {
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     borderRadius: 999,
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -2258,7 +2259,7 @@ const styles = StyleSheet.create({
   subScoreText: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: colors.onAccent,
   },
   subHeartBtn: {
     width: 30,
@@ -2271,7 +2272,7 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: '#2A2A2A',
+    backgroundColor: colors.surface3,
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 8,
@@ -2279,7 +2280,7 @@ const styles = StyleSheet.create({
   subSubmitCta: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     borderRadius: 12,
     height: 44,
     paddingLeft: 16,
@@ -2289,13 +2290,13 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.onAccent,
   },
   subSubmitKnob: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.onAccent,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2308,20 +2309,20 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#2A2A2A',
+    backgroundColor: colors.surface3,
     alignItems: 'center',
     justifyContent: 'center',
   },
   subLockText: {
     fontSize: 12.5,
     fontWeight: '500',
-    color: 'rgba(255,255,255,0.55)',
+    color: colors.textSecondary,
   },
   subForfeitText: {
     fontSize: 12.5,
     fontWeight: '500',
     fontStyle: 'italic',
-    color: 'rgba(255,255,255,0.38)',
+    color: colors.textTertiary,
   },
   emptyState: {
     flex: 1,
@@ -2332,12 +2333,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     marginTop: 16,
   },
   emptyText: {
     fontSize: 14,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     textAlign: 'center',
     marginTop: 8,
   },
@@ -2351,7 +2352,7 @@ const styles = StyleSheet.create({
   metaStripText: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#B3B3B3',
+    color: colors.textSecondary,
   },
   tabContainer: {
     flexDirection: 'row',
@@ -2367,14 +2368,14 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 999,
-    backgroundColor: '#2A2A2A',
+    backgroundColor: colors.surface3,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: colors.border,
   },
   tabActive: {
-    backgroundColor: '#7C3AED',
-    borderColor: '#7C3AED',
-    shadowColor: '#7C3AED',
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+    shadowColor: colors.accent,
     shadowOpacity: 0.35,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 3 },
@@ -2383,10 +2384,10 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#B3B3B3',
+    color: colors.textSecondary,
   },
   tabTextActive: {
-    color: '#FFFFFF',
+    color: colors.onAccent,
   },
   // Non-member surfaces
   joinPublicCta: {
@@ -2395,11 +2396,11 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     paddingVertical: 11,
     borderRadius: 999,
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     alignItems: 'center',
   },
   joinPublicCtaText: {
-    color: '#FFFFFF', fontSize: 14, fontWeight: '800', letterSpacing: 0.4,
+    color: colors.onAccent, fontSize: 14, fontWeight: '800', letterSpacing: 0.4,
   },
   nonMemberStandingsLock: {
     alignItems: 'center',
@@ -2408,7 +2409,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   nonMemberStandingsLockText: {
-    fontSize: 14, fontWeight: '700', color: '#B3B3B3', textAlign: 'center',
+    fontSize: 14, fontWeight: '700', color: colors.textSecondary, textAlign: 'center',
   },
 
   // Standings styles
@@ -2424,42 +2425,42 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
+    borderBottomColor: colors.border,
   },
   standingsTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   roundsCompleted: {
     fontSize: 13,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     marginTop: 4,
   },
   standingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     padding: 16,
     borderRadius: 8,
     marginBottom: 8,
   },
   firstPlace: {
-    backgroundColor: 'rgba(124,58,237,0.10)',
+    backgroundColor: colors.accentFaint,
     borderLeftWidth: 3,
-    borderLeftColor: '#7C3AED',
+    borderLeftColor: colors.accent,
   },
   secondPlace: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: colors.borderFaint,
   },
   thirdPlace: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: colors.borderFaint,
   },
   rankContainer: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -2467,7 +2468,7 @@ const styles = StyleSheet.create({
   rankNumber: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#B3B3B3',
+    color: colors.textSecondary,
   },
   playerInfo: {
     flex: 1,
@@ -2475,11 +2476,11 @@ const styles = StyleSheet.create({
   playerName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   playerStats: {
     fontSize: 12,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   pointsContainer: {
@@ -2488,11 +2489,11 @@ const styles = StyleSheet.create({
   pointsValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#7C3AED',
+    color: colors.accent,
   },
   pointsLabel: {
     fontSize: 12,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
   },
   modalOverlay: {
     flex: 1,
@@ -2500,7 +2501,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '80%',
@@ -2510,7 +2511,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: colors.borderStrong,
     alignSelf: 'center',
     marginTop: 10,
     marginBottom: 4,
@@ -2524,7 +2525,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   modalForm: {
     padding: 20,
@@ -2532,17 +2533,17 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     marginBottom: 8,
     textTransform: 'uppercase',
     letterSpacing: 1.5,
   },
   modalInput: {
-    backgroundColor: '#3E3E3E',
+    backgroundColor: colors.surface4,
     borderRadius: 8,
     paddingHorizontal: 16,
     height: 52,
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 15,
     marginBottom: 16,
   },
@@ -2556,7 +2557,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#3E3E3E',
+    backgroundColor: colors.surface4,
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 10,
@@ -2566,11 +2567,11 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     marginLeft: 12,
   },
   dropdownList: {
-    backgroundColor: '#3E3E3E',
+    backgroundColor: colors.surface4,
     borderRadius: 8,
     marginBottom: 16,
     overflow: 'hidden',
@@ -2585,17 +2586,17 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
+    borderBottomColor: colors.border,
   },
   dropdownItemSelected: {
-    backgroundColor: 'rgba(124,58,237,0.10)',
+    backgroundColor: colors.accentFaint,
   },
   dropdownItemText: {
     fontSize: 16,
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   dropdownItemTextSelected: {
-    color: '#7C3AED',
+    color: colors.accent,
     fontWeight: '600',
   },
   timezoneContainer: {
@@ -2608,32 +2609,32 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
-    backgroundColor: '#3E3E3E',
+    backgroundColor: colors.surface4,
     alignItems: 'center',
   },
   timezoneOptionSelected: {
-    backgroundColor: 'rgba(124,58,237,0.15)',
-    borderColor: '#7C3AED',
+    backgroundColor: colors.accentFaint,
+    borderColor: colors.accent,
   },
   timezoneText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#B3B3B3',
+    color: colors.textSecondary,
   },
   timezoneTextSelected: {
-    color: '#7C3AED',
+    color: colors.accent,
   },
   timezoneSubtext: {
     fontSize: 12,
-    color: '#6A6A6A',
+    color: colors.textTertiary,
     marginTop: 2,
   },
   timezoneSubtextSelected: {
-    color: 'rgba(124,58,237,0.70)',
+    color: colors.accent,
   },
   inputHint: {
     fontSize: 12,
-    color: '#6A6A6A',
+    color: colors.textTertiary,
     marginBottom: 12,
     marginTop: -4,
   },
@@ -2647,7 +2648,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#3E3E3E',
+    backgroundColor: colors.surface4,
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 8,
@@ -2656,10 +2657,10 @@ const styles = StyleSheet.create({
   dateTimeText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   pickerContainer: {
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
@@ -2668,36 +2669,36 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
     paddingVertical: 8,
     paddingHorizontal: 16,
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     borderRadius: 8,
     marginTop: 12,
   },
   pickerDoneText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.onAccent,
   },
   timeOption: {
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 8,
-    backgroundColor: '#3E3E3E',
+    backgroundColor: colors.surface4,
   },
   timeOptionSelected: {
-    backgroundColor: 'rgba(124,58,237,0.15)',
-    borderColor: '#7C3AED',
+    backgroundColor: colors.accentFaint,
+    borderColor: colors.accent,
   },
   timeOptionText: {
     fontSize: 14,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   timeOptionTextSelected: {
-    color: '#7C3AED',
+    color: colors.accent,
     fontWeight: '500',
   },
   submitButton: {
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     borderRadius: 50,
     paddingVertical: 14,
     alignItems: 'center',
@@ -2706,7 +2707,7 @@ const styles = StyleSheet.create({
   submitButtonText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.onAccent,
   },
   // Chat styles
   unreadBadge: {
@@ -2716,7 +2717,7 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
   },
   chatModalContent: {
     flex: 1,
@@ -2727,13 +2728,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.10)',
-    backgroundColor: '#181818',
+    borderBottomColor: colors.border,
+    backgroundColor: colors.surface2,
   },
   chatModalTitle: {
     fontSize: 22,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   chatLoadingContainer: {
     flex: 1,
@@ -2749,12 +2750,12 @@ const styles = StyleSheet.create({
   chatEmptyTitle: {
     fontSize: 18,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     marginTop: 16,
   },
   chatEmptyText: {
     fontSize: 14,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     marginTop: 8,
   },
   chatListContent: {
@@ -2774,52 +2775,52 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   ownMessageBubble: {
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     borderBottomRightRadius: 4,
   },
   otherMessageBubble: {
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
     borderBottomLeftRadius: 4,
   },
   messageUsername: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     marginBottom: 4,
   },
   messageText: {
     fontSize: 15,
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     lineHeight: 20,
   },
   ownMessageText: {
-    color: '#FFFFFF',
+    color: colors.onAccent,
   },
   messageTime: {
     fontSize: 11,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     marginTop: 6,
   },
   ownMessageTime: {
-    color: '#B3B3B3',
+    color: colors.textSecondary,
   },
   chatInputContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     padding: 12,
     paddingBottom: Platform.OS === 'ios' ? 24 : 12,
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     borderTopWidth: 0.5,
-    borderTopColor: 'rgba(255,255,255,0.1)',
+    borderTopColor: colors.border,
     gap: 12,
   },
   chatInput: {
     flex: 1,
-    backgroundColor: '#3E3E3E',
+    backgroundColor: colors.surface4,
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 15,
     maxHeight: 100,
   },
@@ -2827,7 +2828,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -2839,7 +2840,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     marginHorizontal: 16,
     marginTop: 24,
     marginBottom: 32,
@@ -2850,7 +2851,7 @@ const styles = StyleSheet.create({
   shareResultsText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   shareModalOverlay: {
     flex: 1,
@@ -2862,7 +2863,7 @@ const styles = StyleSheet.create({
   shareModalContent: {
     width: '100%',
     maxWidth: 380,
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     borderRadius: 12,
     overflow: 'hidden',
   },
@@ -2872,12 +2873,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
+    borderBottomColor: colors.border,
   },
   shareModalTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   shareCardOffscreen: {
     position: 'absolute',
@@ -2893,7 +2894,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 24,
     justifyContent: 'space-between',
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
   },
   shareCardHeader: {
     alignItems: 'center',
@@ -2906,18 +2907,18 @@ const styles = StyleSheet.create({
   shareCardTitle: {
     fontSize: 28,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     textAlign: 'center',
     marginBottom: 4,
   },
   shareCardSubtitle: {
     fontSize: 16,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 2,
   },
   shareCardStandings: {
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     borderRadius: 8,
     padding: 16,
     marginVertical: 20,
@@ -2928,11 +2929,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 8,
     borderRadius: 8,
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
     marginBottom: 4,
   },
   shareCardWinnerRow: {
-    backgroundColor: 'rgba(124,58,237,0.12)',
+    backgroundColor: colors.accentFaint,
     borderRadius: 8,
     marginHorizontal: -8,
     paddingHorizontal: 8,
@@ -2946,16 +2947,16 @@ const styles = StyleSheet.create({
   shareCardUsername: {
     flex: 1,
     fontSize: 18,
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontWeight: '500',
   },
   shareCardWinnerText: {
     fontWeight: '600',
-    color: '#7C3AED',
+    color: colors.accent,
   },
   shareCardPoints: {
     fontSize: 16,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   shareCardFooter: {
@@ -2965,18 +2966,18 @@ const styles = StyleSheet.create({
   shareCardBranding: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   shareCardCTA: {
     fontSize: 14,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
   },
   shareButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     margin: 16,
     paddingVertical: 14,
     borderRadius: 50,
@@ -2985,7 +2986,7 @@ const styles = StyleSheet.create({
   shareButtonText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.onAccent,
   },
   membersModalOverlay: {
     flex: 1,
@@ -2996,7 +2997,7 @@ const styles = StyleSheet.create({
   membersModalContent: {
     width: '85%',
     maxHeight: '70%',
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
     borderRadius: 16,
     overflow: 'hidden',
   },
@@ -3006,12 +3007,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 16,
     borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
+    borderBottomColor: colors.border,
   },
   membersModalTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   membersList: {
     padding: 16,
@@ -3021,13 +3022,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
+    borderBottomColor: colors.border,
   },
   memberNumber: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: 'rgba(124,58,237,0.15)',
+    backgroundColor: colors.accentFaint,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -3035,7 +3036,7 @@ const styles = StyleSheet.create({
   memberNumberText: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#7C3AED',
+    color: colors.accent,
   },
   memberAvatar: {
     width: 40,
@@ -3051,14 +3052,14 @@ const styles = StyleSheet.create({
   memberAvatarPlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
     alignItems: 'center',
     justifyContent: 'center',
   },
   memberInitial: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#7C3AED',
+    color: colors.accent,
   },
   memberDetails: {
     flex: 1,
@@ -3066,15 +3067,15 @@ const styles = StyleSheet.create({
   memberName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   memberUsername: {
     fontSize: 12,
-    color: '#6A6A6A',
+    color: colors.textTertiary,
     marginTop: 2,
   },
   creatorBadge: {
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
@@ -3082,14 +3083,14 @@ const styles = StyleSheet.create({
   creatorBadgeText: {
     fontSize: 10,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: colors.onAccent,
   },
 });
 
 const standingStyles = StyleSheet.create({
   // ── Podium ──
   podiumCard: {
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     borderRadius: 12,
     paddingTop: 20,
     paddingHorizontal: 12,
@@ -3119,23 +3120,23 @@ const standingStyles = StyleSheet.create({
   },
   podiumAvatarMe: {
     borderWidth: 2,
-    borderColor: '#7C3AED',
+    borderColor: colors.accent,
   },
   podiumAvatarInitial: {
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.onAccent,
   },
   podiumName: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     marginTop: 2,
     maxWidth: 100,
   },
   podiumPoints: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     marginTop: 2,
     marginBottom: 10,
   },
@@ -3146,24 +3147,30 @@ const standingStyles = StyleSheet.create({
     paddingTop: 10,
   },
   podiumBoxFirst: {
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     borderTopLeftRadius: 6,
     borderTopRightRadius: 6,
   },
   podiumBoxSecond: {
-    backgroundColor: '#2A2A2A',
+    backgroundColor: '#C7C7CC',
     borderTopLeftRadius: 6,
     borderTopRightRadius: 6,
   },
   podiumBoxThird: {
-    backgroundColor: '#1F1F1F',
+    backgroundColor: '#D8D8DC',
     borderTopLeftRadius: 6,
     borderTopRightRadius: 6,
   },
   podiumPlace: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: colors.onAccent,
+    letterSpacing: 0.5,
+  },
+  podiumPlaceDark: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.textPrimary,
     letterSpacing: 0.5,
   },
 
@@ -3178,7 +3185,7 @@ const standingStyles = StyleSheet.create({
   columnHeaderText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#6A6A6A',
+    color: colors.textTertiary,
     letterSpacing: 1,
   },
 
@@ -3192,7 +3199,7 @@ const standingStyles = StyleSheet.create({
     marginBottom: 4,
   },
   listRowMe: {
-    backgroundColor: 'rgba(124,58,237,0.12)',
+    backgroundColor: colors.accentFaint,
   },
   // Visual treatment for users who left mid-league: muted text/avatar
   // and a "LEFT" pill in place of the rank.
@@ -3200,32 +3207,32 @@ const standingStyles = StyleSheet.create({
     opacity: 0.7,
   },
   listRankMuted: {
-    color: '#6A6A6A',
+    color: colors.textTertiary,
   },
   listNameLeft: {
-    color: '#B3B3B3',
+    color: colors.textSecondary,
   },
   listPtsLeft: {
-    color: '#B3B3B3',
+    color: colors.textSecondary,
   },
   leftBadge: {
     marginLeft: 8,
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 4,
-    backgroundColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: colors.border,
   },
   leftBadgeText: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     letterSpacing: 0.5,
   },
   listRank: {
     width: 28,
     fontSize: 15,
     fontWeight: '700',
-    color: '#B3B3B3',
+    color: colors.textSecondary,
   },
   listAvatar: {
     width: 36,
@@ -3244,7 +3251,7 @@ const standingStyles = StyleSheet.create({
   listAvatarInitial: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.onAccent,
   },
   listNameWrap: {
     flex: 1,
@@ -3255,19 +3262,19 @@ const standingStyles = StyleSheet.create({
   listName: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   youBadge: {
     marginLeft: 8,
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 4,
-    backgroundColor: 'rgba(124,58,237,0.22)',
+    backgroundColor: colors.accentFaint,
   },
   youBadgeText: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#7C3AED',
+    color: colors.accent,
     letterSpacing: 0.5,
   },
   listPtsWrap: {
@@ -3287,7 +3294,7 @@ const standingStyles = StyleSheet.create({
   listPts: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     minWidth: 36,
     textAlign: 'right',
   },
