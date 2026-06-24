@@ -269,7 +269,7 @@ export default function HomeScreen() {
     // needs to act. Colors are purple (action needed) or muted gray (no
     // action). Never yellow/orange, per spec.
     const PURPLE = '#7C3AED';
-    const MUTED = '#6A6A6A';
+    const MUTED = '#999999';
     let pillText: string | null = null;
     let pillColor = MUTED;
     let pillDeadline: string | null = null;
@@ -470,14 +470,14 @@ export default function HomeScreen() {
           style={styles.headerIconBtn}
           onPress={() => router.push('/home-search' as any)}
         >
-          <Ionicons name="search" size={24} color="#FFFFFF" />
+          <Ionicons name="search" size={24} color="#000000" />
         </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.headerIconBtn}
           onPress={() => router.push('/how-to-play' as any)}
         >
-          <Ionicons name="help-circle-outline" size={24} color="#FFFFFF" />
+          <Ionicons name="help-circle-outline" size={24} color="#000000" />
         </TouchableOpacity>
       </View>
 
@@ -563,14 +563,14 @@ export default function HomeScreen() {
             activeOpacity={0.85}
           >
             <View style={styles.navRowIconTile}>
-              <Ionicons name="globe-outline" size={22} color="#FFFFFF" />
+              <Ionicons name="globe-outline" size={22} color="#000000" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.navRowTitle}>Public leagues</Text>
               <Text style={styles.navRowSub}>Browse open leagues to join</Text>
             </View>
             <View style={styles.navRowChevron}>
-              <Ionicons name="chevron-forward" size={18} color="#B3B3B3" />
+              <Ionicons name="chevron-forward" size={18} color="#666666" />
             </View>
           </TouchableOpacity>
         )}
@@ -654,7 +654,7 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212' },
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
 
   headerRow: {
     // Horizontal padding comes from the list container (styles.listContent)
@@ -666,8 +666,8 @@ const styles = StyleSheet.create({
     paddingBottom: 18,
     gap: 6,
   },
-  greeting: { fontSize: 14, color: '#B3B3B3', fontWeight: '400' },
-  username: { fontSize: 26, fontWeight: '700', color: '#FFFFFF', marginTop: 2 },
+  greeting: { fontSize: 14, color: '#666666', fontWeight: '400' },
+  username: { fontSize: 26, fontWeight: '700', color: '#000000', marginTop: 2 },
   wordmark: {
     fontSize: 26,
     fontWeight: '800',
@@ -704,12 +704,12 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
+    borderColor: 'rgba(0,0,0,0.20)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   ctaSecondaryLabel: {
-    color: '#FFFFFF',
+    color: '#000000',
     fontSize: 15,
     fontWeight: '700',
   },
@@ -718,9 +718,9 @@ const styles = StyleSheet.create({
     borderRadius: 26,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1E1E1E',
+    backgroundColor: '#F7F7F7',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: 'rgba(0,0,0,0.12)',
     paddingHorizontal: 20,
     marginBottom: 16,
     shadowColor: '#000000',
@@ -731,7 +731,7 @@ const styles = StyleSheet.create({
   },
   homeSearchIcon: { marginRight: 10 },
   homeSearchText: {
-    color: '#8B8B8B',
+    color: '#777777',
     fontSize: 15,
     fontWeight: '500',
   },
@@ -742,12 +742,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   listContent: { paddingHorizontal: 20, paddingBottom: FLOATING_NAV_CLEARANCE + 20, flexGrow: 1 },
-  skeletonCard: { opacity: 0.6, backgroundColor: '#181818' },
+  skeletonCard: { opacity: 0.6, backgroundColor: '#F2F2F2' },
   skeletonLineLong: {
-    height: 14, width: '60%', borderRadius: 4, backgroundColor: '#282828', marginBottom: 8,
+    height: 14, width: '60%', borderRadius: 4, backgroundColor: '#E4E4E4', marginBottom: 8,
   },
   skeletonLineShort: {
-    height: 12, width: '35%', borderRadius: 4, backgroundColor: '#1F1F1F', marginBottom: 8,
+    height: 12, width: '35%', borderRadius: 4, backgroundColor: '#ECECEC', marginBottom: 8,
   },
 
   sectionHeader: {
@@ -759,13 +759,13 @@ const styles = StyleSheet.create({
   sectionHeaderTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#000000',
     letterSpacing: 1,
   },
   sectionHeaderCount: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#B3B3B3',
+    color: '#666666',
     letterSpacing: 1,
   },
 
@@ -783,13 +783,13 @@ const styles = StyleSheet.create({
   activeLeaguesTitle: {
     fontSize: 26,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: '#000000',
     letterSpacing: 1,
   },
   activeLeaguesCount: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#B3B3B3',
+    color: '#666666',
     marginBottom: 4,
     letterSpacing: 0.5,
   },
@@ -807,14 +807,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
+    borderColor: 'rgba(0,0,0,0.12)',
   },
   filterChipActive: {
     backgroundColor: '#7C3AED',
     borderColor: '#7C3AED',
   },
   filterChipLabel: {
-    color: '#B3B3B3',
+    color: '#666666',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -828,17 +828,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   filterEmptyText: {
-    color: '#B3B3B3',
+    color: '#666666',
     fontSize: 14,
     textAlign: 'center',
   },
 
   leagueCardV2: {
-    backgroundColor: '#181818',
+    backgroundColor: '#F2F2F2',
     borderRadius: 28,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.10)',
+    borderColor: 'rgba(0,0,0,0.10)',
     overflow: 'hidden',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 3 },
@@ -874,18 +874,18 @@ const styles = StyleSheet.create({
   leagueCardEyebrow: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#B3B3B3',
+    color: '#666666',
     marginBottom: 6,
   },
   leagueCardHeadline: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: '#000000',
   },
   leagueCardTopRow: { flexDirection: 'row', alignItems: 'center' },
   leagueCardInfo: { flex: 1, marginLeft: 12, marginRight: 8 },
-  leagueCardName: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
-  leagueCardSubtext: { fontSize: 12, color: '#B3B3B3', marginTop: 2 },
+  leagueCardName: { fontSize: 15, fontWeight: '700', color: '#000000' },
+  leagueCardSubtext: { fontSize: 12, color: '#666666', marginTop: 2 },
   statusPill: {
     paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, borderWidth: 1,
   },
@@ -894,37 +894,37 @@ const styles = StyleSheet.create({
   leagueCardRank: { fontSize: 18, fontWeight: '700', color: '#7C3AED', width: 44 },
   leagueCardMiddle: { flex: 1, marginHorizontal: 8 },
   leagueCardGap: {
-    fontSize: 11, fontWeight: '700', color: '#B3B3B3',
+    fontSize: 11, fontWeight: '700', color: '#666666',
     letterSpacing: 0.8, marginBottom: 6,
   },
   progressBarTrack: {
-    height: 4, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 2, overflow: 'hidden',
+    height: 4, backgroundColor: 'rgba(0,0,0,0.08)', borderRadius: 2, overflow: 'hidden',
   },
   progressBarFill: { height: 4, borderRadius: 2 },
   leagueCardTotal: {
-    fontSize: 18, fontWeight: '700', color: '#FFFFFF',
+    fontSize: 18, fontWeight: '700', color: '#000000',
     minWidth: 40, textAlign: 'right',
   },
   memberAvatarsInline: { flexDirection: 'row', alignItems: 'center', width: 78 },
   memberAvatarInline: {
     width: 24, height: 24, borderRadius: 12,
-    backgroundColor: '#282828', alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1.5, borderColor: '#181818', overflow: 'hidden',
+    backgroundColor: '#E4E4E4', alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: '#E4E4E4', overflow: 'hidden',
   },
   memberAvatarInlineImage: { width: 24, height: 24, borderRadius: 12 },
-  memberAvatarInlineText: { fontSize: 11, fontWeight: '600', color: '#FFFFFF' },
-  memberAvatarInlineMore: { backgroundColor: '#3A3A3A' },
-  memberAvatarInlineMoreText: { fontSize: 11, fontWeight: '600', color: '#B3B3B3' },
+  memberAvatarInlineText: { fontSize: 11, fontWeight: '600', color: '#000000' },
+  memberAvatarInlineMore: { backgroundColor: '#D4D4D4' },
+  memberAvatarInlineMoreText: { fontSize: 11, fontWeight: '600', color: '#666666' },
 
   // Card-style nav rows for Public / Past leagues entry points.
   navRowCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#181818',
+    backgroundColor: '#F2F2F2',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.10)',
+    borderColor: 'rgba(0,0,0,0.10)',
     padding: 10,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
@@ -936,25 +936,25 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: '#282828',
+    backgroundColor: '#E4E4E4',
     alignItems: 'center',
     justifyContent: 'center',
   },
   navRowTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#000000',
   },
   navRowSub: {
     fontSize: 12.5,
-    color: '#B3B3B3',
+    color: '#666666',
     marginTop: 2,
   },
   navRowChevron: {
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: '#282828',
+    backgroundColor: '#E4E4E4',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -963,8 +963,8 @@ const styles = StyleSheet.create({
     flex: 1, justifyContent: 'center', alignItems: 'center',
     paddingHorizontal: 40,
   },
-  emptyTitle: { fontSize: 22, fontWeight: '700', color: '#FFFFFF' },
-  emptyText: { fontSize: 14, color: '#B3B3B3', textAlign: 'center', marginTop: 8, lineHeight: 20 },
+  emptyTitle: { fontSize: 22, fontWeight: '700', color: '#000000' },
+  emptyText: { fontSize: 14, color: '#666666', textAlign: 'center', marginTop: 8, lineHeight: 20 },
   zoomOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.95)',
     justifyContent: 'center', alignItems: 'center',

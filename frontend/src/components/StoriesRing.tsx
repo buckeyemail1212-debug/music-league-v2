@@ -106,7 +106,7 @@ export default function StoriesRing({ currentUser }: Props) {
 
   const renderFallback = () => (
     <View style={styles.avatarFallback}>
-      <Ionicons name="person" size={26} color="#B3B3B3" />
+      <Ionicons name="person" size={26} color="#666666" />
     </View>
   );
 
@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
     borderColor: '#7C3AED',
   },
   yourRingWrapSeen: {
-    borderColor: 'rgba(255,255,255,0.25)',
+    borderColor: 'rgba(0,0,0,0.20)',
   },
   ringWrap: {
     borderWidth: 2.5,
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
     padding: 2.5,
   },
   ringWrapSeen: {
-    borderColor: 'rgba(255,255,255,0.25)',
+    borderColor: 'rgba(0,0,0,0.20)',
   },
   avatar: {
     width: 64,
@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#282828',
+    backgroundColor: '#E4E4E4',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -301,11 +301,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#121212',
+    borderColor: '#FFFFFF',
   },
   label: {
     fontSize: 11,
-    color: '#B3B3B3',
+    color: '#666666',
     maxWidth: 80,
     textAlign: 'center',
     marginTop: 4,
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
     paddingBottom: Platform.OS === 'ios' ? 36 : 20,
   },
   optionsGroup: {
-    backgroundColor: '#1E1E1E',
+    backgroundColor: '#F7F7F7',
     borderRadius: 14,
     overflow: 'hidden',
   },
@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
   actionLabel: {
     flex: 1,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: '#000000',
     textAlign: 'center',
   },
   actionRowSpacer: {
@@ -343,11 +343,11 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(0,0,0,0.12)',
   },
   cancelGroup: {
     marginTop: 8,
-    backgroundColor: '#1E1E1E',
+    backgroundColor: '#F7F7F7',
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
@@ -355,6 +355,6 @@ const styles = StyleSheet.create({
   cancelLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#000000',
   },
 });
