@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
+import { colors } from '../../src/theme/colors';
 
 export default function RegisterScreen() {
   const [email, setEmail] = useState('');
@@ -64,22 +65,22 @@ export default function RegisterScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
             <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-              <Ionicons name="chevron-back" size={24} color="rgba(255,255,255,0.75)" />
+              <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
             </TouchableOpacity>
 
             <View style={styles.header}>
-              <Ionicons name="musical-notes" size={60} color="#7C3AED" />
+              <Ionicons name="musical-notes" size={60} color={colors.accent} />
               <Text style={styles.title}>Create Account</Text>
               <Text style={styles.subtitle}>Join the music competition</Text>
             </View>
 
             <View style={styles.form}>
               <View style={styles.inputContainer}>
-                <Ionicons name="person" size={20} color="#B3B3B3" style={styles.inputIcon} />
+                <Ionicons name="person" size={20} color={colors.textSecondary} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   placeholder="Name (displayed to others)"
-                  placeholderTextColor="#6A6A6A"
+                  placeholderTextColor={colors.textPlaceholder}
                   value={displayName}
                   onChangeText={setDisplayName}
                   autoCapitalize="none"
@@ -91,11 +92,11 @@ export default function RegisterScreen() {
               </View>
 
               <View style={styles.inputContainer}>
-                <Ionicons name="mail-outline" size={20} color="#B3B3B3" style={styles.inputIcon} />
+                <Ionicons name="mail-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   placeholder="Email"
-                  placeholderTextColor="#6A6A6A"
+                  placeholderTextColor={colors.textPlaceholder}
                   value={email}
                   onChangeText={setEmail}
                   keyboardType="email-address"
@@ -108,11 +109,11 @@ export default function RegisterScreen() {
               </View>
 
               <View style={styles.inputContainer}>
-                <Ionicons name="person-outline" size={20} color="#B3B3B3" style={styles.inputIcon} />
+                <Ionicons name="person-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   placeholder="Username"
-                  placeholderTextColor="#6A6A6A"
+                  placeholderTextColor={colors.textPlaceholder}
                   value={username}
                   onChangeText={setUsername}
                   autoCapitalize="none"
@@ -124,11 +125,11 @@ export default function RegisterScreen() {
               </View>
 
               <View style={styles.inputContainer}>
-                <Ionicons name="call-outline" size={20} color="#B3B3B3" style={styles.inputIcon} />
+                <Ionicons name="call-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   placeholder="Phone Number"
-                  placeholderTextColor="#6A6A6A"
+                  placeholderTextColor={colors.textPlaceholder}
                   value={phoneNumber}
                   onChangeText={setPhoneNumber}
                   keyboardType="phone-pad"
@@ -140,11 +141,11 @@ export default function RegisterScreen() {
               </View>
 
               <View style={styles.inputContainer}>
-                <Ionicons name="lock-closed-outline" size={20} color="#B3B3B3" style={styles.inputIcon} />
+                <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   placeholder="Password"
-                  placeholderTextColor="#6A6A6A"
+                  placeholderTextColor={colors.textPlaceholder}
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
@@ -157,17 +158,17 @@ export default function RegisterScreen() {
                   <Ionicons
                     name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                     size={20}
-                    color="#B3B3B3"
+                    color={colors.textSecondary}
                   />
                 </TouchableOpacity>
               </View>
 
               <View style={styles.inputContainer}>
-                <Ionicons name="lock-closed-outline" size={20} color="#B3B3B3" style={styles.inputIcon} />
+                <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   placeholder="Confirm Password"
-                  placeholderTextColor="#6A6A6A"
+                  placeholderTextColor={colors.textPlaceholder}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   secureTextEntry={!showPassword}
@@ -184,7 +185,7 @@ export default function RegisterScreen() {
                 disabled={loading}
               >
                 {loading ? (
-                  <ActivityIndicator color="#121212" />
+                  <ActivityIndicator color={colors.onAccent} />
                 ) : (
                   <Text style={styles.buttonText}>Create Account</Text>
                 )}
@@ -207,7 +208,7 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: colors.bg,
   },
   keyboardView: {
     flex: 1,
@@ -233,12 +234,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     marginTop: 16,
   },
   subtitle: {
     fontSize: 14,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     marginTop: 8,
   },
   form: {
@@ -247,7 +248,7 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#3E3E3E',
+    backgroundColor: colors.surface3,
     borderRadius: 8,
     paddingHorizontal: 16,
   },
@@ -257,11 +258,11 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     height: 52,
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 15,
   },
   button: {
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     borderRadius: 50,
     paddingVertical: 14,
     paddingHorizontal: 32,
@@ -273,7 +274,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   buttonText: {
-    color: '#FFFFFF',
+    color: colors.onAccent,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -283,12 +284,12 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   footerText: {
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     fontSize: 14,
     fontWeight: '400',
   },
   footerLink: {
-    color: '#7C3AED',
+    color: colors.accent,
     fontSize: 14,
     fontWeight: '500',
   },
