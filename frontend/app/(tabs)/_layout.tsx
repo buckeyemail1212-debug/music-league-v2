@@ -5,6 +5,7 @@ import { View, Text, TouchableOpacity, Animated, Easing, StyleSheet } from 'reac
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../src/context/AuthContext';
 import { useInboxData } from '../../src/context/InboxDataContext';
+import { colors } from '../../src/theme/colors';
 
 export const FLOATING_NAV_CLEARANCE = 150;
 
@@ -59,7 +60,7 @@ function TabButton({
     >
       <Animated.View style={[styles.tabInner, { transform: [{ scale }] }]}>
         <Animated.View style={[styles.tabFill, { opacity: fillOpacity }]} />
-        <Ionicons name={iconName} size={22} color={active ? '#FFFFFF' : '#6A6A6A'} />
+        <Ionicons name={iconName} size={22} color={active ? colors.textPrimary : colors.textTertiary} />
         {showBadge && (
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{badgeCount > 99 ? '99+' : badgeCount}</Text>
@@ -126,15 +127,15 @@ const styles = StyleSheet.create({
     right: 24,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: colors.bg,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: colors.border,
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
     paddingHorizontal: 18,
     shadowColor: '#000',
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.15,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 8 },
     elevation: 12,
@@ -153,7 +154,7 @@ const styles = StyleSheet.create({
   tabFill: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: 20,
-    backgroundColor: '#2A2A2A',
+    backgroundColor: colors.surface3,
   },
   badge: {
     position: 'absolute',
@@ -162,13 +163,13 @@ const styles = StyleSheet.create({
     minWidth: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: '#EF4444',
+    backgroundColor: colors.danger,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 3,
   },
   badgeText: {
-    color: '#FFFFFF',
+    color: colors.onAccent,
     fontSize: 10,
     fontWeight: '800',
   },

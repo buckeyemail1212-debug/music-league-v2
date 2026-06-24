@@ -6,6 +6,7 @@ import { InboxDataProvider } from '../src/context/InboxDataContext';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native';
+import { colors } from '../src/theme/colors';
 
 export default function RootLayout() {
   return (
@@ -13,11 +14,11 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <AuthProvider>
         <InboxDataProvider>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <Stack
           screenOptions={{
             headerShown: false,
-            contentStyle: { backgroundColor: '#0a0a0a' },
+            contentStyle: { backgroundColor: colors.bg },
             animation: 'none',
           }}
         >
