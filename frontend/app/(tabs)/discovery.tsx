@@ -32,6 +32,7 @@ import {
   getCachedLikedSongs,
 } from '../../src/utils/likedSongs';
 import { FLOATING_NAV_CLEARANCE } from './_layout';
+import { colors } from '../../src/theme/colors';
 
 // Screen-width-dependent sizes (album art, card width, progress track) are
 // computed from `useWindowDimensions()` inside the components below so they
@@ -207,7 +208,7 @@ const SongCard = React.memo(({
             />
           ) : (
             <View style={[styles.artImage, styles.artPlaceholder, { width: artSize, height: artSize }]}>
-              <Ionicons name="musical-note" size={72} color="rgba(255,255,255,0.15)" />
+              <Ionicons name="musical-note" size={72} color={colors.textTertiary} />
             </View>
           )}
           <Animated.View
@@ -228,11 +229,11 @@ const SongCard = React.memo(({
             <Ionicons
               name={isLiked ? 'heart' : 'heart-outline'}
               size={28}
-              color={isLiked ? '#7C3AED' : '#FFFFFF'}
+              color={colors.danger}
             />
           </TouchableOpacity>
           <TouchableOpacity onPress={onSkip} style={styles.iconBtn} hitSlop={8}>
-            <Ionicons name="play-skip-forward" size={24} color="#B3B3B3" />
+            <Ionicons name="play-skip-forward" size={24} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
@@ -255,22 +256,22 @@ const SongCard = React.memo(({
         {/* Row 4: streaming service buttons */}
         <View style={styles.serviceRow}>
           <TouchableOpacity
-            style={[styles.serviceBtn, { backgroundColor: '#1DB954' }]}
+            style={[styles.serviceBtn, { backgroundColor: colors.spotify }]}
             onPress={() => open('spotify')}
           >
-            <FontAwesome name="spotify" size={18} color="#FFFFFF" />
+            <FontAwesome name="spotify" size={18} color={colors.onAccent} />
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.serviceBtn, { backgroundColor: '#FC3C44' }]}
             onPress={() => open('apple')}
           >
-            <Ionicons name="logo-apple" size={18} color="#FFFFFF" />
+            <Ionicons name="logo-apple" size={18} color={colors.onAccent} />
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.serviceBtn, { backgroundColor: '#FF0000' }]}
+            style={[styles.serviceBtn, { backgroundColor: colors.explicitRed }]}
             onPress={() => open('youtube')}
           >
-            <Ionicons name="logo-youtube" size={18} color="#FFFFFF" />
+            <Ionicons name="logo-youtube" size={18} color={colors.onAccent} />
           </TouchableOpacity>
         </View>
 
@@ -886,8 +887,8 @@ export default function DiscoverScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#7C3AED"
-            colors={['#7C3AED']}
+            tintColor={colors.accent}
+            colors={[colors.accent]}
           />
         }
         ListFooterComponent={null}
@@ -911,7 +912,7 @@ export default function DiscoverScreen() {
       )}
       {!isFetching && songs.length === 0 && chartError && (
         <View style={styles.inlineLoader} pointerEvents="none">
-          <Text style={{ color: '#B3B3B3', fontSize: 15, textAlign: 'center', paddingHorizontal: 32 }}>
+          <Text style={{ color: colors.textSecondary, fontSize: 15, textAlign: 'center', paddingHorizontal: 32 }}>
             Charts loading, try again shortly
           </Text>
         </View>
@@ -961,7 +962,7 @@ export default function DiscoverScreen() {
 
               {/* Right fade */}
               <LinearGradient
-                colors={['rgba(18,18,18,0)', 'rgba(18,18,18,1)']}
+                colors={['rgba(255,255,255,0)', 'rgba(255,255,255,1)']}
                 start={{ x: 0, y: 0.5 }}
                 end={{ x: 1, y: 0.5 }}
                 style={styles.chipsGradientRight}
@@ -971,7 +972,7 @@ export default function DiscoverScreen() {
               {/* Left fade — only visible once the user has scrolled */}
               {chipsScrollOffset > 0 && (
                 <LinearGradient
-                  colors={['rgba(18,18,18,1)', 'rgba(18,18,18,0)']}
+                  colors={['rgba(255,255,255,1)', 'rgba(255,255,255,0)']}
                   start={{ x: 0, y: 0.5 }}
                   end={{ x: 1, y: 0.5 }}
                   style={styles.chipsGradientLeft}
@@ -981,7 +982,7 @@ export default function DiscoverScreen() {
             </View>
 
             <TouchableOpacity style={styles.searchIconBtn} onPress={openSearch} activeOpacity={0.7}>
-              <Ionicons name="search" size={20} color="#FFFFFF" />
+              <Ionicons name="search" size={20} color={colors.textPrimary} />
             </TouchableOpacity>
           </Animated.View>
 
@@ -994,7 +995,7 @@ export default function DiscoverScreen() {
               ]}
               pointerEvents="auto"
             >
-              <Ionicons name="search" size={16} color="#B3B3B3" style={styles.searchBarIcon} />
+              <Ionicons name="search" size={16} color={colors.textSecondary} style={styles.searchBarIcon} />
               <TextInput
                 style={styles.searchInput}
                 value={searchQuery}
@@ -1004,17 +1005,17 @@ export default function DiscoverScreen() {
                 }}
                 onSubmitEditing={handleSearch}
                 placeholder="Search songs, artists…"
-                placeholderTextColor="#6A6A6A"
+                placeholderTextColor={colors.textPlaceholder}
                 returnKeyType="search"
                 autoFocus
                 autoCapitalize="none"
                 autoCorrect={false}
               />
               {searchLoading && (
-                <ActivityIndicator size="small" color="#7C3AED" style={styles.searchSpinner} />
+                <ActivityIndicator size="small" color={colors.accent} style={styles.searchSpinner} />
               )}
               <TouchableOpacity style={styles.searchCloseBtn} onPress={closeSearch} activeOpacity={0.7}>
-                <Ionicons name="close" size={20} color="#FFFFFF" />
+                <Ionicons name="close" size={20} color={colors.textPrimary} />
               </TouchableOpacity>
             </Animated.View>
           )}
@@ -1029,7 +1030,7 @@ export default function DiscoverScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: colors.bg,
   },
   // Skeleton placeholder — absolute overlay so FlatList stays mounted underneath
   inlineLoader: {
@@ -1040,7 +1041,7 @@ const styles = StyleSheet.create({
   skeletonArt: {
     // width/height set inline from useWindowDimensions
     borderRadius: 12,
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
   },
   skeletonBottom: {
     // width set inline from useWindowDimensions
@@ -1052,19 +1053,19 @@ const styles = StyleSheet.create({
     height: 22,
     width: '60%',
     borderRadius: 4,
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
   },
   skeletonArtist: {
     height: 14,
     width: '40%',
     borderRadius: 4,
-    backgroundColor: '#1F1F1F',
+    backgroundColor: colors.surface2,
     marginTop: 10,
   },
   skeletonProgress: {
     height: 3,
     borderRadius: 2,
-    backgroundColor: '#1F1F1F',
+    backgroundColor: colors.surface2,
     marginTop: 20,
   },
   skeletonServices: {
@@ -1076,13 +1077,13 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 8,
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
   },
 
   // ── Card ──────────────────────────────────────────────────────────────────
   card: {
     // width set inline from useWindowDimensions; height from cardHeight prop
-    backgroundColor: '#121212',
+    backgroundColor: colors.bg,
     flexDirection: 'column',
   },
 
@@ -1097,7 +1098,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   artPlaceholder: {
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1124,7 +1125,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 22,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   iconBtn: {
     alignItems: 'center',
@@ -1135,7 +1136,7 @@ const styles = StyleSheet.create({
   artistName: {
     fontSize: 16,
     fontWeight: '400',
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     paddingHorizontal: 24,
     marginTop: 4,
   },
@@ -1145,7 +1146,7 @@ const styles = StyleSheet.create({
     // width set inline from useWindowDimensions (screen width − 48)
     height: 3,
     borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: colors.border,
     marginTop: 16,
     marginHorizontal: 24,
     overflow: 'hidden',
@@ -1153,7 +1154,7 @@ const styles = StyleSheet.create({
   progressFill: {
     height: 3,
     borderRadius: 2,
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
   },
 
   // Row 4: streaming service buttons
@@ -1174,7 +1175,7 @@ const styles = StyleSheet.create({
   // Preview label
   previewLabel: {
     fontSize: 11,
-    color: '#6A6A6A',
+    color: colors.textTertiary,
     paddingHorizontal: 24,
     marginTop: 4,
   },
@@ -1187,7 +1188,7 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 10,
   },
-  // No background — chips float directly on the #121212 card content
+  // No background — chips float directly on the card content (colors.bg)
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1236,15 +1237,15 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   chipActive: {
-    borderBottomColor: '#7C3AED',
+    borderBottomColor: colors.accent,
   },
   chipText: {
     fontSize: 14,
     fontWeight: '400',
-    color: '#B3B3B3',
+    color: colors.textSecondary,
   },
   chipTextActive: {
-    color: '#7C3AED',
+    color: colors.accent,
     fontWeight: '700',
     fontSize: 14,
   },
@@ -1274,11 +1275,11 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     height: 36,
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
     borderRadius: 8,
     paddingHorizontal: 12,
     fontSize: 15,
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   searchSpinner: {
     marginHorizontal: 8,
