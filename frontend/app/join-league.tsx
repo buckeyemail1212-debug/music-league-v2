@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { joinLeague } from '../src/services/api';
 import { leagueEvents } from '../src/utils/leagueEvents';
+import { colors } from '../src/theme/colors';
 
 const CODE_LENGTH = 6;
 
@@ -105,7 +106,7 @@ export default function JoinLeaguePage() {
           hitSlop={10}
           style={styles.headerBtn}
         >
-          <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
+          <Ionicons name="chevron-back" size={26} color={colors.textPrimary} />
         </TouchableOpacity>
         <View style={{ width: 26 }} />
       </View>
@@ -145,7 +146,7 @@ export default function JoinLeaguePage() {
 
           {errorText && (
             <View style={styles.errorBox}>
-              <Ionicons name="alert-circle" size={16} color="#EF4444" />
+              <Ionicons name="alert-circle" size={16} color={colors.danger} />
               <Text style={styles.errorText}>{errorText}</Text>
             </View>
           )}
@@ -157,14 +158,14 @@ export default function JoinLeaguePage() {
             activeOpacity={0.85}
           >
             {submitting ? (
-              <ActivityIndicator color="#FFFFFF" />
+              <ActivityIndicator color={colors.onAccent} />
             ) : (
               <Text style={styles.ctaText}>JOIN LEAGUE</Text>
             )}
           </TouchableOpacity>
 
           <View style={styles.tipRow}>
-            <Ionicons name="information-circle-outline" size={16} color="#B3B3B3" />
+            <Ionicons name="information-circle-outline" size={16} color={colors.textSecondary} />
             <Text style={styles.tipText}>
               Ask the league creator to share their 6-character code.
             </Text>
@@ -176,7 +177,7 @@ export default function JoinLeaguePage() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212' },
+  container: { flex: 1, backgroundColor: colors.bg },
   header: {
     paddingHorizontal: 14,
     paddingTop: 4,
@@ -190,14 +191,14 @@ const styles = StyleSheet.create({
   headline: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     letterSpacing: 1,
     textAlign: 'center',
     marginTop: 16,
   },
   sub: {
     fontSize: 14,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     textAlign: 'center',
     marginTop: 8,
     marginBottom: 32,
@@ -213,16 +214,16 @@ const styles = StyleSheet.create({
     height: 58,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.12)',
-    backgroundColor: '#181818',
+    borderColor: colors.border,
+    backgroundColor: colors.surface3,
     textAlign: 'center',
     fontSize: 24,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   boxFilled: {
-    borderColor: '#7C3AED',
-    backgroundColor: '#1E1630',
+    borderColor: colors.accent,
+    backgroundColor: colors.accentFaint,
   },
   errorBox: {
     flexDirection: 'row',
@@ -235,12 +236,12 @@ const styles = StyleSheet.create({
   },
   errorText: {
     flex: 1,
-    color: '#EF4444',
+    color: colors.danger,
     fontSize: 13,
     fontWeight: '600',
   },
   cta: {
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     borderRadius: 999,
     paddingVertical: 16,
     alignItems: 'center',
@@ -250,7 +251,7 @@ const styles = StyleSheet.create({
     opacity: 0.35,
   },
   ctaText: {
-    color: '#FFFFFF',
+    color: colors.onAccent,
     fontWeight: '800',
     fontSize: 15,
     letterSpacing: 1,
@@ -262,11 +263,11 @@ const styles = StyleSheet.create({
     marginTop: 24,
     padding: 14,
     borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: colors.borderFaint,
   },
   tipText: {
     flex: 1,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     fontSize: 12,
     lineHeight: 18,
   },

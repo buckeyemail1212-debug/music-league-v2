@@ -21,8 +21,9 @@ import {
 import { leagueEvents } from '../src/utils/leagueEvents';
 import { publicLeaguesCache } from '../src/utils/publicLeaguesCache';
 import LeagueAvatar from '../src/components/LeagueAvatar';
+import { colors } from '../src/theme/colors';
 
-const PURPLE = '#7C3AED';
+const PURPLE = colors.accent;
 
 const parseDeadline = (d: string) =>
   new Date(d.endsWith('Z') || d.includes('+') ? d : d + 'Z');
@@ -209,7 +210,7 @@ export default function PublicLeaguesPage() {
               activeOpacity={0.85}
             >
               {joiningId === item.id ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
+                <ActivityIndicator color={colors.onAccent} size="small" />
               ) : (
                 <Text style={styles.joinBtnText}>Join League</Text>
               )}
@@ -231,7 +232,7 @@ export default function PublicLeaguesPage() {
           onPress={() => router.back()}
           hitSlop={10}
         >
-          <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
+          <Ionicons name="chevron-back" size={26} color={colors.textPrimary} />
         </TouchableOpacity>
       </View>
 
@@ -245,7 +246,7 @@ export default function PublicLeaguesPage() {
         <Ionicons
           name="search"
           size={18}
-          color="#6A6A6A"
+          color={colors.textTertiary}
           style={styles.searchIcon}
         />
         <TextInput
@@ -253,7 +254,7 @@ export default function PublicLeaguesPage() {
           value={query}
           onChangeText={setQuery}
           placeholder="Search by name or genre"
-          placeholderTextColor="#6A6A6A"
+          placeholderTextColor={colors.textPlaceholder}
           autoCapitalize="none"
           autoCorrect={false}
           returnKeyType="search"
@@ -264,7 +265,7 @@ export default function PublicLeaguesPage() {
             hitSlop={10}
             style={styles.clearBtn}
           >
-            <Ionicons name="close-circle" size={18} color="#6A6A6A" />
+            <Ionicons name="close-circle" size={18} color={colors.textTertiary} />
           </TouchableOpacity>
         )}
       </View>
@@ -303,7 +304,7 @@ export default function PublicLeaguesPage() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212' },
+  container: { flex: 1, backgroundColor: colors.bg },
   headerBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -321,14 +322,14 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 26,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     letterSpacing: 1,
   },
   countLine: {
     paddingHorizontal: 20,
     paddingBottom: 12,
     fontSize: 13,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
   },
 
   searchWrap: {
@@ -336,7 +337,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     borderRadius: 10,
     paddingHorizontal: 12,
   },
@@ -344,7 +345,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     paddingVertical: 12,
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 14,
   },
   clearBtn: { padding: 4 },
@@ -355,22 +356,22 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 14,
   },
   middle: { flex: 1, marginHorizontal: 14 },
-  name: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
+  name: { color: colors.textPrimary, fontWeight: '700', fontSize: 15 },
   genre: {
-    color: '#8B8B8B',
+    color: colors.textTertiary,
     fontSize: 11,
     fontWeight: '600',
     letterSpacing: 0.4,
     textTransform: 'uppercase',
     marginTop: 3,
   },
-  meta: { color: '#B3B3B3', fontSize: 12, marginTop: 4 },
+  meta: { color: colors.textSecondary, fontSize: 12, marginTop: 4 },
   actionWrap: { alignItems: 'flex-end', minWidth: 92 },
   joinBtn: {
     backgroundColor: PURPLE,
@@ -382,7 +383,7 @@ const styles = StyleSheet.create({
     minWidth: 92,
   },
   joinBtnText: {
-    color: '#FFFFFF',
+    color: colors.onAccent,
     fontWeight: '800',
     fontSize: 12,
     letterSpacing: 0.6,
@@ -391,18 +392,18 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 999,
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: 92,
   },
   mutedTagText: {
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     fontWeight: '700',
     fontSize: 12,
     letterSpacing: 0.5,
   },
 
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  emptyText: { color: '#B3B3B3', fontSize: 13, textAlign: 'center' },
+  emptyText: { color: colors.textSecondary, fontSize: 13, textAlign: 'center' },
 });

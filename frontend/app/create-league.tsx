@@ -24,15 +24,16 @@ import { createLeague, League } from '../src/services/api';
 import { leagueEvents } from '../src/utils/leagueEvents';
 import LeagueAvatar from '../src/components/LeagueAvatar';
 import LeagueCreatedSuccess from '../src/components/LeagueCreatedSuccess';
+import { colors } from '../src/theme/colors';
 
-const PAGE_BG = '#0a0a0a';
-const CARD_BG = '#1a1a1a';
-const HAIRLINE = 'rgba(255,255,255,0.08)';
-const CHIP_BG = '#2A2A2A';
-const INK = '#FFFFFF';
-const MUTED = 'rgba(255,255,255,0.55)';
-const FAINT = '#6A6A6A';
-const ACCENT = '#7C3AED';
+const PAGE_BG = colors.bg;          // was '#0a0a0a'
+const CARD_BG = colors.surface;     // was '#1a1a1a'
+const HAIRLINE = colors.border;     // was 'rgba(255,255,255,0.08)'
+const CHIP_BG = colors.surface3;    // was '#2A2A2A'
+const INK = colors.textPrimary;     // was '#FFFFFF'
+const MUTED = colors.textSecondary; // was 'rgba(255,255,255,0.55)'
+const FAINT = colors.textTertiary;  // was '#6A6A6A'
+const ACCENT = colors.accent;       // was '#7C3AED'
 
 const STEP_META: Record<number, { title: string; subtitle: string; label: string }> = {
   1: { title: 'Set up your league', subtitle: 'Name it and give it a look.', label: 'Basics' },
@@ -245,7 +246,7 @@ export default function CreateLeaguePage() {
           hitSlop={10}
           style={styles.headerBtn}
         >
-          <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
+          <Ionicons name="chevron-back" size={26} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>CREATE LEAGUE</Text>
         <View style={{ width: 26 }} />
@@ -275,15 +276,15 @@ export default function CreateLeaguePage() {
                         <View style={{ flex: 1, height: 2, marginHorizontal: 6, backgroundColor: i <= stepIndex ? ACCENT : CHIP_BG, borderRadius: 1 }} />
                       )}
                       {current ? (
-                        <View style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 4, borderColor: 'rgba(124,58,237,0.25)', alignItems: 'center', justifyContent: 'center' }}>
+                        <View style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 4, borderColor: colors.accentFaint, alignItems: 'center', justifyContent: 'center' }}>
                           <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: ACCENT, alignItems: 'center', justifyContent: 'center' }}>
-                            <Text style={{ color: INK, fontSize: 13, fontWeight: '800' }}>{i + 1}</Text>
+                            <Text style={{ color: colors.onAccent, fontSize: 13, fontWeight: '800' }}>{i + 1}</Text>
                           </View>
                         </View>
                       ) : (
                         <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: completed ? ACCENT : CHIP_BG, alignItems: 'center', justifyContent: 'center' }}>
                           {completed ? (
-                            <Ionicons name="checkmark" size={16} color={INK} />
+                            <Ionicons name="checkmark" size={16} color={colors.onAccent} />
                           ) : (
                             <Text style={{ color: MUTED, fontSize: 13, fontWeight: '700' }}>{i + 1}</Text>
                           )}
@@ -404,7 +405,7 @@ export default function CreateLeaguePage() {
 
             <View style={styles.hintStrip}>
               <View style={styles.hintStripIcon}>
-                <Ionicons name="star" size={12} color={INK} />
+                <Ionicons name="star" size={12} color={colors.onAccent} />
               </View>
               <Text style={styles.hintStripText}>
                 Suggested: 2 days for submission, 3 days for voting.
@@ -430,7 +431,7 @@ export default function CreateLeaguePage() {
               value={themesOn}
               onValueChange={setThemesOn}
               trackColor={{ false: CHIP_BG, true: ACCENT }}
-              thumbColor={INK}
+              thumbColor={colors.onAccent}
             />
           </View>
 
@@ -449,7 +450,7 @@ export default function CreateLeaguePage() {
               value={isPublic}
               onValueChange={setIsPublic}
               trackColor={{ false: CHIP_BG, true: ACCENT }}
-              thumbColor={INK}
+              thumbColor={colors.onAccent}
             />
           </View>
 
@@ -549,7 +550,7 @@ export default function CreateLeaguePage() {
                       : { backgroundColor: CHIP_BG, borderWidth: 1, borderColor: HAIRLINE },
                   ]}>
                     {filled ? (
-                      <Ionicons name="checkmark" size={16} color={INK} />
+                      <Ionicons name="checkmark" size={16} color={colors.onAccent} />
                     ) : (
                       <Text style={{ color: MUTED, fontSize: 12, fontWeight: '700' }}>{i + 1}</Text>
                     )}
@@ -718,7 +719,7 @@ export default function CreateLeaguePage() {
                 activeOpacity={0.85}
               >
                 {submitting && isConfirm ? (
-                  <ActivityIndicator color={INK} />
+                  <ActivityIndicator color={colors.onAccent} />
                 ) : (
                   <>
                     <View style={{ flex: 1 }}>
@@ -794,7 +795,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 1.4,
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   scroll: { paddingHorizontal: 24, paddingBottom: 60 },
 
@@ -812,7 +813,7 @@ const styles = StyleSheet.create({
     borderRadius: 54,
     borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderColor: colors.borderStrong,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: CARD_BG,
@@ -846,7 +847,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     letterSpacing: 1.2,
     marginTop: 22,
     marginBottom: 10,
@@ -867,7 +868,7 @@ const styles = StyleSheet.create({
   inlineError: {
     marginTop: 8,
     fontSize: 12,
-    color: '#EF4444',
+    color: colors.danger,
     fontWeight: '600',
   },
   sectionLabel: {
@@ -962,7 +963,7 @@ const styles = StyleSheet.create({
   pickerFieldText: { color: INK, fontSize: 15, fontWeight: '600' },
   pickerBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: colors.scrimLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -994,7 +995,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   pickerRowSelected: {
-    backgroundColor: 'rgba(124,58,237,0.18)',
+    backgroundColor: colors.accentFaint,
   },
   pickerRowText: { color: INK, fontSize: 15, fontWeight: '600' },
   pickerRowTextSelected: { color: INK },
@@ -1011,7 +1012,7 @@ const styles = StyleSheet.create({
     borderColor: HAIRLINE,
   },
   inputActive: {
-    borderColor: 'rgba(255,255,255,0.16)',
+    borderColor: colors.borderStrong,
   },
   chipRow: {
     flexDirection: 'row',
@@ -1076,7 +1077,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   themeCardFilled: {
-    borderColor: 'rgba(255,255,255,0.16)',
+    borderColor: colors.borderStrong,
   },
   themeCardLabel: {
     fontSize: 11,
@@ -1114,7 +1115,7 @@ const styles = StyleSheet.create({
   previewInitial: {
     fontSize: 48,
     fontWeight: '800',
-    color: INK,
+    color: colors.onAccent,
   },
   previewBody: {
     padding: 14,
@@ -1227,12 +1228,12 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   ctaAction: {
-    color: INK,
+    color: colors.onAccent,
     fontWeight: '800',
     fontSize: 15,
   },
   ctaHint: {
-    color: 'rgba(255,255,255,0.7)',
+    color: colors.onAccent,
     fontSize: 11,
     marginTop: 1,
   },
@@ -1240,7 +1241,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: INK,
+    backgroundColor: colors.onAccent,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1264,43 +1265,43 @@ const styles = StyleSheet.create({
   successTitle: {
     fontSize: 26,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     letterSpacing: 1,
   },
   successName: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     marginTop: 8,
     marginBottom: 28,
     textAlign: 'center',
   },
   successPrompt: {
     fontSize: 13,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     marginBottom: 12,
     textAlign: 'center',
   },
   codeBox: {
     borderWidth: 2,
     borderStyle: 'dashed',
-    borderColor: '#7C3AED',
+    borderColor: colors.accent,
     borderRadius: 12,
     paddingHorizontal: 24,
     paddingVertical: 20,
     marginBottom: 24,
-    backgroundColor: 'rgba(124,58,237,0.08)',
+    backgroundColor: colors.accentFaint,
   },
   codeText: {
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     fontSize: 36,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     letterSpacing: 8,
   },
   shareBtn: {
     alignItems: 'center',
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     paddingVertical: 14,
     paddingHorizontal: 36,
     borderRadius: 999,
@@ -1308,7 +1309,7 @@ const styles = StyleSheet.create({
     minWidth: 180,
   },
   shareBtnText: {
-    color: '#FFFFFF',
+    color: colors.onAccent,
     fontWeight: '800',
     fontSize: 14,
     letterSpacing: 1.4,
@@ -1318,7 +1319,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   goBtnText: {
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     fontWeight: '700',
     fontSize: 14,
   },
