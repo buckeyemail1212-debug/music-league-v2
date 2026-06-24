@@ -143,6 +143,7 @@ export interface RoundResult {
     song: Song;
     user_id: string;
     username: string;
+    profile_photo?: string | null;
     points: number;
     rank: number;
   }[];
@@ -151,6 +152,7 @@ export interface RoundResult {
     song: Song;
     user_id: string;
     username: string;
+    profile_photo?: string | null;
     points: number;
     rank: number;
   }[];
@@ -357,6 +359,7 @@ export interface PastLeagueRoundSummary {
   winner?: {
     user_id: string;
     username: string;
+    profile_photo?: string | null;
     song: Song | null;
     total_points: number;
   } | null;

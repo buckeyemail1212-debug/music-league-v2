@@ -352,9 +352,23 @@ export default function PastLeaguePage() {
                             <Text style={styles.winnerArtist} numberOfLines={1}>
                               {winner.song?.artist || ''}
                             </Text>
-                            <Text style={styles.winnerByLine} numberOfLines={1}>
-                              Won by {winner.username}
-                            </Text>
+                            <View style={styles.winnerByRow}>
+                              <View style={styles.winnerByAvatar}>
+                                {winner.profile_photo ? (
+                                  <Image
+                                    source={{ uri: winner.profile_photo }}
+                                    style={styles.winnerByAvatarImg}
+                                  />
+                                ) : (
+                                  <Text style={styles.winnerByAvatarLetter}>
+                                    {(winner.username || '?').charAt(0).toUpperCase()}
+                                  </Text>
+                                )}
+                              </View>
+                              <Text style={styles.winnerByLine} numberOfLines={1}>
+                                Won by {winner.username}
+                              </Text>
+                            </View>
                           </View>
                         </View>
                       ) : (
@@ -877,10 +891,27 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 1,
   },
+  winnerByRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
+  winnerByAvatar: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.surface3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  winnerByAvatarImg: { width: 18, height: 18, borderRadius: 9 },
+  winnerByAvatarLetter: { color: colors.textPrimary, fontWeight: '700', fontSize: 9 },
   winnerByLine: {
+    flex: 1,
     color: colors.textTertiary,
     fontSize: 12,
-    marginTop: 4,
   },
   noWinnerText: {
     color: colors.textTertiary,

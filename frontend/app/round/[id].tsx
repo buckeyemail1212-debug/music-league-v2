@@ -1069,14 +1069,12 @@ export default function RoundScreen() {
       {round.status === 'completed' && results && (
         <>
           {results.winners && results.winners.length > 0 && (() => {
-            // Winner-hero color scheme: ACCENT (#7C3AED) when the winner is
-            // the current user, HOT (#F59E0B) otherwise. Ties always use
-            // HOT so we don't need to pick a single user to highlight.
-            const accent = colors.accent;
-            const hot = '#F59E0B';
+            // Winner-hero always uses the accent (purple/lavender) look,
+            // regardless of who won — card bg = heroColor + '1A' (light
+            // lavender), border = heroColor + '54', label/rank/points purple.
             const mineWon =
               !results.is_tie && results.winners[0]?.user_id === user?.id;
-            const heroColor = mineWon ? accent : hot;
+            const heroColor = colors.accent;
             return (
               <View
                 accessibilityRole="summary"
@@ -1137,11 +1135,37 @@ export default function RoundScreen() {
                               {w.song.artist}
                             </Text>
                             <View style={styles.winnerHeroSubRow}>
-                              <Text style={styles.winnerHeroUser} numberOfLines={1}>
-                                {w.username}
-                                {isMeRow ? ' · YOU' : ''}
-                              </Text>
+                              <TouchableOpacity
+                                style={styles.winnerHeroUserTap}
+                                activeOpacity={0.7}
+                                onPress={() => router.push(`/user/${w.user_id}`)}
+                              >
+                                <View style={styles.winnerHeroAvatar}>
+                                  {w.profile_photo ? (
+                                    <Image
+                                      source={{ uri: w.profile_photo }}
+                                      style={styles.winnerHeroAvatarImg}
+                                    />
+                                  ) : (
+                                    <Text style={styles.winnerHeroAvatarText}>
+                                      {(w.username || '?').charAt(0).toUpperCase()}
+                                    </Text>
+                                  )}
+                                </View>
+                                <Text style={styles.winnerHeroUser} numberOfLines={1}>
+                                  {w.username}
+                                  {isMeRow ? ' · YOU' : ''}
+                                </Text>
+                              </TouchableOpacity>
                               <View style={styles.winnerHeroPtsGroup}>
+                                <LikeButton song={w.song} size={18} style={styles.likeBtnWinner} />
+                                <PreviewPlayButton
+                                  previewUrl={w.song.preview_url}
+                                  deezerId={w.song.deezer_id}
+                                  songId={`winner-${w.song.deezer_id}`}
+                                  size={16}
+                                  style={styles.playButtonWinner}
+                                />
                                 <Text
                                   style={[
                                     styles.winnerHeroPts,
@@ -1154,14 +1178,6 @@ export default function RoundScreen() {
                               </View>
                             </View>
                           </View>
-                          <LikeButton song={w.song} size={18} style={styles.likeBtnWinner} />
-                          <PreviewPlayButton
-                            previewUrl={w.song.preview_url}
-                            deezerId={w.song.deezer_id}
-                            songId={`winner-${w.song.deezer_id}`}
-                            size={16}
-                            style={styles.playButtonWinner}
-                          />
                         </View>
                       );
                     })}
@@ -1191,11 +1207,37 @@ export default function RoundScreen() {
                         {results.winners[0].song.artist}
                       </Text>
                       <View style={styles.winnerHeroSubRow}>
-                        <Text style={styles.winnerHeroUser} numberOfLines={1}>
-                          {results.winners[0].username}
-                          {mineWon ? ' · YOU' : ''}
-                        </Text>
+                        <TouchableOpacity
+                          style={styles.winnerHeroUserTap}
+                          activeOpacity={0.7}
+                          onPress={() => router.push(`/user/${results.winners[0].user_id}`)}
+                        >
+                          <View style={styles.winnerHeroAvatar}>
+                            {results.winners[0].profile_photo ? (
+                              <Image
+                                source={{ uri: results.winners[0].profile_photo }}
+                                style={styles.winnerHeroAvatarImg}
+                              />
+                            ) : (
+                              <Text style={styles.winnerHeroAvatarText}>
+                                {(results.winners[0].username || '?').charAt(0).toUpperCase()}
+                              </Text>
+                            )}
+                          </View>
+                          <Text style={styles.winnerHeroUser} numberOfLines={1}>
+                            {results.winners[0].username}
+                            {mineWon ? ' · YOU' : ''}
+                          </Text>
+                        </TouchableOpacity>
                         <View style={styles.winnerHeroPtsGroup}>
+                          <LikeButton song={results.winners[0].song} size={18} style={styles.likeBtnWinner} />
+                          <PreviewPlayButton
+                            previewUrl={results.winners[0].song.preview_url}
+                            deezerId={results.winners[0].song.deezer_id}
+                            songId={`winner-single-${results.winners[0].song.deezer_id}`}
+                            size={16}
+                            style={styles.playButtonWinner}
+                          />
                           <Text style={[styles.winnerHeroPts, { color: heroColor }]}>
                             {results.winners[0].points}
                           </Text>
@@ -1203,14 +1245,6 @@ export default function RoundScreen() {
                         </View>
                       </View>
                     </View>
-                    <LikeButton song={results.winners[0].song} size={18} style={styles.likeBtnWinner} />
-                    <PreviewPlayButton
-                      previewUrl={results.winners[0].song.preview_url}
-                      deezerId={results.winners[0].song.deezer_id}
-                      songId={`winner-single-${results.winners[0].song.deezer_id}`}
-                      size={16}
-                      style={styles.playButtonWinner}
-                    />
                   </View>
                 )}
               </View>
@@ -2283,7 +2317,6 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   likeBtnWinner: {
-    marginRight: 8,
     width: 28,
     height: 28,
     alignItems: 'center',
@@ -2294,7 +2327,6 @@ const styles = StyleSheet.create({
     height: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 8,
   },
   resultCard: {
     flexDirection: 'row',
@@ -3073,17 +3105,42 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 10,
   },
-  winnerHeroUser: {
+  winnerHeroUserTap: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  winnerHeroAvatar: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.surface3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+    overflow: 'hidden',
+  },
+  winnerHeroAvatarImg: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+  },
+  winnerHeroAvatarText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  winnerHeroUser: {
+    flexShrink: 1,
     fontSize: 13,
     fontWeight: '700',
     color: colors.textPrimary,
-    marginRight: 8,
   },
   winnerHeroPtsGroup: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 4,
+    alignItems: 'center',
+    gap: 8,
   },
   winnerHeroPts: {
     fontSize: 28,

@@ -5255,6 +5255,7 @@ def _compute_round_results(
     subs: list[dict],
     votes: list[dict],
     user_lookup: dict[str, str],
+    photo_lookup: Optional[dict[str, Optional[str]]] = None,
 ) -> dict:
     """Compute per-round points, winner, and placements for one round.
 
@@ -5263,14 +5264,16 @@ def _compute_round_results(
       subs: full submission documents for this round (need song + user_id + id).
       votes: vote documents for this round (need voter_id + rankings).
       user_lookup: user_id -> username, used to populate winner.username.
+      photo_lookup: user_id -> profile_photo (optional), populates winner avatar.
 
     Returns a dict shaped:
       {
         "points": {sub_id: int},
-        "winner": {"user_id", "username", "song", "total_points"} or None,
+        "winner": {"user_id", "username", "profile_photo", "song", "total_points"} or None,
         "placements": {user_id: int_rank},  # competition ranking (1,2,2,4)
       }
     """
+    photo_lookup = photo_lookup or {}
     if not subs:
         return {"points": {}, "winner": None, "placements": {}}
 
@@ -5304,6 +5307,7 @@ def _compute_round_results(
             winner_entry = {
                 "user_id": w_uid,
                 "username": user_lookup.get(w_uid, ""),
+                "profile_photo": photo_lookup.get(w_uid),
                 "song": winning_sub.get("song"),
                 "total_points": max_pts,
             }
@@ -5394,13 +5398,24 @@ async def _build_past_league_snapshot(
         m["id"]: m["username"] for m in members_input
     }
 
+    # Fresh profile photos for all members so the snapshot's per-round
+    # winner carries the winner's avatar (mirrors the live results endpoint).
+    member_ids_all = [m["id"] for m in members_input]
+    photo_docs = await db.users.find(
+        {"id": {"$in": member_ids_all}},
+        {"_id": 0, "id": 1, "profile_photo": 1},
+    ).to_list(5000) if member_ids_all else []
+    photo_lookup: dict[str, Optional[str]] = {
+        u["id"]: u.get("profile_photo") for u in photo_docs
+    }
+
     for r in completed_rounds:
         subs = subs_by_round.get(r["id"], [])
         votes = votes_by_round.get(r["id"], [])
         if not subs:
             continue
 
-        result = _compute_round_results(r, subs, votes, user_lookup)
+        result = _compute_round_results(r, subs, votes, user_lookup, photo_lookup)
         points = result["points"]
         max_pts = max(points.values()) if points else 0
 
@@ -6944,31 +6959,41 @@ async def get_results(round_id: str, current_user: dict = Depends(get_current_us
     
     # Sort by total points (descending)
     sorted_subs = sorted(submissions, key=lambda s: -submission_scores[s["id"]])
-    
+
+    # Fetch submitter profile photos so rankings/winners carry avatars
+    # (the winner-hero card shows the winner's tappable avatar).
+    submitter_ids = [s["user_id"] for s in submissions]
+    submitter_docs = await db.users.find(
+        {"id": {"$in": submitter_ids}},
+        {"_id": 0, "id": 1, "profile_photo": 1},
+    ).to_list(500) if submitter_ids else []
+    submitter_photo = {u["id"]: u.get("profile_photo") for u in submitter_docs}
+
     # Assign ranks with tie handling
     rankings = []
     current_rank = 1
     prev_score = None
-    
+
     for i, sub in enumerate(sorted_subs):
         sub_score = submission_scores[sub["id"]]
-        
+
         # Check if this is a tie (same score)
         if prev_score is not None and sub_score == prev_score:
             # Same rank as previous
             pass
         else:
             current_rank = i + 1
-        
+
         rankings.append({
             "submission_id": sub["id"],
             "song": sub["song"],
             "user_id": sub["user_id"],
             "username": sub["username"],
+            "profile_photo": submitter_photo.get(sub["user_id"]),
             "points": sub_score,
             "rank": current_rank
         })
-        
+
         prev_score = sub_score
     
     # Determine winners (rank 1)
