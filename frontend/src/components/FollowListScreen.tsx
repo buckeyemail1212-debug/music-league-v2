@@ -26,6 +26,7 @@ import {
   FollowStatus,
 } from '../services/api';
 import { apiCache } from '../services/apiCache';
+import { colors } from '../theme/colors';
 
 type Mode = 'followers' | 'following';
 
@@ -33,7 +34,7 @@ const LIST_TTL_MS = 60 * 1000;
 const STATUS_TTL_MS = 60 * 1000;
 const PAGE_LIMIT = 50;
 
-const SUBMISSION_COLORS = ['#7C3AED', '#10B981', '#F59E0B', '#EF4444', '#3B82F6', '#EC4899'];
+const SUBMISSION_COLORS = colors.avatarPalette;
 const pickColor = (seed: string) => {
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = ((h << 5) - h + seed.charCodeAt(i)) >>> 0;
@@ -125,7 +126,7 @@ export default function FollowListScreen({ mode }: { mode: Mode }) {
       <SafeAreaView style={styles.container}>
         <Header onBack={() => router.back()} title={headerTitle} />
         <Centered>
-          <Ionicons name="person-outline" size={48} color="#6A6A6A" />
+          <Ionicons name="person-outline" size={48} color={colors.textTertiary} />
           <Text style={styles.errorTitle}>User not found</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={() => router.back()}>
             <Text style={styles.retryBtnText}>Go back</Text>
@@ -140,7 +141,7 @@ export default function FollowListScreen({ mode }: { mode: Mode }) {
       <SafeAreaView style={styles.container}>
         <Header onBack={() => router.back()} title={headerTitle} />
         <Centered>
-          <Ionicons name="lock-closed-outline" size={40} color="#B3B3B3" />
+          <Ionicons name="lock-closed-outline" size={40} color={colors.textSecondary} />
           <Text style={styles.errorTitle}>This account is private</Text>
           <Text style={styles.errorBody}>
             Follow @{targetUsername || 'this user'} to see their {mode === 'followers' ? 'followers' : 'following'}.
@@ -158,7 +159,7 @@ export default function FollowListScreen({ mode }: { mode: Mode }) {
       <SafeAreaView style={styles.container}>
         <Header onBack={() => router.back()} title={headerTitle} />
         <Centered>
-          <Ionicons name="cloud-offline-outline" size={48} color="#6A6A6A" />
+          <Ionicons name="cloud-offline-outline" size={48} color={colors.textTertiary} />
           <Text style={styles.errorTitle}>Couldn&rsquo;t load</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={load}>
             <Text style={styles.retryBtnText}>Try again</Text>
@@ -173,7 +174,7 @@ export default function FollowListScreen({ mode }: { mode: Mode }) {
       <SafeAreaView style={styles.container}>
         <Header onBack={() => router.back()} title={headerTitle} />
         <Centered>
-          <ActivityIndicator color="#FFFFFF" />
+          <ActivityIndicator color={colors.textPrimary} />
         </Centered>
       </SafeAreaView>
     );
@@ -214,7 +215,7 @@ function Header({ onBack, title }: { onBack: () => void; title: string }) {
   return (
     <View style={styles.header}>
       <TouchableOpacity onPress={onBack} hitSlop={8} style={styles.headerBtn}>
-        <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
+        <Ionicons name="chevron-back" size={26} color={colors.textPrimary} />
       </TouchableOpacity>
       <Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>
       <View style={styles.headerBtn} />
@@ -399,7 +400,7 @@ function RowFollowButton({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212' },
+  container: { flex: 1, backgroundColor: colors.bg },
 
   header: {
     flexDirection: 'row',
@@ -408,7 +409,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     gap: 4,
     borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
+    borderBottomColor: colors.border,
   },
   headerBtn: {
     minWidth: 40, minHeight: 40,
@@ -416,26 +417,26 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     flex: 1,
-    fontSize: 17, fontWeight: '700', color: '#FFFFFF',
+    fontSize: 17, fontWeight: '700', color: colors.textPrimary,
   },
 
   center: {
     flex: 1, alignItems: 'center', justifyContent: 'center',
     gap: 12, paddingHorizontal: 24,
   },
-  emptyText: { fontSize: 14, color: '#B3B3B3' },
-  errorTitle: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
-  errorBody: { fontSize: 13, color: '#B3B3B3', textAlign: 'center' },
+  emptyText: { fontSize: 14, color: colors.textSecondary },
+  errorTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
+  errorBody: { fontSize: 13, color: colors.textSecondary, textAlign: 'center' },
   retryBtn: {
     marginTop: 8,
     paddingHorizontal: 24, paddingVertical: 10,
     borderRadius: 999,
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
   },
-  retryBtnText: { color: '#FFFFFF', fontWeight: '800' },
+  retryBtnText: { color: colors.onAccent, fontWeight: '800' },
 
   listContent: { paddingVertical: 4 },
-  separator: { height: 0.5, backgroundColor: 'rgba(255,255,255,0.06)' },
+  separator: { height: 0.5, backgroundColor: colors.borderFaint },
 
   row: {
     flexDirection: 'row',
@@ -450,9 +451,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   avatarImg: { width: 44, height: 44, borderRadius: 22 },
-  avatarInitial: { fontSize: 18, fontWeight: '800', color: '#FFFFFF' },
+  avatarInitial: { fontSize: 18, fontWeight: '800', color: colors.onMedia },
   rowInfo: { flex: 1 },
-  rowUsername: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  rowUsername: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
 
   followBtn: {
     paddingHorizontal: 16, paddingVertical: 7,
@@ -460,12 +461,12 @@ const styles = StyleSheet.create({
     minWidth: 96,
     alignItems: 'center',
   },
-  followBtnPrimary: { backgroundColor: '#7C3AED' },
+  followBtnPrimary: { backgroundColor: colors.accent },
   followBtnSecondary: {
     backgroundColor: 'transparent',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
+    borderWidth: 1, borderColor: colors.borderStrong,
   },
   followBtnLabel: { fontSize: 12, fontWeight: '800', letterSpacing: 0.4 },
-  followBtnLabelPrimary: { color: '#FFFFFF' },
-  followBtnLabelSecondary: { color: '#FFFFFF' },
+  followBtnLabelPrimary: { color: colors.onAccent },
+  followBtnLabelSecondary: { color: colors.textPrimary },
 });

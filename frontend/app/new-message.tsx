@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { getMyFriends, startConversation, FriendSummary } from '../src/services/api';
+import { colors } from '../src/theme/colors';
 
 export default function NewMessageScreen() {
   const router = useRouter();
@@ -93,18 +94,18 @@ export default function NewMessageScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} hitSlop={8} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
+          <Ionicons name="chevron-back" size={26} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>New message</Text>
         <View style={{ width: 34 }} />
       </View>
 
       <View style={styles.searchWrap}>
-        <Ionicons name="search" size={18} color="#6A6A6A" style={styles.searchIcon} />
+        <Ionicons name="search" size={18} color={colors.textTertiary} style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
           placeholder="Search friends"
-          placeholderTextColor="#6A6A6A"
+          placeholderTextColor={colors.textPlaceholder}
           value={query}
           onChangeText={setQuery}
           autoCorrect={false}
@@ -115,7 +116,7 @@ export default function NewMessageScreen() {
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#7C3AED" />
+          <ActivityIndicator size="large" color={colors.accent} />
         </View>
       ) : (
         <FlatList
@@ -133,7 +134,7 @@ export default function NewMessageScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212' },
+  container: { flex: 1, backgroundColor: colors.bg },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -151,13 +152,13 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     textAlign: 'center',
   },
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
     borderRadius: 10,
     marginHorizontal: 20,
     paddingHorizontal: 12,
@@ -167,7 +168,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 15,
     paddingVertical: 12,
   },
@@ -190,19 +191,19 @@ const styles = StyleSheet.create({
     borderRadius: 22,
   },
   avatarFallback: {
-    backgroundColor: '#3E3E3E',
+    backgroundColor: colors.surface4,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarInitial: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.onMedia,
   },
   username: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   empty: {
     flex: 1,
@@ -212,6 +213,6 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 14,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
   },
 });

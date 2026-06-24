@@ -30,6 +30,7 @@ import { apiCache } from '../../src/services/apiCache';
 import UserStatsTab from '../../src/components/user-profile-tabs/UserStatsTab';
 import UserLikedSongsTab from '../../src/components/user-profile-tabs/UserLikedSongsTab';
 import ExpandableImage from '../../src/components/ExpandableImage';
+import { colors } from '../../src/theme/colors';
 
 type TabKey = 'stats' | 'liked';
 
@@ -398,7 +399,7 @@ export default function UserProfileScreen() {
       <SafeAreaView style={styles.container}>
         <Header onBack={() => router.back()} />
         <View style={styles.centerPad}>
-          <Ionicons name="person-outline" size={48} color="#6A6A6A" />
+          <Ionicons name="person-outline" size={48} color={colors.textTertiary} />
           <Text style={styles.errorTitle}>User not found</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={() => router.back()}>
             <Text style={styles.retryBtnText}>Go back</Text>
@@ -413,7 +414,7 @@ export default function UserProfileScreen() {
       <SafeAreaView style={styles.container}>
         <Header onBack={() => router.back()} />
         <View style={styles.centerPad}>
-          <Ionicons name="cloud-offline-outline" size={48} color="#6A6A6A" />
+          <Ionicons name="cloud-offline-outline" size={48} color={colors.textTertiary} />
           <Text style={styles.errorTitle}>Couldn&rsquo;t load profile</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={load}>
             <Text style={styles.retryBtnText}>Try again</Text>
@@ -428,7 +429,7 @@ export default function UserProfileScreen() {
       <SafeAreaView style={styles.container}>
         <Header onBack={() => router.back()} />
         <View style={styles.centerPad}>
-          <ActivityIndicator color="#FFFFFF" />
+          <ActivityIndicator color={colors.textPrimary} />
         </View>
       </SafeAreaView>
     );
@@ -544,7 +545,7 @@ export default function UserProfileScreen() {
              Follow button above already lets the viewer send the
              follow request. */
           <View style={styles.lockBox}>
-            <Ionicons name="lock-closed-outline" size={48} color="#B3B3B3" />
+            <Ionicons name="lock-closed-outline" size={48} color={colors.textSecondary} />
             <Text style={styles.lockTitle}>This account is private.</Text>
             <Text style={styles.lockBody}>
               Follow @{profile.username} to see their game.
@@ -597,19 +598,19 @@ function Header({
     <View style={styles.header}>
       <View style={styles.headerLeft}>
         <TouchableOpacity onPress={onBack} hitSlop={8} style={styles.headerBtn}>
-          <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
+          <Ionicons name="chevron-back" size={26} color={colors.textPrimary} />
         </TouchableOpacity>
         {username ? <Text style={styles.headerUsername} numberOfLines={1}>@{username}</Text> : null}
       </View>
       <View style={styles.headerActions}>
         {onMessage ? (
           <TouchableOpacity hitSlop={8} style={styles.headerBtn} onPress={onMessage}>
-            <Ionicons name="paper-plane-outline" size={26} color="#FFFFFF" />
+            <Ionicons name="paper-plane-outline" size={26} color={colors.textPrimary} />
           </TouchableOpacity>
         ) : null}
         {onMenu ? (
           <TouchableOpacity hitSlop={8} style={styles.headerBtn} onPress={onMenu}>
-            <Ionicons name="ellipsis-horizontal" size={26} color="#FFFFFF" />
+            <Ionicons name="ellipsis-horizontal" size={26} color={colors.textPrimary} />
           </TouchableOpacity>
         ) : (
           <View style={styles.headerBtn} />
@@ -644,36 +645,36 @@ function TabIcon({
       <Ionicons
         name={active ? iconActive : iconInactive}
         size={22}
-        color={active ? '#FFFFFF' : '#6A6A6A'}
+        color={active ? colors.textPrimary : colors.textTertiary}
       />
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212' },
+  container: { flex: 1, backgroundColor: colors.bg },
   scroll: { paddingBottom: 48 },
 
   headerTopRow: { flexDirection: 'row', alignItems: 'center', paddingLeft: 20, paddingRight: 20, paddingTop: 16 },
-  headerAvatar: { width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: '#282828' },
+  headerAvatar: { width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: colors.surface3 },
   headerAvatarImg: { width: 88, height: 88, borderRadius: 44 },
-  headerAvatarInitial: { fontSize: 36, fontWeight: '800', color: '#FFFFFF' },
+  headerAvatarInitial: { fontSize: 36, fontWeight: '800', color: colors.onMedia },
   headerNameStatsCol: { flex: 1, marginLeft: 16 },
   headerStatsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 24, marginTop: 8 },
   headerStatItem: { flex: 1, alignItems: 'flex-start' },
-  headerStatValue: { fontSize: 17, fontWeight: '700', color: '#FFFFFF' },
-  headerStatLabel: { fontSize: 12, color: '#B3B3B3', marginTop: 2 },
+  headerStatValue: { fontSize: 17, fontWeight: '700', color: colors.textPrimary },
+  headerStatLabel: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
   headerIdentityBlock: { paddingHorizontal: 20, marginTop: 12 },
 
   actionRow: { flexDirection: 'row', gap: 10, marginHorizontal: 20, marginBottom: 16, marginTop: 14 },
   actionBtn: { flex: 1, paddingVertical: 11, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
-  messageBtn: { backgroundColor: 'rgba(255,255,255,0.08)' },
-  messageBtnLabel: { fontSize: 14, fontWeight: '800', letterSpacing: 0.4, color: '#FFFFFF' },
-  headerDisplayName: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
-  headerHandle: { fontSize: 14, color: '#B3B3B3', marginBottom: 6 },
-  headerIdentityName: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', marginBottom: 4 },
-  headerPronouns: { fontSize: 13, color: '#B3B3B3' },
-  headerBio: { fontSize: 14, color: '#FFFFFF', marginTop: 4 },
+  messageBtn: { backgroundColor: colors.border },
+  messageBtnLabel: { fontSize: 14, fontWeight: '800', letterSpacing: 0.4, color: colors.textPrimary },
+  headerDisplayName: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
+  headerHandle: { fontSize: 14, color: colors.textSecondary, marginBottom: 6 },
+  headerIdentityName: { fontSize: 16, fontWeight: '700', color: colors.textPrimary, marginBottom: 4 },
+  headerPronouns: { fontSize: 13, color: colors.textSecondary },
+  headerBio: { fontSize: 14, color: colors.textPrimary, marginTop: 4 },
 
   header: {
     flexDirection: 'row',
@@ -685,7 +686,7 @@ const styles = StyleSheet.create({
   headerBtn: { minWidth: 40, minHeight: 40, alignItems: 'center', justifyContent: 'center' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   headerUsername: {
-    fontSize: 18, fontWeight: '700', color: '#FFFFFF',
+    fontSize: 18, fontWeight: '700', color: colors.textPrimary,
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 },
 
@@ -700,9 +701,9 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
   },
   bigAvatarImg: { width: 120, height: 120, borderRadius: 60 },
-  bigAvatarInitial: { fontSize: 48, fontWeight: '800', color: '#FFFFFF' },
-  username: { fontSize: 22, fontWeight: '800', color: '#FFFFFF', marginTop: 12 },
-  pronouns: { fontSize: 13, color: '#B3B3B3', marginTop: 4 },
+  bigAvatarInitial: { fontSize: 48, fontWeight: '800', color: colors.onMedia },
+  username: { fontSize: 22, fontWeight: '800', color: colors.textPrimary, marginTop: 12 },
+  pronouns: { fontSize: 13, color: colors.textSecondary, marginTop: 4 },
   bio: {
     fontSize: 13, color: '#D9D9D9',
     marginTop: 6, textAlign: 'center', lineHeight: 18,
@@ -714,12 +715,12 @@ const styles = StyleSheet.create({
     gap: 28, marginTop: 8, marginBottom: 12,
   },
   countItem: { alignItems: 'center', minWidth: 80 },
-  countValue: { fontSize: 18, fontWeight: '800', color: '#FFFFFF' },
+  countValue: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
   countLabel: {
-    fontSize: 11, fontWeight: '700', color: '#B3B3B3',
+    fontSize: 11, fontWeight: '700', color: colors.textSecondary,
     letterSpacing: 0.8, marginTop: 2, textTransform: 'uppercase',
   },
-  countDivider: { width: 1, height: 28, backgroundColor: 'rgba(255,255,255,0.1)' },
+  countDivider: { width: 1, height: 28, backgroundColor: colors.border },
 
   followBtn: {
     marginHorizontal: 20,
@@ -728,19 +729,19 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: 'center',
   },
-  followBtnPrimary: { backgroundColor: '#7C3AED' },
+  followBtnPrimary: { backgroundColor: colors.accent },
   followBtnSecondary: {
     backgroundColor: 'transparent',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
+    borderWidth: 1, borderColor: colors.borderStrong,
   },
   followBtnLabel: { fontSize: 14, fontWeight: '800', letterSpacing: 0.4 },
-  followBtnLabelPrimary: { color: '#FFFFFF' },
-  followBtnLabelSecondary: { color: '#FFFFFF' },
+  followBtnLabelPrimary: { color: colors.onAccent },
+  followBtnLabelSecondary: { color: colors.textPrimary },
 
   tabBar: {
     flexDirection: 'row',
     borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
+    borderBottomColor: colors.border,
     marginTop: 0,
   },
   tabItem: {
@@ -751,7 +752,7 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
     marginBottom: -0.5,
   },
-  tabItemActive: { borderBottomColor: '#FFFFFF' },
+  tabItemActive: { borderBottomColor: colors.textPrimary },
 
   tabContent: { paddingTop: 16 },
 
@@ -762,19 +763,19 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     gap: 8,
   },
-  lockTitle: { fontSize: 16, fontWeight: '800', color: '#FFFFFF', marginTop: 8 },
-  lockBody: { fontSize: 13, color: '#B3B3B3', textAlign: 'center' },
+  lockTitle: { fontSize: 16, fontWeight: '800', color: colors.textPrimary, marginTop: 8 },
+  lockBody: { fontSize: 13, color: colors.textSecondary, textAlign: 'center' },
 
   centerPad: {
     flex: 1, alignItems: 'center', justifyContent: 'center',
     gap: 12, paddingHorizontal: 24,
   },
-  errorTitle: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
+  errorTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
   retryBtn: {
     marginTop: 8,
     paddingHorizontal: 24, paddingVertical: 10,
     borderRadius: 999,
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
   },
-  retryBtnText: { color: '#FFFFFF', fontWeight: '800' },
+  retryBtnText: { color: colors.onAccent, fontWeight: '800' },
 });

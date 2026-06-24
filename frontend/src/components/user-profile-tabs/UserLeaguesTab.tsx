@@ -11,8 +11,9 @@ import { Ionicons } from '@expo/vector-icons';
 import ExpandableImage from '../ExpandableImage';
 import { getUserLeagues, UserLeagueSummary } from '../../services/api';
 import { apiCache } from '../../services/apiCache';
+import { colors } from '../../theme/colors';
 
-const SUBMISSION_COLORS = ['#7C3AED', '#10B981', '#F59E0B', '#EF4444', '#3B82F6', '#EC4899'];
+const SUBMISSION_COLORS = [colors.accent, colors.success, '#F59E0B', colors.danger, '#3B82F6', '#EC4899'];
 const pickColor = (seed: string) => {
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = ((h << 5) - h + seed.charCodeAt(i)) >>> 0;
@@ -62,7 +63,7 @@ export default function UserLeaguesTab({
   if (leagues.length === 0) {
     return (
       <View style={styles.empty}>
-        <Ionicons name="trophy-outline" size={40} color="#6A6A6A" />
+        <Ionicons name="trophy-outline" size={40} color={colors.textTertiary} />
         <Text style={styles.emptyText}>No leagues yet</Text>
       </View>
     );
@@ -84,7 +85,7 @@ export default function UserLeaguesTab({
                 {l.image_url ? (
                   <Image source={{ uri: l.image_url }} style={styles.thumbImg} />
                 ) : (
-                  <Ionicons name="trophy" size={22} color="#FFFFFF" />
+                  <Ionicons name="trophy" size={22} color={colors.onAccent} />
                 )}
               </View>
             </ExpandableImage>
@@ -92,7 +93,7 @@ export default function UserLeaguesTab({
               <View style={styles.rowTitleRow}>
                 <Text style={styles.rowTitle} numberOfLines={1}>{l.name}</Text>
                 {l.is_private ? (
-                  <Ionicons name="lock-closed" size={12} color="#B3B3B3" />
+                  <Ionicons name="lock-closed" size={12} color={colors.textSecondary} />
                 ) : null}
               </View>
               <Text style={styles.rowSub} numberOfLines={1}>
@@ -100,7 +101,7 @@ export default function UserLeaguesTab({
                 {l.is_completed ? ' · Completed' : ''}
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color="#6A6A6A" />
+            <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
           </TouchableOpacity>
         );
       })}
@@ -110,7 +111,7 @@ export default function UserLeaguesTab({
 
 const styles = StyleSheet.create({
   list: {
-    backgroundColor: '#181818',
+    backgroundColor: colors.surface2,
     marginHorizontal: 20,
     marginTop: 4,
     borderRadius: 12,
@@ -123,7 +124,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     gap: 12,
     borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
+    borderBottomColor: colors.borderFaint,
   },
   rowLast: { borderBottomWidth: 0 },
   thumb: {
@@ -133,8 +134,8 @@ const styles = StyleSheet.create({
   thumbImg: { width: 50, height: 50, borderRadius: 8 },
   rowInfo: { flex: 1 },
   rowTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  rowTitle: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
-  rowSub: { fontSize: 12, color: '#B3B3B3', marginTop: 3 },
+  rowTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
+  rowSub: { fontSize: 12, color: colors.textSecondary, marginTop: 3 },
 
   empty: {
     paddingHorizontal: 24,
@@ -144,6 +145,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   emptyText: {
-    fontSize: 13, color: '#B3B3B3', textAlign: 'center', lineHeight: 19,
+    fontSize: 13, color: colors.textSecondary, textAlign: 'center', lineHeight: 19,
   },
 });
