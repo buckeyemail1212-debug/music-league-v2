@@ -20,6 +20,7 @@ import { useAuth } from '../src/context/AuthContext';
 import { getLeagueMessages, sendLeagueMessage } from '../src/services/api';
 import { apiCache } from '../src/services/apiCache';
 import { markCategoryViewed } from '../src/services/inboxReadState';
+import { colors } from '../src/theme/colors';
 
 interface ChatMessage {
   id: string;
@@ -130,11 +131,13 @@ export default function LeagueChatScreen() {
       <View style={[styles.msgRow, isMe && styles.msgRowMe]}>
         <View style={[styles.msgBubble, isMe ? styles.msgBubbleMe : styles.msgBubbleOther]}>
           {!isMe && <Text style={styles.msgSender}>{item.display_name || item.username}</Text>}
-          <Text style={styles.msgText}>{item.content}</Text>
+          <Text style={[styles.msgText, isMe ? styles.msgTextMe : styles.msgTextOther]}>{item.content}</Text>
         </View>
       </View>
     );
   };
+
+  const sendDisabled = !newMessage.trim();
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -145,7 +148,7 @@ export default function LeagueChatScreen() {
       >
         <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle} numberOfLines={1}>{leagueName}</Text>
           <View style={{ width: 32 }} />
@@ -153,7 +156,7 @@ export default function LeagueChatScreen() {
 
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#7C3AED" />
+            <ActivityIndicator size="large" color={colors.accent} />
           </View>
         ) : (
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -178,7 +181,7 @@ export default function LeagueChatScreen() {
           <TextInput
             style={styles.chatInput}
             placeholder="Type a message..."
-            placeholderTextColor="#B3B3B3"
+            placeholderTextColor={colors.textPlaceholder}
             value={newMessage}
             onChangeText={setNewMessage}
             multiline
@@ -186,11 +189,11 @@ export default function LeagueChatScreen() {
             onSubmitEditing={handleSend}
           />
           <TouchableOpacity
-            style={[styles.sendButton, !newMessage.trim() && styles.sendButtonDisabled]}
+            style={[styles.sendButton, sendDisabled && styles.sendButtonDisabled]}
             onPress={handleSend}
-            disabled={!newMessage.trim()}
+            disabled={sendDisabled}
           >
-            <Ionicons name="send" size={18} color="#FFFFFF" />
+            <Ionicons name="send" size={18} color={sendDisabled ? colors.textTertiary : colors.onAccent} />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -201,7 +204,7 @@ export default function LeagueChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: colors.bg,
   },
   header: {
     flexDirection: 'row',
@@ -209,8 +212,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
     borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
-    backgroundColor: '#121212',
+    borderBottomColor: colors.border,
+    backgroundColor: colors.bg,
     gap: 12,
   },
   backBtn: {
@@ -220,7 +223,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 18,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   loadingContainer: {
     flex: 1,
@@ -240,7 +243,7 @@ const styles = StyleSheet.create({
   },
   emptyChatText: {
     fontSize: 14,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
   },
   msgRow: {
     marginBottom: 8,
@@ -255,23 +258,28 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   msgBubbleMe: {
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     borderBottomRightRadius: 4,
   },
   msgBubbleOther: {
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
     borderBottomLeftRadius: 4,
   },
   msgSender: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     marginBottom: 4,
   },
   msgText: {
     fontSize: 15,
-    color: '#FFFFFF',
     lineHeight: 20,
+  },
+  msgTextMe: {
+    color: colors.onAccent,
+  },
+  msgTextOther: {
+    color: colors.textPrimary,
   },
   inputRow: {
     flexDirection: 'row',
@@ -279,29 +287,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderTopWidth: 0.5,
-    borderTopColor: 'rgba(255,255,255,0.1)',
-    backgroundColor: '#121212',
+    borderTopColor: colors.border,
+    backgroundColor: colors.bg,
     gap: 8,
   },
   chatInput: {
     flex: 1,
-    backgroundColor: '#3E3E3E',
+    backgroundColor: colors.surface3,
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 10,
     fontSize: 15,
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     maxHeight: 100,
   },
   sendButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     justifyContent: 'center',
     alignItems: 'center',
   },
   sendButtonDisabled: {
-    opacity: 0.4,
+    backgroundColor: colors.surface3,
   },
 });

@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../src/context/AuthContext';
 import { getDmMessages, sendDmMessage, DmMessage } from '../../src/services/api';
 import { apiCache } from '../../src/services/apiCache';
+import { colors } from '../../src/theme/colors';
 
 export default function DmConversationScreen() {
   const { id, username, avatar, otherUserId } = useLocalSearchParams<{ id: string; username: string; avatar?: string; otherUserId?: string }>();
@@ -129,11 +130,13 @@ export default function DmConversationScreen() {
     return (
       <View style={[styles.msgRow, isMe && styles.msgRowMe]}>
         <View style={[styles.msgBubble, isMe ? styles.msgBubbleMe : styles.msgBubbleOther]}>
-          <Text style={styles.msgText}>{item.text}</Text>
+          <Text style={[styles.msgText, isMe ? styles.msgTextMe : styles.msgTextOther]}>{item.text}</Text>
         </View>
       </View>
     );
   };
+
+  const sendDisabled = !newMessage.trim() || !canSend;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -144,7 +147,7 @@ export default function DmConversationScreen() {
       >
         <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.headerUserTap}
@@ -156,7 +159,7 @@ export default function DmConversationScreen() {
               <Image source={{ uri: avatar }} style={styles.avatar} />
             ) : (
               <View style={[styles.avatar, styles.avatarFallback]}>
-                <Ionicons name="person" size={16} color="#B3B3B3" />
+                <Ionicons name="person" size={16} color={colors.textSecondary} />
               </View>
             )}
             <Text style={styles.headerTitle} numberOfLines={1}>{username}</Text>
@@ -166,7 +169,7 @@ export default function DmConversationScreen() {
 
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#7C3AED" />
+            <ActivityIndicator size="large" color={colors.accent} />
           </View>
         ) : (
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -191,7 +194,7 @@ export default function DmConversationScreen() {
           <TextInput
             style={styles.chatInput}
             placeholder={canSend ? "Type a message..." : "You must be friends to send a message"}
-            placeholderTextColor="#B3B3B3"
+            placeholderTextColor={colors.textPlaceholder}
             value={newMessage}
             onChangeText={setNewMessage}
             multiline
@@ -200,11 +203,11 @@ export default function DmConversationScreen() {
             editable={canSend}
           />
           <TouchableOpacity
-            style={[styles.sendButton, (!newMessage.trim() || !canSend) && styles.sendButtonDisabled]}
+            style={[styles.sendButton, sendDisabled && styles.sendButtonDisabled]}
             onPress={handleSend}
-            disabled={!newMessage.trim() || !canSend}
+            disabled={sendDisabled}
           >
-            <Ionicons name="send" size={18} color="#FFFFFF" />
+            <Ionicons name="send" size={18} color={sendDisabled ? colors.textTertiary : colors.onAccent} />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -215,7 +218,7 @@ export default function DmConversationScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: colors.bg,
   },
   header: {
     flexDirection: 'row',
@@ -223,8 +226,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
     borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
-    backgroundColor: '#121212',
+    borderBottomColor: colors.border,
+    backgroundColor: colors.bg,
     gap: 12,
   },
   backBtn: {
@@ -242,7 +245,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   avatarFallback: {
-    backgroundColor: '#3E3E3E',
+    backgroundColor: colors.surface4,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -250,7 +253,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 18,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   loadingContainer: {
     flex: 1,
@@ -270,7 +273,7 @@ const styles = StyleSheet.create({
   },
   emptyChatText: {
     fontSize: 14,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
   },
   msgRow: {
     marginBottom: 8,
@@ -285,17 +288,22 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   msgBubbleMe: {
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     borderBottomRightRadius: 4,
   },
   msgBubbleOther: {
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface3,
     borderBottomLeftRadius: 4,
   },
   msgText: {
     fontSize: 15,
-    color: '#FFFFFF',
     lineHeight: 20,
+  },
+  msgTextMe: {
+    color: colors.onAccent,
+  },
+  msgTextOther: {
+    color: colors.textPrimary,
   },
   inputRow: {
     flexDirection: 'row',
@@ -303,29 +311,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderTopWidth: 0.5,
-    borderTopColor: 'rgba(255,255,255,0.1)',
-    backgroundColor: '#121212',
+    borderTopColor: colors.border,
+    backgroundColor: colors.bg,
     gap: 8,
   },
   chatInput: {
     flex: 1,
-    backgroundColor: '#3E3E3E',
+    backgroundColor: colors.surface3,
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 10,
     fontSize: 15,
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     maxHeight: 100,
   },
   sendButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#7C3AED',
+    backgroundColor: colors.accent,
     justifyContent: 'center',
     alignItems: 'center',
   },
   sendButtonDisabled: {
-    opacity: 0.4,
+    backgroundColor: colors.surface3,
   },
 });
