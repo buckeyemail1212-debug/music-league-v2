@@ -482,9 +482,7 @@ export default function UserProfileScreen() {
               {profile.avatar_url ? (
                 <Image source={{ uri: profile.avatar_url }} style={styles.headerAvatarImg} />
               ) : (
-                <Text style={styles.headerAvatarInitial}>
-                  {(profile.username || '?').charAt(0).toUpperCase()}
-                </Text>
+                <Ionicons name="person" size={48} color={colors.textTertiary} />
               )}
             </View>
           </ExpandableImage>
@@ -658,7 +656,6 @@ const styles = StyleSheet.create({
   headerTopRow: { flexDirection: 'row', alignItems: 'center', paddingLeft: 20, paddingRight: 20, paddingTop: 16 },
   headerAvatar: { width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: colors.surface3 },
   headerAvatarImg: { width: 88, height: 88, borderRadius: 44 },
-  headerAvatarInitial: { fontSize: 36, fontWeight: '800', color: colors.onMedia },
   headerNameStatsCol: { flex: 1, marginLeft: 16 },
   headerStatsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 24, marginTop: 8 },
   headerStatItem: { flex: 1, alignItems: 'flex-start' },
@@ -701,7 +698,6 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
   },
   bigAvatarImg: { width: 120, height: 120, borderRadius: 60 },
-  bigAvatarInitial: { fontSize: 48, fontWeight: '800', color: colors.onMedia },
   username: { fontSize: 22, fontWeight: '800', color: colors.textPrimary, marginTop: 12 },
   pronouns: { fontSize: 13, color: colors.textSecondary, marginTop: 4 },
   bio: {

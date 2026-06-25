@@ -124,7 +124,7 @@ export default function CreateStoryScreen() {
                     <Image source={{ uri: user.profile_photo }} style={styles.shareAvatar} />
                   ) : (
                     <View style={[styles.shareAvatar, styles.shareAvatarFallback]}>
-                      <Text style={styles.shareAvatarInitial}>{(user?.username || '?').charAt(0).toUpperCase()}</Text>
+                      <Ionicons name="person" size={18} color={colors.textTertiary} />
                     </View>
                   )}
                   <Text style={styles.shareIdentityLabel}>Your story</Text>
@@ -198,8 +198,7 @@ const styles = StyleSheet.create({
   shareRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   shareIdentity: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   shareAvatar: { width: 36, height: 36, borderRadius: 18 },
-  shareAvatarFallback: { backgroundColor: '#7C3AED', alignItems: 'center', justifyContent: 'center' },
-  shareAvatarInitial: { color: '#FFFFFF', fontWeight: '700', fontSize: 16 },
+  shareAvatarFallback: { backgroundColor: colors.surface4, alignItems: 'center', justifyContent: 'center' },
   shareIdentityLabel: { color: '#FFFFFF', fontSize: 15, fontWeight: '600' },
   sendBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#7C3AED', paddingHorizontal: 22, paddingVertical: 12, borderRadius: 24 },
   sendBtnDisabled: { opacity: 0.5 },

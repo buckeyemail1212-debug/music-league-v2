@@ -1101,15 +1101,17 @@ export default function LeagueDetailScreen() {
                           const aSize = Math.round(size * 0.78);
                           const isMe = !!user?.id && p.user_id === user.id;
                           return (
-                            <View
+                            <TouchableOpacity
                               key={p.user_id}
+                              activeOpacity={0.7}
+                              onPress={() => router.push(`/user/${p.user_id}` as any)}
                               style={[
                                 standingStyles.podiumAvatar,
                                 {
                                   width: aSize,
                                   height: aSize,
                                   borderRadius: aSize / 2,
-                                  backgroundColor: color,
+                                  backgroundColor: photo ? undefined : colors.surface3,
                                   marginLeft: i === 0 ? 0 : -Math.round(aSize * 0.35),
                                   zIndex: shown.length - i,
                                   borderWidth: 2,
@@ -1120,10 +1122,8 @@ export default function LeagueDetailScreen() {
                             >
                               {photo
                                 ? <Image source={{ uri: photo }} style={{ width: aSize, height: aSize, borderRadius: aSize / 2 }} />
-                                : <Text style={[standingStyles.podiumAvatarInitial, { fontSize: aSize * 0.4 }]}>
-                                    {p.username.charAt(0).toUpperCase()}
-                                  </Text>}
-                            </View>
+                                : <Ionicons name="person" size={Math.round(aSize * 0.55)} color={colors.textTertiary} />}
+                            </TouchableOpacity>
                           );
                         })}
                         {overflow > 0 && (
@@ -1149,26 +1149,32 @@ export default function LeagueDetailScreen() {
                         )}
                       </View>
                     ) : (
-                      <View
+                      <TouchableOpacity
+                        activeOpacity={0.7}
+                        onPress={() => router.push(`/user/${group[0].user_id}` as any)}
                         style={[
                           standingStyles.podiumAvatar,
                           {
                             width: size,
                             height: size,
                             borderRadius: size / 2,
-                            backgroundColor: avatarColor(group[0].username),
+                            backgroundColor: getPhoto(group[0].user_id) ? undefined : colors.surface3,
                           },
                           anyMe && standingStyles.podiumAvatarMe,
                         ]}
                       >
                         {getPhoto(group[0].user_id)
                           ? <Image source={{ uri: getPhoto(group[0].user_id)! }} style={{ width: size, height: size, borderRadius: size / 2 }} />
-                          : <Text style={[standingStyles.podiumAvatarInitial, { fontSize: size * 0.4 }]}>
-                              {group[0].username.charAt(0).toUpperCase()}
-                            </Text>}
-                      </View>
+                          : <Ionicons name="person" size={Math.round(size * 0.55)} color={colors.textTertiary} />}
+                      </TouchableOpacity>
                     )}
-                    <Text style={standingStyles.podiumName} numberOfLines={1}>{displayName}</Text>
+                    {isTie ? (
+                      <Text style={standingStyles.podiumName} numberOfLines={1}>{displayName}</Text>
+                    ) : (
+                      <TouchableOpacity activeOpacity={0.7} onPress={() => router.push(`/user/${group[0].user_id}` as any)}>
+                        <Text style={standingStyles.podiumName} numberOfLines={1}>{displayName}</Text>
+                      </TouchableOpacity>
+                    )}
                     <Text style={standingStyles.podiumPoints}>{formatPoints(sharedPoints)}</Text>
                     <View style={[standingStyles.podiumBox, { height: podiumHeight }, podiumStyle]}>
                       <Text style={placeLabel === '1st' ? standingStyles.podiumPlace : standingStyles.podiumPlaceDark}>{placeLabel}</Text>
@@ -1226,13 +1232,21 @@ export default function LeagueDetailScreen() {
                         style={[standingStyles.listRow, isMe && standingStyles.listRowMe]}
                       >
                         <Text style={standingStyles.listRank}>{player.rank}</Text>
-                        <View style={[standingStyles.listAvatar, { backgroundColor: color }]}>
+                        <TouchableOpacity
+                          activeOpacity={0.7}
+                          onPress={() => router.push(`/user/${player.user_id}` as any)}
+                          style={[standingStyles.listAvatar, { backgroundColor: photo ? undefined : colors.surface3 }]}
+                        >
                           {photo
                             ? <Image source={{ uri: photo }} style={standingStyles.listAvatarImg} />
-                            : <Text style={standingStyles.listAvatarInitial}>{player.username.charAt(0).toUpperCase()}</Text>
+                            : <Ionicons name="person" size={18} color={colors.textTertiary} />
                           }
-                        </View>
-                        <View style={standingStyles.listNameWrap}>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={standingStyles.listNameWrap}
+                          activeOpacity={0.7}
+                          onPress={() => router.push(`/user/${player.user_id}` as any)}
+                        >
                           <Text style={standingStyles.listName} numberOfLines={1}>
                             {player.username}
                           </Text>
@@ -1241,7 +1255,7 @@ export default function LeagueDetailScreen() {
                               <Text style={standingStyles.youBadgeText}>YOU</Text>
                             </View>
                           )}
-                        </View>
+                        </TouchableOpacity>
                         <View style={standingStyles.listPtsWrap}>
                           {hasDeltaData && delta !== 0 && (
                             <View style={standingStyles.deltaWrap}>
@@ -1459,11 +1473,9 @@ export default function LeagueDetailScreen() {
                           }
                         }}
                       >
-                        <Ionicons name={likedIds.has(sub.song.deezer_id) ? 'heart' : 'heart-outline'} size={18} color={likedIds.has(sub.song.deezer_id) ? colors.danger : colors.textSecondary} />
+                        <Ionicons name={likedIds.has(sub.song.deezer_id) ? 'heart' : 'heart-outline'} size={18} color={colors.danger} />
                       </TouchableOpacity>
-                      <View style={styles.subPlayBtn}>
-                        <PreviewPlayButton previewUrl={sub.song.preview_url} deezerId={sub.song.deezer_id} songId={`league-sub-${round.id}`} size={14} />
-                      </View>
+                      <PreviewPlayButton previewUrl={sub.song.preview_url} deezerId={sub.song.deezer_id} songId={`league-sub-${round.id}`} size={14} />
                       <View style={styles.subScoreBadge}>
                         <Text style={styles.subScoreText}>+{formatPoints(sub.points_earned ?? sub.points ?? 0)} PTS</Text>
                       </View>
@@ -1495,11 +1507,9 @@ export default function LeagueDetailScreen() {
                           }
                         }}
                       >
-                        <Ionicons name={likedIds.has(sub.song.deezer_id) ? 'heart' : 'heart-outline'} size={18} color={likedIds.has(sub.song.deezer_id) ? colors.danger : colors.textSecondary} />
+                        <Ionicons name={likedIds.has(sub.song.deezer_id) ? 'heart' : 'heart-outline'} size={18} color={colors.danger} />
                       </TouchableOpacity>
-                      <View style={styles.subPlayBtn}>
-                        <PreviewPlayButton previewUrl={sub.song.preview_url} deezerId={sub.song.deezer_id} songId={`league-sub-${round.id}`} size={14} />
-                      </View>
+                      <PreviewPlayButton previewUrl={sub.song.preview_url} deezerId={sub.song.deezer_id} songId={`league-sub-${round.id}`} size={14} />
                     </View>
                   )}
 
@@ -1745,7 +1755,7 @@ export default function LeagueDetailScreen() {
                       <Image source={{ uri: member.profile_photo }} style={styles.memberAvatarImg} />
                     ) : (
                       <View style={styles.memberAvatarPlaceholder}>
-                        <Text style={styles.memberInitial}>{member.username?.charAt(0).toUpperCase()}</Text>
+                        <Ionicons name="person" size={20} color={colors.textTertiary} />
                       </View>
                     )}
                   </View>

@@ -32,6 +32,7 @@ import { getOrdinalSuffix } from '../../src/utils/ordinal';
 import { formatPoints } from '../../src/utils/formatPoints';
 import { pastLeaguesCache } from '../../src/utils/pastLeaguesCache';
 import { publicLeaguesCache } from '../../src/utils/publicLeaguesCache';
+import { colors } from '../../src/theme/colors';
 import LeagueAvatar from '../../src/components/LeagueAvatar';
 import CreateJoinSheet from '../../src/components/CreateJoinSheet';
 import StoriesRing from '../../src/components/StoriesRing';
@@ -367,9 +368,7 @@ export default function HomeScreen() {
                   {m.profile_photo ? (
                     <Image source={{ uri: m.profile_photo }} style={styles.memberAvatarInlineImage} />
                   ) : (
-                    <Text style={styles.memberAvatarInlineText}>
-                      {m.username.charAt(0).toUpperCase()}
-                    </Text>
+                    <Ionicons name="person" size={14} color={colors.textTertiary} />
                   )}
                 </View>
               ))}
@@ -908,11 +907,10 @@ const styles = StyleSheet.create({
   memberAvatarsInline: { flexDirection: 'row', alignItems: 'center', width: 78 },
   memberAvatarInline: {
     width: 24, height: 24, borderRadius: 12,
-    backgroundColor: '#E4E4E4', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.surface3, alignItems: 'center', justifyContent: 'center',
     borderWidth: 1.5, borderColor: '#E4E4E4', overflow: 'hidden',
   },
   memberAvatarInlineImage: { width: 24, height: 24, borderRadius: 12 },
-  memberAvatarInlineText: { fontSize: 11, fontWeight: '600', color: '#000000' },
   memberAvatarInlineMore: { backgroundColor: '#D4D4D4' },
   memberAvatarInlineMoreText: { fontSize: 11, fontWeight: '600', color: '#666666' },
 

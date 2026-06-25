@@ -34,13 +34,6 @@ const LIST_TTL_MS = 60 * 1000;
 const STATUS_TTL_MS = 60 * 1000;
 const PAGE_LIMIT = 50;
 
-const SUBMISSION_COLORS = colors.avatarPalette;
-const pickColor = (seed: string) => {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = ((h << 5) - h + seed.charCodeAt(i)) >>> 0;
-  return SUBMISSION_COLORS[h % SUBMISSION_COLORS.length];
-};
-
 const listCacheKey = (mode: Mode, targetId: string, viewerId: string) =>
   `user-${mode}:${targetId}:${viewerId}`;
 const statusCacheKey = (rowId: string, viewerId: string) =>
@@ -245,15 +238,11 @@ function FollowRow({
           (inside ExpandableImage) doesn't define onPress, so short
           taps bubble up to the row handler. */}
       <ExpandableImage source={row.avatar_url ? { uri: row.avatar_url } : null}>
-        <View
-          style={[styles.avatar, { backgroundColor: pickColor(row.user_id) }]}
-        >
+        <View style={styles.avatar}>
           {row.avatar_url ? (
             <Image source={{ uri: row.avatar_url }} style={styles.avatarImg} />
           ) : (
-            <Text style={styles.avatarInitial}>
-              {(row.username || '?').charAt(0).toUpperCase()}
-            </Text>
+            <Ionicons name="person" size={24} color={colors.textTertiary} />
           )}
         </View>
       </ExpandableImage>
@@ -447,11 +436,11 @@ const styles = StyleSheet.create({
   },
   avatar: {
     width: 44, height: 44, borderRadius: 22,
+    backgroundColor: colors.surface3,
     alignItems: 'center', justifyContent: 'center',
     overflow: 'hidden',
   },
   avatarImg: { width: 44, height: 44, borderRadius: 22 },
-  avatarInitial: { fontSize: 18, fontWeight: '800', color: colors.onMedia },
   rowInfo: { flex: 1 },
   rowUsername: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
 

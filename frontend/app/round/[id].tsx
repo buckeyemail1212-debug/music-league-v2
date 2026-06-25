@@ -1147,9 +1147,7 @@ export default function RoundScreen() {
                                       style={styles.winnerHeroAvatarImg}
                                     />
                                   ) : (
-                                    <Text style={styles.winnerHeroAvatarText}>
-                                      {(w.username || '?').charAt(0).toUpperCase()}
-                                    </Text>
+                                    <Ionicons name="person" size={14} color={colors.textTertiary} />
                                   )}
                                 </View>
                                 <Text style={styles.winnerHeroUser} numberOfLines={1}>
@@ -1219,9 +1217,7 @@ export default function RoundScreen() {
                                 style={styles.winnerHeroAvatarImg}
                               />
                             ) : (
-                              <Text style={styles.winnerHeroAvatarText}>
-                                {(results.winners[0].username || '?').charAt(0).toUpperCase()}
-                              </Text>
+                              <Ionicons name="person" size={14} color={colors.textTertiary} />
                             )}
                           </View>
                           <Text style={styles.winnerHeroUser} numberOfLines={1}>
@@ -1648,9 +1644,7 @@ export default function RoundScreen() {
                                         style={styles.gridVoterAvatarImage}
                                       />
                                     ) : (
-                                      <Text style={styles.gridVoterAvatarText}>
-                                        {(voter.username || '?').charAt(0).toUpperCase()}
-                                      </Text>
+                                      <Ionicons name="person" size={15} color={colors.textTertiary} />
                                     )}
                                   </View>
                                 ))}
@@ -2916,11 +2910,6 @@ const styles = StyleSheet.create({
     height: 28,
     borderRadius: 14,
   },
-  gridVoterAvatarText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
   gridVoterAvatarMore: {
     backgroundColor: colors.surface4,
   },
@@ -3125,11 +3114,6 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-  },
-  winnerHeroAvatarText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.textPrimary,
   },
   winnerHeroUser: {
     flexShrink: 1,

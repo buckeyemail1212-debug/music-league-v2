@@ -28,6 +28,7 @@ import { Song, createStory, uploadImage } from '../src/services/api';
 import { consumePendingSong } from '../src/services/pendingSong';
 import { useAuth } from '../src/context/AuthContext';
 import { playPreview, stopPreview } from '../src/components/PreviewPlayButton';
+import { colors } from '../src/theme/colors';
 
 export default function CreatePhotoStoryScreen() {
   const router = useRouter();
@@ -356,9 +357,7 @@ export default function CreatePhotoStoryScreen() {
                     <Image source={{ uri: user.profile_photo }} style={styles.shareAvatar} />
                   ) : (
                     <View style={[styles.shareAvatar, styles.shareAvatarFallback]}>
-                      <Text style={styles.shareAvatarInitial}>
-                        {(user?.username || '?').charAt(0).toUpperCase()}
-                      </Text>
+                      <Ionicons name="person" size={18} color={colors.textTertiary} />
                     </View>
                   )}
                   <Text style={styles.shareIdentityLabel}>Your story</Text>
@@ -659,14 +658,9 @@ const styles = StyleSheet.create({
     borderRadius: 18,
   },
   shareAvatarFallback: {
-    backgroundColor: '#282828',
+    backgroundColor: colors.surface4,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  shareAvatarInitial: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '800',
   },
   shareIdentityLabel: {
     color: '#FFFFFF',

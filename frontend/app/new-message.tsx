@@ -65,9 +65,7 @@ export default function NewMessageScreen() {
         <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
       ) : (
         <View style={[styles.avatar, styles.avatarFallback]}>
-          <Text style={styles.avatarInitial}>
-            {(item.username || '?').charAt(0).toUpperCase()}
-          </Text>
+          <Ionicons name="person" size={24} color={colors.textTertiary} />
         </View>
       )}
       <Text style={styles.username}>{item.username}</Text>
@@ -191,14 +189,9 @@ const styles = StyleSheet.create({
     borderRadius: 22,
   },
   avatarFallback: {
-    backgroundColor: colors.surface4,
+    backgroundColor: colors.surface3,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  avatarInitial: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.onMedia,
   },
   username: {
     fontSize: 16,

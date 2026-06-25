@@ -370,9 +370,7 @@ export default function InboxScreen() {
                   <Image source={{ uri: conv.other_user.avatar_url }} style={styles.dmAvatar} />
                 ) : (
                   <View style={[styles.dmAvatar, styles.dmAvatarFallback]}>
-                    <Text style={styles.dmAvatarInitial}>
-                      {(conv.other_user.username || '?').charAt(0).toUpperCase()}
-                    </Text>
+                    <Ionicons name="person" size={20} color={colors.textTertiary} />
                   </View>
                 )}
                 <View style={styles.dmBody}>
@@ -492,14 +490,9 @@ const styles = StyleSheet.create({
     borderRadius: 24,
   },
   dmAvatarFallback: {
-    backgroundColor: colors.surface4,
+    backgroundColor: colors.surface3,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  dmAvatarInitial: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.textPrimary,
   },
   dmBody: {
     flex: 1,

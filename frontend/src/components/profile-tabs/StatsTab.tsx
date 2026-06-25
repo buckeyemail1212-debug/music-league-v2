@@ -218,11 +218,11 @@ export default function StatsTab() {
                   onPress={() => router.push(`/user/${v.user_id}` as any)}
                 >
                   <View style={styles.voterAvatarWrap}>
-                    <View style={[styles.topVoterAvatar, { backgroundColor: pickColor(v.user_id) }]}>
+                    <View style={styles.topVoterAvatar}>
                       {v.avatar_url ? (
                         <Image source={{ uri: v.avatar_url }} style={styles.topVoterAvatarImg} />
                       ) : (
-                        <Text style={styles.topVoterInitial}>{(v.username || '?').charAt(0).toUpperCase()}</Text>
+                        <Ionicons name="person" size={28} color={colors.textTertiary} />
                       )}
                     </View>
                   </View>
@@ -417,10 +417,10 @@ const styles = StyleSheet.create({
   topVoterItem: { alignItems: 'center', width: 64 },
   topVoterAvatar: {
     width: 52, height: 52, borderRadius: 26,
+    backgroundColor: colors.surface3,
     alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
   },
   topVoterAvatarImg: { width: 52, height: 52, borderRadius: 26 },
-  topVoterInitial: { fontSize: 20, fontWeight: '800', color: colors.onMedia },
   topVoterName: {
     fontSize: 12, fontWeight: '700', color: colors.textPrimary,
     marginTop: 6, textAlign: 'center',
