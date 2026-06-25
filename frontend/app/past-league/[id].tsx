@@ -242,9 +242,7 @@ export default function PastLeaguePage() {
                       {s.profile_photo ? (
                         <Image source={{ uri: s.profile_photo }} style={styles.memberAvatarImg} />
                       ) : (
-                        <Text style={styles.memberAvatarLetter}>
-                          {s.username.charAt(0).toUpperCase()}
-                        </Text>
+                        <Ionicons name="person" size={18} color={colors.textTertiary} />
                       )}
                     </View>
                     <Text style={[styles.memberName, isMe && styles.me]} numberOfLines={1}>
@@ -271,9 +269,7 @@ export default function PastLeaguePage() {
                       {s.profile_photo ? (
                         <Image source={{ uri: s.profile_photo }} style={styles.memberAvatarImg} />
                       ) : (
-                        <Text style={styles.memberAvatarLetter}>
-                          {s.username.charAt(0).toUpperCase()}
-                        </Text>
+                        <Ionicons name="person" size={18} color={colors.textTertiary} />
                       )}
                     </View>
                     <View style={styles.memberLeftWrap}>
@@ -360,9 +356,7 @@ export default function PastLeaguePage() {
                                     style={styles.winnerByAvatarImg}
                                   />
                                 ) : (
-                                  <Text style={styles.winnerByAvatarLetter}>
-                                    {(winner.username || '?').charAt(0).toUpperCase()}
-                                  </Text>
+                                  <Ionicons name="person" size={12} color={colors.textTertiary} />
                                 )}
                               </View>
                               <Text style={styles.winnerByLine} numberOfLines={1}>
@@ -445,9 +439,7 @@ export default function PastLeaguePage() {
                             <Image source={{ uri: m.profile_photo }} style={styles.modalMemberAvatarImg} />
                           ) : (
                             <View style={styles.modalMemberAvatarPlaceholder}>
-                              <Text style={styles.modalMemberInitial}>
-                                {m.username?.charAt(0).toUpperCase()}
-                              </Text>
+                              <Ionicons name="person" size={18} color={colors.textTertiary} />
                             </View>
                           )}
                         </View>

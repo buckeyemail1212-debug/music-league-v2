@@ -1299,12 +1299,10 @@ export default function LeagueDetailScreen() {
                         <View
                           style={[
                             standingStyles.listAvatar,
-                            { backgroundColor: color, opacity: 0.55 },
+                            { backgroundColor: colors.surface3, opacity: 0.55 },
                           ]}
                         >
-                          <Text style={standingStyles.listAvatarInitial}>
-                            {player.username.charAt(0).toUpperCase()}
-                          </Text>
+                          <Ionicons name="person" size={18} color={colors.textTertiary} />
                         </View>
                         <View style={standingStyles.listNameWrap}>
                           <Text
