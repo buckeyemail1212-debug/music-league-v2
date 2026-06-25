@@ -11,7 +11,6 @@ import {
   ActivityIndicator,
   Modal,
   TextInput,
-  Linking,
   ScrollView,
   Dimensions,
   Keyboard,
@@ -26,6 +25,7 @@ import ShareResultsModal, {
   ShareResultsData,
 } from '../../src/components/ShareResultsModal';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
+import { openInService } from '../../src/utils/openInService';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import ConfettiCannon from 'react-native-confetti-cannon';
@@ -449,25 +449,6 @@ export default function RoundScreen() {
   // Change vote (go back to editing)
   const handleChangeVote = () => {
     setVoteSaved(false);
-  };
-
-  const openInService = (song: Song, service: 'spotify' | 'apple' | 'youtube') => {
-    let url = '';
-    const query = encodeURIComponent(`${song.title} ${song.artist}`);
-
-    switch (service) {
-      case 'spotify':
-        url = `https://open.spotify.com/search/${query}`;
-        break;
-      case 'apple':
-        url = `https://music.apple.com/search?term=${query}`;
-        break;
-      case 'youtube':
-        url = `https://www.youtube.com/results?search_query=${query}`;
-        break;
-    }
-
-    Linking.openURL(url);
   };
 
   const formatDuration = (seconds: number) => {
