@@ -12,6 +12,8 @@ import {
   ActionSheetIOS,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Gesture, GestureDetector, Directions } from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
@@ -61,6 +63,14 @@ export default function UserProfileScreen() {
   const [loadError, setLoadError] = useState<'notfound' | 'network' | null>(null);
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<TabKey>('stats');
+
+  // Horizontal flick switches tabs (instant). Fling only fires on a
+  // deliberate horizontal flick, so it won't fight the vertical
+  // ScrollView. Left → Liked; Right → Stats.
+  const swipe = Gesture.Race(
+    Gesture.Fling().direction(Directions.LEFT).onEnd(() => { runOnJS(setTab)('liked'); }),
+    Gesture.Fling().direction(Directions.RIGHT).onEnd(() => { runOnJS(setTab)('stats'); }),
+  );
 
   // Self-redirect: bounce to the own-profile tab if the viewer landed
   // on their own /user/{id}. router.replace, not push.
@@ -568,12 +578,14 @@ export default function UserProfileScreen() {
               />
             </View>
 
-            <View style={styles.tabContent}>
-              {tab === 'stats' ? <UserStatsTab profile={profile} /> : null}
-              {tab === 'liked' ? (
-                <UserLikedSongsTab targetId={profile.user_id} viewerId={viewerId} />
-              ) : null}
-            </View>
+            <GestureDetector gesture={swipe}>
+              <View style={styles.tabContent}>
+                {tab === 'stats' ? <UserStatsTab profile={profile} /> : null}
+                {tab === 'liked' ? (
+                  <UserLikedSongsTab targetId={profile.user_id} viewerId={viewerId} />
+                ) : null}
+              </View>
+            </GestureDetector>
           </>
         )}
       </ScrollView>

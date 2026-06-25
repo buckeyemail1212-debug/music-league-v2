@@ -8,6 +8,8 @@ import {
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Gesture, GestureDetector, Directions } from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
@@ -29,6 +31,14 @@ export default function ProfileScreen() {
   // is intentional on full app relaunch so the default surface is the
   // headline Stats view.
   const [tab, setTab] = useState<TabKey>('stats');
+
+  // Horizontal flick switches tabs (instant, no animated slide). Fling
+  // only fires on a deliberate horizontal flick, so it doesn't fight the
+  // vertical ScrollView. Left → Liked (next tab right); Right → Stats.
+  const swipe = Gesture.Race(
+    Gesture.Fling().direction(Directions.LEFT).onEnd(() => { runOnJS(setTab)('liked'); }),
+    Gesture.Fling().direction(Directions.RIGHT).onEnd(() => { runOnJS(setTab)('stats'); }),
+  );
   const [followCounts, setFollowCounts] = useState<FollowCounts | null>(null);
   const [ranking, setRanking] = useState<number | null>(null);
 
@@ -171,14 +181,16 @@ export default function ProfileScreen() {
         </View>
 
         {/* Tab content */}
-        <View style={styles.tabContent}>
-          <View style={{ display: tab === 'stats' ? 'flex' : 'none' }}>
-            <StatsTab />
+        <GestureDetector gesture={swipe}>
+          <View style={styles.tabContent}>
+            <View style={{ display: tab === 'stats' ? 'flex' : 'none' }}>
+              <StatsTab />
+            </View>
+            <View style={{ display: tab === 'liked' ? 'flex' : 'none' }}>
+              <LikedSongsTab />
+            </View>
           </View>
-<View style={{ display: tab === 'liked' ? 'flex' : 'none' }}>
-            <LikedSongsTab />
-          </View>
-        </View>
+        </GestureDetector>
       </ScrollView>
     </SafeAreaView>
   );
