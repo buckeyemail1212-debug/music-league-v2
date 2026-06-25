@@ -287,7 +287,7 @@ export default function SettingsPage() {
               ) : user?.profile_photo ? (
                 <Image source={{ uri: user.profile_photo }} style={styles.avatarImg} />
               ) : (
-                <Ionicons name="person" size={40} color={colors.accent} />
+                <Ionicons name="person" size={40} color={colors.textTertiary} />
               )}
             </View>
             <View style={styles.cameraBadge}>

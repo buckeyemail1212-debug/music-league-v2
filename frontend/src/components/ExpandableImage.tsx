@@ -85,7 +85,7 @@ export default function ExpandableImage({
               // user visual feedback when no photo is set, but
               // there's nothing photographic to expand.
               <View style={[styles.image, styles.imageFallback]}>
-                <Ionicons name="person" size={120} color="#7C3AED" />
+                <Ionicons name="person" size={120} color={colors.textTertiary} />
               </View>
             )}
           </View>

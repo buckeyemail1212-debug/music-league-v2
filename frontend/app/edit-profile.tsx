@@ -12,6 +12,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActionSheetIOS,
+  AlertButton,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -89,21 +90,43 @@ export default function EditProfileScreen() {
     }
   };
 
+  const removePhoto = async () => {
+    try {
+      await updateUser({ profile_photo: '' });
+    } catch (e: any) {
+      Alert.alert('Error', e?.response?.data?.detail || 'Failed to remove photo');
+    }
+  };
+
   const handleEditPhoto = () => {
+    const hasPhoto = !!user?.profile_photo;
     if (Platform.OS === 'ios') {
+      // 'Remove Photo' is always appended last (index 3) when present, so
+      // the Take/Choose indices stay fixed at 1/2 either way.
+      const options = ['Cancel', 'Take Photo', 'Choose from Library'];
+      if (hasPhoto) options.push('Remove Photo');
       ActionSheetIOS.showActionSheetWithOptions(
-        { options: ['Cancel', 'Take Photo', 'Choose from Library'], cancelButtonIndex: 0 },
+        {
+          options,
+          cancelButtonIndex: 0,
+          destructiveButtonIndex: hasPhoto ? 3 : undefined,
+        },
         (i) => {
           if (i === 1) takePhoto();
           else if (i === 2) pickFromGallery();
+          else if (i === 3 && hasPhoto) removePhoto();
         },
       );
     } else {
-      Alert.alert('Change Profile Photo', '', [
+      const buttons: AlertButton[] = [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Take Photo', onPress: takePhoto },
         { text: 'Choose from Library', onPress: pickFromGallery },
-      ]);
+      ];
+      if (hasPhoto) {
+        buttons.push({ text: 'Remove Photo', style: 'destructive', onPress: removePhoto });
+      }
+      Alert.alert('Change Profile Photo', '', buttons);
     }
   };
 
@@ -189,7 +212,7 @@ export default function EditProfileScreen() {
                 ) : user?.profile_photo ? (
                   <Image source={{ uri: user.profile_photo }} style={styles.avatarImg} />
                 ) : (
-                  <Ionicons name="person" size={48} color={colors.accent} />
+                  <Ionicons name="person" size={48} color={colors.textTertiary} />
                 )}
               </View>
             </ExpandableImage>

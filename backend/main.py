@@ -2189,7 +2189,9 @@ async def update_profile(update_data: UserUpdate, current_user: dict = Depends(g
         update_fields["display_name"] = update_data.display_name
 
     if update_data.profile_photo is not None:
-        update_fields["profile_photo"] = update_data.profile_photo
+        # Empty string clears the photo — store as None so avatars fall back
+        # to the grey person icon.
+        update_fields["profile_photo"] = update_data.profile_photo or None
 
     if update_data.is_private is not None:
         update_fields["is_private"] = bool(update_data.is_private)
