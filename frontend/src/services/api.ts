@@ -294,6 +294,12 @@ export const updateLeague = (id: string, data: {
 export const updateLeagueImage = (leagueId: string, leagueImage: string) =>
   api.patch(`/leagues/${leagueId}/image`, { league_image: leagueImage });
 
+export const updateRoundTheme = (roundId: string, theme: string) =>
+  api.patch(`/rounds/${roundId}/theme`, { theme });
+
+export const updateRoundThemes = (leagueId: string, themes: { round_id: string; theme: string }[]) =>
+  api.patch(`/leagues/${leagueId}/round-themes`, { themes });
+
 export const getLeagues = () => api.get<League[]>('/leagues');
 
 export const getLeague = (id: string) => api.get<League>(`/leagues/${id}`);

@@ -843,6 +843,14 @@ export default function LeagueDetailScreen() {
                   <Ionicons name="image-outline" size={20} color={colors.textPrimary} />
                   <Text style={styles.overflowItemText}>Edit league image</Text>
                 </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.overflowItem}
+                  activeOpacity={0.7}
+                  onPress={() => { setOverflowOpen(false); router.push(`/league/${id}/round-themes` as any); }}
+                >
+                  <Ionicons name="pricetag-outline" size={20} color={colors.textPrimary} />
+                  <Text style={styles.overflowItemText}>Edit round themes</Text>
+                </TouchableOpacity>
               </>
             )}
             {isMember && (
@@ -1774,6 +1782,7 @@ export default function LeagueDetailScreen() {
           </View>
         </TouchableWithoutFeedback>
       </Modal>
+
     </SafeAreaView>
   );
 }

@@ -5843,6 +5843,55 @@ async def update_league_image(league_id: str, body: LeagueImageUpdate, current_u
         pass
     return LeagueResponse(**add_league_defaults(updated))
 
+
+class RoundThemeUpdate(BaseModel):
+    theme: str
+
+
+@api_router.patch("/rounds/{round_id}/theme")
+async def update_round_theme(round_id: str, body: RoundThemeUpdate, current_user: dict = Depends(get_current_user)):
+    """Update a round's theme. Only the league creator may do this, and only for rounds that aren't completed."""
+    round_doc = await db.rounds.find_one({"id": round_id})
+    if not round_doc:
+        raise HTTPException(status_code=404, detail="Round not found")
+    league = await db.leagues.find_one({"id": round_doc["league_id"]}, {"_id": 0, "creator_id": 1})
+    if not league or league.get("creator_id") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Only the league creator can edit round themes.")
+    if round_doc.get("status") == "completed":
+        raise HTTPException(status_code=400, detail="Can't edit the theme of a finished round.")
+    await db.rounds.update_one({"id": round_id}, {"$set": {"theme": body.theme.strip()}})
+    updated = await db.rounds.find_one({"id": round_id}, {"_id": 0})
+    return updated
+
+
+class RoundThemeItem(BaseModel):
+    round_id: str
+    theme: str
+
+
+class RoundThemesBulkUpdate(BaseModel):
+    themes: List[RoundThemeItem]
+
+
+@api_router.patch("/leagues/{league_id}/round-themes")
+async def update_round_themes(league_id: str, body: RoundThemesBulkUpdate, current_user: dict = Depends(get_current_user)):
+    """Bulk-update round themes. Creator-only. Skips completed rounds."""
+    league = await db.leagues.find_one({"id": league_id}, {"_id": 0, "creator_id": 1})
+    if not league:
+        raise HTTPException(status_code=404, detail="League not found")
+    if league.get("creator_id") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Only the league creator can edit round themes.")
+    for item in body.themes:
+        rd = await db.rounds.find_one({"id": item.round_id}, {"_id": 0, "id": 1, "league_id": 1, "status": 1})
+        if not rd or rd.get("league_id") != league_id:
+            continue
+        if rd.get("status") == "completed":
+            continue  # can't edit finished rounds
+        await db.rounds.update_one({"id": item.round_id}, {"$set": {"theme": item.theme.strip()}})
+    updated = await db.rounds.find({"league_id": league_id}, {"_id": 0}).sort("round_number", 1).to_list(100)
+    return updated
+
+
 async def _compute_points_for_user(league_id: str, user_id: str) -> int:
     """Compute the user's accumulated points across every completed
     round of the league, using the same N-1 system as the standings
