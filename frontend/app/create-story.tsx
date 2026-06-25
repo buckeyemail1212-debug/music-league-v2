@@ -20,6 +20,7 @@ import { Song, createStory } from '../src/services/api';
 import SongList from '../src/components/SongList';
 import { playPreview, stopPreview } from '../src/components/PreviewPlayButton';
 import { useAuth } from '../src/context/AuthContext';
+import { colors } from '../src/theme/colors';
 
 export default function CreateStoryScreen() {
   const router = useRouter();
@@ -161,10 +162,10 @@ export default function CreateStoryScreen() {
           </SafeAreaView>
         </View>
       ) : (
-        <SafeAreaView style={styles.container} edges={['top']}>
+        <SafeAreaView style={styles.containerLight} edges={['top']}>
           <View style={styles.header}>
             <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn} activeOpacity={0.75}>
-              <Ionicons name="close" size={28} color="#FFFFFF" />
+              <Ionicons name="close" size={28} color={colors.textPrimary} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Add Music</Text>
             <View style={styles.closeBtn} />
@@ -178,6 +179,7 @@ export default function CreateStoryScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#121212' },
+  containerLight: { flex: 1, backgroundColor: colors.bg },
 
   composerRoot: { flex: 1, backgroundColor: '#121212' },
   songOnly: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 },
@@ -220,7 +222,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 17,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
 
   composerBody: { flex: 1 },
