@@ -17,7 +17,10 @@ const TAB_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   profile: 'person-outline',
 };
 
-const VISIBLE_TABS = new Set(Object.keys(TAB_ICONS));
+// inbox is intentionally excluded from the bottom pill — the chat icon now
+// lives in the home header. The route still exists (see <Tabs.Screen
+// name="inbox" /> below) so navigation to /inbox keeps working.
+const VISIBLE_TABS = new Set(Object.keys(TAB_ICONS).filter((k) => k !== 'inbox'));
 
 function TabButton({
   route,
@@ -123,17 +126,17 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   pill: {
     position: 'absolute',
-    left: 24,
-    right: 24,
+    alignSelf: 'center',
     height: 64,
     borderRadius: 32,
     backgroundColor: colors.bg,
     borderWidth: 1,
     borderColor: colors.border,
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 18,
+    gap: 18,
+    paddingHorizontal: 20,
     shadowColor: '#000',
     shadowOpacity: 0.15,
     shadowRadius: 16,

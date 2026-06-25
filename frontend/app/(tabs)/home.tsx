@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
+import { useInboxData } from '../../src/context/InboxDataContext';
 import {
   getLeagues,
   getRounds,
@@ -117,6 +118,7 @@ const formatCountdown = (deadline: string, now: number = Date.now()): string => 
 export default function HomeScreen() {
   const { user } = useAuth();
   const router = useRouter();
+  const { totalUnread } = useInboxData();
 
   const [leagues, setLeagues] = useState<League[]>([]);
   const [activeRounds, setActiveRounds] = useState<{ [id: string]: Round | null }>({});
@@ -478,6 +480,18 @@ export default function HomeScreen() {
         >
           <Ionicons name="help-circle-outline" size={24} color="#000000" />
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.headerIconBtn}
+          onPress={() => router.push('/inbox' as any)}
+        >
+          <Ionicons name="chatbubble-outline" size={24} color="#000000" />
+          {totalUnread > 0 && (
+            <View style={styles.headerBadge}>
+              <Text style={styles.headerBadgeText}>{totalUnread > 99 ? '99+' : totalUnread}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* Primary / secondary CTA pills — Create League + Join With Code.
@@ -739,6 +753,23 @@ const styles = StyleSheet.create({
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  headerBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: colors.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  headerBadgeText: {
+    color: colors.onAccent,
+    fontSize: 10,
+    fontWeight: '700',
   },
   listContent: { paddingHorizontal: 20, paddingBottom: FLOATING_NAV_CLEARANCE + 20, flexGrow: 1 },
   skeletonCard: { opacity: 0.6, backgroundColor: '#F2F2F2' },
