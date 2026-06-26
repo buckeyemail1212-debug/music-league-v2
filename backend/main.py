@@ -976,6 +976,21 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 
 # ==================== AUTH ENDPOINTS ====================
 
+@api_router.get("/auth/check-username")
+async def check_username(u: str):
+    """Returns {available: bool} for a candidate username. Uses the same
+    case-insensitive uniqueness rule as registration, plus a min-length
+    of 3, so the signup availability indicator always agrees with what
+    register will accept."""
+    candidate = (u or "").strip()
+    if len(candidate) < 3:
+        return {"available": False, "reason": "too_short"}
+    existing = await db.users.find_one(
+        {"username": {"$regex": f"^{re.escape(candidate)}$", "$options": "i"}},
+        {"_id": 0, "id": 1},
+    )
+    return {"available": existing is None}
+
 @api_router.post("/auth/register", response_model=TokenResponse)
 async def register(user_data: UserCreate):
     # Check if email exists
@@ -984,7 +999,10 @@ async def register(user_data: UserCreate):
         raise HTTPException(status_code=400, detail="Email already registered")
     
     # Check if username exists
-    existing_username = await db.users.find_one({"username": user_data.username}, {"_id": 0, "id": 1})
+    existing_username = await db.users.find_one(
+        {"username": {"$regex": f"^{re.escape(user_data.username)}$", "$options": "i"}},
+        {"_id": 0, "id": 1},
+    )
     if existing_username:
         raise HTTPException(status_code=400, detail="Username already taken")
 
