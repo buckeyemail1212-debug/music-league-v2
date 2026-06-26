@@ -114,12 +114,35 @@ export default function InboxCategoryScreen() {
 
   const handleDelete = async () => {
     if (selectedIds.size === 0) return;
-    const ids = [...selectedIds];
+    const selectedRows = items.filter(it => selectedIds.has(it.id));
+
+    // Invite rows are notifications (deleteNotifications); everything else in
+    // results/league is a feed item (dismissInboxItems).
+    const inviteRows = selectedRows.filter(it => it.rowType === 'invite');
+    const inviteIds = inviteRows.map(it => it.id);
+    const feedIds = selectedRows.filter(it => it.rowType !== 'invite').map(it => it.id);
+
+    // Pending invites get rejected server-side so no orphaned pending invites remain.
+    const pendingInviteIds = inviteRows
+      .filter(it => it.inviteStatus === 'pending' && it.inviteId)
+      .map(it => it.inviteId as string);
+
     try {
-      if (category === 'results' || category === 'league') {
-        await dismissInboxItems(ids);
-      } else {
-        await deleteNotifications(ids);
+      // Reject pending invites first (non-blocking: a failed reject must not stop the delete).
+      if (pendingInviteIds.length > 0) {
+        await Promise.allSettled(pendingInviteIds.map(id => rejectLeagueInvite(id)));
+      }
+      // Delete invite notifications.
+      if (inviteIds.length > 0) {
+        await deleteNotifications(inviteIds);
+      }
+      // Dismiss feed items (results/league non-invite rows); other categories also use deleteNotifications.
+      if (feedIds.length > 0) {
+        if (category === 'results' || category === 'league') {
+          await dismissInboxItems(feedIds);
+        } else {
+          await deleteNotifications(feedIds);
+        }
       }
       setItems(prev => prev.filter(it => !selectedIds.has(it.id)));
       exitSelectMode();
