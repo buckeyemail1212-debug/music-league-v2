@@ -851,6 +851,16 @@ export default function LeagueDetailScreen() {
                   <Ionicons name="pricetag-outline" size={20} color={colors.textPrimary} />
                   <Text style={styles.overflowItemText}>Edit round themes</Text>
                 </TouchableOpacity>
+                {!rounds.some(r => r.status === 'submission' || r.status === 'voting' || r.status === 'completed' || r.status === 'skipped') && (
+                  <TouchableOpacity
+                    style={styles.overflowItem}
+                    activeOpacity={0.7}
+                    onPress={() => { setOverflowOpen(false); router.push(`/league/${id}/invite` as any); }}
+                  >
+                    <Ionicons name="person-add-outline" size={20} color={colors.textPrimary} />
+                    <Text style={styles.overflowItemText}>Invite users</Text>
+                  </TouchableOpacity>
+                )}
               </>
             )}
             {isMember && (

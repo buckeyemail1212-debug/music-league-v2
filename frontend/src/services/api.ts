@@ -303,6 +303,12 @@ export const inviteUsersToLeague = (leagueId: string, userIds: string[]) =>
     { user_ids: userIds },
   );
 
+export const inviteUsersByUsername = (leagueId: string, usernames: string[]) =>
+  api.post<{ data: { results: any[]; invited_count: number } }>(
+    `/leagues/${leagueId}/invites`,
+    { usernames },
+  );
+
 export const updateLeague = (id: string, data: {
   league_image?: string | null;
 }) => api.put<League>(`/leagues/${id}`, data);

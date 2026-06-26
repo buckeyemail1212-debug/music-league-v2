@@ -5123,6 +5123,28 @@ async def invite_users_to_league(
     return {"data": {"results": results, "invited_count": invited_count}}
 
 
+@api_router.get("/leagues/{league_id}/invites")
+async def get_league_invites(league_id: str, current_user: dict = Depends(get_current_user)):
+    """Creator-only. Returns the league's current member ids and the set of
+    user ids with a pending invite, so the invite UI can show 'Already in' /
+    'Pending' instead of a fresh Invite pill."""
+    league = await db.leagues.find_one({"id": league_id})
+    if not league or league.get("deleted_at"):
+        raise HTTPException(status_code=404, detail="League not found")
+    if current_user["id"] != league["creator_id"]:
+        raise HTTPException(status_code=403, detail="Only the league creator can view invites.")
+
+    member_ids = [m.get("id") for m in league.get("members", []) if m.get("id")]
+
+    pending = await db.league_invites.find(
+        {"league_id": league_id, "status": "pending"},
+        {"_id": 0, "invitee_id": 1},
+    ).to_list(length=None)
+    pending_ids = [p["invitee_id"] for p in pending]
+
+    return {"data": {"member_ids": member_ids, "pending_invitee_ids": pending_ids}}
+
+
 @api_router.post("/leagues/invites/{invite_id}/accept")
 async def accept_league_invite(invite_id: str, current_user: dict = Depends(get_current_user)):
     """Invitee-only accept. Re-runs the same join gates as a fresh join so a
