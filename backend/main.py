@@ -732,6 +732,10 @@ class LeagueResponse(BaseModel):
 class JoinLeagueRequest(BaseModel):
     league_code: str
 
+class InviteUsersRequest(BaseModel):
+    usernames: Optional[List[str]] = None
+    user_ids: Optional[List[str]] = None
+
 class StartRoundRequest(BaseModel):
     theme: str = ""  # Theme/prompt for this round
     # Fallback defaults mirror the Create League screen. Hours must be one
@@ -4999,6 +5003,243 @@ async def join_public_league(league_id: str, current_user: dict = Depends(get_cu
     return LeagueResponse(**add_league_defaults(updated))
 
 
+@api_router.post("/leagues/{league_id}/invites")
+async def invite_users_to_league(
+    league_id: str,
+    request: InviteUsersRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """Creator-only invite sender. Resolves invitees by id and/or username,
+    classifies each into a result bucket without raising, and creates a
+    pending league_invites doc + LEAGUE_INVITE notification for successes."""
+    league = await db.leagues.find_one({"id": league_id})
+    if not league or league.get("deleted_at"):
+        raise HTTPException(status_code=404, detail="League not found")
+    if current_user["id"] != league["creator_id"]:
+        raise HTTPException(status_code=403, detail="Only the league creator can invite users.")
+    if await _league_has_started(league_id):
+        raise HTTPException(status_code=400, detail="This league has already started.")
+
+    members = league.get("members", [])
+    member_ids = {m.get("id") for m in members if m.get("id")}
+
+    # Resolve targets. Track username keys for not_found reporting and so the
+    # response can echo back the original username when one was supplied.
+    # target_docs maps user_id -> {"doc": user, "username_key": str|None}.
+    target_docs: dict = {}
+    results: list = []
+
+    # Direct user_ids first.
+    for uid in (request.user_ids or []):
+        if not uid or uid == current_user["id"]:
+            continue
+        if uid in target_docs:
+            continue
+        user = await db.users.find_one({"id": uid}, {"_id": 0})
+        if not user:
+            results.append({"user_id": uid, "status": "not_found"})
+            continue
+        target_docs[uid] = {"doc": user, "username_key": None}
+
+    # Usernames (exact, case-insensitive match on the username field).
+    for uname in (request.usernames or []):
+        if not uname:
+            continue
+        user = await db.users.find_one(
+            {"username": {"$regex": f"^{re.escape(uname)}$", "$options": "i"}},
+            {"_id": 0},
+        )
+        if not user:
+            results.append({"username": uname, "status": "not_found"})
+            continue
+        if user["id"] == current_user["id"]:
+            continue
+        existing = target_docs.get(user["id"])
+        if existing:
+            # Prefer surfacing the username the caller typed.
+            if existing.get("username_key") is None:
+                existing["username_key"] = uname
+            continue
+        target_docs[user["id"]] = {"doc": user, "username_key": uname}
+
+    invited_count = 0
+    for target_id, info in target_docs.items():
+        username_key = info.get("username_key")
+        result_key = {"username": username_key} if username_key else {"user_id": target_id}
+
+        if target_id in member_ids:
+            results.append({**result_key, "status": "already_member"})
+            continue
+
+        # Block check: either a shared-member block (mirrors join gates) or a
+        # direct block between creator and target (block query shape reused
+        # from _league_has_blocked_member).
+        blocked = await _league_has_blocked_member(target_id, members)
+        if not blocked:
+            direct = await db.blocks.find_one(
+                {
+                    "$or": [
+                        {"blocker_id": current_user["id"], "blocked_id": target_id},
+                        {"blocker_id": target_id, "blocked_id": current_user["id"]},
+                    ]
+                },
+                {"_id": 1},
+            )
+            blocked = direct is not None
+        if blocked:
+            results.append({**result_key, "status": "blocked"})
+            continue
+
+        existing_invite = await db.league_invites.find_one(
+            {"league_id": league_id, "invitee_id": target_id, "status": "pending"},
+            {"_id": 1},
+        )
+        if existing_invite:
+            results.append({**result_key, "status": "already_invited"})
+            continue
+
+        invite_id = str(uuid.uuid4())
+        await db.league_invites.insert_one({
+            "id": invite_id,
+            "league_id": league_id,
+            "invitee_id": target_id,
+            "inviter_id": current_user["id"],
+            "status": "pending",
+            "created_at": datetime.now(timezone.utc),
+            "resolved_at": None,
+        })
+        await create_notification(
+            user_id=target_id,
+            type="LEAGUE_INVITE",
+            category="league",
+            title=league["name"],
+            body=f'{current_user["username"]} invited you to join {league["name"]}',
+            actor_id=current_user["id"],
+            ref_id=invite_id,
+        )
+        results.append({**result_key, "status": "invited"})
+        invited_count += 1
+
+    return {"data": {"results": results, "invited_count": invited_count}}
+
+
+@api_router.post("/leagues/invites/{invite_id}/accept")
+async def accept_league_invite(invite_id: str, current_user: dict = Depends(get_current_user)):
+    """Invitee-only accept. Re-runs the same join gates as a fresh join so a
+    previously-declined invite can still be accepted before the league starts."""
+    invite = await db.league_invites.find_one({"id": invite_id})
+    if not invite:
+        raise HTTPException(status_code=404, detail="Invite not found")
+    if invite["invitee_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="This invite isn't for you.")
+
+    if invite["status"] == "accepted":
+        return {"data": {"status": "accepted", "already": True}}
+
+    league = await db.leagues.find_one({"id": invite["league_id"]})
+    if not league or league.get("deleted_at"):
+        raise HTTPException(status_code=404, detail="League not found")
+    league_id = league["id"]
+
+    if await _league_has_started(league_id):
+        raise HTTPException(
+            status_code=400,
+            detail="This league has already started. New members can only join before the first round begins.",
+        )
+
+    # Already a member — mark the invite resolved and no-op the membership.
+    if any(m["id"] == current_user["id"] for m in league.get("members", [])):
+        await db.league_invites.update_one(
+            {"id": invite_id},
+            {"$set": {"status": "accepted", "resolved_at": datetime.now(timezone.utc)}},
+        )
+        return {"data": {"status": "accepted", "already": True}}
+
+    if await _league_has_blocked_member(current_user["id"], league.get("members", [])):
+        raise HTTPException(
+            status_code=403,
+            detail="You can't join this league because of a block.",
+        )
+
+    await db.leagues.update_one(
+        {"id": league_id},
+        {"$push": {"members": {"id": current_user["id"], "username": current_user["username"]}}},
+    )
+    await db.league_invites.update_one(
+        {"id": invite_id},
+        {"$set": {"status": "accepted", "resolved_at": datetime.now(timezone.utc)}},
+    )
+    return {"data": {"status": "accepted", "league_id": league_id}}
+
+
+@api_router.post("/leagues/invites/{invite_id}/reject")
+async def reject_league_invite(invite_id: str, current_user: dict = Depends(get_current_user)):
+    """Invitee-only reject. Only flips the invite record — membership is
+    untouched, so a later code/public join still works."""
+    invite = await db.league_invites.find_one({"id": invite_id})
+    if not invite:
+        raise HTTPException(status_code=404, detail="Invite not found")
+    if invite["invitee_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="This invite isn't for you.")
+
+    if invite["status"] == "declined":
+        return {"data": {"status": "declined"}}
+
+    await db.league_invites.update_one(
+        {"id": invite_id},
+        {"$set": {"status": "declined", "resolved_at": datetime.now(timezone.utc)}},
+    )
+    return {"data": {"status": "declined"}}
+
+
+@api_router.get("/users/me/co-members")
+async def get_co_members(current_user: dict = Depends(get_current_user)):
+    """Users who share at least one non-deleted league with me, minus anyone
+    I have a block with (either direction). Used to power invite suggestions."""
+    me_id = current_user["id"]
+    leagues = await db.leagues.find(
+        {
+            "members.id": me_id,
+            "$or": [{"deleted_at": {"$exists": False}}, {"deleted_at": None}],
+        },
+        {"_id": 0, "members": 1},
+    ).to_list(length=None)
+
+    co_member_ids = set()
+    for l in leagues:
+        for m in l.get("members", []):
+            mid = m.get("id")
+            if mid and mid != me_id:
+                co_member_ids.add(mid)
+
+    if not co_member_ids:
+        return {"data": {"users": []}}
+
+    blocked_docs = await db.blocks.find(
+        {
+            "$or": [
+                {"blocker_id": me_id, "blocked_id": {"$in": list(co_member_ids)}},
+                {"blocker_id": {"$in": list(co_member_ids)}, "blocked_id": me_id},
+            ]
+        },
+        {"_id": 0, "blocker_id": 1, "blocked_id": 1},
+    ).to_list(length=None)
+    for b in blocked_docs:
+        co_member_ids.discard(b["blocker_id"])
+        co_member_ids.discard(b["blocked_id"])
+    co_member_ids.discard(me_id)
+
+    if not co_member_ids:
+        return {"data": {"users": []}}
+
+    users = await db.users.find(
+        {"id": {"$in": list(co_member_ids)}},
+        {"_id": 0, "id": 1, "username": 1, "display_name": 1, "profile_photo": 1},
+    ).to_list(length=None)
+    users.sort(key=lambda u: (u.get("username") or "").lower())
+    return {"data": {"users": users}}
+
+
 @api_router.delete("/leagues/{league_id}")
 async def delete_league(league_id: str, current_user: dict = Depends(get_current_user)):
     """Creator-initiated league deletion. The behavior depends on whether
@@ -7787,6 +8028,21 @@ async def get_notifications(current_user: dict = Depends(get_current_user)):
         r["actor_name"] = (actor or {}).get("display_name") or (actor or {}).get("username")
         if r.get("category") == "follows" and aid:
             r["follows_back"] = aid in following_back
+        if r.get("type") == "LEAGUE_INVITE":
+            # Attach the invite's current status + its league name/image so the
+            # inbox can render accept/decline state. Invite rows are few, so a
+            # per-row lookup here is acceptable.
+            invite = await db.league_invites.find_one({"id": r.get("ref_id")}, {"_id": 0})
+            if invite:
+                r["inviteId"] = invite.get("id")
+                r["inviteStatus"] = invite.get("status")
+                league = await db.leagues.find_one(
+                    {"id": invite.get("league_id")},
+                    {"_id": 0, "name": 1, "league_image": 1},
+                )
+                if league:
+                    r["leagueName"] = league.get("name")
+                    r["leagueImage"] = league.get("league_image")
 
     return {"data": {"notifications": rows}}
 
