@@ -905,6 +905,11 @@ export interface AppNotification {
   actor_avatar?: string | null;
   actor_name?: string | null;
   follows_back?: boolean;
+  leagueName?: string;
+  leagueImage?: string | null;
+  inviteId?: string;
+  inviteStatus?: 'pending' | 'accepted' | 'declined';
+  leagueId?: string;
 }
 
 export const getNotifications = () =>
@@ -912,6 +917,12 @@ export const getNotifications = () =>
 
 export const deleteNotifications = (ids: string[]) =>
   api.post<{ data: { deleted: number } }>('/notifications/delete', { ids });
+
+export const acceptLeagueInvite = (inviteId: string) =>
+  api.post<{ data: { status: string; league_id?: string } }>(`/leagues/invites/${inviteId}/accept`);
+
+export const rejectLeagueInvite = (inviteId: string) =>
+  api.post<{ data: { status: string } }>(`/leagues/invites/${inviteId}/reject`);
 
 export const dismissInboxItems = (ids: string[]) =>
   api.post<{ data: { dismissed: number } }>('/inbox/feed/dismiss', { ids });

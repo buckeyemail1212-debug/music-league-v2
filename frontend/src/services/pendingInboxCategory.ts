@@ -2,7 +2,7 @@ export interface InboxCategoryItem {
   id: string;
   text: string;
   timestamp: number;
-  tapType: 'user' | 'round' | 'chat' | 'none';
+  tapType: 'user' | 'round' | 'chat' | 'league' | 'none';
   tapId?: string;
   tapLabel?: string;
   avatar?: string | null;
@@ -11,6 +11,10 @@ export interface InboxCategoryItem {
   actorId?: string;
   followsBack?: boolean;
   showFollowPill?: boolean;
+  rowType?: 'invite';
+  inviteId?: string;
+  inviteStatus?: 'pending' | 'accepted' | 'declined';
+  leagueId?: string;
 }
 
 export interface PendingInboxCategory {

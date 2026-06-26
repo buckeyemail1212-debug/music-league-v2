@@ -16,7 +16,13 @@ import {
   PendingInboxCategory,
   InboxCategoryItem,
 } from '../src/services/pendingInboxCategory';
-import { deleteNotifications, dismissInboxItems, followUser } from '../src/services/api';
+import {
+  deleteNotifications,
+  dismissInboxItems,
+  followUser,
+  acceptLeagueInvite,
+  rejectLeagueInvite,
+} from '../src/services/api';
 import { colors } from '../src/theme/colors';
 
 function relativeTime(ts: number): string {
@@ -51,6 +57,7 @@ export default function InboxCategoryScreen() {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [followedNow, setFollowedNow] = useState<Record<string, boolean>>({});
+  const [inviteBusy, setInviteBusy] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const d = consumePendingInboxCategory();
@@ -66,12 +73,20 @@ export default function InboxCategoryScreen() {
     category === 'league';
 
   const handlePress = (item: InboxCategoryItem) => {
+    // An accepted invite row (server- or optimistically-accepted) opens its
+    // league without needing tapType mutated on the prebuilt item.
+    if (item.rowType === 'invite' && item.inviteStatus === 'accepted' && item.leagueId) {
+      router.push(`/league/${item.leagueId}`);
+      return;
+    }
     if (item.tapType === 'user' && item.tapId) {
       router.push(`/user/${item.tapId}`);
     } else if (item.tapType === 'round' && item.tapId) {
       router.push(`/round/${item.tapId}`);
     } else if (item.tapType === 'chat' && item.tapId) {
       router.push(`/league-chat?leagueId=${item.tapId}&leagueName=${encodeURIComponent(item.tapLabel || '')}`);
+    } else if (item.tapType === 'league' && item.tapId) {
+      router.push(`/league/${item.tapId}`);
     }
   };
 
@@ -123,8 +138,38 @@ export default function InboxCategoryScreen() {
     }
   };
 
+  const resolveInvite = async (
+    item: InboxCategoryItem,
+    next: 'accepted' | 'declined',
+  ) => {
+    if (!item.inviteId || inviteBusy[item.id]) return;
+    const prevStatus = item.inviteStatus;
+    setInviteBusy(prev => ({ ...prev, [item.id]: true }));
+    // Optimistically flip the row to its resolved state.
+    setItems(prev =>
+      prev.map(it => (it.id === item.id ? { ...it, inviteStatus: next } : it)),
+    );
+    try {
+      if (next === 'accepted') await acceptLeagueInvite(item.inviteId);
+      else await rejectLeagueInvite(item.inviteId);
+    } catch (e: any) {
+      // Revert on failure.
+      setItems(prev =>
+        prev.map(it => (it.id === item.id ? { ...it, inviteStatus: prevStatus } : it)),
+      );
+      Alert.alert(
+        next === 'accepted' ? "Couldn't accept invite" : "Couldn't decline invite",
+        e?.response?.data?.detail || 'Please try again.',
+      );
+    } finally {
+      setInviteBusy(prev => ({ ...prev, [item.id]: false }));
+    }
+  };
+
   const renderItem = ({ item }: { item: InboxCategoryItem }) => {
-    const tappable = item.tapType !== 'none' && !!item.tapId;
+    const tappable =
+      (item.tapType !== 'none' && !!item.tapId) ||
+      (item.rowType === 'invite' && item.inviteStatus === 'accepted' && !!item.leagueId);
     const selected = selectedIds.has(item.id);
 
     // Rich follow row (TikTok-style) — only when the mapper supplied a title.
@@ -160,7 +205,7 @@ export default function InboxCategoryScreen() {
           )}
           <View style={styles.followMiddle}>
             <Text style={styles.followTitle} numberOfLines={1}>{item.title}</Text>
-            <Text style={styles.followSubtitle} numberOfLines={1}>{item.subtitle}</Text>
+            <Text style={styles.followSubtitle} numberOfLines={item.rowType === 'invite' ? 2 : 1}>{item.subtitle}</Text>
           </View>
           {item.timestamp > 0 && (
             <Text style={styles.followTime}>{tiktokTime(item.timestamp)}</Text>
@@ -179,6 +224,34 @@ export default function InboxCategoryScreen() {
               <Text style={styles.followPillText}>Follow back</Text>
             </TouchableOpacity>
           ))}
+          {/* Invite Accept/Decline — hidden in select mode so the row is a
+              normal selectable/deletable row. */}
+          {!selectMode && item.rowType === 'invite' && (
+            item.inviteStatus === 'pending' ? (
+              <View style={styles.invitePills}>
+                <TouchableOpacity
+                  style={styles.followPill}
+                  onPress={() => resolveInvite(item, 'accepted')}
+                  disabled={!!inviteBusy[item.id]}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.followPillText}>Accept</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.declinePill}
+                  onPress={() => resolveInvite(item, 'declined')}
+                  disabled={!!inviteBusy[item.id]}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.declinePillText}>Decline</Text>
+                </TouchableOpacity>
+              </View>
+            ) : item.inviteStatus === 'accepted' ? (
+              <Text style={styles.inviteResolvedText}>Joined</Text>
+            ) : (
+              <Text style={styles.inviteResolvedText}>Declined</Text>
+            )
+          )}
         </TouchableOpacity>
       );
     }
@@ -380,6 +453,29 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: colors.onAccent,
+  },
+  invitePills: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  declinePill: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+  },
+  declinePillText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  inviteResolvedText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textTertiary,
   },
   empty: {
     flex: 1,

@@ -8036,6 +8036,7 @@ async def get_notifications(current_user: dict = Depends(get_current_user)):
             if invite:
                 r["inviteId"] = invite.get("id")
                 r["inviteStatus"] = invite.get("status")
+                r["leagueId"] = invite.get("league_id")
                 league = await db.leagues.find_one(
                     {"id": invite.get("league_id")},
                     {"_id": 0, "name": 1, "league_image": 1},

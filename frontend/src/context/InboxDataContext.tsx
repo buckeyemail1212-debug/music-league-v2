@@ -94,8 +94,12 @@ export function InboxDataProvider({ children }: { children: ReactNode }) {
       .filter(n => n.category === 'system' && parseTs(n.created_at) > lastSystem).length;
     const resultsUnread = notifs
       .filter(n => n.type === 'RESULT' && n.timestamp > lastResults).length;
-    const leagueUnread = notifs
+    const leagueCommentUnread = notifs
       .filter(n => n.type === 'COMMENT' && n.timestamp > lastLeague).length;
+    // Unresolved (pending) league invites count toward the league badge too.
+    const leagueInviteUnread = serverNotifs
+      .filter(n => n.type === 'LEAGUE_INVITE' && n.inviteStatus === 'pending' && parseTs(n.created_at) > lastLeague).length;
+    const leagueUnread = leagueCommentUnread + leagueInviteUnread;
 
     const categoryUnread = followsUnread + systemUnread + resultsUnread + leagueUnread;
     const dmUnread = conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);

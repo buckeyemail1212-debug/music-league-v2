@@ -190,6 +190,25 @@ export default function InboxScreen() {
           subtitle: n.message,
           showFollowPill: false,
         }));
+      // Invite rows come from serverNotifs (AppNotification shape), so parse
+      // created_at the same way the 'system' builder does.
+      const inviteItems = serverNotifs
+        .filter(n => n.type === 'LEAGUE_INVITE')
+        .map(n => ({
+          id: n.id,                         // notification id — REQUIRED so delete matches the notifications collection
+          text: n.body,
+          timestamp: parseTs(n.created_at),
+          tapType: 'none' as const,         // invite rows never tap-route into a league
+          avatar: n.leagueImage ?? null,
+          title: n.leagueName || 'League',
+          subtitle: n.body,
+          showFollowPill: false,
+          rowType: 'invite' as const,
+          inviteId: n.inviteId,
+          inviteStatus: n.inviteStatus,
+          leagueId: n.leagueId,
+        }));
+      items = [...items, ...inviteItems];
     } else if (catKey === 'system') {
       items = serverNotifs
         .filter(n => n.category === 'system')
@@ -228,9 +247,13 @@ export default function InboxScreen() {
           .filter(n => n.type === 'REMINDER' || n.type === 'SUBMIT')
           .map(n => ({ message: n.message, timestamp: n.timestamp, leagueName: n.leagueName }));
       } else if (cat.key === 'league') {
-        feedItems = notifs
+        const commentItems = notifs
           .filter(n => n.type === 'COMMENT')
           .map(n => ({ message: n.message, timestamp: n.timestamp, leagueName: n.leagueName }));
+        const inviteItems = serverNotifs
+          .filter(n => n.type === 'LEAGUE_INVITE')
+          .map(n => ({ message: n.body, timestamp: parseTs(n.created_at), leagueName: n.leagueName }));
+        feedItems = [...commentItems, ...inviteItems];
       } else if (cat.key === 'system') {
         feedItems = serverNotifs
           .filter(n => n.category === 'system')
@@ -245,9 +268,18 @@ export default function InboxScreen() {
         : 'No activity yet';
 
       const lastViewed = categoryViews[cat.key] ?? 0;
+      // Pending league invites are unresolved activity — count them toward the
+      // league badge alongside the COMMENT feed items (mirrors InboxDataContext).
+      const inviteUnread = cat.key === 'league'
+        ? serverNotifs.filter(n =>
+            n.type === 'LEAGUE_INVITE' &&
+            n.inviteStatus === 'pending' &&
+            parseTs(n.created_at) > lastViewed,
+          ).length
+        : 0;
       const count = cat.key === 'reminders'
         ? 0
-        : feedItems.filter(it => it.timestamp > lastViewed).length;
+        : feedItems.filter(it => it.timestamp > lastViewed).length + inviteUnread;
 
       return {
         ...cat,
