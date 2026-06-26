@@ -15,6 +15,7 @@ export const colors = {
   accent: '#7C3AED',
   accentFaint: 'rgba(124,58,237,0.15)',
   success: '#10B981',
+  warning: '#F59E0B',
   danger: '#EF4444',
   onAccent: '#FFFFFF',
   onMedia: '#FFFFFF',

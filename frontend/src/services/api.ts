@@ -634,6 +634,9 @@ export const sendLeagueMessage = (leagueId: string, content: string) =>
 export const getChatStatus = (leagueId: string) => 
   api.get<ChatStatus>(`/leagues/${leagueId}/chat-status`);
 
+export const checkUsername = (u: string) =>
+  api.get<{ available: boolean; reason?: string }>('/auth/check-username', { params: { u } });
+
 // Password Reset APIs
 export const forgotPassword = (phone_number: string) =>
   api.post('/auth/forgot-password', { phone_number });
