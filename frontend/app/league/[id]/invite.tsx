@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import {
   searchUsers,
   inviteUsersByUsername,
+  getLeagueInvites,
   UserSearchResult,
 } from '../../../src/services/api';
 import { colors } from '../../../src/theme/colors';
@@ -44,6 +45,20 @@ export default function InviteUsersScreen() {
   const [invitingId, setInvitingId] = useState<string | null>(null);
   // userId -> result label ('invited' | 'already_member' | ...)
   const [inviteResult, setInviteResult] = useState<Record<string, string>>({});
+  // Existing league context: who's already a member / already has a pending
+  // invite, so the pill shows 'Already in' / 'Pending' up front.
+  const [memberIds, setMemberIds] = useState<Set<string>>(new Set());
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
+
+  // Load existing members + pending invites once for this league.
+  useEffect(() => {
+    getLeagueInvites(id!)
+      .then((res) => {
+        setMemberIds(new Set(res.data?.data?.member_ids ?? []));
+        setPendingIds(new Set(res.data?.data?.pending_invitee_ids ?? []));
+      })
+      .catch(() => {});
+  }, [id]);
 
   // Debounce so we don't fire a request per keystroke.
   useEffect(() => {
@@ -85,6 +100,9 @@ export default function InviteUsersScreen() {
       const res = await inviteUsersByUsername(id!, [item.username]);
       const status = res.data?.data?.results?.[0]?.status ?? 'invited';
       setInviteResult((prev) => ({ ...prev, [item.id]: status }));
+      if (status === 'invited') {
+        setPendingIds((prev) => new Set(prev).add(item.id));
+      }
     } catch (e: any) {
       Alert.alert("Couldn't invite", e?.response?.data?.detail || 'Please try again.');
     } finally {
@@ -94,7 +112,17 @@ export default function InviteUsersScreen() {
 
   const renderRow = ({ item }: { item: UserSearchResult }) => {
     const inFlight = invitingId === item.id;
-    const result = inviteResult[item.id];
+    // Priority: a status from this session's tap wins, otherwise fall back to
+    // the league's existing member / pending state. Both paths flow through
+    // the same pill display logic below.
+    const sessionResult = inviteResult[item.id];
+    const result =
+      sessionResult ??
+      (memberIds.has(item.id)
+        ? 'already_member'
+        : pendingIds.has(item.id)
+        ? 'already_invited'
+        : undefined);
 
     let indicator: React.ReactNode;
     if (inFlight) {
@@ -255,8 +283,6 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface2,
-    borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 12,
     gap: 12,

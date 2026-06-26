@@ -309,6 +309,11 @@ export const inviteUsersByUsername = (leagueId: string, usernames: string[]) =>
     { usernames },
   );
 
+export const getLeagueInvites = (leagueId: string) =>
+  api.get<{ data: { member_ids: string[]; pending_invitee_ids: string[] } }>(
+    `/leagues/${leagueId}/invites`,
+  );
+
 export const updateLeague = (id: string, data: {
   league_image?: string | null;
 }) => api.put<League>(`/leagues/${id}`, data);
