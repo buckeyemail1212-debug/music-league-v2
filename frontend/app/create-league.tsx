@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -18,9 +18,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { createLeague, League } from '../src/services/api';
+import { createLeague, getCoMembers, inviteUsersToLeague, CoMember, League } from '../src/services/api';
+import { setPendingInvitees, consumePendingInvitees } from '../src/services/pendingInvitees';
 import { leagueEvents } from '../src/utils/leagueEvents';
 import LeagueAvatar from '../src/components/LeagueAvatar';
 import LeagueCreatedSuccess from '../src/components/LeagueCreatedSuccess';
@@ -83,6 +84,23 @@ export default function CreateLeaguePage() {
   const [submitting, setSubmitting] = useState(false);
   const [genreError, setGenreError] = useState<string | null>(null);
   const [createdLeague, setCreatedLeague] = useState<League | null>(null);
+  const [coMembers, setCoMembers] = useState<CoMember[]>([]);
+  const [selectedInviteeIds, setSelectedInviteeIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    getCoMembers()
+      .then((res) => setCoMembers(res.data?.data?.users ?? []))
+      .catch(() => setCoMembers([]));
+  }, []);
+
+  // Read the invite-friends page's selection back when we regain focus, so the
+  // co-member quick-pick and the friends page feed ONE unified set.
+  useFocusEffect(
+    useCallback(() => {
+      const ids = consumePendingInvitees();
+      if (ids) setSelectedInviteeIds(new Set(ids));
+    }, []),
+  );
 
   useEffect(() => {
     setThemes((prev) => {
@@ -209,6 +227,15 @@ export default function CreateLeaguePage() {
       const res = await createLeague(payload);
       leagueEvents.emit();
       setCreatedLeague(res.data);
+      if (selectedInviteeIds.size > 0 && res.data?.id) {
+        inviteUsersToLeague(res.data.id, Array.from(selectedInviteeIds))
+          .catch((e: any) => {
+            Alert.alert(
+              'Invites not sent',
+              e?.response?.data?.detail || 'The league was created, but invites failed to send. You can invite people from the league menu.',
+            );
+          });
+      }
     } catch (e: any) {
       Alert.alert('Error', e?.response?.data?.detail || 'Failed to create league');
     } finally {
@@ -453,6 +480,73 @@ export default function CreateLeaguePage() {
               thumbColor={colors.onAccent}
             />
           </View>
+
+          {/* Invite people you know */}
+          {coMembers.length > 0 && (
+            <View style={{ marginTop: 18 }}>
+              <Text style={styles.cardFieldLabel}>Invite people you know</Text>
+              <Text style={[styles.toggleSub, { marginTop: -6, marginBottom: 10 }]}>
+                They can join without a code — they'll get an invite to accept.
+              </Text>
+              {selectedInviteeIds.size > 0 && (
+                <Text style={styles.inviteCount}>
+                  {selectedInviteeIds.size} invited
+                </Text>
+              )}
+              {coMembers.slice(0, 5).map((m) => {
+                const selected = selectedInviteeIds.has(m.id);
+                return (
+                  <TouchableOpacity
+                    key={m.id}
+                    style={[styles.inviteRow, selected && styles.inviteRowSelected]}
+                    activeOpacity={0.8}
+                    onPress={() =>
+                      setSelectedInviteeIds((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(m.id)) next.delete(m.id);
+                        else next.add(m.id);
+                        return next;
+                      })
+                    }
+                  >
+                    {m.profile_photo ? (
+                      <Image source={{ uri: m.profile_photo }} style={styles.inviteAvatar} />
+                    ) : (
+                      <View style={[styles.inviteAvatar, styles.inviteAvatarPlaceholder]}>
+                        <Ionicons name="person" size={18} color={MUTED} />
+                      </View>
+                    )}
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Text style={styles.inviteName} numberOfLines={1}>
+                        {m.username}
+                      </Text>
+                      {!!m.display_name && (
+                        <Text style={styles.inviteSub} numberOfLines={1}>
+                          {m.display_name}
+                        </Text>
+                      )}
+                    </View>
+                    <View style={[styles.inviteCheck, selected && styles.inviteCheckSelected]}>
+                      {selected && <Ionicons name="checkmark" size={16} color={colors.onAccent} />}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+
+              <TouchableOpacity
+                style={styles.inviteFriendsBtn}
+                activeOpacity={0.8}
+                onPress={() => {
+                  setPendingInvitees(Array.from(selectedInviteeIds));
+                  router.push('/invite-friends');
+                }}
+              >
+                <Ionicons name="people-outline" size={18} color={ACCENT} />
+                <Text style={styles.inviteFriendsBtnText}>Invite friends</Text>
+                <Ionicons name="chevron-forward" size={16} color={MUTED} />
+              </TouchableOpacity>
+            </View>
+          )}
 
           {isPublic && (
             <>
@@ -948,6 +1042,77 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: MUTED,
     marginTop: 2,
+  },
+  inviteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: HAIRLINE,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+  },
+  inviteRowSelected: {
+    borderColor: ACCENT,
+  },
+  inviteAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: CHIP_BG,
+  },
+  inviteAvatarPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inviteName: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: INK,
+  },
+  inviteSub: {
+    fontSize: 11.5,
+    fontWeight: '500',
+    color: MUTED,
+    marginTop: 1,
+  },
+  inviteCheck: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: HAIRLINE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inviteCheckSelected: {
+    backgroundColor: ACCENT,
+    borderColor: ACCENT,
+  },
+  inviteCount: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: ACCENT,
+    marginBottom: 10,
+  },
+  inviteFriendsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: HAIRLINE,
+    paddingVertical: 12,
+    marginTop: 2,
+  },
+  inviteFriendsBtnText: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: ACCENT,
   },
   pickerField: {
     backgroundColor: CARD_BG,

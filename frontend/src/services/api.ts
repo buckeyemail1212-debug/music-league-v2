@@ -287,6 +287,22 @@ export const createLeague = (data: {
   member_cap?: number | null;
 }) => api.post<League>('/leagues', data);
 
+export interface CoMember {
+  id: string;
+  username: string;
+  display_name?: string | null;
+  profile_photo?: string | null;
+}
+
+export const getCoMembers = () =>
+  api.get<{ data: { users: CoMember[] } }>('/users/me/co-members');
+
+export const inviteUsersToLeague = (leagueId: string, userIds: string[]) =>
+  api.post<{ data: { results: any[]; invited_count: number } }>(
+    `/leagues/${leagueId}/invites`,
+    { user_ids: userIds },
+  );
+
 export const updateLeague = (id: string, data: {
   league_image?: string | null;
 }) => api.put<League>(`/leagues/${id}`, data);
