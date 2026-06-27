@@ -497,6 +497,8 @@ async def _finalize_round_lifetime(round_id: str):
 
     max_points = max(points.values()) if points else 0
     league_doc = await db.leagues.find_one({"id": round_doc["league_id"]})
+    _round_label = round_doc.get("name") or round_doc.get("theme") \
+        or (f"Round {round_doc.get('round_number')}" if round_doc.get("round_number") else "Round complete")
     for sub in submissions:
         uid = sub["user_id"]
         pts = points.get(sub["id"], 0)
@@ -522,6 +524,23 @@ async def _finalize_round_lifetime(round_id: str):
             {"submission_id": sub["id"]},
             {"$set": {"points": round(pts, 2), "finalized": True, "updated_at": datetime.now(timezone.utc)}},
         )
+
+        # Push this submitter their result (gated by their 'results' pref)
+        try:
+            _pts_label = "point" if pts == 1 else "points"
+            _result_body = (
+                f"You won the round with {pts:g} {_pts_label}!" if won
+                else f"You earned {pts:g} {_pts_label} this round"
+            )
+            await send_push(
+                user_id=uid,
+                category="results",
+                title=_round_label,
+                body=_result_body,
+                data={"type": "RESULT", "ref_id": round_doc["id"]},
+            )
+        except Exception:
+            pass
 
     # ── League-activity notifications: who didn't submit / didn't vote ──
     # Fire-and-forget; never let a notification failure block finalization.
