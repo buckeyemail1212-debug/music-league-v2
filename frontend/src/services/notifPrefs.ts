@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const NOTIF_PREF_IDS = [
   'league_start','submit_open','vote_open','submit_30','vote_30','results',
-  'follow_req','new_follower','reactions',
+  'follow_req','new_follower',
   'dm','group',
 ] as const;
 export type NotifPrefId = typeof NOTIF_PREF_IDS[number];

@@ -909,7 +909,7 @@ async def create_notification(
 
 NOTIF_PREF_CATEGORIES = {
     "league_start","submit_open","vote_open","submit_30","vote_30","results",
-    "follow_req","new_follower","reactions","dm","group",
+    "follow_req","new_follower","dm","group",
 }
 
 def _expo_push_send(messages: list[dict]):

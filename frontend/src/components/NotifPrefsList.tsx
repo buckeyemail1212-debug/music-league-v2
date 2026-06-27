@@ -38,7 +38,6 @@ const GROUPS: Group[] = [
     items: [
       { id: 'follow_req', title: 'Follow requests', subtitle: 'Someone wants to follow you', icon: 'person-add-outline' },
       { id: 'new_follower', title: 'New followers', subtitle: 'Someone started following you', icon: 'people-outline' },
-      { id: 'reactions', title: 'Likes & mentions', subtitle: 'Reactions to your submissions', icon: 'heart-outline' },
     ],
   },
   {
