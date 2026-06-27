@@ -997,14 +997,6 @@ async def register(user_data: UserCreate):
     if existing_username:
         raise HTTPException(status_code=400, detail="Username already taken")
 
-    # Check if phone number exists
-    if user_data.phone_number:
-        existing_phone = await db.users.find_one({"phone_number": user_data.phone_number}, {"_id": 0, "id": 1})
-        if existing_phone:
-            raise HTTPException(status_code=400, detail="Phone number already registered")
-    else:
-        raise HTTPException(status_code=400, detail="Phone number is required")
-
     # Create user
     user_id = str(uuid.uuid4())
     user = {

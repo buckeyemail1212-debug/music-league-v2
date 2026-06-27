@@ -45,7 +45,6 @@ export default function LoginScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [username, setUsername] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState<string>('');
@@ -95,7 +94,7 @@ export default function LoginScreen() {
   };
 
   const handleRegister = async () => {
-    if (!email || !displayName || !username || !phoneNumber || !password || !confirmPassword) {
+    if (!email || !displayName || !username || !password || !confirmPassword) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
@@ -112,7 +111,7 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      await register(email.toLowerCase().trim(), username.trim(), password, phoneNumber.trim(), displayName.trim());
+      await register(email.toLowerCase().trim(), username.trim(), password, '', displayName.trim());
       router.replace('/(tabs)/home');
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.detail || 'Registration failed');
@@ -307,26 +306,6 @@ export default function LoginScreen() {
                   autoComplete="password-new"
                   autoCorrect={false}
                   textContentType="newPassword"
-                  spellCheck={false}
-                />
-              </View>
-            )}
-
-            {isSignup && (
-              <View style={fieldStyle('phone')}>
-                <Ionicons name="call-outline" size={20} color={colors.textSecondary} style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Phone number"
-                  placeholderTextColor={colors.textPlaceholder}
-                  value={phoneNumber}
-                  onChangeText={setPhoneNumber}
-                  onFocus={() => setFocusedField('phone')}
-                  onBlur={() => setFocusedField('')}
-                  keyboardType="phone-pad"
-                  autoComplete="tel"
-                  autoCorrect={false}
-                  textContentType="telephoneNumber"
                   spellCheck={false}
                 />
               </View>
