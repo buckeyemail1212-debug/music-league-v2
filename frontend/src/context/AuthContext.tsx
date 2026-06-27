@@ -4,6 +4,7 @@ import axios from 'axios';
 import { API_URL } from '../services/api';
 import { apiCache } from '../services/apiCache';
 import { clearLikedSongsCache } from '../utils/likedSongs';
+import { refreshPushTokenIfGranted } from '../services/push';
 
 interface User {
   id: string;
@@ -54,6 +55,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             headers: { Authorization: `Bearer ${storedToken}` }
           });
           setUser(response.data);
+          // Non-blocking: refresh push token if the user already granted perms.
+          refreshPushTokenIfGranted().catch(() => {});
         } catch {
           // Token invalid, clear auth
           await AsyncStorage.multiRemove(['token', 'user']);
@@ -84,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(access_token);
     setUser(userData);
     clearLikedSongsCache();
+    refreshPushTokenIfGranted().catch(() => {});
   };
 
   const register = async (email: string, username: string, password: string, phone_number: string = '', display_name: string = '') => {
@@ -103,6 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(access_token);
     setUser(userData);
     clearLikedSongsCache();
+    refreshPushTokenIfGranted().catch(() => {});
   };
 
   const logout = async () => {

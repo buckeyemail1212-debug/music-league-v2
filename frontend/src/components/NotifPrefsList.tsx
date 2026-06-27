@@ -10,6 +10,7 @@ import {
   loadNotifPrefs,
   saveNotifPrefs,
 } from '../services/notifPrefs';
+import { saveNotifPrefsRemote } from '../services/api';
 
 type Item = {
   id: NotifPrefId;
@@ -59,6 +60,8 @@ export default function NotifPrefsList() {
   const persist = (next: NotifPrefs) => {
     setPrefs(next);
     saveNotifPrefs(next);
+    // Keep the backend (push-gating source) in sync with the local cache.
+    saveNotifPrefsRemote(next).catch(() => {});
   };
 
   const allOn = NOTIF_PREF_IDS.every((id) => prefs[id]);

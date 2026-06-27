@@ -10,13 +10,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { colors } from '../../src/theme/colors';
 import NotifPrefsList from '../../src/components/NotifPrefsList';
+import { registerForPushNotifications } from '../../src/services/push';
 
 export default function NotificationsSetupScreen() {
   const router = useRouter();
 
-  const onContinue = () => {
+  const onContinue = async () => {
     // Prefs are already persisted on every toggle (inside NotifPrefsList).
-    // TODO: fire the OS push-permission prompt here once real push is wired up.
+    await registerForPushNotifications(); // fires the OS permission prompt
     router.push('/(auth)/onboarding-tour' as any);
   };
 

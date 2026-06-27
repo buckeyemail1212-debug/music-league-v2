@@ -637,6 +637,13 @@ export const getChatStatus = (leagueId: string) =>
 export const checkUsername = (u: string) =>
   api.get<{ available: boolean; reason?: string }>('/auth/check-username', { params: { u } });
 
+// Push notifications
+export const registerPushToken = (token: string) =>
+  api.post('/users/me/push-token', { token });
+
+export const saveNotifPrefsRemote = (prefs: Record<string, boolean>) =>
+  api.post('/users/me/notif-prefs', { prefs });
+
 // Password Reset APIs
 export const forgotPassword = (email: string) =>
   api.post('/auth/forgot-password', { email });

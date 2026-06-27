@@ -576,6 +576,7 @@ async def _finalize_round_lifetime(round_id: str):
                         actor_id=offender_id,
                         ref_id=round_id,
                     )
+                    await send_push(user_id=rid_user, category="results", title=round_label, body=f"{oname} didn't submit a song", data={"type": "round_no_submission", "ref_id": round_id})
 
             for offender_id in non_voter_ids:
                 oname = member_name.get(offender_id) or "A member"
@@ -591,6 +592,7 @@ async def _finalize_round_lifetime(round_id: str):
                         actor_id=offender_id,
                         ref_id=round_id,
                     )
+                    await send_push(user_id=rid_user, category="results", title=round_label, body=f"{oname} didn't vote", data={"type": "round_no_vote", "ref_id": round_id})
     except Exception as e:
         logger.warning(f"round-close activity notifications failed: {e}")
 
@@ -2425,6 +2427,7 @@ async def follow_user(
                 actor_id=me_id,
                 ref_id=me_id,
             )
+            await send_push(user_id=target_id, category="follow_req", title="Follow request", body=f"{actor_name} requested to follow you.", data={"type": "follow_request", "ref_id": me_id})
         else:
             await create_notification(
                 user_id=target_id,
@@ -2435,6 +2438,7 @@ async def follow_user(
                 actor_id=me_id,
                 ref_id=me_id,
             )
+            await send_push(user_id=target_id, category="new_follower", title="New follower", body=f"{actor_name} started following you.", data={"type": "new_follower", "ref_id": me_id})
     except Exception as e:
         logger.warning(f"follow notification failed: {e}")
 
@@ -3372,6 +3376,7 @@ async def approve_follow_request(user_id: str, current_user: dict = Depends(get_
             actor_id=me_id,
             ref_id=me_id,
         )
+        await send_push(user_id=requester_id, category="new_follower", title="Follow request accepted", body=f"{approver_name} accepted your follow request.", data={"type": "follow_accepted", "ref_id": me_id})
     except Exception as e:
         logger.warning(f"follow-accept notification failed: {e}")
 
@@ -5173,6 +5178,7 @@ async def invite_users_to_league(
             actor_id=current_user["id"],
             ref_id=invite_id,
         )
+        await send_push(user_id=target_id, category="league_start", title=league["name"], body=f'{current_user["username"]} invited you to join {league["name"]}', data={"type": "LEAGUE_INVITE", "ref_id": invite_id})
         results.append({**result_key, "status": "invited"})
         invited_count += 1
 
