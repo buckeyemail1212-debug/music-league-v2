@@ -8974,6 +8974,86 @@ async def _run_round_auto_advance_tick() -> None:
     except Exception as e:
         logger.exception(f"auto-advance: scheduled-round pass failed: {e}")
 
+    # --- Pass 5: 30-minute deadline reminders -------------------------
+    # Fire once per round, ~30 min before submission and voting deadlines.
+    # The submit_30_sent / vote_30_sent flags ensure exactly-once delivery
+    # despite the 60s tick cadence.
+    reminder_window = now + timedelta(minutes=30)
+    # Submission reminders
+    try:
+        sub_soon = await db.rounds.find(
+            {
+                "status": "submission",
+                "submission_deadline": {"$gt": now, "$lte": reminder_window, "$lt": _LOCKED_PLACEHOLDER_DT},
+                "submit_30_sent": {"$ne": True},
+            },
+            {"_id": 0},
+        ).to_list(500)
+        for r in sub_soon:
+            try:
+                # Mark first (guarded) so a concurrent worker doesn't double-send
+                res = await db.rounds.update_one(
+                    {"id": r["id"], "submit_30_sent": {"$ne": True}},
+                    {"$set": {"submit_30_sent": True}},
+                )
+                if res.modified_count == 0:
+                    continue
+                league = await db.leagues.find_one({"id": r["league_id"]})
+                rnum = r.get("round_number", "")
+                for m in (league.get("members", []) if league else []):
+                    mid = m.get("id")
+                    if not mid:
+                        continue
+                    # only remind members who haven't submitted yet
+                    already = await db.submissions.find_one({"round_id": r["id"], "user_id": mid}, {"_id": 0, "id": 1})
+                    if already:
+                        continue
+                    await send_push(mid, "submit_30",
+                        title=(league.get("name", "League") if league else "League"),
+                        body=f"30 minutes left to submit for Round {rnum}!",
+                        data={"type": "submit_30", "ref_id": r["id"]})
+            except Exception as e:
+                logger.exception(f"reminder: submit_30 failed for round {r.get('id')}: {e}")
+    except Exception as e:
+        logger.exception(f"reminder: submit_30 query failed: {e}")
+
+    # Voting reminders
+    try:
+        vote_soon = await db.rounds.find(
+            {
+                "status": "voting",
+                "voting_deadline": {"$gt": now, "$lte": reminder_window, "$lt": _LOCKED_PLACEHOLDER_DT},
+                "vote_30_sent": {"$ne": True},
+            },
+            {"_id": 0},
+        ).to_list(500)
+        for r in vote_soon:
+            try:
+                res = await db.rounds.update_one(
+                    {"id": r["id"], "vote_30_sent": {"$ne": True}},
+                    {"$set": {"vote_30_sent": True}},
+                )
+                if res.modified_count == 0:
+                    continue
+                league = await db.leagues.find_one({"id": r["league_id"]})
+                rnum = r.get("round_number", "")
+                for m in (league.get("members", []) if league else []):
+                    mid = m.get("id")
+                    if not mid:
+                        continue
+                    # only remind members who haven't voted yet
+                    already = await db.votes.find_one({"round_id": r["id"], "voter_id": mid}, {"_id": 0, "id": 1})
+                    if already:
+                        continue
+                    await send_push(mid, "vote_30",
+                        title=(league.get("name", "League") if league else "League"),
+                        body=f"30 minutes left to vote in Round {rnum}!",
+                        data={"type": "vote_30", "ref_id": r["id"]})
+            except Exception as e:
+                logger.exception(f"reminder: vote_30 failed for round {r.get('id')}: {e}")
+    except Exception as e:
+        logger.exception(f"reminder: vote_30 query failed: {e}")
+
 
 async def _start_scheduled_public_rounds(now: datetime) -> None:
     """Public-league Round 1 auto-start. Finds every round in "scheduled"
