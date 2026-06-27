@@ -8677,6 +8677,54 @@ async def reset_database(current_user: dict = Depends(get_current_user)):
         await db[col].delete_many({})
     return {"message": "All data cleared", "collections_cleared": collections}
 
+class BroadcastRequest(BaseModel):
+    title: str
+    body: str
+    secret: str
+
+@api_router.post("/admin/broadcast")
+async def admin_broadcast(req: BroadcastRequest):
+    """Send a system announcement to ALL users: creates a category='system'
+    inbox notification for each user and fires an OS push. Protected by the
+    ADMIN_BROADCAST_SECRET env var (mirrors the ALLOW_DB_RESET gate pattern).
+    Triggered manually by the operator (curl). No user can call this without
+    the secret."""
+    expected = os.environ.get("ADMIN_BROADCAST_SECRET")
+    if not expected or req.secret != expected:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    if not req.title.strip() or not req.body.strip():
+        raise HTTPException(status_code=400, detail="title and body are required")
+
+    # All non-deleted users with an id.
+    users = await db.users.find({}, {"_id": 0, "id": 1}).to_list(100000)
+    sent = 0
+    for u in users:
+        uid = u.get("id")
+        if not uid:
+            continue
+        try:
+            await create_notification(
+                user_id=uid,
+                type="SYSTEM",
+                category="system",
+                title=req.title.strip(),
+                body=req.body.strip(),
+            )
+            # send_push has no "system" notifPrefs category, so it defaults to ON
+            # (ungated) — appropriate for operator announcements.
+            await send_push(
+                user_id=uid,
+                category="system",
+                title=req.title.strip(),
+                body=req.body.strip(),
+                data={"type": "system"},
+            )
+            sent += 1
+        except Exception as e:
+            logger.exception(f"admin_broadcast: failed for user {uid}: {e}")
+    logger.info(f"admin_broadcast: sent to {sent} users — title={req.title.strip()!r}")
+    return {"message": "Broadcast sent", "recipients": sent}
+
 # ==================== IMAGE UPLOAD ====================
 
 class UploadImageBody(BaseModel):
