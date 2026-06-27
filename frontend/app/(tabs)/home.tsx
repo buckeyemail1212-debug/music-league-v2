@@ -11,6 +11,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
@@ -339,111 +340,84 @@ export default function HomeScreen() {
 
     return (
       <TouchableOpacity
-        style={styles.leagueCardV2}
+        style={styles.leagueTile}
         onPress={() => router.push(`/league/${item.id}`)}
         onLongPress={() => displayImage && setZoomLeagueImage(displayImage)}
         delayLongPress={300}
         activeOpacity={0.85}
       >
-        {/* Cover image (or solid-accent fallback) with overlays. */}
-        <View style={styles.leagueCover}>
+        {/* COVER — portrait 4/5 */}
+        <View style={styles.tileCover}>
           {displayImage ? (
-            <Image
-              source={{ uri: displayImage }}
-              style={styles.leagueCoverImage}
-              resizeMode="cover"
-            />
+            <Image source={{ uri: displayImage }} style={styles.tileCoverImage} resizeMode="cover" />
           ) : (
-            <View style={[styles.leagueCoverImage, styles.leagueCoverFallback]} />
+            <LinearGradient colors={['#7C3AED', '#4C1D95']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.tileCoverImage} />
           )}
-          {/* Bottom-left: member avatar stack — relocated onto the cover. */}
-          <View style={styles.leagueCoverAvatars}>
-            <View style={styles.memberAvatarsInline}>
-              {item.members.slice(0, 5).map((m, i) => (
-                <View
-                  key={m.id}
-                  style={[
-                    styles.memberAvatarInline,
-                    { marginLeft: i > 0 ? -8 : 0, zIndex: 5 - i },
-                  ]}
-                >
-                  {m.profile_photo ? (
-                    <Image source={{ uri: m.profile_photo }} style={styles.memberAvatarInlineImage} />
-                  ) : (
-                    <Ionicons name="person" size={14} color={colors.textTertiary} />
-                  )}
-                </View>
-              ))}
-              {item.members.length > 5 && (
-                <View
-                  style={[
-                    styles.memberAvatarInline,
-                    styles.memberAvatarInlineMore,
-                    { marginLeft: -8, zIndex: 0 },
-                  ]}
-                >
-                  <Text style={styles.memberAvatarInlineMoreText}>
-                    +{item.members.length - 5}
-                  </Text>
-                </View>
-              )}
-            </View>
-          </View>
-        </View>
+          {/* top dark overlay for pill legibility */}
+          <LinearGradient colors={['rgba(0,0,0,0.45)', 'transparent']} style={styles.tileOverlayTop} pointerEvents="none" />
+          {/* bottom dark overlay for avatars */}
+          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.45)']} style={styles.tileOverlayBottom} pointerEvents="none" />
 
-        {/* Body: eyebrow + headline. */}
-        <View style={styles.leagueCardBody}>
-          <Text style={styles.leagueCardEyebrow} numberOfLines={1}>
-            {`Round ${item.current_round || 1} of ${item.total_rounds}`}
-            {activeRound?.theme ? ` · ${activeRound.theme}` : ''}
-          </Text>
-          <View style={styles.leagueCardHeadlineRow}>
-            <Text style={[styles.leagueCardHeadline, { flex: 1 }]} numberOfLines={2}>
-              {item.name}
-            </Text>
+          {/* STATUS PILL — top-left on cover, dark translucent + colored dot. */}
+          <View style={styles.tilePillWrap}>
             {pillDeadline ? (
-              <CountdownPill deadline={pillDeadline} color={pillColor} prefix={pillPrefix} />
+              <View style={styles.tilePill}>
+                <View style={[styles.tilePillDot, { backgroundColor: pillColor }]} />
+                <CountdownPill deadline={pillDeadline} color="#FFFFFF" prefix={pillPrefix} />
+              </View>
             ) : pillText ? (
-              <View style={[styles.statusPill, { borderColor: pillColor, backgroundColor: `${pillColor}22` }]}>
-                <Text style={[styles.statusPillText, { color: pillColor }]}>{pillText}</Text>
+              <View style={styles.tilePill}>
+                <View style={[styles.tilePillDot, { backgroundColor: pillColor }]} />
+                <Text style={styles.tilePillText}>{pillText}</Text>
               </View>
             ) : null}
           </View>
 
-          {/* Progress row — same internal logic, moved inside the body. */}
-          {hasStarted && hasAnyPoints && rank !== null ? (
-            <View style={styles.leagueCardProgressRow}>
-              <Text style={styles.leagueCardRank}>#{rank}</Text>
-              <View style={styles.leagueCardMiddle}>
-                <Text style={[styles.leagueCardGap, isLeading && { color: '#10B981' }]}>
-                  {tiedAtRank
-                    ? `Tied for ${getOrdinalSuffix(rank)}`
-                    : isLeading
-                      ? 'Leading'
-                      : (() => {
-                          // Solo non-1st: render the gap to the highest-
-                          // scoring ACTIVE member. Left users are already
-                          // filtered out of `activeOnly`, so `leaderPoints`
-                          // is the right comparison anchor.
-                          const behind = Math.max(0, leaderPoints - myPoints);
-                          return `${formatPoints(behind)} ${behind === 1 ? 'pt' : 'pts'} behind`;
-                        })()}
-                </Text>
-                <View style={styles.progressBarTrack}>
-                  <View
-                    style={[
-                      styles.progressBarFill,
-                      {
-                        width: `${Math.max(4, progressPct * 100)}%`,
-                        backgroundColor: isLeading ? '#10B981' : '#7C3AED',
-                      },
-                    ]}
-                  />
-                </View>
+          {/* AVATARS — bottom-left, cap 4 */}
+          <View style={styles.tileAvatars}>
+            {item.members.slice(0, 4).map((m, i) => (
+              <View key={m.id} style={[styles.tileAvatar, { marginLeft: i > 0 ? -8 : 0, zIndex: 4 - i }]}>
+                {m.profile_photo ? (
+                  <Image source={{ uri: m.profile_photo }} style={styles.tileAvatarImg} />
+                ) : (
+                  <Ionicons name="person" size={12} color={colors.textTertiary} />
+                )}
               </View>
-              <Text style={styles.leagueCardTotal}>{myPoints}</Text>
+            ))}
+            {item.members.length > 4 && (
+              <View style={[styles.tileAvatar, styles.tileAvatarMore, { marginLeft: -8, zIndex: 0 }]}>
+                <Text style={styles.tileAvatarMoreText}>+{item.members.length - 4}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* CAPTION — below cover */}
+        <View style={styles.tileCaption}>
+          <Text style={styles.tileName} numberOfLines={2}>{item.name}</Text>
+          {activeRound?.theme ? <Text style={styles.tileTheme} numberOfLines={2}>{activeRound.theme}</Text> : null}
+          <Text style={styles.tileRound}>{`R${item.current_round || 1} of ${item.total_rounds}`}</Text>
+          {/* Standing line */}
+          <Text style={[styles.tileStanding, (hasStarted && hasAnyPoints && isLeading) && { color: '#10B981' }]} numberOfLines={1}>
+            {!hasStarted || !hasAnyPoints || rank === null
+              ? 'Waiting to start'
+              : tiedAtRank
+                ? `Tied for ${getOrdinalSuffix(rank)}`
+                : isLeading
+                  ? 'Leading'
+                  : `${formatPoints(Math.max(0, leaderPoints - myPoints))} ${Math.max(0, leaderPoints - myPoints) === 1 ? 'pt' : 'pts'} behind`}
+          </Text>
+
+          {/* Footer — place · progress · points (blank place when un-started) */}
+          <View style={styles.tileFooter}>
+            <Text style={[styles.tilePlace, (hasStarted && hasAnyPoints && isLeading) && { color: '#7C5CFF' }]}>
+              {!hasStarted || !hasAnyPoints || rank === null ? '' : isLeading ? '1st' : `#${rank}`}
+            </Text>
+            <View style={styles.tileProgressTrack}>
+              <View style={[styles.tileProgressFill, { width: `${(hasStarted && hasAnyPoints) ? Math.max(4, progressPct * 100) : 0}%`, backgroundColor: isLeading ? '#10B981' : '#7C5CFF' }]} />
             </View>
-          ) : null}
+            <Text style={styles.tilePoints}>{(hasStarted && hasAnyPoints) ? myPoints : 0}</Text>
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -606,10 +580,13 @@ export default function HomeScreen() {
         </View>
       ) : (
         <FlatList
+          key="leagues-grid-2col"
           ref={flatListRef}
           data={filteredLeagues}
           keyExtractor={(item) => item.id}
           renderItem={renderLeagueItem}
+          numColumns={2}
+          columnWrapperStyle={styles.leagueColumnWrapper}
           ListHeaderComponent={listHeader}
           ListFooterComponent={listFooter}
           ListEmptyComponent={
@@ -863,6 +840,32 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
+  // 2-column album-cover grid tiles
+  leagueColumnWrapper: { gap: 16, alignItems: 'flex-start', justifyContent: 'flex-start' },
+  leagueTile: { width: '48.5%', marginBottom: 16 },
+  tileCover: { width: '100%', aspectRatio: 4 / 5, position: 'relative', backgroundColor: '#EEE', borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 8, elevation: 3 },
+  tileCoverImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' },
+  tileOverlayTop: { position: 'absolute', top: 0, left: 0, right: 0, height: '40%' },
+  tileOverlayBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '40%' },
+  tilePillWrap: { position: 'absolute', top: 10, left: 10 },
+  tilePill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(0,0,0,0.55)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 11 },
+  tilePillDot: { width: 6, height: 6, borderRadius: 3 },
+  tilePillText: { color: '#FFFFFF', fontSize: 10, fontWeight: '700', letterSpacing: 0.3 },
+  tileAvatars: { position: 'absolute', bottom: 10, left: 10, flexDirection: 'row', alignItems: 'center' },
+  tileAvatar: { width: 24, height: 24, borderRadius: 12, backgroundColor: colors.surface3, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#FFFFFF', overflow: 'hidden' },
+  tileAvatarImg: { width: 24, height: 24, borderRadius: 12 },
+  tileAvatarMore: { backgroundColor: '#6B6B6B' },
+  tileAvatarMoreText: { color: '#FFFFFF', fontSize: 9, fontWeight: '800' },
+  tileCaption: { paddingHorizontal: 4, paddingTop: 10 },
+  tileName: { fontSize: 15, fontWeight: '800', color: '#161618' },
+  tileTheme: { fontSize: 12, color: 'rgba(60,60,67,0.62)', marginTop: 2 },
+  tileRound: { fontSize: 12, fontWeight: '600', color: 'rgba(60,60,67,0.62)', marginTop: 6 },
+  tileStanding: { fontSize: 12, fontWeight: '700', color: 'rgba(60,60,67,0.62)', marginTop: 2 },
+  tileFooter: { flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 8 },
+  tilePlace: { fontSize: 13, fontWeight: '800', color: '#161618', minWidth: 28 },
+  tileProgressTrack: { flex: 1, height: 4, backgroundColor: 'rgba(0,0,0,0.08)', borderRadius: 2, overflow: 'hidden' },
+  tileProgressFill: { height: 4, borderRadius: 2 },
+  tilePoints: { fontSize: 18, fontWeight: '800', color: '#161618', minWidth: 32, textAlign: 'right' },
   leagueCardV2: {
     backgroundColor: '#F2F2F2',
     borderRadius: 28,
