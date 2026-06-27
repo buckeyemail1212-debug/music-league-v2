@@ -112,7 +112,7 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       await register(email.toLowerCase().trim(), username.trim(), password, '', displayName.trim());
-      router.replace('/(tabs)/home');
+      router.replace('/(auth)/notifications-setup');
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.detail || 'Registration failed');
     } finally {
