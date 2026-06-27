@@ -96,6 +96,26 @@ function CountdownPill({
   );
 }
 
+// Same live-ticking logic as CountdownPill, but renders plain text (no pill
+// wrapper) — used in the tile caption where the countdown sits inline.
+function CountdownText({ deadline, style }: { deadline: string; style?: any }) {
+  const [nowMs, setNowMs] = useState<number>(() => Date.now());
+  useEffect(() => {
+    let cancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const schedule = () => {
+      if (cancelled) return;
+      const remaining = parseDeadline(deadline).getTime() - Date.now();
+      if (remaining <= 0) return;
+      const delay = remaining < 2 * 60 * 1000 ? 1000 : 30000;
+      timeoutId = setTimeout(() => { if (cancelled) return; setNowMs(Date.now()); schedule(); }, delay);
+    };
+    schedule();
+    return () => { cancelled = true; if (timeoutId) clearTimeout(timeoutId); };
+  }, [deadline]);
+  return <Text style={style}>{formatCountdown(deadline, nowMs)}</Text>;
+}
+
 // Smart-format a countdown:
 //   >24h → "2d 14h 23m"
 //   >1h  → "14h 23m"
@@ -338,6 +358,15 @@ export default function HomeScreen() {
     const hasStarted = item.current_round > 0 && !isScheduledR1;
     const hasAnyPoints = activeOnly.some((p) => (p.total_points || 0) > 0);
 
+    // Compact status word for the cover pill — independent of the countdown,
+    // which now renders as plain text in the caption.
+    let coverStatusLabel = pillText; // waiting/ready/submitted/voted/completed states
+    if (pillDeadline && !pillText) {
+      if (activeRound?.status === 'submission') coverStatusLabel = 'Submission open';
+      else if (activeRound?.status === 'voting') coverStatusLabel = 'Voting open';
+      else if (activeRound?.status === 'scheduled') coverStatusLabel = 'Starting soon';
+    }
+
     return (
       <TouchableOpacity
         style={styles.leagueTile}
@@ -358,20 +387,15 @@ export default function HomeScreen() {
           {/* bottom dark overlay for avatars */}
           <LinearGradient colors={['transparent', 'rgba(0,0,0,0.45)']} style={styles.tileOverlayBottom} pointerEvents="none" />
 
-          {/* STATUS PILL — top-left on cover, dark translucent + colored dot. */}
-          <View style={styles.tilePillWrap}>
-            {pillDeadline ? (
+          {/* STATUS PILL — compact status label on cover */}
+          {coverStatusLabel ? (
+            <View style={styles.tilePillWrap}>
               <View style={styles.tilePill}>
                 <View style={[styles.tilePillDot, { backgroundColor: pillColor }]} />
-                <CountdownPill deadline={pillDeadline} color="#FFFFFF" prefix={pillPrefix} />
+                <Text style={styles.tilePillText} numberOfLines={1}>{coverStatusLabel}</Text>
               </View>
-            ) : pillText ? (
-              <View style={styles.tilePill}>
-                <View style={[styles.tilePillDot, { backgroundColor: pillColor }]} />
-                <Text style={styles.tilePillText}>{pillText}</Text>
-              </View>
-            ) : null}
-          </View>
+            </View>
+          ) : null}
 
           {/* AVATARS — bottom-left, cap 4 */}
           <View style={styles.tileAvatars}>
@@ -395,18 +419,26 @@ export default function HomeScreen() {
         {/* CAPTION — below cover */}
         <View style={styles.tileCaption}>
           <Text style={styles.tileName} numberOfLines={2}>{item.name}</Text>
-          {activeRound?.theme ? <Text style={styles.tileTheme} numberOfLines={2}>{activeRound.theme}</Text> : null}
+          <Text style={styles.tileTheme} numberOfLines={2}>{activeRound?.theme || 'No round theme'}</Text>
           <Text style={styles.tileRound}>{`R${item.current_round || 1} of ${item.total_rounds}`}</Text>
-          {/* Standing line */}
-          <Text style={[styles.tileStanding, (hasStarted && hasAnyPoints && isLeading) && { color: '#10B981' }]} numberOfLines={1}>
-            {!hasStarted || !hasAnyPoints || rank === null
-              ? 'Waiting to start'
-              : tiedAtRank
+          {pillDeadline ? (
+            <View style={styles.tileCountdownRow}>
+              <Text style={styles.tileCountdownLabel}>{pillPrefix || 'Closes in'} </Text>
+              <CountdownText deadline={pillDeadline} style={styles.tileCountdownValue} />
+            </View>
+          ) : null}
+          {/* Standing line — only show "Waiting to start" when there's NO active countdown */}
+          {hasStarted && hasAnyPoints && rank !== null ? (
+            <Text style={[styles.tileStanding, isLeading && { color: '#10B981' }]} numberOfLines={1}>
+              {tiedAtRank
                 ? `Tied for ${getOrdinalSuffix(rank)}`
                 : isLeading
                   ? 'Leading'
                   : `${formatPoints(Math.max(0, leaderPoints - myPoints))} ${Math.max(0, leaderPoints - myPoints) === 1 ? 'pt' : 'pts'} behind`}
-          </Text>
+            </Text>
+          ) : !pillDeadline ? (
+            <Text style={styles.tileStanding} numberOfLines={1}>Waiting to start</Text>
+          ) : null}
 
           {/* Footer — place · progress · points (blank place when un-started) */}
           <View style={styles.tileFooter}>
@@ -860,6 +892,9 @@ const styles = StyleSheet.create({
   tileName: { fontSize: 15, fontWeight: '800', color: '#161618' },
   tileTheme: { fontSize: 12, color: 'rgba(60,60,67,0.62)', marginTop: 2 },
   tileRound: { fontSize: 12, fontWeight: '600', color: 'rgba(60,60,67,0.62)', marginTop: 6 },
+  tileCountdownRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2, flexWrap: 'wrap' },
+  tileCountdownLabel: { fontSize: 12, color: 'rgba(60,60,67,0.62)', fontWeight: '600' },
+  tileCountdownValue: { fontSize: 12, color: '#7C5CFF', fontWeight: '800' },
   tileStanding: { fontSize: 12, fontWeight: '700', color: 'rgba(60,60,67,0.62)', marginTop: 2 },
   tileFooter: { flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 8 },
   tilePlace: { fontSize: 13, fontWeight: '800', color: '#161618', minWidth: 28 },
