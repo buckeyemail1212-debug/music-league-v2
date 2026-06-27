@@ -8034,7 +8034,12 @@ async def send_message(league_id: str, message: MessageCreate, current_user: dic
         {"$set": {"last_read_at": datetime.now(timezone.utc)}},
         upsert=True
     )
-    
+
+    # Push every other member (gated by their notif_prefs "group" toggle).
+    for _mid in member_ids:
+        if _mid and _mid != current_user["id"]:
+            await send_push(user_id=_mid, category="group", title=league.get("name") or "League chat", body=f'{current_user["username"]}: {message.content.strip()[:100]}', data={"type": "group", "ref_id": league_id})
+
     return MessageResponse(**message_doc)
 
 @api_router.get("/leagues/{league_id}/chat-status", response_model=ChatStatusResponse)
@@ -8502,6 +8507,7 @@ async def send_dm_message(conversation_id: str, body: dict, current_user: dict =
         {"id": conversation_id},
         {"$set": {"last_message_at": now, "last_message_text": text[:120], "hidden_for": []}},
     )
+    await send_push(user_id=other_id, category="dm", title=current_user["username"], body=text[:120], data={"type": "dm", "ref_id": conversation_id})
     return {"data": {"message": msg}}
 
 
