@@ -347,6 +347,17 @@ export default function SettingsPage() {
           />
         </View>
 
+        {/* Notifications */}
+        <Text style={styles.sectionLabel}>Notifications</Text>
+        <View style={styles.group}>
+          <Row
+            icon="notifications-outline"
+            label="Notifications"
+            onPress={() => router.push('/notification-settings' as any)}
+            last
+          />
+        </View>
+
         {/* Legal */}
         <Text style={styles.sectionLabel}>Legal</Text>
         <View style={styles.group}>
