@@ -1073,7 +1073,20 @@ async def register(user_data: UserCreate):
         "created_at": datetime.utcnow()
     }
     await db.users.insert_one(user)
-    
+
+    # Welcome notification — lands in the new user's System inbox on first open.
+    # Inbox-only (no push): at signup the user hasn't granted push permission yet.
+    try:
+        await create_notification(
+            user_id=user_id,
+            type="SYSTEM",
+            category="system",
+            title="Welcome to Riff",
+            body="Glad you're here! Create a league or join one with a code to start settling who has the best taste.",
+        )
+    except Exception:
+        pass
+
     # Create token
     access_token = create_access_token({"sub": user_id})
     
