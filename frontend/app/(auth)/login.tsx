@@ -12,7 +12,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
 import { checkUsername } from '../../src/services/api';
@@ -38,8 +38,9 @@ function passwordStrength(pw: string): { score: number; label: string; color: st
 }
 
 export default function LoginScreen() {
+  const params = useLocalSearchParams<{ email?: string }>();
   const [mode, setMode] = useState<Mode>('signin');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(params.email ?? '');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -336,7 +337,7 @@ export default function LoginScreen() {
               <TouchableOpacity
                 style={styles.forgotWrap}
                 activeOpacity={0.7}
-                onPress={() => Alert.alert('Coming soon', 'Password reset is coming soon.')}
+                onPress={() => router.push('/(auth)/reset-password')}
               >
                 <Text style={styles.forgotText}>Forgot password?</Text>
               </TouchableOpacity>

@@ -638,14 +638,17 @@ export const checkUsername = (u: string) =>
   api.get<{ available: boolean; reason?: string }>('/auth/check-username', { params: { u } });
 
 // Password Reset APIs
-export const forgotPassword = (phone_number: string) =>
-  api.post('/auth/forgot-password', { phone_number });
+export const forgotPassword = (email: string) =>
+  api.post('/auth/forgot-password', { email });
 
-export const verifyResetCode = (phone_number: string, code: string) =>
-  api.post('/auth/verify-reset-code', { phone_number, code });
+export const verifyResetCode = (email: string, code: string) =>
+  api.post('/auth/verify-reset-code', { email, code });
 
-export const resetPassword = (phone_number: string, code: string, new_password: string) =>
-  api.post('/auth/reset-password', { phone_number, code, new_password });
+export const resetPassword = (email: string, code: string, new_password: string) =>
+  api.post<{ message: string; access_token: string; user: { id: string; email: string; username: string; display_name: string } }>(
+    '/auth/reset-password',
+    { email, code, new_password },
+  );
 
 // Delete Account
 export const deleteAccount = () =>
