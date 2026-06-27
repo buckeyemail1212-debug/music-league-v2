@@ -9,7 +9,7 @@ import {
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../../src/theme/colors';
@@ -20,6 +20,8 @@ const { width } = Dimensions.get('window');
 export default function OnboardingTourScreen() {
   const { user } = useAuth();
   const router = useRouter();
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
+  const isReplay = mode === 'replay';
   const scrollRef = useRef<ScrollView>(null);
   const [pageIndex, setPageIndex] = useState(0);
 
@@ -33,6 +35,7 @@ export default function OnboardingTourScreen() {
   };
 
   const finishOnboarding = async () => {
+    if (isReplay) { router.back(); return; }
     try { await AsyncStorage.setItem('onboarding_complete', 'true'); } catch {}
     router.replace('/(tabs)/home');
   };
@@ -238,9 +241,20 @@ export default function OnboardingTourScreen() {
           onPress={() => (pageIndex < 3 ? goToPage(pageIndex + 1) : finishOnboarding())}
         >
           <Text style={styles.primaryBtnText}>
-            {pageIndex < 3 ? 'Continue' : 'Start playing'}
+            {pageIndex < 3 ? 'Continue' : (isReplay ? 'Done' : 'Start playing')}
           </Text>
         </TouchableOpacity>
+        {pageIndex === 3 ? (
+          <TouchableOpacity
+            onPress={() => router.push('/how-to-play' as any)}
+            activeOpacity={0.7}
+            style={{ marginTop: 12, alignItems: 'center' }}
+          >
+            <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: '600' }}>
+              Full guide & glossary
+            </Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
     </SafeAreaView>
   );

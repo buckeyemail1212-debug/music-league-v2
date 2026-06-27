@@ -342,7 +342,7 @@ export default function SettingsPage() {
           <Row
             icon="help-circle-outline"
             label="How to Play"
-            onPress={() => router.push('/how-to-play' as any)}
+            onPress={() => router.push('/(auth)/onboarding-tour?mode=replay' as any)}
             last
           />
         </View>

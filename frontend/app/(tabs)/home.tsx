@@ -482,13 +482,6 @@ export default function HomeScreen() {
 
         <TouchableOpacity
           style={styles.headerIconBtn}
-          onPress={() => router.push('/how-to-play' as any)}
-        >
-          <Ionicons name="help-circle-outline" size={24} color="#000000" />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.headerIconBtn}
           onPress={() => router.push('/inbox' as any)}
         >
           <Ionicons name="chatbubble-outline" size={24} color="#000000" />
