@@ -6732,6 +6732,23 @@ async def start_round(
             {"$set": {"current_round": round_number}},
         )
 
+    # Notify members the round is open (league_start for R1, submit_open otherwise)
+    try:
+        for m in league.get("members", []):
+            mid = m.get("id")
+            if not mid:
+                continue
+            if round_number == 1:
+                await send_push(mid, "league_start", title=league.get("name", "Your league"),
+                    body="Your league has started — submit your first song!",
+                    data={"type": "league_start", "ref_id": round_doc["id"]})
+            else:
+                await send_push(mid, "submit_open", title=league.get("name", "League"),
+                    body=f"Round {round_number} is open — submit your song!",
+                    data={"type": "submit_open", "ref_id": round_doc["id"]})
+    except Exception:
+        pass
+
     logger.info(
         f"round_started: league={league_id} round={round_number} "
         f"by={current_user['id']} sub_deadline={new_sub_deadline.isoformat()}"
@@ -6779,6 +6796,17 @@ async def advance_round(round_id: str, current_user: dict = Depends(get_current_
                 "forfeit_missing_voter_pools": True,
             }}
         )
+        # Notify members voting is open
+        try:
+            for m in league.get("members", []):
+                mid = m.get("id")
+                if not mid:
+                    continue
+                await send_push(mid, "vote_open", title=league.get("name", "League"),
+                    body="Voting is open — rank the songs!",
+                    data={"type": "vote_open", "ref_id": round_id})
+        except Exception:
+            pass
         return {"message": "Round advanced to voting phase"}
     elif round_doc["status"] == "voting":
         # Same transition as the scheduler / lazy paths. The helper locks
@@ -8993,6 +9021,17 @@ async def _start_scheduled_public_rounds(now: datetime) -> None:
                 f"scheduled_round_started: league={r['league_id']} "
                 f"round={round_number}"
             )
+            # Notify members the public league's first round has started
+            try:
+                for m in league.get("members", []):
+                    mid = m.get("id")
+                    if not mid:
+                        continue
+                    await send_push(mid, "league_start", title=league.get("name", "Your league"),
+                        body="Your league has started — submit your first song!",
+                        data={"type": "league_start", "ref_id": r["id"]})
+            except Exception:
+                pass
         except Exception as e:
             logger.exception(
                 f"auto-advance: scheduled-start handler failed for round {r.get('id')}: {e}"
@@ -9030,6 +9069,19 @@ async def _advance_submission_expired(round_doc: dict, now: datetime) -> None:
             "forfeit_missing_voter_pools": True,
         }},
     )
+
+    # Notify members voting is open (auto path)
+    try:
+        _lg = await db.leagues.find_one({"id": league_id})
+        for m in (_lg.get("members", []) if _lg else []):
+            mid = m.get("id")
+            if not mid:
+                continue
+            await send_push(mid, "vote_open", title=(_lg.get("name") if _lg else "League"),
+                body="Voting is open — rank the songs!",
+                data={"type": "vote_open", "ref_id": round_id})
+    except Exception:
+        pass
 
 
 async def _advance_voting_expired(round_doc: dict, now: datetime) -> None:
