@@ -886,6 +886,49 @@ async def create_notification(
     }
     await db.notifications.insert_one(doc)
 
+NOTIF_PREF_CATEGORIES = {
+    "league_start","submit_open","vote_open","submit_30","vote_30","results",
+    "follow_req","new_follower","reactions","dm","group",
+}
+
+def _expo_push_send(messages: list[dict]):
+    """POST a batch of messages to Expo's push API. Runs in a thread."""
+    try:
+        resp = _requests.post(
+            "https://exp.host/--/api/v2/push/send",
+            headers={"Content-Type": "application/json", "Accept": "application/json"},
+            json=messages,
+            timeout=10,
+        )
+        if resp.status_code >= 400:
+            logger.error(f"Expo push failed ({resp.status_code}): {resp.text}")
+    except Exception as e:
+        logger.error(f"Expo push error: {e}")
+
+async def send_push(user_id: str, category: str, title: str, body: str, data: Optional[dict] = None) -> None:
+    """Send an OS push to all of a user's devices for a given notifPrefs category,
+    gated by the user's stored notif_prefs. Fire-and-forget. category is one of
+    the 11 NOTIF_PREF_CATEGORIES. If the user has no stored pref for the category,
+    default to ON (send)."""
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "push_tokens": 1, "notif_prefs": 1})
+    if not user:
+        return
+    tokens = user.get("push_tokens") or []
+    if not tokens:
+        return
+    prefs = user.get("notif_prefs") or {}
+    # Default ON when the category isn't explicitly set to False
+    if prefs.get(category) is False:
+        return
+    messages = [
+        {"to": t, "title": title, "body": body, "sound": "default", **({"data": data} if data else {})}
+        for t in tokens
+        if isinstance(t, str) and t.startswith("ExponentPushToken")
+    ]
+    if not messages:
+        return
+    await asyncio.to_thread(_expo_push_send, messages)
+
 # Timezone mapping for "same clock time" calculations
 TIMEZONE_MAP = {
     'EST': 'America/New_York',
@@ -1063,6 +1106,36 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         pronouns=current_user.get("pronouns"),
         bio=current_user.get("bio"),
     )
+
+class PushTokenRequest(BaseModel):
+    token: str
+
+@api_router.post("/users/me/push-token")
+async def register_push_token(request: PushTokenRequest, current_user: dict = Depends(get_current_user)):
+    """Register/store an Expo push token for the current user's device (deduped)."""
+    token = (request.token or "").strip()
+    if not token.startswith("ExponentPushToken"):
+        raise HTTPException(status_code=400, detail="Invalid push token")
+    await db.users.update_one(
+        {"id": current_user["id"]},
+        {"$addToSet": {"push_tokens": token}},  # $addToSet dedupes
+    )
+    return {"message": "Token registered"}
+
+class NotifPrefsRequest(BaseModel):
+    prefs: dict
+
+@api_router.post("/users/me/notif-prefs")
+async def save_notif_prefs(request: NotifPrefsRequest, current_user: dict = Depends(get_current_user)):
+    """Store the user's notification category preferences (the 11 toggles) so
+    server-side push delivery can gate on them. Only known categories are kept."""
+    incoming = request.prefs or {}
+    clean = {k: bool(v) for k, v in incoming.items() if k in NOTIF_PREF_CATEGORIES}
+    await db.users.update_one(
+        {"id": current_user["id"]},
+        {"$set": {"notif_prefs": clean}},
+    )
+    return {"message": "Preferences saved", "prefs": clean}
 
 def send_email(to_email: str, subject: str, html_body: str):
     """Send an email via Resend."""
