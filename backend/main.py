@@ -616,14 +616,14 @@ class UserLogin(BaseModel):
     password: str
 
 class ForgotPasswordRequest(BaseModel):
-    phone_number: str
+    email: str
 
 class VerifyCodeRequest(BaseModel):
-    phone_number: str
+    email: str
     code: str
 
 class ResetPasswordRequest(BaseModel):
-    phone_number: str
+    email: str
     code: str
     new_password: str
 
@@ -1097,38 +1097,69 @@ def send_sms(to_phone: str, body: str):
     except Exception as e:
         logger.error(f"Failed to send SMS: {e}")
 
+def send_email(to_email: str, subject: str, html_body: str):
+    """Send an email via Resend."""
+    api_key = os.environ.get("RESEND_API_KEY", "")
+    if not api_key:
+        logger.warning("RESEND_API_KEY not configured — email not sent")
+        return
+    try:
+        resp = _requests.post(
+            "https://api.resend.com/emails",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "from": "Riff <noreply@theriffapp.com>",
+                "to": [to_email],
+                "subject": subject,
+                "html": html_body,
+            },
+            timeout=10,
+        )
+        if resp.status_code >= 400:
+            logger.error(f"Resend send failed ({resp.status_code}): {resp.text}")
+        else:
+            logger.info(f"Email sent to {to_email}")
+    except Exception as e:
+        logger.error(f"Failed to send email: {e}")
+
 @api_router.post("/auth/forgot-password")
 async def forgot_password(request: ForgotPasswordRequest):
-    """Send a 6-digit reset code via SMS to the user's phone number"""
-    user = await db.users.find_one({"phone_number": request.phone_number}, {"_id": 0, "id": 1})
+    """Send a 6-digit reset code via email to the user's email address."""
+    email = request.email.lower().strip()
+    user = await db.users.find_one({"email": email}, {"_id": 0, "id": 1})
     if not user:
-        # Don't reveal if account exists or not
-        return {"message": "If an account exists with this phone number, a code has been sent"}
+        # Don't reveal whether an account exists
+        return {"message": "If an account exists with this email, a code has been sent"}
 
-    # Generate 6-digit code
     code = ''.join(random.choices(string.digits, k=6))
 
-    # Store code with expiry (15 minutes)
-    await db.reset_codes.delete_many({"phone_number": request.phone_number})
+    await db.reset_codes.delete_many({"email": email})
     await db.reset_codes.insert_one({
-        "phone_number": request.phone_number,
+        "email": email,
         "code": code,
         "created_at": datetime.now(timezone.utc),
-        "expires_at": datetime.now(timezone.utc) + timedelta(minutes=15)
+        "expires_at": datetime.now(timezone.utc) + timedelta(minutes=15),
     })
 
-    # Send SMS in a background thread
-    sms_body = f"Your Music Leeg reset code is: {code}\n\nIt expires in 15 minutes."
-    await asyncio.to_thread(send_sms, request.phone_number, sms_body)
+    subject = "Your Riff password reset code"
+    html_body = (
+        f"<p>Your Riff password reset code is:</p>"
+        f"<p style=\"font-size:24px;font-weight:bold;letter-spacing:2px;\">{code}</p>"
+        f"<p>It expires in 15 minutes. If you didn't request this, you can ignore this email.</p>"
+    )
+    await asyncio.to_thread(send_email, email, subject, html_body)
 
-    return {"message": "If an account exists with this phone number, a code has been sent"}
+    return {"message": "If an account exists with this email, a code has been sent"}
 
 @api_router.post("/auth/verify-reset-code")
 async def verify_reset_code(request: VerifyCodeRequest):
     """Verify the reset code"""
     reset_doc = await db.reset_codes.find_one({
-        "phone_number": request.phone_number,
-        "code": request.code
+        "email": request.email.lower().strip(),
+        "code": request.code,
     })
 
     if not reset_doc:
@@ -1143,8 +1174,8 @@ async def verify_reset_code(request: VerifyCodeRequest):
 async def reset_password(request: ResetPasswordRequest):
     """Reset password after verifying code, returns token so user is auto-logged in"""
     reset_doc = await db.reset_codes.find_one({
-        "phone_number": request.phone_number,
-        "code": request.code
+        "email": request.email.lower().strip(),
+        "code": request.code,
     })
 
     if not reset_doc:
@@ -1153,8 +1184,8 @@ async def reset_password(request: ResetPasswordRequest):
     if datetime.now(timezone.utc) > reset_doc["expires_at"].replace(tzinfo=timezone.utc):
         raise HTTPException(status_code=400, detail="Code has expired")
 
-    # Find user by phone number and update password
-    user = await db.users.find_one({"phone_number": request.phone_number})
+    # Find user by email and update password
+    user = await db.users.find_one({"email": request.email.lower().strip()})
     if not user:
         raise HTTPException(status_code=404, detail="Account not found")
 
@@ -1164,7 +1195,7 @@ async def reset_password(request: ResetPasswordRequest):
     )
 
     # Delete used code
-    await db.reset_codes.delete_many({"phone_number": request.phone_number})
+    await db.reset_codes.delete_many({"email": request.email.lower().strip()})
 
     # Return token + user so client can auto-login
     access_token = create_access_token({"sub": user["id"]})
