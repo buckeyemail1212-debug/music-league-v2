@@ -41,11 +41,6 @@ SECRET_KEY = os.environ['JWT_SECRET']
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 
-# Twilio SMS settings
-TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID', '')
-TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN', '')
-TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER', '')
-
 # Cloudinary settings — used for hosted image uploads (e.g. stories).
 cloudinary.config(
     cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME'),
@@ -627,10 +622,6 @@ class ResetPasswordRequest(BaseModel):
     code: str
     new_password: str
 
-class DeleteByCredentialsRequest(BaseModel):
-    email: EmailStr
-    phone_number: str
-
 class UserResponse(BaseModel):
     id: str
     email: str
@@ -1081,22 +1072,6 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         bio=current_user.get("bio"),
     )
 
-def send_sms(to_phone: str, body: str):
-    """Send an SMS via Twilio"""
-    if not TWILIO_ACCOUNT_SID or not TWILIO_AUTH_TOKEN or not TWILIO_PHONE_NUMBER:
-        logger.warning("Twilio credentials not configured — SMS not sent")
-        return
-    try:
-        twilio_client = TwilioClient(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-        twilio_client.messages.create(
-            body=body,
-            from_=TWILIO_PHONE_NUMBER,
-            to=to_phone,
-        )
-        logger.info(f"SMS sent to {to_phone}")
-    except Exception as e:
-        logger.error(f"Failed to send SMS: {e}")
-
 def send_email(to_email: str, subject: str, html_body: str):
     """Send an email via Resend."""
     api_key = os.environ.get("RESEND_API_KEY", "")
@@ -1286,7 +1261,7 @@ async def delete_account(current_user: dict = Depends(get_current_user)):
     await db.chat_reads.delete_many({"user_id": user_id})
 
     # Delete any password reset codes
-    await db.reset_codes.delete_many({"phone_number": current_user.get("phone_number", "")})
+    await db.reset_codes.delete_many({"email": current_user.get("email", "")})
 
     # Remove user from extended_submissions in any rounds
     await db.rounds.update_many(
@@ -1591,7 +1566,7 @@ async def users_me_delete(current_user: dict = Depends(get_current_user)):
 
     # 5. Password reset codes.
     await db.reset_codes.delete_many(
-        {"phone_number": current_user.get("phone_number", "")},
+        {"email": current_user.get("email", "")},
     )
 
     # 6. Clear data sweep (past snapshots, taste, lifetime counters).
@@ -1605,39 +1580,6 @@ async def users_me_delete(current_user: dict = Depends(get_current_user)):
     logger.info(f"users_me_delete: user={user_id} clear_counts={counts}")
     return {"message": "Account deleted", "deleted": counts}
 
-
-@api_router.post("/auth/delete-by-credentials")
-async def delete_account_by_credentials(request: DeleteByCredentialsRequest):
-    """Delete user account by verifying email and phone number"""
-    user = await db.users.find_one({"email": request.email}, {"_id": 0})
-    
-    if not user:
-        raise HTTPException(status_code=404, detail="No account found with this email")
-    
-    if user.get("phone_number", "") != request.phone_number:
-        raise HTTPException(status_code=400, detail="Phone number does not match")
-    
-    user_id = user["id"]
-    
-    # Delete user's submissions
-    await db.submissions.delete_many({"user_id": user_id})
-    
-    # Delete user's votes
-    await db.votes.delete_many({"voter_id": user_id})
-    
-    # Remove user from all leagues
-    await db.leagues.update_many(
-        {"members.id": user_id},
-        {"$pull": {"members": {"id": user_id}}}
-    )
-    
-    # Delete leagues created by user
-    await db.leagues.delete_many({"creator_id": user_id})
-    
-    # Delete user
-    await db.users.delete_one({"id": user_id})
-    
-    return {"message": "Account deleted successfully"}
 
 @api_router.get("/auth/stats")
 async def get_user_stats(current_user: dict = Depends(get_current_user)):
