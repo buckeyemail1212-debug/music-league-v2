@@ -196,7 +196,6 @@ export default function CreatePhotoStoryScreen() {
   );
 
   const takePhoto = async () => {
-    console.log('[PHOTO] picker opening');
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (perm.status !== 'granted') {
       Alert.alert('Permission Required', 'Please grant camera access to take a photo.');
@@ -209,21 +208,17 @@ export default function CreatePhotoStoryScreen() {
         allowsEditing: false,
         base64: true,
       });
-      console.log('[PHOTO] picker result:', JSON.stringify(result));
       if (result.canceled) {
-        console.log('[PHOTO] canceled, photoUri is:', photoUri);
         return;
       }
-      console.log('[PHOTO] setting photoUri to:', result.assets[0].uri);
       setPhotoUri(result.assets[0].uri);
       setPhotoBase64(result.assets[0].base64 || null);
     } catch (e) {
-      console.log('[PHOTO] picker threw:', String(e), JSON.stringify(e));
+      Alert.alert('Could not add photo', 'Please try again.');
     }
   };
 
   const pickFromLibrary = async () => {
-    console.log('[PHOTO] picker opening');
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (perm.status !== 'granted') {
       Alert.alert('Permission Required', 'Please grant photo library access to add a photo.');
@@ -237,16 +232,13 @@ export default function CreatePhotoStoryScreen() {
         allowsEditing: false,
         base64: true,
       });
-      console.log('[PHOTO] picker result:', JSON.stringify(result));
       if (result.canceled) {
-        console.log('[PHOTO] canceled, photoUri is:', photoUri);
         return;
       }
-      console.log('[PHOTO] setting photoUri to:', result.assets[0].uri);
       setPhotoUri(result.assets[0].uri);
       setPhotoBase64(result.assets[0].base64 || null);
     } catch (e) {
-      console.log('[PHOTO] picker threw:', String(e), JSON.stringify(e));
+      Alert.alert('Could not add photo', 'Please try again.');
     }
   };
 
