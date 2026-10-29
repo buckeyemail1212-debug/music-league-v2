@@ -3709,6 +3709,37 @@ async def unblock_user(user_id: str, current_user: dict = Depends(get_current_us
     return {"data": {"blocked": False}}
 
 
+class ReportCreate(BaseModel):
+    target_type: str  # 'user' | 'story' | 'message' | 'submission'
+    target_id: str
+    reason: str
+    context: Optional[str] = None  # optional free text / extra id (e.g. league_id)
+
+
+@api_router.post("/report")
+async def create_report(body: ReportCreate, current_user: dict = Depends(get_current_user)):
+    valid_types = {"user", "story", "message", "submission"}
+    if body.target_type not in valid_types:
+        raise HTTPException(status_code=400, detail="Invalid report target type")
+    if not body.target_id or not body.reason:
+        raise HTTPException(status_code=400, detail="Missing report details")
+    # Prevent self-reporting a user
+    if body.target_type == "user" and body.target_id == current_user["id"]:
+        raise HTTPException(status_code=400, detail="You can't report yourself")
+    doc = {
+        "id": str(uuid.uuid4()),
+        "reporter_id": current_user["id"],
+        "target_type": body.target_type,
+        "target_id": body.target_id,
+        "reason": body.reason,
+        "context": body.context,
+        "status": "open",
+        "created_at": datetime.now(timezone.utc),
+    }
+    await db.reports.insert_one(doc)
+    return {"ok": True}
+
+
 @api_router.get("/blocked")
 async def get_blocked_users(
     limit: int = 50,

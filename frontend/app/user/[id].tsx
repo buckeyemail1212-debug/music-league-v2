@@ -24,6 +24,7 @@ import {
   getUserProfile,
   unfollowUser,
   removeFollower,
+  reportContent,
   startConversation,
   FollowStatus,
   UserProfileResponse,
@@ -246,6 +247,51 @@ export default function UserProfileScreen() {
     );
   };
 
+  const REPORT_REASONS = [
+    'Spam',
+    'Harassment or bullying',
+    'Hate speech or symbols',
+    'Nudity or sexual content',
+    'Other',
+  ];
+
+  const confirmReport = () => {
+    if (!profile) return;
+    const username = profile.username;
+    const submit = async (reason: string) => {
+      try {
+        await reportContent('user', profile.user_id, reason);
+      } catch {
+        Alert.alert('Could not submit report, please try again.');
+        return;
+      }
+      Alert.alert(
+        "Thanks for reporting — we'll review this. You can also block this user.",
+        '',
+        [
+          { text: 'Block', style: 'destructive', onPress: confirmBlock },
+          { text: 'OK', style: 'cancel' },
+        ],
+      );
+    };
+    if (Platform.OS === 'ios') {
+      const labels = [...REPORT_REASONS, 'Cancel'];
+      const cancelButtonIndex = labels.length - 1;
+      ActionSheetIOS.showActionSheetWithOptions(
+        { title: `Report @${username}`, options: labels, cancelButtonIndex },
+        (i) => {
+          if (i === cancelButtonIndex || i === undefined) return;
+          submit(REPORT_REASONS[i]);
+        },
+      );
+    } else {
+      Alert.alert(`Report @${username}`, '', [
+        ...REPORT_REASONS.map((r) => ({ text: r, onPress: () => submit(r) })),
+        { text: 'Cancel', style: 'cancel' as const },
+      ]);
+    }
+  };
+
   const confirmRemoveFollower = () => {
     if (!profile) return;
     const username = profile.username;
@@ -321,6 +367,8 @@ export default function UserProfileScreen() {
       onPress: confirmBlock,
       destructive: true,
     });
+
+    opts.push({ label: `Report @${username}`, onPress: confirmReport });
 
     return opts;
   };

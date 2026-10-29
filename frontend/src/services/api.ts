@@ -837,6 +837,14 @@ export interface BlockedUsersResponse {
 export const blockUser = (userId: string) =>
   api.post<{ data: { blocked: true } }>('/block', { user_id: userId });
 
+export const reportContent = (
+  targetType: 'user' | 'story' | 'message' | 'submission',
+  targetId: string,
+  reason: string,
+  context?: string,
+) =>
+  api.post('/report', { target_type: targetType, target_id: targetId, reason, context });
+
 export const unblockUser = (userId: string) =>
   api.delete<{ data: { blocked: false } }>(`/block/${userId}`);
 

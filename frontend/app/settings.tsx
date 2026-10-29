@@ -14,6 +14,7 @@ import {
   Platform,
   ActionSheetIOS,
   Switch,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -40,7 +41,6 @@ export default function SettingsPage() {
   const [editName, setEditName] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const [legalOpen, setLegalOpen] = useState<null | 'privacy' | 'terms'>(null);
   const [clearBusy, setClearBusy] = useState(false);
   const [clearSuccess, setClearSuccess] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
@@ -364,13 +364,13 @@ export default function SettingsPage() {
           <Row
             icon="document-text-outline"
             label="Terms of service"
-            onPress={() => setLegalOpen('terms')}
+            onPress={() => Linking.openURL('https://www.theriffapp.com/#terms-of-service')}
           />
           <Separator />
           <Row
             icon="shield-outline"
             label="Privacy policy"
-            onPress={() => setLegalOpen('privacy')}
+            onPress={() => Linking.openURL('https://www.theriffapp.com/#privacy-policy')}
             last
           />
         </View>
@@ -482,35 +482,6 @@ export default function SettingsPage() {
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
-      </Modal>
-
-      {/* Legal modal */}
-      <Modal
-        visible={legalOpen !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setLegalOpen(null)}
-      >
-        <View style={styles.overlay}>
-          <View style={styles.popup}>
-            <Text style={styles.popupTitle}>
-              {legalOpen === 'privacy' ? 'Privacy policy' : 'Terms of service'}
-            </Text>
-            <ScrollView style={{ maxHeight: 280 }}>
-              <Text style={styles.legalBody}>
-                {legalOpen === 'privacy'
-                  ? 'Riff collects your email address, display name, and profile photo to provide the app experience. We do not sell your data to third parties. Song submissions and votes are stored to calculate league results. You can delete your account and all associated data at any time from this screen. By using this app you agree to these terms.'
-                  : 'Riff is provided for entertainment purposes. You are responsible for the content you submit including song selections and chat messages. We reserve the right to suspend accounts that violate community standards. Song previews are provided by Deezer for personal use only. We may update these terms at any time and continued use of the app constitutes acceptance.'}
-              </Text>
-            </ScrollView>
-            <TouchableOpacity
-              style={styles.popupSave}
-              onPress={() => setLegalOpen(null)}
-            >
-              <Text style={styles.popupSaveText}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
       </Modal>
 
       {/* Clear account data — confirm modal */}
@@ -893,12 +864,6 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   popupCancelText: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
-  legalBody: {
-    color: colors.textSecondary,
-    fontSize: 13,
-    lineHeight: 20,
-    marginBottom: 16,
-  },
 
   successIcon: {
     alignItems: 'center',
