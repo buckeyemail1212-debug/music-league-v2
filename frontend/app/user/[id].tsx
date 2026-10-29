@@ -24,7 +24,6 @@ import {
   getUserProfile,
   unfollowUser,
   removeFollower,
-  reportContent,
   startConversation,
   FollowStatus,
   UserProfileResponse,
@@ -33,6 +32,7 @@ import { apiCache } from '../../src/services/apiCache';
 import UserStatsTab from '../../src/components/user-profile-tabs/UserStatsTab';
 import UserLikedSongsTab from '../../src/components/user-profile-tabs/UserLikedSongsTab';
 import ExpandableImage from '../../src/components/ExpandableImage';
+import ReportReasonSheet from '../../src/components/ReportReasonSheet';
 import { colors } from '../../src/theme/colors';
 
 type TabKey = 'stats' | 'liked';
@@ -64,6 +64,7 @@ export default function UserProfileScreen() {
   const [loadError, setLoadError] = useState<'notfound' | 'network' | null>(null);
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<TabKey>('stats');
+  const [reportOpen, setReportOpen] = useState(false);
 
   // Horizontal flick switches tabs (instant). Fling only fires on a
   // deliberate horizontal flick, so it won't fight the vertical
@@ -247,49 +248,15 @@ export default function UserProfileScreen() {
     );
   };
 
-  const REPORT_REASONS = [
-    'Spam',
-    'Harassment or bullying',
-    'Hate speech or symbols',
-    'Nudity or sexual content',
-    'Other',
-  ];
-
-  const confirmReport = () => {
-    if (!profile) return;
-    const username = profile.username;
-    const submit = async (reason: string) => {
-      try {
-        await reportContent('user', profile.user_id, reason);
-      } catch {
-        Alert.alert('Could not submit report, please try again.');
-        return;
-      }
-      Alert.alert(
-        "Thanks for reporting — we'll review this. You can also block this user.",
-        '',
-        [
-          { text: 'Block', style: 'destructive', onPress: confirmBlock },
-          { text: 'OK', style: 'cancel' },
-        ],
-      );
-    };
-    if (Platform.OS === 'ios') {
-      const labels = [...REPORT_REASONS, 'Cancel'];
-      const cancelButtonIndex = labels.length - 1;
-      ActionSheetIOS.showActionSheetWithOptions(
-        { title: `Report @${username}`, options: labels, cancelButtonIndex },
-        (i) => {
-          if (i === cancelButtonIndex || i === undefined) return;
-          submit(REPORT_REASONS[i]);
-        },
-      );
-    } else {
-      Alert.alert(`Report @${username}`, '', [
-        ...REPORT_REASONS.map((r) => ({ text: r, onPress: () => submit(r) })),
-        { text: 'Cancel', style: 'cancel' as const },
-      ]);
-    }
+  const offerBlockAfterReport = () => {
+    Alert.alert(
+      'Thanks for reporting',
+      "We'll review this. You can also block this user.",
+      [
+        { text: 'Block', style: 'destructive', onPress: confirmBlock },
+        { text: 'OK', style: 'cancel' },
+      ],
+    );
   };
 
   const confirmRemoveFollower = () => {
@@ -368,7 +335,7 @@ export default function UserProfileScreen() {
       destructive: true,
     });
 
-    opts.push({ label: `Report @${username}`, onPress: confirmReport });
+    opts.push({ label: `Report @${username}`, onPress: () => setReportOpen(true) });
 
     return opts;
   };
@@ -637,6 +604,16 @@ export default function UserProfileScreen() {
           </>
         )}
       </ScrollView>
+
+      <ReportReasonSheet
+        visible={reportOpen}
+        onClose={() => setReportOpen(false)}
+        targetType="user"
+        targetId={profile.user_id}
+        targetLabel={`@${profile.username}`}
+        showSuccessAlert={false}
+        onReported={offerBlockAfterReport}
+      />
     </SafeAreaView>
   );
 }

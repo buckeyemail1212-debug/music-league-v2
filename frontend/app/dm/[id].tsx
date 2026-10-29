@@ -13,6 +13,7 @@ import {
   Keyboard,
   TouchableWithoutFeedback,
   Alert,
+  Pressable,
 } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,6 +23,7 @@ import { useAuth } from '../../src/context/AuthContext';
 import { getDmMessages, sendDmMessage, DmMessage } from '../../src/services/api';
 import { apiCache } from '../../src/services/apiCache';
 import { colors } from '../../src/theme/colors';
+import ReportReasonSheet from '../../src/components/ReportReasonSheet';
 
 export default function DmConversationScreen() {
   const { id, username, avatar, otherUserId } = useLocalSearchParams<{ id: string; username: string; avatar?: string; otherUserId?: string }>();
@@ -33,6 +35,7 @@ export default function DmConversationScreen() {
   );
   const [newMessage, setNewMessage] = useState('');
   const [canSend, setCanSend] = useState(true);
+  const [reportMsg, setReportMsg] = useState<DmMessage | null>(null);
   const [loading, setLoading] = useState(
     () => !apiCache.getStale(`dm-messages:${id}`)
   );
@@ -136,9 +139,13 @@ export default function DmConversationScreen() {
     const isMe = item.sender_id === user?.id;
     return (
       <View style={[styles.msgRow, isMe && styles.msgRowMe]}>
-        <View style={[styles.msgBubble, isMe ? styles.msgBubbleMe : styles.msgBubbleOther]}>
+        <Pressable
+          style={[styles.msgBubble, isMe ? styles.msgBubbleMe : styles.msgBubbleOther]}
+          onLongPress={isMe ? undefined : () => setReportMsg(item)}
+          disabled={isMe}
+        >
           <Text style={[styles.msgText, isMe ? styles.msgTextMe : styles.msgTextOther]}>{item.text}</Text>
-        </View>
+        </Pressable>
       </View>
     );
   };
@@ -196,6 +203,15 @@ export default function DmConversationScreen() {
             />
           </TouchableWithoutFeedback>
         )}
+
+        <ReportReasonSheet
+          visible={reportMsg !== null}
+          onClose={() => setReportMsg(null)}
+          targetType="message"
+          targetId={reportMsg?.id ?? ''}
+          targetLabel="this message"
+          context={id}
+        />
 
         <View style={[styles.inputRow, { paddingBottom: Platform.OS === 'ios' ? insets.bottom : 8 }]}>
           <TextInput

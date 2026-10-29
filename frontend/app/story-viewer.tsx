@@ -21,6 +21,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Audio } from 'expo-av';
 import { deleteStory, recordStoryView } from '../src/services/api';
 import { consumePendingStories } from '../src/services/pendingStories';
+import ReportReasonSheet from '../src/components/ReportReasonSheet';
 
 interface StorySong {
   deezer_id: number;
@@ -114,6 +115,7 @@ export default function StoryViewerScreen() {
   });
   const [restartKey, setRestartKey] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const progress = useRef(new Animated.Value(0)).current;
   const advanceRef = useRef<() => void>(() => {});
   const dragY = useRef(new Animated.Value(0)).current;
@@ -424,6 +426,12 @@ export default function StoryViewerScreen() {
     );
   };
 
+  const onReportPress = () => {
+    // Keep the story paused while the reason sheet is up.
+    setMenuOpen(false);
+    setReportOpen(true);
+  };
+
   const doDelete = async () => {
     const deletingId = story.id;
     try {
@@ -640,15 +648,13 @@ export default function StoryViewerScreen() {
           </TouchableOpacity>
           <Text style={styles.headerName} numberOfLines={1}>{label}</Text>
           <View style={{ flex: 1 }} />
-          {currentGroup.isOwn && (
-            <TouchableOpacity
-              onPress={openMenu}
-              style={styles.closeBtn}
-              activeOpacity={0.75}
-            >
-              <Ionicons name="ellipsis-horizontal" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            onPress={openMenu}
+            style={styles.closeBtn}
+            activeOpacity={0.75}
+          >
+            <Ionicons name="ellipsis-horizontal" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={() => router.back()}
             style={styles.closeBtn}
@@ -671,17 +677,29 @@ export default function StoryViewerScreen() {
             <TouchableWithoutFeedback onPress={() => {}}>
               <View style={styles.sheetWrap}>
                 <View style={styles.optionsGroup}>
-                  <TouchableOpacity
-                    style={styles.actionRow}
-                    activeOpacity={0.6}
-                    onPress={onDeletePress}
-                  >
-                    <Ionicons name="trash" size={22} color="#FF3B30" />
-                    <Text style={[styles.actionLabel, styles.actionLabelDestructive]}>
-                      Delete Story
-                    </Text>
-                    <View style={styles.actionRowSpacer} />
-                  </TouchableOpacity>
+                  {currentGroup.isOwn ? (
+                    <TouchableOpacity
+                      style={styles.actionRow}
+                      activeOpacity={0.6}
+                      onPress={onDeletePress}
+                    >
+                      <Ionicons name="trash" size={22} color="#FF3B30" />
+                      <Text style={[styles.actionLabel, styles.actionLabelDestructive]}>
+                        Delete Story
+                      </Text>
+                      <View style={styles.actionRowSpacer} />
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.actionRow}
+                      activeOpacity={0.6}
+                      onPress={onReportPress}
+                    >
+                      <Ionicons name="flag-outline" size={22} color="#FFFFFF" />
+                      <Text style={styles.actionLabel}>Report Story</Text>
+                      <View style={styles.actionRowSpacer} />
+                    </TouchableOpacity>
+                  )}
                 </View>
                 <TouchableOpacity
                   style={styles.cancelGroup}
@@ -695,6 +713,18 @@ export default function StoryViewerScreen() {
           </View>
         </TouchableWithoutFeedback>
       </Modal>
+
+      <ReportReasonSheet
+        visible={reportOpen}
+        onClose={() => {
+          setReportOpen(false);
+          resume();
+        }}
+        targetType="story"
+        targetId={story?.id ?? ''}
+        targetLabel="this story"
+        onReported={() => resume()}
+      />
     </View>
   );
 }

@@ -11,6 +11,7 @@ import {
   Platform,
   Keyboard,
   TouchableWithoutFeedback,
+  Pressable,
 } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +21,7 @@ import { useAuth } from '../src/context/AuthContext';
 import { getLeagueMessages, sendLeagueMessage } from '../src/services/api';
 import { apiCache } from '../src/services/apiCache';
 import { colors } from '../src/theme/colors';
+import ReportReasonSheet from '../src/components/ReportReasonSheet';
 
 interface ChatMessage {
   id: string;
@@ -38,6 +40,7 @@ export default function LeagueChatScreen() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [reportMsg, setReportMsg] = useState<ChatMessage | null>(null);
   const chatListRef = useRef<FlatList>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -127,10 +130,14 @@ export default function LeagueChatScreen() {
     const isMe = item.user_id === user?.id;
     return (
       <View style={[styles.msgRow, isMe && styles.msgRowMe]}>
-        <View style={[styles.msgBubble, isMe ? styles.msgBubbleMe : styles.msgBubbleOther]}>
+        <Pressable
+          style={[styles.msgBubble, isMe ? styles.msgBubbleMe : styles.msgBubbleOther]}
+          onLongPress={isMe ? undefined : () => setReportMsg(item)}
+          disabled={isMe}
+        >
           {!isMe && <Text style={styles.msgSender}>{item.display_name || item.username}</Text>}
           <Text style={[styles.msgText, isMe ? styles.msgTextMe : styles.msgTextOther]}>{item.content}</Text>
-        </View>
+        </Pressable>
       </View>
     );
   };
@@ -174,6 +181,15 @@ export default function LeagueChatScreen() {
             />
           </TouchableWithoutFeedback>
         )}
+
+        <ReportReasonSheet
+          visible={reportMsg !== null}
+          onClose={() => setReportMsg(null)}
+          targetType="message"
+          targetId={reportMsg?.id ?? ''}
+          targetLabel="this message"
+          context={leagueId}
+        />
 
         <View style={[styles.inputRow, { paddingBottom: Platform.OS === 'ios' ? insets.bottom : 8 }]}>
           <TextInput

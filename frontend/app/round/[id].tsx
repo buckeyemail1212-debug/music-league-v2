@@ -34,6 +34,7 @@ import { colors } from '../../src/theme/colors';
 import { PreviewPlayButton, stopAllPreviews } from '../../src/components/PreviewPlayButton';
 import LikeButton from '../../src/components/LikeButton';
 import AlbumArt from '../../src/components/AlbumArt';
+import ReportReasonSheet from '../../src/components/ReportReasonSheet';
 import {
   getRound,
   getSubmissions,
@@ -98,6 +99,8 @@ export default function RoundScreen() {
 
   // Expand results modal
   const [showExpandModal, setShowExpandModal] = useState(false);
+  // Submission id being reported (long-press on another user's song).
+  const [reportSubId, setReportSubId] = useState<string | null>(null);
 
   // Computed: user's own submission
   const userSubmission = submissions.find(s => s.user_id === user?.id) || null;
@@ -516,7 +519,11 @@ export default function RoundScreen() {
   // Separate render for locked rankings - uses PreviewPlayButton component
   const renderLockedRankItem = (submission: Submission, rank: number) => {
     return (
-      <View key={submission.id} style={styles.votingCard}>
+      <Pressable
+        key={submission.id}
+        style={styles.votingCard}
+        onLongPress={() => setReportSubId(submission.id)}
+      >
         <AlbumArt uri={submission.song.cover_url} size={48} borderRadius={6} />
         <View style={styles.votingSongInfo}>
           <Text style={styles.songTitle} numberOfLines={1}>{submission.song.title}</Text>
@@ -542,7 +549,7 @@ export default function RoundScreen() {
         <View style={styles.rankBadgeVoted}>
           <Text style={styles.rankNumberVoted}>{rank}{getRankSuffix(rank)}</Text>
         </View>
-      </View>
+      </Pressable>
     );
   };
 
@@ -558,7 +565,10 @@ export default function RoundScreen() {
     const votingLocked = !round?.has_user_submitted;
 
     return (
-      <View style={[styles.votingCard, { zIndex: isDropdownOpen ? 999 : 1 }]}>
+      <Pressable
+        style={[styles.votingCard, { zIndex: isDropdownOpen ? 999 : 1 }]}
+        onLongPress={() => setReportSubId(submission.id)}
+      >
         <AlbumArt uri={submission.song.cover_url} size={48} borderRadius={6} />
         <View style={styles.votingSongInfo}>
           <Text style={styles.songTitle} numberOfLines={1}>{submission.song.title}</Text>
@@ -644,7 +654,7 @@ export default function RoundScreen() {
             <Text style={styles.rankNumberVoted}>{currentRank}{getRankSuffix(currentRank)}</Text>
           </View>
         )}
-      </View>
+      </Pressable>
     );
   };
 
@@ -1258,6 +1268,11 @@ export default function RoundScreen() {
                     index={index}
                     maxPoints={maxPoints}
                     isMe={item.user_id === user?.id}
+                    onLongPress={
+                      item.user_id === user?.id
+                        ? undefined
+                        : () => setReportSubId(item.submission_id)
+                    }
                     onOpenSpotify={() => openInService(item.song, 'spotify')}
                     onOpenApple={() => openInService(item.song, 'apple')}
                     onOpenYoutube={() => openInService(item.song, 'youtube')}
@@ -1655,6 +1670,15 @@ export default function RoundScreen() {
           })()}
         </View>
       </Modal>
+
+      <ReportReasonSheet
+        visible={reportSubId !== null}
+        onClose={() => setReportSubId(null)}
+        targetType="submission"
+        targetId={reportSubId ?? ''}
+        targetLabel="this song"
+        context={round.id}
+      />
     </SafeAreaView>
   );
 }
@@ -1669,6 +1693,7 @@ function ResultsRankRow({
   index,
   maxPoints,
   isMe,
+  onLongPress,
   onOpenSpotify,
   onOpenApple,
   onOpenYoutube,
@@ -1677,6 +1702,7 @@ function ResultsRankRow({
   index: number;
   maxPoints: number;
   isMe: boolean;
+  onLongPress?: () => void;
   onOpenSpotify: () => void;
   onOpenApple: () => void;
   onOpenYoutube: () => void;
@@ -1703,7 +1729,8 @@ function ResultsRankRow({
   });
 
   return (
-    <View
+    <Pressable
+      onLongPress={onLongPress}
       accessible
       accessibilityLabel={`Rank ${item.rank}, ${item.song.title} by ${item.song.artist}, submitted by ${item.username}, ${item.points} points`}
       style={[
@@ -1763,7 +1790,7 @@ function ResultsRankRow({
         />
         <Text style={styles.resultsPoints}>{item.points}</Text>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
