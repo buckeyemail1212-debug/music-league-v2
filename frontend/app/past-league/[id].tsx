@@ -761,6 +761,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+    marginRight: 12,
   },
   memberAvatarImg: { width: 32, height: 32, borderRadius: 16 },
   memberAvatarLetter: { color: colors.textPrimary, fontWeight: '700', fontSize: 13 },
