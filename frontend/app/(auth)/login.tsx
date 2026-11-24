@@ -10,6 +10,7 @@ import {
   Alert,
   ActivityIndicator,
   ScrollView,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -340,8 +341,8 @@ export default function LoginScreen() {
             {isSignup && (
               <Text style={styles.legal}>
                 By creating an account you agree to Riff's{' '}
-                <Text style={styles.legalEmphasis}>Terms</Text> and{' '}
-                <Text style={styles.legalEmphasis}>Privacy Policy</Text>.
+                <Text style={styles.legalEmphasis} onPress={() => Linking.openURL('https://www.theriffapp.com/#terms-of-service')}>Terms</Text> and{' '}
+                <Text style={styles.legalEmphasis} onPress={() => Linking.openURL('https://www.theriffapp.com/#privacy-policy')}>Privacy Policy</Text>.
               </Text>
             )}
 
