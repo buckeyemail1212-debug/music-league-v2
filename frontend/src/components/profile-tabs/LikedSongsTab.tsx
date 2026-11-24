@@ -246,12 +246,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     marginTop: 6,
   },
   artist: {
     fontSize: 11,
-    color: '#B3B3B3',
+    color: colors.textSecondary,
     marginTop: 1,
   },
 
@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   emptyText: {
-    fontSize: 13, color: '#B3B3B3', textAlign: 'center', lineHeight: 19,
+    fontSize: 13, color: colors.textSecondary, textAlign: 'center', lineHeight: 19,
   },
 
   // ── Song detail sheet ──────────────────────────────────────────────

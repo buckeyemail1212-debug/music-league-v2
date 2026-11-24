@@ -215,8 +215,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: { fontSize: 12, fontWeight: '700', color: '#FFFFFF', marginTop: 6 },
-  artist: { fontSize: 11, color: '#B3B3B3', marginTop: 1 },
+  title: { fontSize: 12, fontWeight: '700', color: colors.textPrimary, marginTop: 6 },
+  artist: { fontSize: 11, color: colors.textSecondary, marginTop: 1 },
 
   empty: {
     paddingHorizontal: 24,
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   emptyText: {
-    fontSize: 13, color: '#B3B3B3', textAlign: 'center', lineHeight: 19,
+    fontSize: 13, color: colors.textSecondary, textAlign: 'center', lineHeight: 19,
   },
 
   // ── Song detail sheet ──────────────────────────────────────────────
